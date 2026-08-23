@@ -1072,10 +1072,11 @@
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://www.leg.state.nv.us/nrs/nrs-628.html#NRS628Sec380",
       "secondary_source_url": "https://www.leg.state.nv.us/nac/nac-628.html#NAC628Sec190",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 6,
       "citation": "NRS 628.380(2)",
-      "citation_url": "https://www.leg.state.nv.us/nrs/nrs-628.html#NRS628Sec380"
+      "citation_url": "https://www.leg.state.nv.us/nrs/nrs-628.html#NRS628Sec380",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched NRS 628 directly (leg.state.nv.us). Sec. 628.380(2) confirmed verbatim: 'All permits expire on December 31 of each year and may be renewed annually for a period of 1 year.' Sub. (4) confirms the Board sets a late/penalty fee 'for the renewal of a permit after January 31 of each year' -- corroborating the record's 'no late penalty through January 31' claim. Matches the record exactly. next_deadline_computed (2026-12-31) correct. No data change needed."
     },
     {
       "id": "nv-firm",
