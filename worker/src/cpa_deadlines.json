@@ -629,10 +629,11 @@
       "cycle_description": "Biennial, statewide-synchronized fixed calendar (not birth-month, not license-number cohort). Per Missouri Board rule 20 CSR 2010-2.070(1), licenses are issued for a two-year period beginning October 1 and expiring September 30, renewed biennially. The Board's 2026 Winter newsletter confirms the current cycle: timely renewal window for individual licenses closed September 30, 2025 (late-renewal window ran through December 31, 2025), placing the current cycle at Oct 1, 2025-Sept 30, 2027. CPE is checked on an ANNUAL calendar-year basis (40 hours/year incl. 2 ethics hours) even though the license renews only every two years; Rule 20 CSR 2010-4.010(1)(C) gives a Jan 1-Mar 1 grace period each year to cure the prior year's CPE shortfall.",
       "next_deadline_computed": "2027-09-30",
       "source_url": "https://pr.mo.gov/boards/accountancy/newsletters/2026%20Winter%20MO%20Newsletter.pdf",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "citation": "20 CSR 2010-2.070(1)",
-      "citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf"
+      "citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): confirmed against the same 20 CSR 2010-2 PDF fetched this session for mo-firm (sos.mo.gov). Sec. 2010-2.070(1) confirmed verbatim: 'Licenses shall be issued for a licensing period of two (2) years beginning on October 1 and expiring on September 30 and shall be renewed biennially.' Matches the record's Oct 1-Sept 30 biennial claim exactly, cross-checked against the distinct annual firm cycle (2010-2.072(2), Nov 1-Oct 31) already verified this session. Did not independently re-verify the CPE grace-period claim (20 CSR 2010-4.010(1)(C)) or the Winter newsletter's specific 2025/2027 cycle dates this pass. next_deadline_computed (2027-09-30) consistent with the codified biennial pattern. No data change needed."
     },
     {
       "id": "mo-firm",
