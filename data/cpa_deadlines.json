@@ -526,11 +526,12 @@
       "cycle_description": "Same statutory date as individual licenses: December 15 of each odd-numbered year, biennial. (Some Board materials describe the practical deadline as December 14; December 15 is the codified date we publish.) No separate firm-specific cycle.",
       "next_deadline_computed": "2027-12-15",
       "source_url": "https://dsps.wi.gov/Pages/Professions/AccountingFirm/Default.aspx",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "secondary_source_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
       "citation": "Wis. Stat. § 440.08(2)(a)3.",
-      "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08"
+      "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched Wis. Stat. 440.08(2)(a) directly (docs.legis.wisconsin.gov). Confirmed verbatim: subd. 1 'Accountant, certified public: December 15 of each odd-numbered year' and subd. 3 'Accounting corporation or partnership: December 15 of each odd-numbered year' -- same date, same table, no offset, confirming the record's 'no separate firm-specific cycle' claim. next_deadline_computed (2027-12-15, an odd year) correct as of this check. No data change needed."
     },
     {
       "id": "co-individual",
