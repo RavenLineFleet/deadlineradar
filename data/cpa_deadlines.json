@@ -1503,10 +1503,11 @@
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://cpaboard.wyo.gov/firms/current-firms/firm-permit-renewal",
       "secondary_source_url": "https://cpaboard.wyo.gov/statute-rules",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 7,
       "citation": "W.S. 33-3-120(b)",
-      "citation_url": "https://wyoleg.gov/statutes/compress/title33.pdf"
+      "citation_url": "https://wyoleg.gov/statutes/compress/title33.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched W.S. Title 33 compressed statute PDF directly (wyoleg.gov, 816pp, pdftotext-extracted). Sec. 33-3-120(b) confirmed verbatim: 'All permits shall expire on the last day of December of each year and may be renewed annually for a period of one (1) year.' Matches the record's December 31 annual claim exactly. next_deadline_computed (2026-12-31) correct as of this check. No data change needed."
     },
     {
       "id": "me-all",
