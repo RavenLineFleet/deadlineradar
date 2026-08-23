@@ -1493,10 +1493,11 @@
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://cpaboard.wyo.gov/individuals/current-cpas/individual-renewal",
       "secondary_source_url": "https://cpaboard.wyo.gov/statute-rules",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 7,
       "citation": "W.S. 33-3-109(d)",
-      "citation_url": "https://wyoleg.gov/statutes/compress/title33.pdf"
+      "citation_url": "https://wyoleg.gov/statutes/compress/title33.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): confirmed against the same W.S. Title 33 PDF fetched this session for wy-firm (wyoleg.gov). Sec. 33-3-109(d) confirmed verbatim: 'All certificates shall expire on the last day of December of each year.' Sub. (f) separately confirms the same December 31 date for inactive-status certificates, corroborating the record's 'active and inactive' claim even though only (d) is cited. next_deadline_computed (2026-12-31) correct. No data change needed."
     },
     {
       "id": "wy-firm",
