@@ -896,12 +896,13 @@
       "cycle_description": "Biennial, single fixed schedule for ALL firms (NOT the license-number odd/even split that applies to individual CPA licenses under KRS 325.330(7)(a)). Codified in KRS 325.301(5): the firm license \"shall be renewed on or before August 1 every two (2) years.\" Board practice sets the phase: renewal opens via the online portal in July of EVEN-numbered years. Standard $100 fee (plus portal fees) through August 1; if not renewed by August 1 the license expires and the firm must cease practicing, but may still renew online through September 1 for $200 (plus portal fees) per 201 KAR 1:081 Sec. 7; after September 1 the firm must contact the Board for reinstatement (KRS 325.301(7): a firm whose license has been expired longer than one month \"shall cease operating immediately\"). Cadence and the August 1 date are codified; the even-year phase is stated only on the Board's website (and is corroborated by the 2026 window being open). Unaffected by HB 45 (2026 Ky. Acts ch. 21).",
       "next_deadline_computed": "2028-08-01",
       "source_url": "https://cpa.ky.gov/cpafirms/Pages/InState-Firm-License.aspx",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 5,
       "citation": "KRS 325.301(5) (Firms required to obtain license to practice in Kentucky), effective July 14, 2018; implemented by 201 KAR 1:081 (Firm license, renewal, and reinstatement), Sections 6-7, Cert. eff. 12-2-2022",
       "citation_url": "https://apps.legislature.ky.gov/law/statutes/statute.aspx?id=47505",
       "secondary_source_url": "https://cpa.ky.gov/Documents/2018%20NEWSLETTER.pdf",
-      "citation_class": "codified_law"
+      "citation_class": "codified_law",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched KRS 325.301 directly (the legislature's own statute.aspx endpoint serves the section as a PDF, not HTML). Subd. (5) confirmed verbatim: \"The firm license shall be renewed on or before August 1 every two (2) years.\" Subd. (7)'s quoted \"shall cease operating immediately\" also confirmed verbatim. Cross-checked the record's derived $100/$200 fee figures against subd. (4)(b)/(5)(b)/(6)(b): statute caps the renewal fee at $200 and the late fee at $100 -- $100 standard + $100 late = $200 total through the grace window, consistent with the record's numbers (the record's own citation correctly attributes the specific $200/September 1 figure to 201 KAR 1:081 Sec. 7, not this statute, which was not independently re-fetched this pass). \"Effective July 14, 2018\" also confirmed verbatim in the statute's own History line. No data change needed."
     },
     {
       "id": "ok-individual",
