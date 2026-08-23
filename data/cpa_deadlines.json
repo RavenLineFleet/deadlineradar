@@ -512,11 +512,12 @@
       "cycle_description": "Biennial. Individual CPA licenses renew December 15 of each odd-numbered year, the same statutory date for every licensee -- fixed calendar, not birth-month or cohort-based. (Some Board materials describe the practical deadline as December 14; December 15 is the codified date we publish.) CPE compliance period is the 2-year period immediately preceding renewal (80 credit hours, min 40 formal learning, 3 ethics, at least 20 hours in each 12-month half); no separate CE-reporting deadline apart from the renewal date.",
       "next_deadline_computed": "2027-12-15",
       "source_url": "https://dsps.wi.gov/Pages/Professions/Accountant/Default.aspx",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "secondary_source_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
       "citation": "Wis. Stat. § 440.08(2)(a)1.",
-      "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08"
+      "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
+      "verification_history": "2026-08-23 (spot-check, queue dry): confirmed against the same Wis. Stat. 440.08(2)(a) fetch this session for wi-firm (docs.legis.wisconsin.gov). Subd. 1 confirmed verbatim: 'Accountant, certified public: December 15 of each odd-numbered year.' Matches the record's date exactly. Did not independently re-verify the CPE credit-hour figures (80 hrs/40 formal/3 ethics/20-per-half) this pass -- those live in the CPE rule chapter, not 440.08. next_deadline_computed (2027-12-15, an odd year) correct. No data change needed."
     },
     {
       "id": "wi-firm",
