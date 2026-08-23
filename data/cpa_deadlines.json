@@ -56,11 +56,12 @@
       "cycle_description": "Individual CPA license expires September 30, every 3 years. Current cycle ends 2027-09-30.",
       "next_deadline_computed": "2027-09-30",
       "source_url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 1,
       "secondary_source_url": "https://idfpr.illinois.gov/content/dam/soi/en/web/idfpr/faq/dpr/cpa-cpe-faqs-6-28-18.pdf",
       "citation": "68 Ill. Admin. Code 1420.80(a)",
-      "citation_url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html"
+      "citation_url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched 68 Ill. Admin. Code 1420.80 directly (ilga.gov). Sec. 1420.80(a) confirmed verbatim: 'Every license issued to an individual under the Act shall expire on September 30 every 3 years.' Also cross-checked sub. (b) (firms: November 30 every 3 years, a genuinely different month/cycle) to confirm the individual and firm cycles are not conflated anywhere in this record. Did not independently re-derive the specific 2027 anchor year (not in scope for this pass). No data change needed."
     },
     {
       "id": "il-firm",
