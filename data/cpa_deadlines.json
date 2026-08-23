@@ -1383,10 +1383,11 @@
       "next_deadline_computed": "2027-06-30",
       "source_url": "https://www.ndsba.nd.gov/licensees/cpa-renewal-faq",
       "secondary_source_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 7,
       "citation": "N.D. Admin. Code § 3-02-02-04",
-      "citation_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf"
+      "citation_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): confirmed against the same N.D. Admin. Code ch. 3-02-02 PDF fetched this session for nd-firm (ndlegis.gov). Sec. 3-02-02-04 confirmed verbatim: licensed 'during the period July first through June thirtieth'; late fee applies if not paid 'by June thirtieth'; certificate 'deemed involuntarily relinquished' if not paid by July thirty-first -- matches the record's June 30 due date / July 31 late-fee window / August 1 relinquishment claim exactly. next_deadline_computed (2027-06-30) correct. No data change needed."
     },
     {
       "id": "nd-firm",
