@@ -755,10 +755,11 @@
       "cycle_description": "Same annual, December 31 calendar cycle as individual licenses -- codified in La. Admin. Code tit. 46, Part XIX, § 1501(D)(1): permits 'expire on the last day of each calendar year' (renewals due by Dec 31, delinquent if not renewed before Feb 1). Renewal window opens November 1; a $300 delinquent fee applies after January 31.",
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://cpaboard.state.la.us/cpa-firm-permits/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 5,
       "citation": "La. Admin. Code tit. 46, Pt. XIX, § 1501(D)(1)",
-      "citation_url": "https://cpaboard.state.la.us/wp-content/uploads/2025/03/Board-Rules-May-2023.pdf"
+      "citation_url": "https://cpaboard.state.la.us/wp-content/uploads/2025/03/Board-Rules-May-2023.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched the board's own Board Rules PDF directly and located the real §1501(D)(1) body text (Chapter 15, Firm Permits, not to be confused with the individual-certificate renewal section earlier in the same document, which uses near-identical wording for certificates instead of permits). Confirmed verbatim: \"Permits shall expire on the last day of each calendar year, or such date following December 31 if another date is determined by the board for good cause,\" plus \"renewals are due by December 31, delinquent if not renewed prior to February 1.\" Both match this record's citation exactly. The November 1 window-open and $300 delinquent-fee figures are not stated in this PDF section -- they rest on the board's own source_url page, unchanged from the original check. No data change needed."
     },
     {
       "id": "or-individual",
