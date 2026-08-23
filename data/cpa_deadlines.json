@@ -493,11 +493,12 @@
       "cycle_description": "Annual renewal, same December 31 fixed date as individual licenses, no grace period. Per the Board's own site: 100% of Minnesota-licensed owners of the firm must themselves be individually renewed by March 1 of the following year for the firm permit renewal to be valid.",
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://boa.state.mn.us/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "secondary_source_url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
       "citation": "Minn. Stat. § 326A.05, subd. 2(a)",
-      "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.05"
+      "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched Minn. Stat. Sec. 326A.05 directly (revisor.mn.gov). Subd. 2(a) confirmed verbatim: \"Permits must be initially issued and renewed for periods of not more than one year but in any event must expire on December 31 following issuance or renewal.\" The record's separate claim (100% of MN-licensed owners must be individually renewed by March 1) is correctly attributed in the record to the Board's own site, not this statute -- searched the full statute text and found no March 1 language there, consistent with that sourcing (not independently re-verified against boa.state.mn.us this pass). next_deadline_computed (2026-12-31) correct as of this check. No data change needed."
     },
     {
       "id": "wi-individual",
