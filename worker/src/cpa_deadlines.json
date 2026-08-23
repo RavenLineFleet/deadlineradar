@@ -1394,10 +1394,11 @@
       "next_deadline_computed": "2027-06-30",
       "source_url": "https://www.ndsba.nd.gov/licensees/cpa-renewal-faq",
       "secondary_source_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 7,
       "citation": "N.D. Admin. Code § 3-02-02-04.1",
-      "citation_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf"
+      "citation_url": "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched N.D. Admin. Code ch. 3-02-02 directly (PDF, ndlegis.gov). Sec. 3-02-02-04.1 confirmed: firm permit fee \"may not exceed two hundred dollars\"; late fee applies to a firm that \"fails to register or pay the annual firm permit fee by June thirtieth\"; permit \"deemed involuntarily relinquished\" if not renewed by July thirty-first. The section does not state a bare due date, but the June 30 late-fee trigger (mirroring 3-02-02-04's individual-license July 1-June 30 cycle, stated explicitly in the same chapter) is the same mechanism the record's June 30 due date derives from -- consistent, no contradiction found. next_deadline_computed (2027-06-30) correct as of this check. No data change needed."
     },
     {
       "id": "ak-individual",
