@@ -478,11 +478,12 @@
       "cycle_description": "Annual renewal, same fixed date for every licensee. The Minnesota Board of Accountancy states: 'All CPAs with a status of Active or Inactive, as well as all firms, must renew by December 31 every year' and 'There is no grace period for unlicensed practice or holding out. All licenses and permits expire on December 31 each year.' CPE operates on a separate July 1-June 30 reporting year (20 hrs/year minimum, 120 hrs/rolling 3-year period incl. 8 ethics hours); CPE for the year ending June 30 must be reported to the Board by December 31 of that same year, ahead of the license renewal.",
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://mn.gov/boa/current-licensee/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "secondary_source_url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
       "citation": "Minn. Stat. § 326A.04, subd. 2(a)",
-      "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.04"
+      "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched Minn. Stat. Sec. 326A.04 directly (revisor.mn.gov). Subd. 2(a) confirmed verbatim: \"Certificates must be initially issued and renewed annually but in any event must expire on December 31 in the year prescribed by the board by rule.\" Same December 31 annual mechanism as the firm-permit statute (326A.05, already re-checked this session). The Board's own site language quoted in the record ('no grace period', 'all licenses and permits expire on December 31') and the separate July 1-June 30 CPE reporting year were not independently re-verified this pass (not codified in this section). next_deadline_computed (2026-12-31) correct. No data change needed."
     },
     {
       "id": "mn-firm",
