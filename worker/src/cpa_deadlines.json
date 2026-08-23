@@ -39,11 +39,12 @@
       "cycle_description": "Firm licenses expire December 31 of odd-numbered years (a single cohort, simpler than the individual-license split).",
       "next_deadline_computed": "2027-12-31",
       "source_url": "https://www2.myfloridalicense.com/certified-public-accounting/renewing-and-maintaining-your-license/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 1,
       "citation": "Confirmed via Florida DBPR public CPA license records (cpalicensedata20260709.xlsx, worksheet \"CPA Firms\"): 4,932 of 4,933 active firm licenses show expiration 12/31/2027 -- verified 2026-07-30.",
       "citation_url": "https://www2.myfloridalicense.com/certified-public-accounting/public-records/",
-      "citation_class": "operational_record"
+      "citation_class": "operational_record",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-downloaded the SAME file DBPR still links (cpalicensedata20260709.xlsx -- no newer dataset has been published since the original 2026-07-30 check). Independently re-derived the claim from scratch rather than trusting the citation's own number: the worksheet mixes LICENSE TYPE 0101 (individual) and 0102 (firm) rows despite being named \"CPA Firms\" -- filtering to LICENSE TYPE=0102 + LICENSE STATUS=Current gives exactly 4,933 rows, 4,932 of which show 12/31/2027 and 1 shows 12/31/2029 -- an exact match to the citation. (A naive status-only filter without the LICENSE TYPE narrowing pulls in 40,032 rows split ~55/45 between 2027 and 2026 -- a real methodology trap worth remembering if this record is re-verified again.) No data change; the underlying file is unchanged since the original check."
     },
     {
       "id": "il-individual",
