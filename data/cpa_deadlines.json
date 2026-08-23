@@ -1110,11 +1110,11 @@
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://www.labor.arkansas.gov/wp-content/uploads/Complete-Set-of-Rules-01-31-2024.pdf",
       "secondary_source_url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-504/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 6,
       "citation": "Ark. Code Ann. § 17-12-504(b)",
       "citation_url": "https://labor.arkansas.gov/wp-content/uploads/17CARpt.236-Final.pdf",
-      "verification_history": "2026-08-14 (SRC-1 primary-source repoint): citation_url -> primary; old mirror kept as secondary_source_url. Research agent evidence: Same blocker as ar-individual: no fetchable official host serves Ark. Code Ann. 17-12-504(b) text (Lexis JS container only). The board's official 17 CAR Part 236 set does corroborate annual firm renewal: 'Arkansas registered business entities shall renew their registration on an annual basis. (2) Failure or refusal to provide complete and accurate responses to all questions on the registration renewal by December 31 of each year may be grounds for refusal to renew such registration.' Statutory subsection (b) wording itself unverified."
+      "verification_history": "2026-08-14 (SRC-1 primary-source repoint): citation_url -> primary; old mirror kept as secondary_source_url. Research agent evidence: Same blocker as ar-individual: no fetchable official host serves Ark. Code Ann. 17-12-504(b) text (Lexis JS container only). The board's official 17 CAR Part 236 set does corroborate annual firm renewal: 'Arkansas registered business entities shall renew their registration on an annual basis. (2) Failure or refusal to provide complete and accurate responses to all questions on the registration renewal by December 31 of each year may be grounds for refusal to renew such registration.' Statutory subsection (b) wording itself unverified.\n\n2026-08-23 (spot-check, queue dry): re-fetched the board's 17 CAR Part 236 PDF directly and re-confirmed both quoted sentences verbatim, word-for-word unchanged. Tried FindLaw again for the underlying Ark. Code Ann. 17-12-504(b) statutory text (403, still resists fetchers) -- same honest gap as before, unchanged. No data change; operative fact remains well-corroborated by the board rule."
     },
     {
       "id": "ne-individual",
@@ -1287,10 +1287,11 @@
       "next_deadline_computed": "2026-09-30",
       "source_url": "https://dopl.idaho.gov/boa/",
       "secondary_source_url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 6,
       "citation": "IDAPA 24.30.01 § 211.01",
-      "citation_url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf"
+      "citation_url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched the full IDAPA 24.30.01 rule PDF directly. Section 211.01 confirmed verbatim: \"All firms performing any of the peer reviewable services in Rule 207 annually file a firm registration no later than September 30.\" Section 208.01 also confirmed verbatim: \"A firm that does not perform any of the services in Rule 207 is exempt from peer review. The firm is to notify the Board of such exemption in writing at the time of renewal of its registration.\" Both clauses of this record's cycle_description match the rule text exactly. No change needed."
     },
     {
       "id": "wv-individual",
