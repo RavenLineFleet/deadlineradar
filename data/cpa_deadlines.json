@@ -676,12 +676,12 @@
       "cycle_description": "CPA, PA, and AP licenses expire June 30 of every third year (e.g. 2024, 2027, 2030).",
       "next_deadline_computed": "2027-06-30",
       "source_url": "https://www.in.gov/pla/professions/accountancy-home/accountancy-licensing-information/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 5,
       "secondary_source_url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-6",
       "citation": "872 IAC 1-3-6",
       "citation_url": "https://iar.iga.in.gov/code/2026/872/1",
-      "verification_history": "2026-08-14 (SRC-1 primary-source repoint): citation_url -> primary; old mirror kept as secondary_source_url. Research agent evidence: Official Indiana Administrative Rules site (iar.iga.in.gov, the IAC publisher; the Indiana Board of Accountancy's own PLA page links to https://iar.iga.in.gov/code/2026/872 as its rules source). The /code deep link is a JS-only SPA shell to curl, so I verified the text through that same site's public JSON API (https://drxya2s1hkmtl.cloudfront.net/api/adminCodeArticle?doc_stage=public&edition_year=2026&title_num=872&article_num=1): 872 IAC 1-3-6(a) reads 'Certificates expire on June 30 of every third year, for example, June 30, 1994, and June 30, 1997' -- 1994+3n lands on 2024/2027/2030, and 872 IAC 1-1-10(a)(3) confirms the triennial certificate covers CPAs, PAs, and APs. The 2027 edition text is identical, so no board-vs-aggregator drift."
+      "verification_history": "2026-08-14 (SRC-1 primary-source repoint): citation_url -> primary; old mirror kept as secondary_source_url. Research agent evidence: Official Indiana Administrative Rules site (iar.iga.in.gov, the IAC publisher; the Indiana Board of Accountancy's own PLA page links to https://iar.iga.in.gov/code/2026/872 as its rules source). The /code deep link is a JS-only SPA shell to curl, so I verified the text through that same site's public JSON API (https://drxya2s1hkmtl.cloudfront.net/api/adminCodeArticle?doc_stage=public&edition_year=2026&title_num=872&article_num=1): 872 IAC 1-3-6(a) reads 'Certificates expire on June 30 of every third year, for example, June 30, 1994, and June 30, 1997' -- 1994+3n lands on 2024/2027/2030, and 872 IAC 1-1-10(a)(3) confirms the triennial certificate covers CPAs, PAs, and APs. The 2027 edition text is identical, so no board-vs-aggregator drift.\n\n2026-08-23 (spot-check, queue dry): re-fetched the IAR public API directly (2026 edition, article 872-1) to re-confirm the 2026-08-14 finding still holds. 1-3-6(a) reproduces verbatim: 'Certificates expire on June 30 of every third year, for example, June 30, 1994, and June 30, 1997.' No drift. last_verified synced (was one day behind its own verification_history). No data change needed."
     },
     {
       "id": "in-firm",
