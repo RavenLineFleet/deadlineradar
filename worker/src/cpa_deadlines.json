@@ -744,10 +744,11 @@
       "cycle_description": "Annual renewal, expires December 31 every year -- codified in La. Admin. Code tit. 46, Part XIX, § 1105(B)(1)/(B)(3): certificate holders must renew 'annually ... on or before the last day of December,' and certificates 'expire on the last day of each calendar year' (the Board may set a later date 'for good cause,' per the same section). The Louisiana State Board of CPAs' own page corroborates practically. Renewal window opens November 1; a $200 delinquent fee applies starting February (escalating $50/month through year-end).",
       "next_deadline_computed": "2026-12-31",
       "source_url": "https://cpaboard.state.la.us/cpa-resources/",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 5,
       "citation": "La. Admin. Code tit. 46, Pt. XIX, § 1105(B)",
-      "citation_url": "https://cpaboard.state.la.us/wp-content/uploads/2025/03/Board-Rules-May-2023.pdf"
+      "citation_url": "https://cpaboard.state.la.us/wp-content/uploads/2025/03/Board-Rules-May-2023.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched Louisiana Board Rules (May 2023) PDF directly (cpaboard.state.la.us). Sec. 1105.B.1 confirmed verbatim: 'shall renew his certificate annually during the period for renewal on or before the last day of December'; B.3: 'Certificates expire on the last day of each calendar year, or on a date following December 31, if another date is determined by the board for good cause.' The February 1 delinquent-fee timing (B.7: 'assessed against those...who have not renewed prior to February 1') also matches the record's claim. Did not independently re-verify the specific $200/$50-per-month fee figures against the board's fee schedule this pass. next_deadline_computed (2026-12-31) correct. No data change needed."
     },
     {
       "id": "la-firm",
