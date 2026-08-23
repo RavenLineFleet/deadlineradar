@@ -640,10 +640,11 @@
       "cycle_description": "Annual, statewide-synchronized fixed calendar -- a DIFFERENT cycle than individual licenses. Per Missouri Board rule 20 CSR 2010-2.072(2), firm permits are issued for a one-year period beginning November 1 and expiring October 31, renewed annually. The Board's 2026 Winter newsletter confirms: timely renewal window for firms closed October 31, 2025 (late-renewal window ran through December 31, 2025), placing the current firm-permit cycle at Nov 1, 2025-Oct 31, 2026.",
       "next_deadline_computed": "2026-10-31",
       "source_url": "https://pr.mo.gov/boards/accountancy/newsletters/2026%20Winter%20MO%20Newsletter.pdf",
-      "last_verified": "2026-08-13",
+      "last_verified": "2026-08-23",
       "wave": 4,
       "citation": "20 CSR 2010-2.072(2)",
-      "citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf"
+      "citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched 20 CSR 2010-2 directly (PDF, sos.mo.gov). Sec. 2010-2.072(2) confirmed verbatim: \"Firm permits shall be issued for a period of one (1) year beginning on November 1 and expiring on October 31 and shall be renewed annually.\" Cross-checked against Sec. 2010-2.070(1) (individual licenses: \"issued for a licensing period of two (2) years beginning on October 1 and expiring on September 30\") -- confirms the record's claim that the firm cycle is genuinely different from the individual cycle, not a restatement of it. next_deadline_computed (2026-10-31) correct as of this check. No data change needed."
     },
     {
       "id": "tn-all",
