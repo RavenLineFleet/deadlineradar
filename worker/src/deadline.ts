@@ -28,7 +28,7 @@ export const STALENESS_THRESHOLD_DAYS = 30; // generate.py:701
 // slack -- orchestrator-approved 2026-07-05 design plan.
 export const USER_DEADLINE_MAX_DAYS = 1280;
 
-interface CpaRecord {
+export interface CpaRecord {
   id: string;
   state: string;
   state_slug: string;
@@ -204,9 +204,9 @@ function ageDaysFromAsOf(realToday: Date): number {
  * fail-toward-refusing posture as `ageDaysFromAsOf`'s own unparseable case
  * -- a record with a missing/unparseable `last_verified` counts as
  * infinitely old rather than being silently skipped. */
-function worstRecordAgeDays(realToday: Date): number {
+function worstRecordAgeDays(realToday: Date, records: CpaRecord[] = DATA.records): number {
   let worst = -Infinity;
-  for (const r of DATA.records) {
+  for (const r of records) {
     const verified = new Date(`${r.last_verified}T00:00:00Z`);
     const age = Number.isNaN(verified.getTime())
       ? Infinity
@@ -216,8 +216,31 @@ function worstRecordAgeDays(realToday: Date): number {
   return worst;
 }
 
-function combinedAgeDays(realToday: Date): number {
-  return Math.max(ageDaysFromAsOf(realToday), worstRecordAgeDays(realToday));
+/** AuditLab STALE-6 (LOW, 2026-08-13) fixed the operator EMAIL alert's
+ * subject/instruction so it never spelled out the literal computed number
+ * for this case, but the underlying `ageDays = Infinity` sentinel was still
+ * being interpolated into `checkDataFreshness()`'s own thrown message below
+ * ("reference data is Infinity days old") -- which every consumer of that
+ * message (the email's quoted guard-message body, cron console.log lines,
+ * the /debug/run-reminder-pass JSON response) still showed verbatim, since
+ * they all just pass `err.message` through unchanged. Root-cause fix: name
+ * the actual offending record's id instead of ever interpolating the
+ * numeric age when it is infinite, so no consumer downstream of this single
+ * message-construction site can render "Infinity" again. Returns null when
+ * every record parses fine (the normal case, so callers don't pay for a
+ * second full-array scan on every request). `records` defaults to the real
+ * bundled data; overridable so a test can exercise this branch with a
+ * synthetic bad record instead of ever writing an invalid last_verified
+ * into the actual production dataset just to cover it. */
+function firstUnparseableRecordId(records: CpaRecord[] = DATA.records): string | null {
+  for (const r of records) {
+    if (Number.isNaN(new Date(`${r.last_verified}T00:00:00Z`).getTime())) return r.id;
+  }
+  return null;
+}
+
+function combinedAgeDays(realToday: Date, records: CpaRecord[] = DATA.records): number {
+  return Math.max(ageDaysFromAsOf(realToday), worstRecordAgeDays(realToday, records));
 }
 
 /** scheduler.py:68 `check_data_freshness()`. AuditLab ST-3: an unparseable
@@ -227,8 +250,9 @@ function combinedAgeDays(realToday: Date): number {
  * preship_gate.py's two-copy check both reject malformed input before it
  * reaches the bundled JSON), but this is the one runtime control a
  * data-integrity product has for this, so it must fail toward refusing, not
- * toward silently trusting unknown data. */
-export function checkDataFreshness(realToday: Date): void {
+ * toward silently trusting unknown data. `records` defaults to the real
+ * bundled data; overridable for tests (see firstUnparseableRecordId()). */
+export function checkDataFreshness(realToday: Date, records: CpaRecord[] = DATA.records): void {
   const asOfAgeDays = ageDaysFromAsOf(realToday);
   if (Number.isNaN(asOfAgeDays)) {
     throw new StaleDataError(
@@ -237,7 +261,15 @@ export function checkDataFreshness(realToday: Date): void {
         `(signups and all outbound sends) is paused until it is re-verified.`
     );
   }
-  const ageDays = combinedAgeDays(realToday);
+  const ageDays = combinedAgeDays(realToday, records);
+  if (!Number.isFinite(ageDays)) {
+    const badId = firstUnparseableRecordId(records);
+    throw new StaleDataError(
+      `REFUSING: record "${badId ?? "unknown"}" has a missing or unparseable last_verified date -- ` +
+        `treating as stale rather than trusting data of unknown freshness. Every pass that depends ` +
+        `on this data (signups and all outbound sends) is paused until it is re-verified.`
+    );
+  }
   if (ageDays > STALENESS_THRESHOLD_DAYS) {
     const which = ageDays === asOfAgeDays ? "as_of_date" : "its single oldest record's last_verified date";
     throw new StaleDataError(

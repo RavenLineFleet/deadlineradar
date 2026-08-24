@@ -9,6 +9,7 @@ import {
   nextFixedDateParity,
   StaleDataError,
   STALENESS_THRESHOLD_DAYS,
+  type CpaRecord,
 } from "../src/deadline";
 import cpaDeadlinesData from "../src/cpa_deadlines.json";
 import {
@@ -3964,6 +3965,45 @@ describe("deadlines.ts", () => {
     const bothFresh = new Date(Math.max(asOfTime, oldestLastVerified) + 1 * 86_400_000);
     expect(dataFreshnessInfo(bothFresh).stale).toBe(false);
     expect(() => checkDataFreshness(bothFresh)).not.toThrow();
+  });
+
+  it("AuditLab STALE-6 root cause: a record with an unparseable last_verified is refused by naming the record, never by interpolating the literal string 'Infinity'", () => {
+    // A synthetic bad record, NOT a real one in the shipped dataset (which
+    // preship_gate.py and this same test file's other checks keep clean) --
+    // checkDataFreshness()'s optional `records` param exists specifically so
+    // this branch is testable without ever writing an invalid last_verified
+    // into production data just to exercise it.
+    const goodRecord = cpaDeadlinesData.records[0] as unknown as CpaRecord;
+    const badRecords: CpaRecord[] = [
+      { ...goodRecord, id: "zz-fake-corrupt-record", last_verified: "not-a-real-date" },
+    ];
+    let thrown: unknown;
+    try {
+      checkDataFreshness(new Date("2026-07-05T00:00:00Z"), badRecords);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(StaleDataError);
+    const message = (thrown as Error).message;
+    expect(message).not.toContain("Infinity");
+    expect(message).toContain("zz-fake-corrupt-record");
+    expect(message.toLowerCase()).toContain("unparseable");
+
+    // A missing last_verified (not just a malformed one) hits the same
+    // branch and is named the same way.
+    const missingRecords: CpaRecord[] = [
+      { ...goodRecord, id: "zz-fake-missing-record", last_verified: undefined as unknown as string },
+    ];
+    let thrownMissing: unknown;
+    try {
+      checkDataFreshness(new Date("2026-07-05T00:00:00Z"), missingRecords);
+    } catch (err) {
+      thrownMissing = err;
+    }
+    expect(thrownMissing).toBeInstanceOf(StaleDataError);
+    const missingMessage = (thrownMissing as Error).message;
+    expect(missingMessage).not.toContain("Infinity");
+    expect(missingMessage).toContain("zz-fake-missing-record");
   });
 });
 
