@@ -5808,10 +5808,33 @@ def compute_title_year(state_slug: str, records: list[dict]) -> int | None:
     """Derive the year shown in the title/meta description from the actual
     soonest computed deadline for this state -- never from the generation
     date. Returns None for pages where no single year is meaningful (a
-    birth-month lookup table spans many years by design)."""
+    birth-month lookup table spans many years by design).
+
+    ValueLab pre-outreach walkthrough (2026-08-24): Colorado's title read
+    "...Deadline 2026" while the individual date shown right below it is
+    November 30, 2027 -- min() was taking the soonest year across EVERY
+    record on the page, including firm registration (Colorado's firm date
+    IS 2026), not just the individual license a visitor reads the title as
+    referring to. Missouri had the identical bug for the same reason.
+    Restricted to individual-type records (same _FIRM_ONLY_LICENSE_TYPES
+    filter _primary_individual_date() above already uses, so the title
+    year and the individual date it's paired with in meta_description can
+    never disagree about which record they're describing) -- falls back to
+    considering every record only on the defensive path where a state has
+    no individual-type record with a computed date at all (not expected to
+    fire for any real state today, kept so this never regresses to None
+    silently)."""
     if state_slug == "ohio":
         years = [int(g["next_deadline"][:4]) for r in records for g in r.get("cohort_groups", [])]
         return min(years) if years else None
+    individual_records = [r for r in records if r.get("license_type") not in _FIRM_ONLY_LICENSE_TYPES]
+    years = [
+        date.fromisoformat(r["next_deadline_computed"]).year
+        for r in individual_records
+        if r.get("next_deadline_computed")
+    ]
+    if years:
+        return min(years)
     years = [
         date.fromisoformat(r["next_deadline_computed"]).year
         for r in records
