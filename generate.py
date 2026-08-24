@@ -2024,6 +2024,19 @@ PAGE_CSS = """
      regressed from trusting arithmetic on paper instead. */
   .dr-roster-panel table { width: 100%; min-width: 53rem; table-layout: fixed; }
   .dr-roster-panel td, .dr-roster-panel th { white-space: nowrap; }
+  /* ValueLab #9 (2026-08-24): the nowrap above is right for real tabular
+     data (a column benefits from staying aligned; .table-wrap's own
+     overflow-x:auto + the .dr-scrollable arrow badge already handle a
+     genuinely wide table) -- but #dr-roster-body's own colspan rows are
+     instructional PROSE ("No staff on your roster yet..."), not data, and
+     nowrap just ran that sentence off the fixed-width table with no visual
+     cue a user reading help text would think to scroll for. Needs an ID in
+     the selector to out-specificity the td rule immediately above (a bare
+     class-only override wouldn't win); scoped to this one tbody's colspan
+     cells specifically, not tables in general, so every other table on the
+     site keeps the nowrap/scroll behavior COHORT-1 already fixed for real
+     data. */
+  .dr-roster-panel #dr-roster-body td[colspan] { white-space: normal; }
   .dr-roster-panel th:nth-child(1), .dr-roster-panel td:nth-child(1) { width: 11rem; } /* Staff (name + email stacked) */
   .dr-roster-panel th:nth-child(2), .dr-roster-panel td:nth-child(2) { width: 6rem; }  /* State */
   .dr-roster-panel th:nth-child(3), .dr-roster-panel td:nth-child(3) { width: 7rem; }  /* License type */
