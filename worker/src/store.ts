@@ -1975,6 +1975,96 @@ export async function getDemoFirm(db: D1Database): Promise<FirmRow | null> {
 }
 
 /**
+ * Orchestrator walkthrough finding (2026-08-24): `/for-firms/` embeds a
+ * screenshot of the shared live demo's Roster tab captioned "not a mockup",
+ * showing a populated 5-staff roster -- but the demo is deliberately left
+ * mutable for visitor exploration (roster add/remove is the one class of
+ * mutation `demo_locked` never gates, see handleFirmLicenseCreate()'s own
+ * comment on why: "roster/role changes aren't a data-playground mutation").
+ * A visitor who removes every staffer leaves the NEXT visitor landing on an
+ * empty roster that contradicts the marketing page seconds after they
+ * clicked through from it. This reseeds a small baseline roster ONLY when
+ * the live count has fallen below a floor, and is called from `scheduled()`
+ * on the existing daily cron trigger (not a new one) so the baseline
+ * self-heals without a human noticing the drift first -- same "standing
+ * baseline," not "one-time patch," the finding asked for.
+ *
+ * Uses `addPending()` directly (store-layer only, never the HTTP handler),
+ * so this can never trigger `buildFirmStaffAddedEmail()` -- that send lives
+ * in index.ts's `handleFirmLicenseCreate()` and is never called here.
+ * `skipConfirmation: true` matches how every real admin-added staffer on
+ * this account would land (`demo_locked` firms never see a pending row).
+ *
+ * "Jordan Mitchell" and "Morgan Patel" are deliberately reused as two of the
+ * five names -- both already appear in this account's `activity_log` (the
+ * orchestrator's original finding flagged them as confusing ghosts because
+ * they matched nobody on the empty roster); reinstating them as real,
+ * current roster rows makes the existing audit-trail entries make sense
+ * again instead of adding yet more unrelated names.
+ *
+ * Each of the 5 uses a `license_type_id` explicitly (not a bare state slug)
+ * even for the one single-record state (North Carolina) -- Georgia/
+ * Illinois/Virginia/Missouri all carry BOTH an individual and a firm record
+ * per state, and `computeSubscriberDeadline()` returns null for a
+ * multi-record state with no `license_type_id` (see that function's own
+ * "Fixed-calendar states, possibly with multiple records" comment) --
+ * passing it explicitly for all five is one code path to reason about
+ * rather than a state-count-dependent special case.
+ *
+ * All 5 baseline emails live on the `demo.deadline-radar.com` subdomain
+ * deliberately -- `findActiveOrPending()` below (the same "don't duplicate
+ * an existing row" check `handleFirmLicenseCreate()` uses) is scoped by
+ * `(cooldown_key, state_slug)` only, NOT by `firm_id`. That's fine here
+ * because there is exactly one `demo_locked = 1` firm in production and no
+ * real customer will ever coincidentally sign up on this reserved
+ * subdomain, but a test file exercising more than one demo-locked firm
+ * with these same fixed emails WILL see them collide across firms --
+ * demo-roster-reseed.spec.ts's own `beforeEach` clears `subscribers`
+ * between tests for exactly this reason; found the hard way while writing
+ * it, not a theoretical caveat.
+ */
+const DEMO_ROSTER_FLOOR = 2;
+const DEMO_BASELINE_ROSTER: { email: string; firstName: string; licenseTypeId: string; stateSlug: string }[] = [
+  { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan", licenseTypeId: "il-individual", stateSlug: "illinois" },
+  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan", licenseTypeId: "mo-individual", stateSlug: "missouri" },
+  { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis", licenseTypeId: "ga-individual", stateSlug: "georgia" },
+  { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam", licenseTypeId: "nc-all", stateSlug: "north-carolina" },
+  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor", licenseTypeId: "va-individual", stateSlug: "virginia" },
+];
+
+export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<{ seeded: boolean; count: number }> {
+  const firm = await getDemoFirm(db);
+  if (!firm) return { seeded: false, count: 0 };
+  const currentCount = await countFirmLicenses(db, firm.id);
+  if (currentCount >= DEMO_ROSTER_FLOOR) return { seeded: false, count: currentCount };
+
+  for (const staffer of DEMO_BASELINE_ROSTER) {
+    const existing = await findActiveOrPending(db, staffer.email, staffer.stateSlug);
+    if (existing) continue; // already there (e.g. only some rows were removed) -- don't duplicate
+    const record = await addPending(db, {
+      email: staffer.email,
+      stateSlug: staffer.stateSlug,
+      deadlineFields: { license_type_id: staffer.licenseTypeId },
+      firstName: staffer.firstName,
+      firmId: firm.id,
+      skipConfirmation: true,
+    });
+    try {
+      await logActivity(db, {
+        firmId: firm.id,
+        subscriberId: record.id,
+        staffLabel: record.staff_label,
+        email: record.email,
+        eventType: "added",
+      });
+    } catch {
+      // Best-effort, same posture as the real add-staff handler.
+    }
+  }
+  return { seeded: true, count: await countFirmLicenses(db, firm.id) };
+}
+
+/**
  * Task #3 (2026-08-06, Devin's decision: soft-deactivate immediately + a
  * 30-day hard-delete grace period). Two things happen atomically-in-effect
  * (D1 has no multi-statement transactions from the Workers binding, so this
