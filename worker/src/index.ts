@@ -11490,6 +11490,26 @@ export default {
       })()
     );
 
+    // Orchestrator walkthrough finding (2026-08-24): reseeds the shared
+    // demo firm's roster back to its baseline whenever a visitor's
+    // exploration has emptied it below DEMO_ROSTER_FLOOR -- see
+    // reseedDemoFirmRosterIfBelowFloor()'s own docstring. Deliberately
+    // unrelated to email/SendGrid, same "shares a trigger, not a concern"
+    // posture as the account-deletion pass just above -- must keep working
+    // even in an environment with no SendGrid key configured.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const result = await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+          if (result.seeded) {
+            console.log(`[demo-roster-cron] reseeded shared demo firm, now ${result.count} on roster`);
+          }
+        } catch (err) {
+          console.log(`[demo-roster-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
     // Roadmap #20 (2026-08-08): the Slack digest's own independent pass,
     // deliberately NOT gated on SENDGRID_API_KEY below -- same "unrelated
     // concern that happens to share one cron trigger" reasoning the
