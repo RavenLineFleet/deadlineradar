@@ -7083,7 +7083,11 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
 {search_html}
   <p class="field-hint">Run a whole firm's staff instead?
   <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login" style="font-weight:600;">Try the live demo &rarr;</a>
-  A shared account, seeded with sample staff &mdash; one click, no signup, no credentials to type.</p>
+  <!-- ValueLab #8 (2026-08-24): was "one click" -- the actual flow is an
+       interstitial confirm page plus a "View the demo" button, two clicks.
+       The valuable, true half (no signup, no credentials) stays; dropped
+       the specific count instead of fixing the flow to match a number. -->
+  A shared account, seeded with sample staff &mdash; no signup, no credentials to type -- just click through.</p>
 </div>
 {hero_right_html}
 </div>
@@ -9024,7 +9028,7 @@ Check, and <a href="../rule-changes/">Rule Changes</a> work together on the
 
 <p class="how-it-works"><strong>Want to click around for real instead of screenshots?</strong>
 <a href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login" style="font-weight:600;">Try the live demo &rarr;</a> A shared
-account, seeded with sample staff &mdash; one click, no signup, no credentials to type.</p>
+account, seeded with sample staff &mdash; no signup, no credentials to type -- just click through.</p>
 
 <p><strong>Scope, plainly stated:</strong> the license <em>renewal dates</em> are the part we verify
 against actual state law, the same way we already do for individuals. The dashboard also has a CPE
