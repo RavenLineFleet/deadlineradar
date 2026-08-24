@@ -9265,6 +9265,12 @@ def build_firm_login_page() -> str:
 <div class="dr-auth-view" id="dr-view-signup">
   <h1>Create your firm account</h1>
   <p class="subhead">Free, no time limit, no card required.</p>
+  <!-- ValueLab pre-outreach walkthrough (2026-08-24, finding #7): a visitor
+       arriving via "Get Essentials" (?tier=firm_starter) saw this exact
+       generic subhead with nothing acknowledging their choice registered --
+       populated by this page's own JS below, empty/hidden when no ?tier= is
+       present (the plain free-account path is unchanged). -->
+  <p class="field-hint" id="dr-firmlogin-tier-note" hidden></p>
   <form method="post" action="{REMINDER_BACKEND_BASE_URL}/firm/signup" id="dr-firmlogin-signup-form">
     {_BOT_DEFENSE_FIELDS_HTML_ALT}
     <!-- Roadmap #31 (referral program): populated by this page's own JS
@@ -9281,6 +9287,8 @@ def build_firm_login_page() -> str:
     <input type="email" id="signup-admin-email" name="admin_email" required
     autocomplete="email" placeholder="you@yourfirm.com">
     <p id="dr-firmlogin-signup-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
+    <p class="field-hint">By creating an account, you agree to our <a href="../terms/">Terms of
+    Service</a> and <a href="../privacy/">Privacy Policy</a>.</p>
     <button type="submit">Create firm account</button>
   </form>
   <p class="signup-microcopy" id="dr-firmlogin-signup-ok" hidden>Check your email for a one-time link to finish setting up.</p>
@@ -9434,6 +9442,16 @@ _FIRM_LOGIN_VIEW_JS_HTML = """<script>
   var tierParam = new URLSearchParams(window.location.search).get("tier");
   if (tierParam && ["firm_starter", "firm_growth", "firm_standard", "firm_scale"].indexOf(tierParam) !== -1) {
     try { window.localStorage.setItem("dr_pending_checkout_tier", tierParam); } catch (e) {}
+    // ValueLab #7: acknowledge the tier choice right here, not just silently
+    // via localStorage -- a visitor who clicked "Get Essentials" and landed
+    // on a form that still says "Free, no time limit" with no confirmation
+    // their choice registered has no way to tell it worked.
+    var tierLabels = { firm_starter: "Essentials", firm_growth: "Growth", firm_standard: "Professional", firm_scale: "Enterprise" };
+    var tierNote = document.getElementById("dr-firmlogin-tier-note");
+    if (tierNote && tierLabels[tierParam]) {
+      tierNote.textContent = "You selected the " + tierLabels[tierParam] + " plan. Create your account below, then continue to checkout.";
+      tierNote.hidden = false;
+    }
   }
 
   // Task #33 (2026-08-06): public demo link (/firm-login/?demo=1) pre-fills
