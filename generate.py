@@ -15717,9 +15717,16 @@ function drLoadLicenses() {
       // let the shared view-time evaluator pick the face. Server emits it
       // hidden with an empty data-verified because build time can't know
       // this firm's data_as_of.
+      //
+      // ValueLab #11 (2026-08-24): data_as_of is a site-wide freshness
+      // date, present on every load regardless of roster content -- the
+      // seal unhid unconditionally, so an empty roster ("Add staff to your
+      // roster to generate a report") still showed a green "VERIFIED
+      // SOURCE" stamp on a report with nothing in it to verify. Only show
+      // it once there's an actual report the seal is a claim about.
       (function () {
         var seal = document.querySelector('.dr-seal--report');
-        if (!seal || !data.data_as_of) return;
+        if (!seal || !data.data_as_of || drLicenses.length === 0) return;
         var iso = String(data.data_as_of).slice(0, 10);
         seal.setAttribute('data-verified', iso);
         var d = new Date(iso + 'T00:00:00');
