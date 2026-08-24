@@ -18279,6 +18279,18 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
         individual = [r for r in records if r.get("license_type") not in _FIRM_ONLY_LICENSE_TYPES]
         if not individual:
             continue
+        # ValueLab pre-outreach walkthrough (2026-08-24, finding #3): this
+        # widget answers the INDIVIDUAL license question only (by design,
+        # see the module docstring), but a state whose page also carries a
+        # firm-registration record (Colorado's is 7 days out at the time of
+        # that report) got a calculator answer that silently said nothing
+        # about it -- a firm admin reading "due Nov 2027" reasonably
+        # concludes there's nothing to do sooner. `has_firm_deadline` lets
+        # the client JS append a one-line cross-reference to the state's
+        # full page rather than staying silent about a real second clock.
+        has_firm_deadline = any(
+            r.get("license_type") in _FIRM_ONLY_LICENSE_TYPES and r.get("next_deadline_computed") for r in records
+        )
         if slug == "california":
             out[slug] = {
                 "label": state_name,
@@ -18287,6 +18299,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                     {"odd": r["odd_birth_year_next_deadline"], "even": r["even_birth_year_next_deadline"]}
                     for r in ca_table
                 ],
+                "has_firm_deadline": has_firm_deadline,
             }
             continue
         if slug == "texas":
@@ -18294,6 +18307,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "tx",
                 "months": [r["next_deadline"] for r in tx_table],
+                "has_firm_deadline": has_firm_deadline,
             }
             continue
         primary_date = _primary_individual_date(records)
@@ -18302,6 +18316,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "computed",
                 "date": fmt_date(date.fromisoformat(primary_date)),
+                "has_firm_deadline": has_firm_deadline,
             }
             continue
         cohort_record = next((r for r in individual if r.get("cohort_groups")), None)
@@ -18313,6 +18328,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                     {"group": g["group"], "date": fmt_date(date.fromisoformat(g["next_deadline"]))}
                     for g in cohort_record["cohort_groups"]
                 ],
+                "has_firm_deadline": has_firm_deadline,
             }
             continue
         gap_record = individual[0]
@@ -18325,7 +18341,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "We can't auto-compute this one from public data alone -- check your license "
                 "certificate or the state board directly for your exact date."
             )
-        out[slug] = {"label": state_name, "kind": "gap", "note": note}
+        out[slug] = {"label": state_name, "kind": "gap", "note": note, "has_firm_deadline": has_firm_deadline}
     return out
 
 
@@ -18345,7 +18361,16 @@ _DEADLINE_CALC_JS = """
 
   function showResult(text, slug, label) {
     result.hidden = false;
-    result.innerHTML = '<p>' + text + '</p><p><a href="../' + slug + '/">See the full ' + label +
+    var entry = DR_CALC_DATA[slug];
+    // ValueLab #3: this calculator answers the individual-license question
+    // only -- a state that also carries a firm-registration deadline (a
+    // genuinely different clock) gets an explicit pointer to the full page
+    // instead of silently saying nothing about it.
+    var firmNote = (entry && entry.has_firm_deadline)
+      ? '<p class="field-hint">This is your individual license date. Your firm\\u2019s own ' +
+        'registration renews on a different clock \\u2014 see the full ' + label + ' page below.</p>'
+      : '';
+    result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="../' + slug + '/">See the full ' + label +
       ' page &amp; set up a free reminder &rarr;</a></p>';
   }
 
