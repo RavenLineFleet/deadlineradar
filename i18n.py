@@ -348,14 +348,16 @@ EN: dict[str, str] = {
     "calc.answer_no_public_rule": "No public rule ties this to a knowable input — the calculator says so, honestly",
     "calc.h2_how_it_works": "How this actually works",
     "calc.how_it_works_body": (
-        "Picking your state above looks itself up in the exact same dataset that state's own page "
-        "renders from — there's no second, different formula running here. Most states resolve "
-        "to one plain date immediately. States whose rule depends on a personal fact — your "
-        "birth month, or which cohort group your license falls in — ask for that fact before "
-        "answering, using the exact same inputs that state's own rule actually uses. Either way, "
-        "the date you get is never estimated or guessed — if we can't confirm it against a "
-        "primary source, the calculator says so instead of showing a number, same as the Florida "
-        "row above."
+        "Picking your state above looks up your individual license date in the exact same "
+        "dataset that state's own page renders from — there's no second, different formula "
+        "running here. Most states resolve to one plain date immediately. States whose rule "
+        "depends on a personal fact — your birth month, or which cohort group your license "
+        "falls in — ask for that fact before answering, using the exact same inputs that "
+        "state's own rule actually uses. Either way, the date you get is never estimated or "
+        "guessed — if we can't confirm it against a primary source, the calculator says so "
+        "instead of showing a number, same as the Florida row above. A state whose firm "
+        "registration renews on a separate clock from the individual license gets a pointer to "
+        "that state's full page — the calculator above answers the individual question only."
     ),
     "calc.prefer_browse": "Prefer to browse a state's full page directly instead of using the calculator above?",
     "calc.h2_faq": "Frequently asked",
