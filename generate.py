@@ -12698,13 +12698,28 @@ function drToggleCancellation(cancel, btn) {
 // a confirm-click, not an auto-redirect straight to Stripe -- landing on an
 // external payment page with no visible action on THIS page would be a
 // worse surprise than one extra click.
-function drCheckPendingCheckoutTier() {
+//
+// ValueLab pre-outreach walkthrough (2026-08-24, finding #4): localStorage
+// is keyed to the BROWSER, not the account -- clicking "Get Essentials"
+// while signed OUT, then signing into a DIFFERENT account already on a
+// higher tier (the shared demo, or any other paid account on the same
+// browser profile), showed "upgrade to Essentials" on an account already
+// on Professional -- a downgrade offered as an upgrade. `currentTier`
+// (the CALLER's own already-fetched plan_tier, same value drBilling.planTier
+// is set from) lets this check whether the parked tier is still genuinely
+// ABOVE where this specific signed-in account already sits before ever
+// rendering the banner; DR_PLAN_TIER_LABELS' own key order IS the tier
+// order (Essentials < Growth < Professional < Enterprise), so no separate
+// ranking table to keep in sync.
+function drCheckPendingCheckoutTier(currentTier) {
   var tier;
   try { tier = window.localStorage.getItem('dr_pending_checkout_tier'); } catch (e) { return; }
   if (!tier) return;
   try { window.localStorage.removeItem('dr_pending_checkout_tier'); } catch (e) {}
   var label = DR_PLAN_TIER_LABELS[tier];
   if (!label) return;
+  var tierOrder = Object.keys(DR_PLAN_TIER_LABELS);
+  if (tierOrder.indexOf(tier) <= tierOrder.indexOf(currentTier)) return;
   var el = document.getElementById('dr-resume-checkout-banner');
   if (!el) return;
   el.innerHTML = '';
@@ -15661,7 +15676,7 @@ function drLoadLicenses() {
       drRenderFirmName(data.firm_name);
       drRenderCurrentEmail(data.admin_email);
       drRenderStalenessBanner(data.data_as_of, data.data_stale);
-      drCheckPendingCheckoutTier();
+      drCheckPendingCheckoutTier(drBilling.planTier);
       // Engraved seal on the Reports tab (2026-08-14): stamp the seal with
       // the dataset's as-of date, fill both faces' date text, unhide, and
       // let the shared view-time evaluator pick the face. Server emits it
