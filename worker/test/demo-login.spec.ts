@@ -171,6 +171,20 @@ describe("POST /firm/demo-login -- redeem", () => {
     expect(resp.headers.get("Set-Cookie")).toBeNull();
   });
 
+  it("ValueLab #5: a CSRF failure on this route shows demo-appropriate copy, not the email-link message shared with the other two login routes", async () => {
+    await makeDemoFirm("copy");
+    const resp = await SELF.fetch(`${BASE}/firm/demo-login`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.207" },
+      body: form({}),
+      redirect: "manual",
+    });
+    expect(resp.status).toBe(400);
+    const text = await resp.text();
+    expect(text).toContain("Live Demo");
+    expect(text).not.toContain("sign-in link from your email");
+  });
+
   it("when no demo firm exists, returns 404 rather than crashing or granting any session", async () => {
     // No makeDemoFirm() call -- this test's own isolated D1 snapshot has no
     // demo_locked=1 row at all (per-test storage isolation, same as every
