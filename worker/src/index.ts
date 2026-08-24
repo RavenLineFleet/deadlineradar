@@ -9203,10 +9203,20 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         if (csrfRequired && !actionCsrfOk(request, url.pathname, formNonce)) {
           // Deliberately does NOT consume the login token -- a victim hit by
           // this must still be able to use their own link afterwards.
+          //
+          // ValueLab pre-outreach walkthrough (2026-08-24, finding #5): this
+          // copy is shared across all three ACTION_CSRF_REQUIRED_PATHS, but
+          // "open the sign-in link from your email again" is nonsensical for
+          // /firm/demo-login -- a demo visitor never received an email or a
+          // link to reopen. Branches the one path that has no email/token at
+          // all onto its own copy; /firm/login/verify and
+          // /subscriber/login/verify are untouched.
           return errorPage(
             400,
-            "That sign-in couldn't be completed. Please open the sign-in link from your email " +
-              "again and use the button on that page."
+            url.pathname === "/firm/demo-login"
+              ? "That didn't go through -- please click \"Live Demo\" again to try once more."
+              : "That sign-in couldn't be completed. Please open the sign-in link from your email " +
+                  "again and use the button on that page."
           );
         }
         try {
