@@ -2580,6 +2580,21 @@ async function handleDemoLogin(env: Env, ip: string): Promise<Response> {
   if (!firm) {
     return errorPage(404, "The live demo isn't set up right now. Sorry about that -- get in touch and we'll help you look around another way.");
   }
+  // AuditLab residual on the ValueLab P0 fix (2026-08-24): the daily cron
+  // (see scheduled()) self-heals an emptied roster, but only once every 24h
+  // -- a visitor who empties it mid-day leaves the NEXT visitor looking at
+  // an empty dashboard for up to a day. Checked (and, cheaply, usually
+  // no-op'd) on every demo login instead, so the very next visitor after an
+  // empty-out sees a populated roster immediately rather than waiting for
+  // the next cron tick. Awaited, not ctx.waitUntil()'d -- the whole point
+  // is that the dashboard this redirect sends them to is already populated
+  // by the time it loads, not populated some indeterminate time later.
+  // Best-effort: a failure here must not block the demo login itself.
+  try {
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+  } catch {
+    // Non-fatal -- the daily cron will still catch it eventually.
+  }
   const { rawSessionToken } = await store.createSession(env.DB, firm.id);
   return new Response(null, {
     status: 302,

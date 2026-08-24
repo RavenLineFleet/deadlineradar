@@ -27,6 +27,19 @@ const BASE = "https://deadline-radar.com";
 // makeDemoFirm() itself, explicitly.
 beforeEach(async () => {
   await env.DB.prepare(`UPDATE firms SET demo_locked = 0 WHERE demo_locked = 1`).run();
+  // demo-roster-reseed.spec.ts's own beforeEach found (the hard way) that
+  // findActiveOrPending() -- reused by store.reseedDemoFirmRosterIfBelowFloor(),
+  // which handleDemoLogin() now calls on every login -- dedupes by
+  // (cooldown_key, state_slug) only, NOT firm_id. Harmless in production
+  // (exactly one demo_locked=1 firm ever exists), but this file's own
+  // "reseeds on login" test uses the SAME fixed baseline emails every run,
+  // so a leftover row from an earlier test's firm (this file's storage is
+  // only isolated per FILE, not per test, per the comment above) would make
+  // reseedDemoFirmRosterIfBelowFloor() think a baseline member already
+  // exists and skip adding it to the NEW firm the current test actually
+  // checks.
+  await env.DB.prepare(`DELETE FROM subscribers`).run();
+  await env.DB.prepare(`DELETE FROM activity_log`).run();
   // Same reasoning: RATE_LIMIT_FIRM_DEMO_LOGIN_GLOBAL is keyed on a fixed
   // string (there is only one demo account), not per-IP -- an earlier
   // test's successful redeems would otherwise silently eat into a later
@@ -116,6 +129,29 @@ describe("POST /firm/demo-login -- redeem", () => {
     // And the cookie actually works end to end against an authenticated route.
     const dashboardResp = await SELF.fetch(`${BASE}/firm/licenses`, { headers: { Cookie: sessionCookie } });
     expect(dashboardResp.status).toBe(200);
+  });
+
+  it("AuditLab residual on ValueLab P0: a login against an emptied demo roster reseeds it BEFORE the redirect, not on the next daily cron tick", async () => {
+    const demoFirmId = await makeDemoFirm("reseed-on-login");
+    expect(await store.countFirmLicenses(env.DB, demoFirmId)).toBe(0);
+    const rendered = await renderDemoLogin("203.0.113.208");
+
+    const resp = await SELF.fetch(`${BASE}/firm/demo-login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "cf-connecting-ip": "203.0.113.208",
+        Cookie: rendered.cookie,
+      },
+      body: form({ action_csrf: rendered.nonce }),
+      redirect: "manual",
+    });
+
+    expect(resp.status).toBe(302);
+    // The reseed is awaited inside the handler, so it must already be done
+    // by the time this response comes back -- not merely scheduled for
+    // later via ctx.waitUntil(), which a same-request check couldn't prove.
+    expect(await store.countFirmLicenses(env.DB, demoFirmId)).toBeGreaterThanOrEqual(5);
   });
 
   it("a bare cross-site POST with no nonce is refused, no session granted", async () => {
