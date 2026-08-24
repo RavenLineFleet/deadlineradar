@@ -7052,7 +7052,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <div class="hfc-date">{esc(fmt_date(d))}</div>
   </div>
   <div class="hfc-footer">
-    {_cite_chip_html(r, max_chars=44)}
+    {_cite_chip_html(r, max_chars=48)}
     <span class="verified">{_VERIFIED_ICON_SVG}{esc(hfc_verified_text.replace("Confirmed at source", "Confirmed").replace("Confirmed via official records", "Confirmed"))}</span>
   </div>
 </div>""")
@@ -11252,6 +11252,20 @@ function drRosterDeadlineCellAttrs(iso) {
 // ---------------------------------------------------------------------------
 var drSampleModeActive = false;
 
+// ValueLab #10 (2026-08-24): sample mode was in-memory only. This dashboard
+// is a set of separate page loads, not an SPA -- navigating to Practice
+// Privilege Check and back is a full reload, so drSampleModeActive silently
+// reset to false and a visitor who'd opted into the sample preview landed
+// back on the empty-roster state with no indication anything had changed.
+// sessionStorage (not localStorage -- nothing here is worth remembering
+// across a closed browser/tab) records the visitor's own choice to preview
+// sample data, so drLoadLicenses() below can re-enter it automatically when
+// the real roster is still genuinely empty.
+var DR_SAMPLE_MODE_SESSION_KEY = 'dr_sample_mode_active';
+function drSampleModePreferredThisSession() {
+  try { return sessionStorage.getItem(DR_SAMPLE_MODE_SESSION_KEY) === '1'; } catch (e) { return false; }
+}
+
 function drIsoDateFromNow(offsetDays) {
   var d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
@@ -11307,6 +11321,7 @@ function drRenderAllViews() {
 
 function drEnterSampleMode() {
   drSampleModeActive = true;
+  try { sessionStorage.setItem(DR_SAMPLE_MODE_SESSION_KEY, '1'); } catch (e) {}
   drLicenses = drBuildSampleLicenses();
   drCpeEntries = drBuildSampleCpeEntries();
   var banner = document.getElementById('dr-sample-mode-banner');
@@ -11321,6 +11336,7 @@ function drEnterSampleMode() {
 
 function drExitSampleMode() {
   drSampleModeActive = false;
+  try { sessionStorage.removeItem(DR_SAMPLE_MODE_SESSION_KEY); } catch (e) {}
   drLicenses = [];
   drCpeEntries = [];
   var banner = document.getElementById('dr-sample-mode-banner');
@@ -14259,7 +14275,14 @@ function drLoadCpeEntries() {
       return res.json();
     })
     .then(function(data) {
-      if (data) { drCpeEntriesLoadFailed = false; drCpeEntries = data.entries || []; }
+      if (data) {
+        drCpeEntriesLoadFailed = false;
+        // ValueLab #10 companion: don't let the real (genuinely empty) CPE
+        // response overwrite the sample entries drEnterSampleMode() just
+        // set moments ago in drLoadLicenses() above -- same "sample survives
+        // until there's real data to replace it" rule.
+        if (!drSampleModeActive) drCpeEntries = data.entries || [];
+      }
       else if (!drCpeEntriesLoadFailed) return; // 401 -- navigating away, nothing to render
       drRenderCpeStaffSelect();
       drRenderCpeSummary();
@@ -15686,6 +15709,14 @@ function drLoadLicenses() {
         if (samplePrintNotice) samplePrintNotice.hidden = true;
       }
       drLicenses = data.licenses || [];
+      // ValueLab #10: the real roster is still genuinely empty and this
+      // visitor had opted into the sample preview earlier this session --
+      // restore it instead of leaving them back on the empty state. If the
+      // real roster is non-empty, real data already won via the reset block
+      // above and this never fires.
+      if (drLicenses.length === 0 && drSampleModePreferredThisSession()) {
+        drEnterSampleMode();
+      }
       drPreviousLoginAt = data.previous_login_at || null;
       drNpsPromptDue = Boolean(data.nps_prompt_due);
       drSeatCap = typeof data.seat_cap === 'number' ? data.seat_cap : null;
