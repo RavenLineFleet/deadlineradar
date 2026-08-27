@@ -4224,10 +4224,16 @@ def print_deployed_rule_change_staleness_advisory(repo_root: Path) -> None:
     except (OSError, json.JSONDecodeError):
         return
     today_iso = date.today().isoformat()
+    # AuditLab DET-1 (2026-08-27): the runtime this detector shadows treats
+    # an event whose effective_date IS today as already not-upcoming
+    # (isStillUpcoming compares strictly >), so `<` here left the detector
+    # blind on exactly the day the drift starts -- an event effective today
+    # would read PASS while already emailing wrong at runtime. `<=` matches
+    # the runtime's own boundary.
     stale = [
         e for e in events
         if e.get("kind") == "rule_change" and e.get("upcoming") is True
-        and e.get("effective_date") and e["effective_date"] < today_iso
+        and e.get("effective_date") and e["effective_date"] <= today_iso
     ]
     print("\n--- deployed-rule-change-staleness advisory (does not affect gate exit code) ---")
     if not stale:

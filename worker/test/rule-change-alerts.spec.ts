@@ -304,26 +304,36 @@ describe("isEmailableRuleChangeEvent() -- AuditLab ALERT-1", () => {
     };
   }
 
+  // AuditLab TEST-6 (2026-08-27): isEmailableRuleChangeEvent's new `today`
+  // param defaults to real `new Date()` -- these assertions called it
+  // without one, so they silently started resolving against real time
+  // (previously inert, since `upcoming: true` was trusted unconditionally).
+  // baseEvent()'s hardcoded "2027-01-01" would have flipped this whole
+  // block to failing on that date, the exact stale-fixture class this same
+  // commit fixed for REAL_EVENT_ID above. A fixed `today` makes these
+  // permanently time-independent instead of postponing the fuse.
+  const FIXED_TODAY = new Date("2026-08-27T00:00:00Z");
+
   it("emails a real ENACTED, fully-reverified, upcoming rule change", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
-    expect(isEmailableRuleChangeEvent(baseEvent())).toBe(true);
+    expect(isEmailableRuleChangeEvent(baseEvent(), FIXED_TODAY)).toBe(true);
   });
 
   it("does NOT email a future event flagged needs_reverification -- the exact Louisiana shape, but upcoming", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
-    expect(isEmailableRuleChangeEvent(baseEvent({ needs_reverification: true }))).toBe(false);
+    expect(isEmailableRuleChangeEvent(baseEvent({ needs_reverification: true }), FIXED_TODAY)).toBe(false);
   });
 
   it("does NOT email a PROPOSED (not yet ENACTED) rule with a future effective date -- the exact Idaho shape, but upcoming", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
-    expect(isEmailableRuleChangeEvent(baseEvent({ status: "PROPOSED" }))).toBe(false);
+    expect(isEmailableRuleChangeEvent(baseEvent({ status: "PROPOSED" }), FIXED_TODAY)).toBe(false);
   });
 
   it("still excludes source_conflict/non-upcoming/missing-date, unchanged from before this fix", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
-    expect(isEmailableRuleChangeEvent(baseEvent({ kind: "source_conflict" }))).toBe(false);
-    expect(isEmailableRuleChangeEvent(baseEvent({ upcoming: false }))).toBe(false);
-    expect(isEmailableRuleChangeEvent(baseEvent({ effective_date: "" }))).toBe(false);
+    expect(isEmailableRuleChangeEvent(baseEvent({ kind: "source_conflict" }), FIXED_TODAY)).toBe(false);
+    expect(isEmailableRuleChangeEvent(baseEvent({ upcoming: false }), FIXED_TODAY)).toBe(false);
+    expect(isEmailableRuleChangeEvent(baseEvent({ effective_date: "" }), FIXED_TODAY)).toBe(false);
   });
 
   // AuditLab REGEN-8 (2026-08-26): `upcoming` is a boolean baked into the
