@@ -862,6 +862,16 @@ PAGE_CSS = """
     background: var(--accent); color: var(--on-accent); font-weight: 600;
     text-decoration: none; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
   }
+  /* AuditLab A11Y-14 (LOW, 2026-08-27): <main> needs tabindex="-1" (set in
+     page_shell()) to be a valid focus target -- an href="#id" reliably
+     scrolls everywhere, but only moves actual keyboard focus in engines
+     that update the sequential-navigation starting point. Without it, the
+     skip link silently does nothing for a keyboard user on the one browser
+     family where that doesn't hold. tabindex="-1" keeps <main> out of the
+     normal tab order (it's a landmark, not a control) while still being a
+     legal focus() target; suppress the focus ring here so a mouse click
+     that happens to land in main doesn't outline the whole content region. */
+  main:focus { outline: none; }
   /* Roadmap #41: programmatic grouping for the reminder-cadence checkboxes
      via <fieldset>/<legend> (the legend itself is visually-hidden -- the
      panel's own <h2> already labels it for sighted users). Reset default
@@ -4430,7 +4440,7 @@ def page_shell(
 <body>
 <a href="#main" class="dr-skip-link">{esc(_t("a11y.skip_to_content", lang))}</a>
 {site_header(home_href, hide_signin=hide_signin, has_remind_anchor=has_remind_anchor, sticky_top_nav=sticky_top_nav, lang=lang)}
-<main id="main">
+<main id="main" tabindex="-1">
 {body}
 </main>
 {site_footer(lang=lang)}
