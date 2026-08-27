@@ -40,7 +40,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "NJ's codified rule (N.J.A.C. 13:29-1.7(b)) states each license renews for three years from that licensee's own last expiration date -- a rolling, individualized cycle, not one shared calendar date for every licensee. (An earlier version of this note incorrectly asserted a fixed December 31 cycle; that figure traced only to two secondary sources -- njcpa.org and NASBA -- that this record's own prior research had already flagged as insufficient to publish as fact. Corrected 2026-08-18.) We have not yet found the rule governing where a licensee's very first renewal period starts, so we can't compute your exact date from this alone. Confirm your exact expiration on your license certificate or with the New Jersey State Board of Accountancy.",
+      "note": "New Jersey's individual license renews three years from your own last expiration date -- a rolling, individualized cycle, not one shared calendar date for every licensee. We haven't yet confirmed the rule governing when a first-ever renewal period starts, so we can't compute your exact date from this alone. Confirm your exact expiration on your license certificate or with the New Jersey State Board of Accountancy.",
       "is_block_claim": false
     },
     {
@@ -58,7 +58,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "UPGRADED 2026-08-19 (was previously treated as genuinely unresolvable -- that framing was too pessimistic, see below): this is NOT a board-assigned-opaque split like Michigan/Ohio. The Board's own reinstatement-guidance page confirms a license stays on its assigned parity (odd or even) permanently once set, renewing every 2 years on that same parity -- a fixed structure, not arbitrary. What is NOT yet independently confirmed by an explicit statutory/regulatory sentence is the exact rule for which parity a brand-new license starts on. The Board's own FAQ publishes a first-renewal CPE-proration table (80/70/60/50 hours depending on issuance quarter: Jul-Sep/Oct-Dec/Jan-Mar/Apr-Jun) that reconciles almost exactly (each quarter's implied month-count rounds to the nearest 10 CPE hours at the stated 80hrs/24mo rate) with a 'first renewal = the second June 30 strictly after issuance' rule -- the same shape as Florida's confirmed 'third June 30' mechanism, just N=2 instead of N=3. This is a strong numerical fit across all 4 independent data points from an official Board table, but it is an INFERENCE from a CPE-hours proration table, not a statute/regulation explicitly stating the expiration-date rule itself (unlike Florida, where the 'third June 30' language is directly in the codified rule text) -- so we are not shipping a computed date on this basis alone. Confirm your own renewal year on your license, with the board (617-701-8635, accountingboard@mass.gov), or via the eLIPSE portal rather than relying on a computed date here.",
+      "note": "Massachusetts individual licenses renew every 2 years on a fixed odd- or even-year parity, permanently set once assigned -- not an arbitrary board-assigned split. We haven't yet independently confirmed which parity a brand-new license starts on, so we can't compute your exact date. Confirm your renewal year on your license, with the Board (617-701-8635, accountingboard@mass.gov), or via the eLIPSE portal.",
       "is_block_claim": false
     },
     {
@@ -67,7 +67,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "UPGRADED 2026-08-19 (was previously treated as genuinely unresolvable): same correction as the individual record -- this is NOT board-assigned-opaque, it is a fixed-June-30/persistent-parity structure (see the individual license record's own sourcing note for the full reasoning, including the CPE-proration-table evidence). No firm-specific CPE-proration table was found to independently test the 'second June 30 following issuance' hypothesis for firms the way the individual record's table did -- confidence here is inherited from the individual record's near-identical statute text, not independently tested. Not shipping a computed date on this basis. Confirm your own renewal year with the board (617-701-8635, accountingboard@mass.gov) or via eLIPSE.",
+      "note": "Massachusetts firm permits renew every 2 years on a fixed odd- or even-year parity, permanently set once assigned -- the same structure as individual licenses. We haven't yet independently confirmed which parity a brand-new firm permit starts on, so we can't compute your exact date. Confirm your renewal year with the Board (617-701-8635, accountingboard@mass.gov) or via the eLIPSE portal.",
       "is_block_claim": false
     },
     {
@@ -76,7 +76,7 @@
       "state": "Maryland",
       "state_slug": "maryland",
       "field": "data_gap_note",
-      "note": "This record previously stated the Board's \"fixed personal anniversary date\" framing as settled fact -- corrected 2026-08-18. That framing traces to a Board renewal-guidance page dated \"Updated May 2, 2016,\" and the CURRENT statute (2-311(a)(2), this record's own cited primary source) instead establishes a single shared December 31 date recurring only in even-numbered years -- a different mechanism than a personal month/day anniversary. We have not yet confirmed which one is actually in effect today: the Board's 2016 page could be simply stale, or the statute's staggering provision (2-311(e)) could still be validly in force and just undocumented on a current page. (Separately, and unrelated to that correction: an earlier drafted detail claiming reminder notices are sent at 60/45/30/15/5 days before expiration was checked directly against the source page, found NOT stated there, and removed rather than shipped unverified.) Confirm your exact expiration date on your license certificate or with the Maryland Board of Public Accountancy.",
+      "note": "Maryland's renewal mechanism isn't fully settled between sources: some Board guidance describes a personal anniversary date, while the current statute describes a single shared December 31 date recurring only in even-numbered years, and we haven't confirmed which is actually in effect today. Confirm your exact expiration date on your license certificate or with the Maryland Board of Public Accountancy.",
       "is_block_claim": false
     },
     {

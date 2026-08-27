@@ -222,6 +222,31 @@ _PROSE_INTERNAL_NAME_RE = re.compile(
 # this site refers to itself by an internal tracker's finding ID.
 _PROSE_FINDING_ID_RE = re.compile(r"\b[A-Z]{2,10}-\d{1,4}\b")
 
+# LEAK-2 (AuditLab, 2026-08-27) + the Florida deadline-calculator bug it
+# shares a root cause with (orchestrator, same night): a maintainer note
+# written to document a CORRECTION to the data itself -- self-critique,
+# "was previously X, now Y", cross-references to other states' records --
+# reaching a reader as if it were an explanation of THEIR renewal rule.
+# Distinct from GATE-1's shapes above: this isn't a mechanical token
+# (snake_case, a tracker ID, a bare ISO date) but a recognizable NARRATIVE
+# register no legitimate reader-facing sentence on this site ever uses --
+# a visitor is never told the site's own research history, only the rule
+# itself and where to confirm it (see Michigan/New York/Tennessee's
+# data_gap_note for what correct looks like). Every phrase below is a
+# literal substring pulled from a real leaked instance, not a guess.
+_PROSE_EDITORIAL_HISTORY_RE = re.compile(
+    r"\bpreviously (?:stated|treated|listed|described|assumed)\b"
+    r"|\ban? earlier (?:version|draft|entry) of this\b"
+    r"|\b(?:was|is now|got) corrected\b"
+    r"|\bcorrected \d{4}-\d{2}-\d{2}\b"
+    r"|\brecovery review\b"
+    r"|\bUPGRADED \d{4}-\d{2}-\d{2}\b"
+    r"|\bincorrectly (?:asserted|stated|claimed)\b"
+    r"|\bthat framing was (?:too|not)\b"
+    r"|\bthis record'?s own (?:prior|earlier)\b",
+    re.IGNORECASE,
+)
+
 # Tokens that are legitimately part of reader-facing prose. Keep this SHORT
 # and justified per entry -- an unexplained entry defeats the whole point.
 _PROSE_SNAKE_CASE_ALLOWLIST: dict[str, str] = {
@@ -308,6 +333,73 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
                 f"...{snippet}... (looks like an AuditLab/AssetLab tracker ID pasted into copy; "
                 f"reword in plain English or, if it's a genuine citation, allowlist WITH a reason)"
             )
+        for m in _PROSE_EDITORIAL_HISTORY_RE.finditer(prose):
+            snippet = prose[max(0, m.start() - 60): m.end() + 90].replace("\n", " ").strip()
+            errors.append(
+                f"[SHAPE][{f}] internal editorial-history phrasing '{m.group(0)}' in rendered "
+                f"prose -- ...{snippet}... (a maintainer note about a CORRECTION to this data "
+                f"reached the reader instead of the rule itself -- see LEAK-2, 2026-08-27; rewrite "
+                f"as a plain explanation of the rule + where to confirm it, move the correction "
+                f"history to verification_history)"
+            )
+    return errors
+
+
+# The Florida deadline-calculator bug (orchestrator, 2026-08-27): `computation.note`
+# leaked as customer-facing text through the /deadline-calculator/ widget's
+# 'gap' fallback -- invisible to check_prose_leak_shapes() above because
+# `_extract_rendered_prose()` deliberately strips <script> blocks wholesale
+# (correctly, for ordinary JS -- but DR_CALC_DATA is a JSON blob of reader
+# text embedded IN a <script> tag, not code). Any future record whose gap
+# note is internal-editorial (LEAK-2's shape) would sail through the prose
+# scanner the same way for this exact reason. Parses the actual JSON blob
+# and runs the same editorial-history/finding-ID fingerprints against every
+# entry's `note` field specifically -- narrow on purpose: DR_CALC_DATA is
+# the one proven JSON-in-script customer-text vector today, and a whole-
+# script scan would false-positive on ordinary JS identifiers/comments.
+_CALC_DATA_RE = re.compile(r"DR_CALC_DATA=(\{.*?\});var DR_CALC_AS_OF", re.DOTALL)
+# The shipped blob is JS-minified (unquoted identifier-safe object keys,
+# e.g. `florida:{label:...`), NOT valid JSON, so json.loads() can't parse
+# it -- confirmed empirically against the real built file, not assumed.
+# Rather than reverse-minify, extract each `note:"..."` STRING VALUE
+# directly (a JS double-quoted string, backslash-escaped) and fingerprint
+# its content the same way -- simpler and robust to however the minifier
+# happens to format everything else.
+_CALC_DATA_NOTE_VALUE_RE = re.compile(r'note:"((?:[^"\\]|\\.)*)"')
+
+
+def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> list[str]:
+    calc_files = [f for f in html_files if f.name == "index.html" and f.parent.name == "deadline-calculator"]
+    if not calc_files:
+        return ["[SHAPE] no docs/deadline-calculator/index.html found to check -- has the page moved or been renamed?"]
+    errors: list[str] = []
+    for f in calc_files:
+        html_text = f.read_text(encoding="utf-8")
+        m = _CALC_DATA_RE.search(html_text)
+        if not m:
+            errors.append(f"[SHAPE][{f}] could not locate the DR_CALC_DATA blob -- widget markup changed, update this check's regex")
+            continue
+        blob = m.group(1)
+        note_values = _CALC_DATA_NOTE_VALUE_RE.findall(blob)
+        if not note_values:
+            errors.append(f"[SHAPE][{f}] found the DR_CALC_DATA blob but zero note:\"...\" values in it -- widget data shape changed, update this check's regex (a silent zero here would hide every future leak)")
+            continue
+        for note_js in note_values:
+            note = note_js.encode().decode("unicode_escape")  # undo the JS-string \" / \\ escaping
+            for pat, label in (
+                (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+            ):
+                pm = pat.search(note)
+                if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                    snippet = note[max(0, pm.start() - 60): pm.end() + 90].strip()
+                    errors.append(
+                        f"[SHAPE][{f}] {label} '{pm.group(0)}' in a DR_CALC_DATA note field -- "
+                        f"...{snippet}... (this JSON blob is invisible to check_prose_leak_shapes()'s "
+                        f"<script>-stripping prose scan -- see this function's own docstring)"
+                    )
     return errors
 
 
@@ -4372,6 +4464,7 @@ def main():
     all_errors += check_copy_hygiene(html_files)
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
+    all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
