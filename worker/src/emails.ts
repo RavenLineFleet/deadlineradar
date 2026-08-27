@@ -1292,11 +1292,21 @@ export function buildRuleChangeAdminAlertEmail(
   // asserted the same claim with the label stripped off. Carried through
   // verbatim (raw confidence string, e.g. "dual_source"/"single_source"),
   // same "unverified" fallback the dashboard's own JS uses.
-  confidenceLabel: string = "unverified"
+  confidenceLabel: string = "unverified",
+  // AuditLab ALERT-3 (2026-08-26): this subject/body hardcoded "mobility"/
+  // "practice-privilege" framing from when this feed was mobility-only.
+  // Now that REGEN-3 withholds every mobility record, 100% of emailable
+  // events are DiffLab regwatch events (topic "CPA regulatory/statutory
+  // change" or similar) -- most aren't mobility changes at all, so the
+  // hardcoded wording was actively wrong ("New Missouri mobility rule
+  // change" about a firm-permit statute). Same "jurisdiction -- topic"
+  // pairing buildNewsletterDigestEmail() already uses, same fallback
+  // scheduler.ts:2203 already uses for a missing topic.
+  topic: string = "practice/license rule change"
 ): BuiltEmail {
   const addr = mailingAddress();
   const safeFirmName = firmName.replace(/[\r\n]+/g, " ");
-  const subject = `New ${jurisdiction} mobility rule change affects your roster`;
+  const subject = `New ${jurisdiction} rule change affects your roster`;
   // UX-11 (2026-08-21): was `subject` verbatim -- effectiveDateLabel,
   // summary, and confidenceLabel are all already in scope and carry the
   // actual content, which the subject only gestures at.
@@ -1305,7 +1315,7 @@ export function buildRuleChangeAdminAlertEmail(
   const citationLine = citationUrl ? `Source: ${citationUrl}\n\n` : "";
   const textBody =
     `${safeFirmName},\n\n` +
-    `A new practice-privilege rule change was just added for ${jurisdiction} -- your roster has ` +
+    `A new rule change (${topic}) was just added for ${jurisdiction} -- your roster has ` +
     `staff licensed there, so it may be worth a look.\n\n` +
     `Effective ${effectiveDateLabel} (confidence: ${confidenceLabel}):\n${summary}\n\n` +
     citationLine +
@@ -1322,7 +1332,7 @@ export function buildRuleChangeAdminAlertEmail(
     `<h1 class="dr-fg" style="margin:0 0 16px;font-size:19px;font-weight:700;color:${LIGHT.fg};">` +
       `New ${esc(jurisdiction)} rule change affects your roster</h1>` +
       p(
-        `${esc(safeFirmName)}, a new practice-privilege rule change was just added for ` +
+        `${esc(safeFirmName)}, a new rule change (${esc(topic)}) was just added for ` +
           `${esc(jurisdiction)} -- your roster has staff licensed there, so it may be worth a look.`
       ) +
       p(

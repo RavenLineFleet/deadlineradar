@@ -941,7 +941,8 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
           calendarUrl,
           accountSettingsUrl,
           adminUnsubscribeUrl(env, firm.admin_unsubscribe_token, "rule-change"),
-          event.confidence || "unverified"
+          event.confidence || "unverified",
+          event.topic || "practice/license rule change"
         );
 
         const ok = await send(firm.admin_email, built);
