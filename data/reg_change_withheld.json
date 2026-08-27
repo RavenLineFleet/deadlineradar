@@ -2,7 +2,7 @@
   "_meta": {
     "purpose": "Jurisdictions NOT published to the changes feed, and why. A WORK QUEUE.",
     "policy": "Orchestrator 2026-08-02: withhold rather than guess a charter status; 40 well-labelled items beat 55 with some mislabelled. Tracked here so held-back items get resolved rather than silently forgotten.",
-    "as_of": "2026-08-06"
+    "as_of": "2026-08-26"
   },
   "withheld": [
     {
@@ -33,12 +33,30 @@
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
+      "jurisdiction_slug": "colorado",
+      "jurisdiction": "Colorado",
+      "status": "UNDETERMINED",
+      "reason": "rule_changes_on=2026-08-12 is in the past and last_changed_on is absent -- ambiguous under the 2026-08-02 schema split; may be a consummated change or a stale forward value",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
+    },
+    {
       "jurisdiction_slug": "connecticut",
       "jurisdiction": "Connecticut",
       "status": "UNDETERMINED",
       "reason": "rule_changes_on=2025-10-01 is in the past and last_changed_on is absent -- ambiguous under the 2026-08-02 schema split; may be a consummated change or a stale forward value",
       "has_citation_url": true,
       "confidence": "dual_source",
+      "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
+    },
+    {
+      "jurisdiction_slug": "dc",
+      "jurisdiction": "District of Columbia",
+      "status": "UNDETERMINED",
+      "reason": "rule_changes_on=2026-08-10 is in the past and last_changed_on is absent -- ambiguous under the 2026-08-02 schema split; may be a consummated change or a stale forward value",
+      "has_citation_url": true,
+      "confidence": "single_source",
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
