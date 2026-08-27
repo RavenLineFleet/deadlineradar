@@ -66,31 +66,29 @@ def _exe(name: str) -> str:
 # different format for the same hierarchy (caught by running this script for
 # real against the full suite before trusting it: the first version of this
 # list used the console's " > " separator and every failure came back
-# "UNEXPECTED" because fullName joins with a plain space instead). Seen in
-# isolation and under full-suite load; the shared root cause is real
-# load/timing sensitivity (sequential rate-limit-bucket exhaustion, tight
-# per-test timeouts), not a defect in the assertions -- see each test's own
-# inline comment for detail.
+# "UNEXPECTED" because fullName joins with a plain space instead).
+#
+# AuditLab TEST-9 (2026-08-27): this list originally also carried
+# "sign-out-other-devices ... PER SESSION" and demo-login's "MANY DIFFERENT
+# IPs" cap test -- both real sequential-HTTP+D1 tests, but both still on
+# vitest's 5s default timeout, never given the explicit timeout the CPE
+# tests below already have for the identical reason. Pinning them as
+# "known-flaky" would have permanently silenced a real future regression in
+# either (a genuine intermittent defect would ALSO read as "a recognized
+# flake"). Gave both an explicit 20s timeout instead (see their own inline
+# comments in worker.spec.ts / demo-login.spec.ts) and removed them here --
+# the repo's own established remedy, not accepted noise. Only re-pin either
+# if it still flakes at 20s, which would then be real evidence.
+#
+# The two CPE tests below are the only entries that have actually earned
+# their place here: each already carries an explicit 20s/30s timeout (10x
+# and 100x the work of the two removed above) and still flakes under
+# full-suite load -- their load-sensitivity is established, not assumed.
 KNOWN_FLAKY_TESTS = {
     "GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD blocks the 101st CPE entry "
     "from the same firm within the daily window (own rate-limit bucket)",
     "GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD blocks the 101st CPE-entry "
     "DELETE from the same firm within the daily window",
-    # Added 2026-08-27, first occurrence: this script's own TEST-7/TEST-8 fix
-    # run flagged it as UNEXPECTED (never seen failing in the 4 prior full
-    # runs that seeded this list). Same shape as the two CPE tests above --
-    # 11 sequential real HTTP+D1 round trips (demo-login.spec.ts's
-    # fullDemoLogin()) asserting an exact rate-limit-cap boundary within
-    # vitest's default per-test timeout. Passed 14/14 in isolation
-    # immediately after; no commit that night touched rate-limiting,
-    # demo-login, or IP handling. Added on that evidence, not on a single
-    # failure alone -- flagged to AuditLab for independent corroboration
-    # the same way every other addition to this file has been tonight.
-    "POST /firm/demo-login -- global rate limit (adversarial-review fix) allows up to "
-    "the cap across MANY DIFFERENT IPs, then 429s -- proving this is account-wide, "
-    "not per-IP",
-    "POST /firm/sign-out-other-devices rate-limits PER SESSION, not per firm -- "
-    "one session's budget can't 429 a different session of the same firm",
 }
 
 # AuditLab TEST-7 (2026-08-27): without a floor, a report that collected ZERO

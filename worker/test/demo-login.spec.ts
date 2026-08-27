@@ -278,6 +278,12 @@ async function fullDemoLogin(ip: string): Promise<Response> {
 
 describe("POST /firm/demo-login -- global rate limit (adversarial-review fix)", () => {
   it("allows up to the cap across MANY DIFFERENT IPs, then 429s -- proving this is account-wide, not per-IP", async () => {
+    // AuditLab TEST-9 (2026-08-27): 11 real sequential HTTP+D1 round trips
+    // (full render+redeem each) genuinely runs long under full-suite
+    // contention -- explicit timeout, same remedy as worker.spec.ts's CPE
+    // rate-limit tests. Previously flaked at vitest's 5s default and got
+    // pinned as "known-flaky" in scripts/run_worker_tests.py on its first
+    // observed failure; fixing the actual cause instead.
     await makeDemoFirm("ratecap");
     const results: number[] = [];
     for (let i = 0; i < 11; i++) {
@@ -286,7 +292,7 @@ describe("POST /firm/demo-login -- global rate limit (adversarial-review fix)", 
     }
     expect(results.slice(0, 10).every((s) => s === 302)).toBe(true);
     expect(results[10]).toBe(429);
-  });
+  }, 20000);
 });
 
 describe("POST /firm/demo-login -- per-IP rate limit (AuditLab DEMO-6)", () => {
