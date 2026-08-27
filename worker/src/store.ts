@@ -2024,12 +2024,31 @@ export async function getDemoFirm(db: D1Database): Promise<FirmRow | null> {
  * it, not a theoretical caveat.
  */
 const DEMO_ROSTER_FLOOR = 2;
+// AuditLab DEMO-10 (2026-08-27): the original 5 rows all had real deadlines
+// 300+ days out, so the demo dashboard's at-risk view, due-within-30-days
+// count, and coverage rank were empty by construction -- guaranteed, not
+// this week's luck -- until mid-2027. A prospect clicking "Live Demo" saw a
+// product with nothing to do, while the OTHER demo path (drBuildSampleLicenses(),
+// generate.py) deliberately ships an overdue + a due-soon row for exactly
+// this reason. Swapped two rows to real near-term records from the same
+// sourced dataset that drives every other page -- no fabricated dates, kept
+// each person's name/email (the audit-trail-continuity fix, DEMO-1) intact,
+// only changed which license they're tracking. co-firm (2026-08-31, 4 days
+// at filing) was deliberately NOT used -- it rolls to 2029-08-31 the very
+// next day, per AuditLab's own explicit caveat.
+//
+// AuditLab's stated caveat, not yet built: any fixed pick decays as dates
+// roll (id-firm/me-all stop being "due soon" ~2026-10-04; mo-firm stops
+// ~2026-11-05) -- same stale-fixture class as TEST-6/STALE-11. Deriving
+// this roster by proximity-to-deadline at reseed time, rather than
+// hardcoding specific states, is the durable fix; flagged as real
+// follow-up work, not built here.
 const DEMO_BASELINE_ROSTER: { email: string; firstName: string; licenseTypeId: string; stateSlug: string }[] = [
   { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan", licenseTypeId: "il-individual", stateSlug: "illinois" },
-  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan", licenseTypeId: "mo-individual", stateSlug: "missouri" },
+  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan", licenseTypeId: "mo-firm", stateSlug: "missouri" },
   { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis", licenseTypeId: "ga-individual", stateSlug: "georgia" },
   { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam", licenseTypeId: "nc-all", stateSlug: "north-carolina" },
-  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor", licenseTypeId: "va-individual", stateSlug: "virginia" },
+  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor", licenseTypeId: "me-all", stateSlug: "maine" },
 ];
 
 export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<{ seeded: boolean; count: number }> {
