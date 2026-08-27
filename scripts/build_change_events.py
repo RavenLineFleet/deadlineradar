@@ -405,6 +405,53 @@ def withheld_queue(today: date) -> list[dict]:
     return sorted(out, key=lambda x: x["jurisdiction_slug"])
 
 
+def _report_pending_clobber(new_events: list[dict]) -> None:
+    """AuditLab REGEN-2 addendum (2026-08-27): this generator is write-only
+    -- it never reads its own prior output, so any hand-correction made
+    directly in data/reg_change_events.json (rather than upstream in
+    mobility_rules.json or a DiffLab event file) survives only until the
+    next run. That's exactly how 4950497b7 silently reverted a 10-day-old
+    fix to a reported Massachusetts/Indiana defect (e09525b84) -- nobody
+    saw it happen until the live site was already wrong.
+
+    Making the generator itself read-modify-write would fix this, but
+    AuditLab's point is sharper: the check that would have caught it is
+    much cheaper than that redesign. Diff the freshly-built event set
+    against whatever's already on disk, BEFORE overwriting it, and print
+    anything that would be silently removed, added, or field-changed. A
+    clean diff means no hand-edit is sitting in the blast radius; a dirty
+    one is the loud warning that was missing on 2026-08-26."""
+    if not OUT.is_file():
+        return
+    try:
+        old_events = {e["event_id"]: e for e in json.loads(OUT.read_text(encoding="utf-8")).get("events", [])}
+    except (OSError, json.JSONDecodeError, KeyError):
+        print("  (pending-clobber check skipped -- existing data/reg_change_events.json unreadable)")
+        return
+    new_by_id = {e["event_id"]: e for e in new_events}
+    removed = sorted(set(old_events) - set(new_by_id))
+    added = sorted(set(new_by_id) - set(old_events))
+    changed = []
+    for event_id in sorted(set(old_events) & set(new_by_id)):
+        old_e, new_e = old_events[event_id], new_by_id[event_id]
+        drifted_fields = sorted(k for k in (set(old_e) | set(new_e)) if old_e.get(k) != new_e.get(k))
+        if drifted_fields:
+            changed.append((event_id, drifted_fields))
+    if not removed and not added and not changed:
+        print("  pending-clobber check: clean -- this run matches what's already on disk, no hand-edit at risk.")
+        return
+    print("  pending-clobber check: this run WOULD CHANGE the committed file --")
+    if removed:
+        print(f"    would REMOVE {len(removed)} event(s): {', '.join(removed)}")
+    if added:
+        print(f"    would ADD {len(added)} event(s): {', '.join(added)}")
+    for event_id, fields in changed:
+        print(f"    would change {event_id}: {', '.join(fields)}")
+    print("  If any of the above is a hand-correction made directly in data/reg_change_events.json "
+          "(not upstream in mobility_rules.json or a DiffLab event file), it will be lost -- move the "
+          "fix upstream before re-running, or confirm the change is intentional.")
+
+
 def main() -> int:
     today = date.today()
     mobility_events, rejected, _ = build(today)
@@ -431,6 +478,8 @@ def main() -> int:
     recent = [e for e in changes if not e.get("upcoming")]
     conflicts = [e for e in events if e["kind"] == KIND_CONFLICT]
     difflab_live = [e for e in changes if e.get("source") == "difflab_reg_change_engine"]
+
+    _report_pending_clobber(events)
 
     OUT.write_text(json.dumps({
         "_meta": {
