@@ -231,13 +231,38 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 "status": "SOURCE_CONFLICT",
                 "needs_reverification": False,
             })
+        elif not r.get("status"):
+            # AuditLab REGEN-1/REGEN-3 (2026-08-26): every record in this
+            # dataset lacks a `status` key (mobility_rules.json predates the
+            # DiffLab schema and never carries one), so the old `r.get(
+            # "status") or "ENACTED"` fallback fired unconditionally --
+            # published Massachusetts and Indiana as ENACTED law with a
+            # 2027-01-01 effective date while their own flux_note says
+            # neither has actually been enacted (MA: bill sitting in House
+            # committee; IN: mobility statute unchanged since 2007). A
+            # missing field is not evidence of enactment -- charter forbids
+            # asserting a status the data doesn't support, same rule that
+            # already governs the past-dated/no-last_changed_on withhold
+            # above. Withhold instead of guessing.
+            withheld_ambiguous.append({
+                "jurisdiction_slug": slug,
+                "jurisdiction": r.get("state") or slug,
+                "status": "UNDETERMINED",
+                "reason": (f"rule_in_flux with a determinable date ({id_date}) but no explicit "
+                           "`status` field in mobility_rules.json -- withheld rather than "
+                           "defaulting to ENACTED with no basis"),
+                "has_citation_url": bool(citation_url),
+                "confidence": r.get("confidence"),
+                "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / "
+                               "DIED) added to this record in worker/src/mobility_rules.json, "
+                               "sourced the same way DiffLab's regwatch events are",
+            })
+            continue
         else:
             base.update({
                 "kind": KIND_CHANGE,
                 "effective_date": parsed.isoformat(),
-                # Emitted natively by ScoutLab/DiffLab from 2026-08-02; falls
-                # back to ENACTED only when the record predates that change.
-                "status": r.get("status") or "ENACTED",
+                "status": r.get("status"),
                 "status_evidence": r.get("status_evidence"),
                 "status_source_url": _http(r.get("status_source_url")),
                 "upcoming": parsed > today,
