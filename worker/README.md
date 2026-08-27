@@ -63,6 +63,12 @@ commit. "Working" here means: builds, typechecks, and passes its own test
 suite against a real D1 schema under Miniflare -- it does NOT mean deployed,
 see the deployment-gap section below, which is still fully true.
 
+Before shipping, prefer `python ../scripts/run_worker_tests.py` over a bare
+`npm test`/`npx vitest run` -- same suite, but it separates the handful of
+known-flaky timing-sensitive tests (see the script's own `KNOWN_FLAKY_TESTS`)
+from a genuinely new failure, which a raw pass/fail count can't do on its
+own (AuditLab, 2026-08-27).
+
 ## Schema provenance
 
 `migrations/0001_init_schema.sql` is a direct port of the subscriber record

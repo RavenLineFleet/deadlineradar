@@ -36,7 +36,9 @@ Usage:
 Exit 0: every failure (if any) is a known flake, or there were no failures.
 Exit 1: at least one failure is NOT in KNOWN_FLAKY_TESTS -- investigate it
         before assuming it's "the same as always."
-Exit 2: vitest itself could not be run or its JSON output could not be read.
+Exit 2: vitest itself could not be run, its JSON output could not be read, it
+        collected suspiciously few tests, or it exited non-zero with no
+        parsed failures to explain why.
 """
 
 from __future__ import annotations
@@ -74,9 +76,33 @@ KNOWN_FLAKY_TESTS = {
     "from the same firm within the daily window (own rate-limit bucket)",
     "GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD blocks the 101st CPE-entry "
     "DELETE from the same firm within the daily window",
+    # Added 2026-08-27, first occurrence: this script's own TEST-7/TEST-8 fix
+    # run flagged it as UNEXPECTED (never seen failing in the 4 prior full
+    # runs that seeded this list). Same shape as the two CPE tests above --
+    # 11 sequential real HTTP+D1 round trips (demo-login.spec.ts's
+    # fullDemoLogin()) asserting an exact rate-limit-cap boundary within
+    # vitest's default per-test timeout. Passed 14/14 in isolation
+    # immediately after; no commit that night touched rate-limiting,
+    # demo-login, or IP handling. Added on that evidence, not on a single
+    # failure alone -- flagged to AuditLab for independent corroboration
+    # the same way every other addition to this file has been tonight.
+    "POST /firm/demo-login -- global rate limit (adversarial-review fix) allows up to "
+    "the cap across MANY DIFFERENT IPs, then 429s -- proving this is account-wide, "
+    "not per-IP",
     "POST /firm/sign-out-other-devices rate-limits PER SESSION, not per firm -- "
     "one session's budget can't 429 a different session of the same firm",
 }
+
+# AuditLab TEST-7 (2026-08-27): without a floor, a report that collected ZERO
+# tests (a config error, a bad glob, a crash after the report file was
+# opened) has `numTotalTests: 0` and an empty `testResults` -- `if not
+# failed` reads that as a clean PASS. That is the loudest possible "something
+# new" and the one case this script must not wave through. Set well below
+# the real suite size (~2,300 as of 2026-08-27) so ordinary growth/removal of
+# a handful of tests never trips it, but a near-total collection failure
+# always does. Bump this if the suite's real size ever drops near it for a
+# legitimate reason (a large deliberate test removal).
+MIN_EXPECTED_TESTS = 1000
 
 
 def run(worker_dir: Path) -> int:
@@ -99,18 +125,48 @@ def run(worker_dir: Path) -> int:
             print("\n".join(proc.stderr.splitlines()[-40:]))
             return 2
 
-    failed = [
-        a
-        for suite in result.get("testResults", [])
-        for a in suite.get("assertionResults", [])
-        if a.get("status") not in ("passed", "pending", "skipped", "todo")
-    ]
+    all_assertions = [a for suite in result.get("testResults", []) for a in suite.get("assertionResults", [])]
+    failed = [a for a in all_assertions if a.get("status") not in ("passed", "pending", "skipped", "todo")]
 
-    total = result.get("numTotalTests", "?")
-    print(f"vitest: {result.get('numPassedTests', '?')}/{total} passed, {len(failed)} failed")
+    total = result.get("numTotalTests", 0)
+    print(f"vitest: {result.get('numPassedTests', '?')}/{total or '?'} passed, {len(failed)} failed")
+
+    # TEST-7: a suspiciously small total is the loudest possible "something
+    # new" and must never read as a clean pass, regardless of `failed`.
+    if total < MIN_EXPECTED_TESTS:
+        print(
+            f"\nREFUSING: only {total} total tests collected, below the expected floor of "
+            f"{MIN_EXPECTED_TESTS} -- this looks like a broken test collection (config error, bad "
+            f"glob, crash after the report opened), not a clean run. Investigate before trusting "
+            f"any pass/fail result from this invocation."
+        )
+        return 2
+    # A non-zero vitest exit with nothing parsed as a failure means something
+    # went wrong outside the normal per-test failure path (e.g. a setup/
+    # teardown crash) -- don't let that read as success either.
+    if proc.returncode != 0 and not failed:
+        print(
+            f"\nREFUSING: vitest exited {proc.returncode} but the JSON report shows no failed "
+            f"tests -- something went wrong outside a normal test failure. vitest stderr tail:"
+        )
+        print("\n".join(proc.stderr.splitlines()[-40:]))
+        return 2
+
+    # TEST-8: a pinned name that matched nothing in this run's full test list
+    # (not just "didn't fail" -- a flaky test legitimately passes most runs)
+    # means the entry has decayed -- the test was renamed, moved, or deleted
+    # and the list stopped being a true record. Advisory only: doesn't affect
+    # the exit code, since a rename is a normal refactor, not a build defect.
+    seen_names = {a.get("fullName") for a in all_assertions}
+    decayed = sorted(KNOWN_FLAKY_TESTS - seen_names)
+    if decayed:
+        print(f"\nADVISORY: {len(decayed)} KNOWN_FLAKY_TESTS entry(ies) matched no test in this run "
+              f"(renamed/moved/deleted?) -- update the pinned list so it stays a true record:")
+        for name in decayed:
+            print(f"  - {name}")
 
     if not failed:
-        print("PASS -- no failures.")
+        print("\nPASS -- no failures.")
         return 0
 
     known = [a for a in failed if a.get("fullName") in KNOWN_FLAKY_TESTS]
