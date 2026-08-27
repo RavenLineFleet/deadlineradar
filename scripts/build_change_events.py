@@ -405,15 +405,18 @@ def withheld_queue(today: date) -> list[dict]:
     return sorted(out, key=lambda x: x["jurisdiction_slug"])
 
 
-# AuditLab REGEN-9 (2026-08-27): these 4 of the 11 _meta keys are hardcoded
-# prose a maintainer would plausibly hand-correct in place (exactly what
-# happened to `generated_from`'s 2026-08-21 note on the 3-vs-4 monitoring
-# discrepancy, clobbered by 4950497b7 alongside the MA/IN event records --
-# the guard below caught the events but silently missed this half of the
-# same incident). The other 7 keys (as_of, the five counts, and
-# generated_from itself) are legitimately recomputed every run and must
-# NOT be diffed, or the guard would cry wolf on every single invocation.
-_META_HAND_EDITABLE_KEYS = ("purpose", "separable", "status_derivation", "reverification_rule")
+# AuditLab REGEN-9 (2026-08-27, self-corrected same day): these 5 of the 11
+# _meta keys can carry hand-authored prose worth protecting -- including
+# `generated_from`, which is templated but NOT pure noise: its only dynamic
+# part is one embedded count, so it only changes when that count actually
+# does (5 distinct values across 25 days of history, not every run). This
+# is exactly the field the original incident destroyed -- at 75e5bc747 it
+# ended with a 2026-08-21 hand-written note on a 3-vs-4 monitoring-count
+# discrepancy; 4950497b7 silently replaced it with the bare template. The
+# other 6 keys (as_of, the five counts) are genuine noise -- they change on
+# literally every run and must NOT be diffed, or the guard would cry wolf
+# on every single invocation.
+_META_HAND_EDITABLE_KEYS = ("purpose", "separable", "status_derivation", "reverification_rule", "generated_from")
 
 
 def _report_pending_clobber(new_events: list[dict], new_meta: dict) -> None:
