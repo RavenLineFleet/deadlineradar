@@ -357,8 +357,9 @@ EN: dict[str, str] = {
         "falls in — ask for that fact before answering, using the exact same inputs that "
         "state's own rule actually uses. Either way, the date you get is never estimated or "
         "guessed — if we can't confirm it against a primary source, the calculator says so "
-        "instead of showing a number, same as the Florida row above. A state whose firm "
-        "registration renews on a separate clock from the individual license gets a pointer to "
+        "instead of showing a number, same as the table above shows for a state where that's "
+        "true. A state whose firm registration renews on a separate clock from the individual "
+        "license gets a pointer to "
         "that state's full page — the calculator above answers the individual question only."
     ),
     "calc.prefer_browse": "Prefer to browse a state's full page directly instead of using the calculator above?",

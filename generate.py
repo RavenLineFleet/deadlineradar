@@ -18405,6 +18405,15 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
       ca / tx  -- birth-month (+ year for CA) picker, reusing the exact
                   per-month tables California's/Texas's own pages render
       cohort   -- a group picker (Ohio + the other cohort-split states)
+      cdit     -- a certificate-date input (Florida individual today) -- same
+                  math as _certificate_date_term_js() above, computed live in
+                  the browser from a date the state's own page also asks for
+      ayt      -- a personal anchor-YEAR input against one fixed statewide
+                  month/day (Washington, Puerto Rico) -- _anchor_year_term_js()
+      aytc     -- ayt plus a chosen term length off the licensee's own
+                  certificate (Guam individual) -- _anchor_year_chosen_term_js()
+      adt      -- a personal anchor DATE whose own month/day carries forward
+                  (New Hampshire, Northern Mariana Islands) -- _anchor_date_term_js()
       gap      -- the honest "can't auto-compute this one," using the same
                   data_gap_note / New York's own computation note that state's
                   own page already shows -- never invents an answer"""
@@ -18456,6 +18465,84 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "has_firm_deadline": has_firm_deadline,
             }
             continue
+        # Orchestrator finding (2026-08-27, Oct-1 retest pass): Florida
+        # individual falls through every branch above (next_deadline_computed
+        # is null -- it genuinely needs one personal fact, the certificate
+        # date) and used to land in the generic 'gap' fallback below, which
+        # surfaced `computation.note` -- text authored for a data-file reader
+        # ("month/day above locate the cycle year"), not a site visitor, and
+        # it reads exactly like it sounds: leaked internal field names. The
+        # real fix is this branch, not better copy: /florida/ already has its
+        # own working certificate-date calculator
+        # (render_certificate_date_term_record() / _certificate_date_term_js()
+        # above) -- this mirrors that exact date math for the shared
+        # multi-state widget instead of leaving it unhandled.
+        cdit_record = next(
+            (r for r in individual if r["id"] in CERTIFICATE_DATE_INITIAL_TERM_STATES), None
+        )
+        if cdit_record:
+            cfg = CERTIFICATE_DATE_INITIAL_TERM_STATES[cdit_record["id"]]
+            out[slug] = {
+                "label": state_name,
+                "kind": "cdit",
+                "period_end_month": cfg["month"],
+                "period_end_day": cfg["day"],
+                "renewal_month": cfg.get("renewal_month", cfg["month"]),
+                "renewal_day": cfg.get("renewal_day", cfg["day"]),
+                "initial_periods": cfg["initial_periods"],
+                "term_years": cfg["term_years"],
+                "has_firm_deadline": has_firm_deadline,
+            }
+            continue
+        # Same bug class, three more shapes: Washington/Puerto Rico (a
+        # personal anchor YEAR against one fixed statewide month/day, then
+        # a fixed-length term rolling forward), Guam (the same, but the
+        # licensee also picks their own term length off their certificate,
+        # single-shot -- no safe rollover assumption, see
+        # _anchor_year_chosen_term_js()'s own comment), and New
+        # Hampshire/Northern Mariana Islands (a personal anchor DATE whose
+        # own month/day carries forward, term rolling in fixed-length
+        # jumps). All three already have working per-state widgets
+        # (_anchor_year_term_js(), _anchor_year_chosen_term_js(),
+        # _anchor_date_term_js() above) that /washington/, /guam/, etc.
+        # already use -- this ports the identical math into the shared
+        # calculator, same reasoning as the 'cdit' branch just above.
+        ayt_record = next((r for r in individual if r["id"] in ANCHOR_YEAR_TERM_STATES), None)
+        if ayt_record:
+            cfg = ANCHOR_YEAR_TERM_STATES[ayt_record["id"]]
+            out[slug] = {
+                "label": state_name,
+                "kind": "ayt",
+                "anchor_label": cfg["anchor_label"],
+                "month": cfg["month"],
+                "day": cfg["day"],
+                "term_years": cfg["term_years"],
+                "has_firm_deadline": has_firm_deadline,
+            }
+            continue
+        aytc_record = next((r for r in individual if r["id"] in ANCHOR_YEAR_CHOSEN_TERM_STATES), None)
+        if aytc_record:
+            cfg = ANCHOR_YEAR_CHOSEN_TERM_STATES[aytc_record["id"]]
+            out[slug] = {
+                "label": state_name,
+                "kind": "aytc",
+                "anchor_label": cfg["anchor_label"],
+                "term_label": cfg["term_label"],
+                "term_options": cfg["term_options"],
+                "month": cfg["month"],
+                "day": cfg["day"],
+                "has_firm_deadline": has_firm_deadline,
+            }
+            continue
+        if slug in ANCHOR_DATE_PLUS_TERM_STATES:
+            cfg = ANCHOR_DATE_PLUS_TERM_STATES[slug]
+            out[slug] = {
+                "label": state_name,
+                "kind": "adt",
+                "term_years": cfg["term_years"],
+                "has_firm_deadline": has_firm_deadline,
+            }
+            continue
         cohort_record = next((r for r in individual if r.get("cohort_groups")), None)
         if cohort_record:
             out[slug] = {
@@ -18489,6 +18576,12 @@ _DEADLINE_CALC_JS = """
   var stateSel = document.getElementById('dr-calc-state');
   var followup = document.getElementById('dr-calc-followup');
   var result = document.getElementById('dr-calc-result');
+  // Shared build-time "as of" for every kind below that rolls a date
+  // forward client-side (cdit/ayt/aytc) -- same value the equivalent
+  // per-state widgets bake in via their own as_of parameter, computed once
+  // here instead of three times.
+  var asOfParts = DR_CALC_AS_OF.split('-');
+  var DR_CALC_AS_OF_DATE = new Date(Date.UTC(parseInt(asOfParts[0], 10), parseInt(asOfParts[1], 10) - 1, parseInt(asOfParts[2], 10)));
 
   function monthOptionsHtml() {
     var out = '<option value="">Select&hellip;</option>';
@@ -18558,6 +18651,77 @@ _DEADLINE_CALC_JS = """
       }
       document.getElementById('dr-calc-month').addEventListener('change', update);
       document.getElementById('dr-calc-year').addEventListener('input', update);
+    } else if (entry.kind === 'cdit') {
+      followup.innerHTML = '<label for="dr-calc-cdit-date">Your original certificate date</label>' +
+        '<input type="date" id="dr-calc-cdit-date">';
+      document.getElementById('dr-calc-cdit-date').addEventListener('change', function() {
+        if (!this.value) { result.hidden = true; return; }
+        var parts = this.value.split('-');
+        var certDate = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+        var y0 = certDate.getUTCFullYear();
+        var periodEndY0 = new Date(Date.UTC(y0, entry.period_end_month - 1, entry.period_end_day));
+        var firstFollowingYear = certDate.getTime() < periodEndY0.getTime() ? y0 : y0 + 1;
+        var y = firstFollowingYear + (entry.initial_periods - 1);
+        var d = new Date(Date.UTC(y, entry.renewal_month - 1, entry.renewal_day));
+        while (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) { y += entry.term_years; d = new Date(Date.UTC(y, entry.renewal_month - 1, entry.renewal_day)); }
+        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+        var text = 'Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.';
+        if (entry.renewal_month !== entry.period_end_month || entry.renewal_day !== entry.period_end_day) {
+          var cpeD = new Date(Date.UTC(d.getUTCFullYear(), entry.period_end_month - 1, entry.period_end_day));
+          text += ' (your CPE for that cycle is due ' + MONTHS[cpeD.getUTCMonth()] + ' ' + cpeD.getUTCDate() + ', ' + cpeD.getUTCFullYear() + ')';
+        }
+        showResult(text, slug, entry.label);
+      });
+    } else if (entry.kind === 'ayt') {
+      followup.innerHTML = '<label for="dr-calc-ayt-year">' + entry.anchor_label + '</label>' +
+        '<input type="number" inputmode="numeric" id="dr-calc-ayt-year" placeholder="e.g. 2023" min="1900" max="2100">';
+      document.getElementById('dr-calc-ayt-year').addEventListener('input', function() {
+        var y = parseInt(this.value, 10);
+        if (!y || y < 1900 || y > 2100) { result.hidden = true; return; }
+        var d = new Date(Date.UTC(y, entry.month - 1, entry.day));
+        while (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) { y += entry.term_years; d = new Date(Date.UTC(y, entry.month - 1, entry.day)); }
+        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+        showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+      });
+    } else if (entry.kind === 'aytc') {
+      var termOptionsHtml = '<option value="">Select&hellip;</option>';
+      entry.term_options.forEach(function(t) { termOptionsHtml += '<option value="' + t + '">' + t + (t === 1 ? ' year' : ' years') + '</option>'; });
+      followup.innerHTML = '<div class="signup-form-row"><div><label for="dr-calc-aytc-year">' + entry.anchor_label +
+        '</label><input type="number" inputmode="numeric" id="dr-calc-aytc-year" placeholder="e.g. 2025" min="1900" max="2100"></div>' +
+        '<div><label for="dr-calc-aytc-term">' + entry.term_label + '</label><select id="dr-calc-aytc-term">' + termOptionsHtml + '</select></div></div>';
+      function updateAytc() {
+        var y = parseInt(document.getElementById('dr-calc-aytc-year').value, 10);
+        var term = parseInt(document.getElementById('dr-calc-aytc-term').value, 10);
+        if (!y || y < 1900 || y > 2100 || entry.term_options.indexOf(term) === -1) { result.hidden = true; return; }
+        var d = new Date(Date.UTC(y + term, entry.month - 1, entry.day));
+        if (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) {
+          showResult('That date has already passed \\u2014 check your most recent certificate/permit for its exact renewal date.', slug, entry.label);
+        } else {
+          var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+          showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+        }
+      }
+      document.getElementById('dr-calc-aytc-year').addEventListener('input', updateAytc);
+      document.getElementById('dr-calc-aytc-term').addEventListener('change', updateAytc);
+    } else if (entry.kind === 'adt') {
+      followup.innerHTML = '<label for="dr-calc-adt-date">Last issuance or renewal date</label>' +
+        '<input type="date" id="dr-calc-adt-date">';
+      document.getElementById('dr-calc-adt-date').addEventListener('change', function() {
+        if (!this.value) { result.hidden = true; return; }
+        var parts = this.value.split('-');
+        var d = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+        var today = new Date();
+        var todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        function addYearsClamped(dt, years) {
+          var y = dt.getUTCFullYear() + years, m = dt.getUTCMonth(), day = dt.getUTCDate();
+          var daysInTarget = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+          if (day > daysInTarget) day = daysInTarget;
+          return new Date(Date.UTC(y, m, day));
+        }
+        while (d.getTime() < todayUtc.getTime()) { d = addYearsClamped(d, entry.term_years); }
+        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+        showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+      });
     }
   }
 
@@ -18583,6 +18747,7 @@ def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date
 </div>
 <script>
 var DR_CALC_DATA = {json.dumps(data)};
+var DR_CALC_AS_OF = {json.dumps(as_of.isoformat())};
 {_DEADLINE_CALC_JS}
 </script>"""
 
@@ -18631,7 +18796,18 @@ def build_deadline_calculator_page(
         nd = r.get("next_deadline_computed")
         if nd:
             answer = esc(fmt_date(date.fromisoformat(nd)))
-        elif r["renewal_pattern"] in ("birth_month", "fixed_calendar_cohort", "license_number_cohort"):
+        # Orchestrator finding (2026-08-27): fl-individual's renewal_pattern
+        # is "other" (not one of the three literal pattern names below), so
+        # it fell into the "no public rule" branch even though it's the SAME
+        # "needs one personal fact" case as birth-month/cohort states -- the
+        # fact is a certificate date instead of a birth month, but it's just
+        # as knowable and (as of the cdit widget kind above) just as
+        # calculator-answerable. Same bug class as the widget fix above:
+        # a hardcoded pattern-name allowlist that didn't know about this
+        # state's actual computation.type.
+        elif r["renewal_pattern"] in ("birth_month", "fixed_calendar_cohort", "license_number_cohort") or r[
+            "id"
+        ] in CERTIFICATE_DATE_INITIAL_TERM_STATES:
             answer = esc(_t("calc.answer_personal_fact", lang))
         else:
             answer = esc(_t("calc.answer_no_public_rule", lang))
