@@ -207,6 +207,18 @@
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
   
+  .dr-skip-link {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .dr-skip-link:focus {
+    position: fixed; top: 0.5rem; left: 0.5rem; width: auto; height: auto;
+    margin: 0; padding: 0.6rem 1.1rem; overflow: visible; clip: auto;
+    white-space: normal; z-index: 1000; border-radius: 0.4rem;
+    background: var(--accent); color: var(--on-accent); font-weight: 600;
+    text-decoration: none; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  }
+  
   .dr-cadence-fieldset {
     border: 0; margin: 0; padding: 0;
   }
@@ -1698,6 +1710,7 @@
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
+<a href="#main" class="dr-skip-link">Skip to content</a>
 <nav class="mainnav">
   <div class="nav-inner wrap">
     <a href="../" style="display:flex; align-items:center; gap:0.5rem; text-decoration:none; padding:0.7rem 0;">
@@ -1727,6 +1740,7 @@
 <header class="site-header">
   <div class="tagline">CPA license renewal deadlines by state — verified and kept current</div>
 </header>
+<main id="main">
 <div class="dr-auth-card">
   <h1>Choose a password</h1>
   <p class="subhead">You're signed in. Set a password now and you can use it next time instead of
@@ -1762,6 +1776,7 @@
 </div>
 <script>(function(){var form=document.getElementById("dr-setpw-form");var err=document.getElementById("dr-setpw-error");var ok=document.getElementById("dr-setpw-ok");if(!form)return;form.addEventListener("submit",function(e){e.preventDefault();if(err){err.hidden=true;err.textContent=""}var pw=document.getElementById("dr-setpw-new").value;var confirm=document.getElementById("dr-setpw-confirm").value;if(pw!==confirm){if(err){err.textContent="Those two passwords do not match.";err.hidden=false}return}var body={new_password:pw};var cur=document.getElementById("dr-setpw-current");if(cur&&cur.value)body.current_password=cur.value;fetch("/api/firm/password",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(res){if(res.status===401){window.location.href="/firm-login/";return null}return res.json().catch(function(){return{}}).then(function(data){if(!res.ok){if(err){err.textContent=data&&data.error||"Something went wrong, please try again.";err.hidden=false}return}form.hidden=true;if(ok)ok.hidden=false})}).catch(function(){if(err){err.textContent="Something went wrong, please try again.";err.hidden=false}})})})();</script>
 
+</main>
 </div>
 <footer class="site-footer">
   <div class="wrap">
