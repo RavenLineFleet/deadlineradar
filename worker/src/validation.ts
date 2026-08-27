@@ -971,6 +971,22 @@ export const RATE_LIMIT_MOBILITY_CHECK_UNMETERED: RateLimit = { max: 500, window
  * spare. */
 export const RATE_LIMIT_MOBILITY_CHECK_ROSTER: RateLimit = { max: 120, windowSeconds: 3600 };
 
+/** /api/assistant/* (2026-08-27) -- read-only lookups backing orchestrator's
+ * DeadlineRadar chat assistant droplet service. No firm/subscriber session
+ * exists for a server-to-server call like this, so keyed by IP (same as
+ * every other unauthenticated public route), one shared bucket across all
+ * six endpoints rather than six separate ones -- they're all cheap, static-
+ * data reads (no D1 write, no computation heavier than an array scan), so
+ * splitting the budget six ways would just make an assistant conversation
+ * that legitimately calls 2-3 of them per question more likely to trip a
+ * DIFFERENT bucket than the one actually near its ceiling. 600/hour is
+ * generous relative to the chat widget's own end-user ceiling (100
+ * questions/hour on the paid tier per Devin's design) -- a single question
+ * plausibly triggers a small handful of these lookups, and this is the
+ * droplet's own aggregate budget across every concurrent conversation, not
+ * a per-question one. */
+export const RATE_LIMIT_ASSISTANT_API: RateLimit = { max: 600, windowSeconds: 3600 };
+
 /** Returns true if this request is ALLOWED, false if it should be blocked. */
 export async function checkRateLimit(
   db: D1Database,

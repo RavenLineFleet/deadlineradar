@@ -2428,6 +2428,11 @@ def check_json_copies_identical(repo_root: Path) -> list[str]:
     pairs = [
         (repo_root / "data" / "cpa_deadlines.json", repo_root / "worker" / "src" / "cpa_deadlines.json"),
         (repo_root / "data" / "reg_change_events.json", repo_root / "worker" / "src" / "reg_change_events.json"),
+        # 2026-08-27: added for the /api/assistant/* read-only endpoints --
+        # same "two copies, byte-identical" convention, same decay risk.
+        (repo_root / "data" / "cpe_hours.json", repo_root / "worker" / "src" / "cpe_hours.json"),
+        (repo_root / "data" / "reinstatement.json", repo_root / "worker" / "src" / "reinstatement.json"),
+        (repo_root / "data" / "renewal_fees.json", repo_root / "worker" / "src" / "renewal_fees.json"),
     ]
     errors = []
     for a, b in pairs:
