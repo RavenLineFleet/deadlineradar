@@ -3905,11 +3905,16 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     )
     citation_link_html = f' <a href="{esc(safe_citation_url)}">See the citation</a>.' if safe_citation_url else ""
     topic = e.get("topic") or "regulatory"
+    # AuditLab COPY-13 (2026-08-26): DiffLab's topic strings already end in
+    # "change" ("CPA regulatory/statutory change"), so unconditionally
+    # appending "change is coming" doubled the word live. Only append it
+    # when the producer-controlled topic doesn't already end with it.
+    topic_phrase = topic if topic.rstrip().lower().endswith("change") else f"{topic} change"
     jurisdiction = e.get("jurisdiction") or state_slug
     summary = e.get("summary_public") or ""
     return f"""<div class="callout" style="border-left-color:var(--gold);">
   <p class="label">Heads up</p>
-  <p>A {esc(topic)} change is coming to {esc(jurisdiction)}, effective {esc(e["effective_date"])}.
+  <p>A {esc(topic_phrase)} is coming to {esc(jurisdiction)}, effective {esc(e["effective_date"])}.
   {esc(summary)}{citation_link_html}</p>
 </div>"""
 
