@@ -603,7 +603,15 @@ PAGE_CSS = """
     --bg: #f7f9fb; --page-bg: #f7f9fb; --fg: #17212b; --muted: #5a6b7a;
     /* AuditLab UX-3: the original light-mode value (#8595a3) was 3.08:1 against card-bg / 2.92:1 against page-bg on 12 small-text rules including disclaimer/trust copy (needs 4.5, and light mode is the default for most visitors). This one clears both (5.17 / 4.90) while staying lighter than --muted. */
     --faint: #5e6f80;
-    --border: #e0e6ec; --border-strong: #c8d2db;
+    --border: #e0e6ec;
+    /* Page-weight/A11Y audit (2026-08-27): the previous value (#c8d2db) is
+       1.45:1 against --bg -- WCAG 1.4.11 (non-text contrast) needs 3:1 for
+       a UI component boundary, and .dr-calc's own <select>/<input> border
+       is exactly that: the input's fill (--bg) barely differs from its
+       parent's (--card-bg), so this border carries most of the load for
+       showing where the field actually is. This value clears 3:1 against
+       both --bg (3.50) and --card-bg (3.70) with margin, same hue family. */
+    --border-strong: #7c8692;
     --accent: #1f3d54; --accent-deep: #152c3e; --accent-bg: #eaeef1; --card-bg: #ffffff;
     --on-accent: #fff;
     /* AuditLab UX-1: foreground for text painted on an --accent/--accent-deep background (buttons, table headers) -- pairs per-theme instead of a hardcoded color, which broke once dark mode inverted --accent from dark-navy to light-blue (was 2.47:1, WCAG AA needs 4.5). Dark-mode value is 7.25:1 against dark --accent and 9.5:1 against --accent-deep, verified with a standalone relative-luminance calc. */
@@ -635,7 +643,12 @@ PAGE_CSS = """
       --bg: #12151a; --page-bg: #12151a; --fg: #e7ebf0; --muted: #9aa5b1;
       /* AuditLab UX-2: the previous value was 3.79:1 against card-bg / 4.18:1 against page-bg for small supporting text (needs 4.5). This one clears both (4.91 / 5.42) while staying visibly dimmer than --muted. */
       --faint: #828d99;
-      --border: #2a323c; --border-strong: #3a4552;
+      --border: #2a323c;
+      /* Page-weight/A11Y audit (2026-08-27): same WCAG 1.4.11 fix as light
+         mode's --border-strong above -- the previous value (#3a4552) was
+         1.88:1 against --page-bg, well under the 3:1 UI-component floor.
+         This clears 3:1 against both --page-bg (3.95) and --card-bg (3.58). */
+      --border-strong: #6a7684;
       --accent: #7fa8d9; --accent-deep: #9cc0ea; --accent-bg: #1b2836; --card-bg: #1a1f26;
       --on-accent: #0d1824;
       --panel-dark: #0d1824; --panel-dark-fg: #dbe6ef;
