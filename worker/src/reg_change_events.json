@@ -101,13 +101,14 @@
       "citation": "22 GCA § 35122 (Substantial Equivalency), Guam Accountancy Act of 2003; firm permits at 22 GCA § 35107; implementing rules at 25 GAR §§ 2103(d), 2106, 2112",
       "citation_url": "https://col.guamcourts.gov/sites/default/files/22gc035.pdf",
       "secondary_url": "https://www.guamboa.org/faqs.htm",
-      "verified_date": "2026-07-31",
+      "verified_date": "2026-08-27",
       "confidence": "dual_source",
       "summary_public": "Our two primary sources for Guam currently disagree about its mobility rule. We withhold a determination rather than pick a side until this resolves.",
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
+      "needs_reverification": false,
+      "source_note": "AuditLab CITE-63 (2026-08-27): guamboa.org's TLS certificate expired 2026-05-31 (before this record's prior verified_date) -- re-fetched via curl -k (same access workaround already documented for this host in mobility_rules.json's data_gap_note) and confirmed the mobility FAQ content is unchanged, so dual_source stands. Plain HTTPS/browser access to this host will fail with a certificate error until Guam replaces it; that failure is expected, not evidence the page moved or changed."
     },
     {
       "event_id": "idaho-regwatch-3189d3f2b9ba",
