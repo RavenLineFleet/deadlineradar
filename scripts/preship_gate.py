@@ -367,6 +367,24 @@ _CALC_DATA_RE = re.compile(r"DR_CALC_DATA=(\{.*?\});var DR_CALC_AS_OF", re.DOTAL
 # happens to format everything else.
 _CALC_DATA_NOTE_VALUE_RE = re.compile(r'note:"((?:[^"\\]|\\.)*)"')
 
+# GATE-15 (AuditLab, 2026-08-27, LOW): _PROSE_EDITORIAL_HISTORY_RE is a
+# tripwire seeded from the five real leaks it was written to catch -- tested
+# against six plausible future phrasings a maintainer might actually write
+# ("Revised 2026-09-14 after...", "Superseded by the 2026 amendment...",
+# "Note to self: re-check after..."), five of six escaped it. Broadening the
+# phrase list trades misses for false positives on ordinary English
+# ("previously" is a normal word) -- not worth it per AuditLab's own call.
+# The cheap, content-agnostic complement: internal history is long BECAUSE
+# it's a research narrative; a legitimate visitor note is short because it's
+# one explanation + one call to action. Measured against the live blob the
+# night LEAK-2 was found: longest legitimate note was 445 chars (Michigan);
+# the three leaks were 745/1047/1546. 600 sits with 155 chars of headroom
+# below the longest real note and 145 below the shortest leak -- catches all
+# three regardless of exact wording, and (deliberately) fails loudly the day
+# a genuinely long visitor note is needed, which is a conversation worth
+# having explicitly rather than silently allowing arbitrary length creep.
+_CALC_DATA_NOTE_MAX_CHARS = 600
+
 
 def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> list[str]:
     calc_files = [f for f in html_files if f.name == "index.html" and f.parent.name == "deadline-calculator"]
@@ -386,6 +404,14 @@ def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> li
             continue
         for note_js in note_values:
             note = note_js.encode().decode("unicode_escape")  # undo the JS-string \" / \\ escaping
+            if len(note) > _CALC_DATA_NOTE_MAX_CHARS:
+                errors.append(
+                    f"[SHAPE][{f}] a DR_CALC_DATA note field is {len(note)} chars, over the "
+                    f"{_CALC_DATA_NOTE_MAX_CHARS}-char ceiling (GATE-15) -- ...{note[:150].strip()}... "
+                    f"(internal editorial history reads long regardless of exact phrasing; if this "
+                    f"is genuinely a long VISITOR-facing note, raise the ceiling deliberately rather "
+                    f"than letting length creep silently)"
+                )
             for pat, label in (
                 (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
                 (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
