@@ -290,10 +290,20 @@ export function checkDataFreshness(realToday: Date, records: CpaRecord[] = DATA.
  * 40 existing ones. Exposes the same age/threshold computation as a
  * non-throwing read so API responses can carry a `data_as_of`/`data_stale`
  * signal instead of staying silent. */
-export function dataFreshnessInfo(realToday: Date): { as_of_date: string; age_days: number; stale: boolean } {
+// AuditLab STALE-11 (2026-08-27): `records` defaults to the real bundled
+// data, overridable for the same reason checkDataFreshness()'s own
+// `records` param exists -- so a test can exercise the "worse of the two"
+// anchoring with a synthetic record instead of depending on the shipped
+// data's own last_verified spacing, which is vacuous whenever a full
+// re-verification sweep leaves as_of_date and every record's last_verified
+// on the same day (the normal case, not a rare one).
+export function dataFreshnessInfo(
+  realToday: Date,
+  records: CpaRecord[] = DATA.records
+): { as_of_date: string; age_days: number; stale: boolean } {
   const asOfAgeDays = ageDaysFromAsOf(realToday);
   const unparseable = Number.isNaN(asOfAgeDays);
-  const ageDays = unparseable ? asOfAgeDays : combinedAgeDays(realToday);
+  const ageDays = unparseable ? asOfAgeDays : combinedAgeDays(realToday, records);
   return {
     as_of_date: DATA.as_of_date,
     age_days: unparseable ? -1 : ageDays,

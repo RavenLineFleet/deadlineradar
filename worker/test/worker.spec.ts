@@ -3937,34 +3937,45 @@ describe("deadlines.ts", () => {
     expect(() => checkDataFreshness(new Date("2030-01-01T00:00:00Z"))).toThrow(StaleDataError);
   });
 
-  it("AuditLab STALE-5: the guard is anchored on the WORSE of as_of_date and the single oldest per-record last_verified, not as_of_date alone", () => {
-    // Computed relative to the real dataset (not hardcoded dates) so this
-    // stays correct regardless of what as_of_date/last_verified happen to
-    // be on any given day -- same robustness pattern the existing
-    // "Staleness guard -- real HTTP + cron code paths" describe block below
-    // already uses for as_of_date itself.
-    const oldestLastVerified = cpaDeadlinesData.records
-      .map((r) => Date.parse(`${r.last_verified}T00:00:00Z`))
-      .reduce((oldest, t) => Math.min(oldest, t), Infinity);
+  it("AuditLab STALE-5/STALE-11: the guard is anchored on the WORSE of as_of_date and the single oldest per-record last_verified, not as_of_date alone", () => {
+    // AuditLab STALE-11 (2026-08-27): the original version of this test
+    // computed the stale-branch window relative to the real dataset's own
+    // last_verified spacing, wrapped in an `if` that only ran the
+    // stale-branch assertions when as_of_date and the oldest last_verified
+    // happened to differ by enough. That window is CLOSED whenever a full
+    // re-verification sweep leaves every date on the same day -- the
+    // normal state of the data, not a rare one -- so the assertions this
+    // test exists for were silently skipped most of the time. A future
+    // regression back to as_of-only anchoring (the exact defect STALE-5
+    // was filed for) would pass CI whenever the two dates coincide.
+    // Fixed the same way STALE-6 does immediately below: a synthetic
+    // record via the overridable `records` param, so this runs
+    // unconditionally regardless of what the shipped data looks like on
+    // any given day.
     const asOfTime = Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`);
+    const goodRecord = cpaDeadlinesData.records[0] as unknown as CpaRecord;
+    const oldLastVerified = new Date(asOfTime - 5 * 86_400_000).toISOString().slice(0, 10);
+    const syntheticRecords: CpaRecord[] = [
+      { ...goodRecord, id: "zz-fake-stale11-record", last_verified: oldLastVerified },
+    ];
 
-    // A "today" placed just past the 30-day threshold from the OLDEST
-    // per-record last_verified, but still within 30 days of as_of_date
-    // itself (as_of_date is required to be >= every last_verified, so this
-    // window always exists when the two dates differ at all). If the guard
-    // only checked as_of_date, this would incorrectly read as fresh.
-    const justPastRecordThreshold = new Date(oldestLastVerified + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000);
-    if (justPastRecordThreshold.getTime() - asOfTime <= STALENESS_THRESHOLD_DAYS * 86_400_000) {
-      expect(dataFreshnessInfo(justPastRecordThreshold).stale).toBe(true);
-      expect(() => checkDataFreshness(justPastRecordThreshold)).toThrow(StaleDataError);
-    }
+    // A "today" placed just past the 30-day threshold from the synthetic
+    // record's last_verified, but still within 30 days of as_of_date
+    // itself. If the guard only checked as_of_date, this would incorrectly
+    // read as fresh.
+    const justPastRecordThreshold = new Date(
+      Date.parse(`${oldLastVerified}T00:00:00Z`) + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000
+    );
+    expect(justPastRecordThreshold.getTime() - asOfTime).toBeLessThanOrEqual(STALENESS_THRESHOLD_DAYS * 86_400_000);
+    expect(dataFreshnessInfo(justPastRecordThreshold, syntheticRecords).stale).toBe(true);
+    expect(() => checkDataFreshness(justPastRecordThreshold, syntheticRecords)).toThrow(StaleDataError);
 
-    // A "today" comfortably within 30 days of BOTH as_of_date and every
-    // record's last_verified must still read fresh -- the tightened guard
-    // must never fire early for genuinely fresh data.
-    const bothFresh = new Date(Math.max(asOfTime, oldestLastVerified) + 1 * 86_400_000);
-    expect(dataFreshnessInfo(bothFresh).stale).toBe(false);
-    expect(() => checkDataFreshness(bothFresh)).not.toThrow();
+    // A "today" comfortably within 30 days of BOTH as_of_date and the
+    // synthetic record's last_verified must still read fresh -- the
+    // tightened guard must never fire early for genuinely fresh data.
+    const bothFresh = new Date(asOfTime + 1 * 86_400_000);
+    expect(dataFreshnessInfo(bothFresh, syntheticRecords).stale).toBe(false);
+    expect(() => checkDataFreshness(bothFresh, syntheticRecords)).not.toThrow();
   });
 
   it("AuditLab STALE-6 root cause: a record with an unparseable last_verified is refused by naming the record, never by interpolating the literal string 'Infinity'", () => {
