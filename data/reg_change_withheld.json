@@ -6,6 +6,15 @@
   },
   "withheld": [
     {
+      "jurisdiction_slug": "alabama",
+      "jurisdiction": "Alabama",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2026-10-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
       "jurisdiction_slug": "alaska",
       "jurisdiction": "Alaska",
       "status": "UNDETERMINED",
@@ -13,6 +22,15 @@
       "has_citation_url": true,
       "confidence": "dual_source",
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
+    },
+    {
+      "jurisdiction_slug": "arizona",
+      "jurisdiction": "Arizona",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2027-01-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
     },
     {
       "jurisdiction_slug": "arkansas",
@@ -105,6 +123,24 @@
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
+      "jurisdiction_slug": "illinois",
+      "jurisdiction": "Illinois",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2027-01-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "single_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
+      "jurisdiction_slug": "indiana",
+      "jurisdiction": "Indiana",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2027-01-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
       "jurisdiction_slug": "iowa",
       "jurisdiction": "Iowa",
       "status": "UNDETERMINED",
@@ -132,6 +168,15 @@
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
+      "jurisdiction_slug": "louisiana",
+      "jurisdiction": "Louisiana",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2026-08-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
       "jurisdiction_slug": "maine",
       "jurisdiction": "Maine",
       "status": "UNDETERMINED",
@@ -150,6 +195,15 @@
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
+      "jurisdiction_slug": "massachusetts",
+      "jurisdiction": "Massachusetts",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2027-01-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
       "jurisdiction_slug": "minnesota",
       "jurisdiction": "Minnesota",
       "status": "UNDETERMINED",
@@ -166,6 +220,15 @@
       "has_citation_url": true,
       "confidence": "dual_source",
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
+    },
+    {
+      "jurisdiction_slug": "missouri",
+      "jurisdiction": "Missouri",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2026-08-28) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
     },
     {
       "jurisdiction_slug": "montana",
@@ -222,6 +285,15 @@
       "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
+      "jurisdiction_slug": "new-york",
+      "jurisdiction": "New York",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2026-11-21) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+    },
+    {
       "jurisdiction_slug": "north-carolina",
       "jurisdiction": "North Carolina",
       "status": "UNDETERMINED",
@@ -247,6 +319,15 @@
       "has_citation_url": true,
       "confidence": "dual_source",
       "next_action": "needs an explicit status classification + justifying evidence before it can publish"
+    },
+    {
+      "jurisdiction_slug": "oklahoma",
+      "jurisdiction": "Oklahoma",
+      "status": "UNDETERMINED",
+      "reason": "rule_in_flux with a determinable date (2026-11-01) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "has_citation_url": true,
+      "confidence": "dual_source",
+      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
     },
     {
       "jurisdiction_slug": "pennsylvania",
