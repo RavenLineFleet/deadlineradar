@@ -4464,6 +4464,48 @@ describe("scheduler.ts runReminderPass -- one pass", () => {
     const capErrors = capped.errors.filter((e) => e.error.includes("daily send cap reached"));
     expect(capErrors).toHaveLength(1);
   });
+
+  it("AuditLab SEND-3 (2026-08-27): when the cap binds, the LEAST urgent subscriber is the one dropped, never an arbitrary one", async () => {
+    const { runReminderPass } = await import("../src/scheduler");
+    const asOf = new Date(Date.UTC(2026, 6, 1));
+    const iso = (offsetDays: number) => new Date(Date.UTC(2026, 6, 1 + offsetDays)).toISOString().slice(0, 10);
+
+    // Inserted in LEAST-urgent-first order (60d, then 30d, then 1d) -- the
+    // exact ordering that would expose the pre-fix bug: unsorted, SQLite's
+    // natural rowid order would process the 60d and 30d rows first (hitting
+    // the cap) and drop the 1d-out subscriber, the one AuditLab's finding
+    // specifically calls out as the worst case to lose.
+    const far = await store.addPending(env.DB, {
+      email: `send3-far-${Date.now()}@example.com`, stateSlug: "georgia", deadlineFields: {},
+      firstName: "Far", deadlineSource: "user", userDeadline: iso(60),
+    });
+    await store.confirm(env.DB, far.confirm_token);
+    const mid = await store.addPending(env.DB, {
+      email: `send3-mid-${Date.now()}@example.com`, stateSlug: "georgia", deadlineFields: {},
+      firstName: "Mid", deadlineSource: "user", userDeadline: iso(14),
+    });
+    await store.confirm(env.DB, mid.confirm_token);
+    const soon = await store.addPending(env.DB, {
+      email: `send3-soon-${Date.now()}@example.com`, stateSlug: "georgia", deadlineFields: {},
+      firstName: "Soon", deadlineSource: "user", userDeadline: iso(1),
+    });
+    await store.confirm(env.DB, soon.confirm_token);
+
+    // Same "read the real counter, cap exactly N more above it" technique as
+    // SCHED-C above -- send_counters' today row persists across tests in
+    // this file.
+    const today = new Date().toISOString().slice(0, 10);
+    const before = await env.DB.prepare("SELECT count FROM send_counters WHERE day = ?1").bind(today).first<{ count: number }>();
+    const cappedEnv = { ...env, REMINDERS_DAILY_SEND_CAP: String((before?.count ?? 0) + 2) } as typeof env;
+
+    const sent: string[] = [];
+    await runReminderPass(cappedEnv, { asOf, send: async (to) => { sent.push(to); return true; } });
+
+    expect(sent).toContain(soon.email); // 1 day out -- must never be the one dropped
+    expect(sent).toContain(mid.email); // 30 days out -- second most urgent
+    expect(sent).not.toContain(far.email); // 60 days out -- the least-urgent tail is what a cap should truncate
+    expect(sent).toHaveLength(2);
+  });
 });
 
 describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFreshness() in isolation", () => {

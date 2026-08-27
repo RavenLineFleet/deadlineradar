@@ -426,6 +426,65 @@ describe("POST /firm/product-tour/dismiss", () => {
   });
 });
 
+describe("Orchestrator finding (2026-08-27): the shared demo firm never re-shows the tour/checklist once ANYONE dismisses them", () => {
+  it("stays pending:true for BOTH panels on the demo firm even after a real dismiss -- unlike a real firm, which stays false", async () => {
+    const { cookie, firmId } = await createFirmWithSession("Demo Tour Reset Firm", `demotourreset-${Date.now()}@example.com`);
+    await env.DB.prepare("UPDATE firms SET demo_locked = 1 WHERE id = ?1").bind(firmId).run();
+
+    // A visitor dismisses both, same as any real firm could.
+    const dismissTour = await SELF.fetch(`${BASE}/firm/product-tour/dismiss`, { method: "POST", headers: { Cookie: cookie } });
+    expect(dismissTour.status).toBe(200);
+    const dismissChecklist = await SELF.fetch(`${BASE}/firm/onboarding-checklist/dismiss`, { method: "POST", headers: { Cookie: cookie } });
+    expect(dismissChecklist.status).toBe(200);
+
+    // DEMO-3 (pre-existing, both handlers) already no-ops the WRITE for a
+    // demo_locked firm -- dismiss returns 200 but never actually calls
+    // store.dismissProductTour()/dismissOnboardingChecklist(), so the
+    // columns stay null. This fix is defense-in-depth for however the LIVE
+    // demo firm's row ended up with these set anyway (predates DEMO-3, or
+    // some other path) -- it doesn't depend on DEMO-3's write-side no-op,
+    // it makes the READ side correct regardless of the columns' actual value.
+    const firmRow = await store.getFirmById(env.DB, firmId);
+    expect(firmRow?.product_tour_dismissed_at).toBeNull();
+    expect(firmRow?.onboarding_checklist_dismissed_at).toBeNull();
+
+    // The NEXT session (a later visitor, or the same one reloading) still
+    // sees both as pending -- the whole point of the fix, and true
+    // regardless of whether the columns above are null or (as on the live
+    // demo firm right now) already set from before DEMO-3 existed.
+    const after = await SELF.fetch(`${BASE}/firm/licenses`, { headers: { Cookie: cookie } });
+    const afterBody = (await after.json()) as { product_tour_pending: boolean; onboarding_checklist_pending: boolean };
+    expect(afterBody.product_tour_pending).toBe(true);
+    expect(afterBody.onboarding_checklist_pending).toBe(true);
+  });
+
+  it("positive control: reports pending:true even with both columns FORCED non-null -- the exact state the live demo firm is actually in right now", async () => {
+    const { cookie, firmId } = await createFirmWithSession("Demo Tour Forced Dismissed Firm", `demotourforced-${Date.now()}@example.com`);
+    await env.DB.prepare("UPDATE firms SET demo_locked = 1 WHERE id = ?1").bind(firmId).run();
+    // Bypasses both handlers' own DEMO-3 no-op -- simulates however the
+    // live row actually got into this state (predates DEMO-3, or a direct
+    // DB path), which is the state this fix specifically has to override.
+    await env.DB.prepare(
+      "UPDATE firms SET product_tour_dismissed_at = ?1, onboarding_checklist_dismissed_at = ?1 WHERE id = ?2"
+    ).bind(new Date().toISOString(), firmId).run();
+
+    const resp = await SELF.fetch(`${BASE}/firm/licenses`, { headers: { Cookie: cookie } });
+    const body = (await resp.json()) as { product_tour_pending: boolean; onboarding_checklist_pending: boolean };
+    expect(body.product_tour_pending).toBe(true);
+    expect(body.onboarding_checklist_pending).toBe(true);
+  });
+
+  it("a real (non-demo) firm is unaffected -- dismiss still sticks", async () => {
+    const { cookie } = await createFirmWithSession("Real Firm Tour Sticks", `realfirmtoursticks-${Date.now()}@example.com`);
+    await SELF.fetch(`${BASE}/firm/product-tour/dismiss`, { method: "POST", headers: { Cookie: cookie } });
+    await SELF.fetch(`${BASE}/firm/onboarding-checklist/dismiss`, { method: "POST", headers: { Cookie: cookie } });
+    const after = await SELF.fetch(`${BASE}/firm/licenses`, { headers: { Cookie: cookie } });
+    const afterBody = (await after.json()) as { product_tour_pending: boolean; onboarding_checklist_pending: boolean };
+    expect(afterBody.product_tour_pending).toBe(false);
+    expect(afterBody.onboarding_checklist_pending).toBe(false);
+  });
+});
+
 describe("store.setFeatureIdeaStatus", () => {
   it("updates status and rejects an invalid value", async () => {
     const ok = await store.setFeatureIdeaStatus(env.DB, "idea-white-label", "in_progress");

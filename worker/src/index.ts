@@ -5920,12 +5920,29 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     // Roadmap #28: drives the guided onboarding checklist panel -- true
     // until the firm explicitly dismisses it (it does NOT auto-dismiss on
     // completion; see migration 0030's own docstring for why).
-    onboarding_checklist_pending: session.firm.onboarding_checklist_dismissed_at === null,
+    //
+    // Orchestrator finding (2026-08-27, Oct-1 readiness): the dismissed_at
+    // columns are per-firm and set-once, correct for a real firm's one
+    // persistent admin/team -- but the shared demo firm isn't that. Once
+    // ANY visitor dismisses either panel, it stays dismissed for every
+    // later visitor forever (reseedDemoFirmRosterIfBelowFloor()/
+    // reconcileDemoFirmRosterDeadlines() don't touch these columns, and
+    // shouldn't -- resetting them on a timer would just as easily hide the
+    // tour from a visitor mid-way through it). The demo's whole purpose is
+    // first impressions for exactly the audience these two features are
+    // for, so it's excluded from the dismiss check entirely rather than
+    // trying to reset it on some cadence: always pending, every fresh
+    // session, for the demo firm specifically. The underlying columns are
+    // still written normally on a demo visitor's own skip/finish click
+    // (harmless, just never consulted here), so nothing about the dismiss
+    // ACTION itself changes, only whether a NEW session re-shows it.
+    onboarding_checklist_pending: session.firm.demo_locked ? true : session.firm.onboarding_checklist_dismissed_at === null,
     // Roadmap #30: drives the auto-shown in-app product tour -- true until
     // the firm skips it or finishes the last step, never shown again after
     // either. A voluntary replay from the Account tab is client-side only
-    // and never touches this flag.
-    product_tour_pending: session.firm.product_tour_dismissed_at === null,
+    // and never touches this flag. Demo-firm override: see the checklist
+    // comment immediately above -- same reasoning, same exception.
+    product_tour_pending: session.firm.demo_locked ? true : session.firm.product_tour_dismissed_at === null,
     // Roadmap #6: firm-level (not per-staff) peer-review due date, admin-
     // entered. Null when not tracked yet -- the client shows a "set a date"
     // prompt rather than a deadline in that case.
