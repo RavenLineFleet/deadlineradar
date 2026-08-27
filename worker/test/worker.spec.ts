@@ -4844,7 +4844,23 @@ describe("store.claimStaleDataAlertForToday (AuditLab STALE-3)", () => {
 
 describe("store.claimMobilityStalenessAlertForMonth (AuditLab STALE-10)", () => {
   it("first claim for a given month wins (true), second claim same month loses (false)", async () => {
-    const month = `2027-${(Date.now() % 12 + 1).toString().padStart(2, "0")}`; // unique-ish month per test run
+    // `month` is an opaque TEXT PRIMARY KEY in mobility_staleness_alert_log
+    // (store.ts's claimMobilityStalenessAlertForMonth -- no real-calendar-
+    // month validation), so this doesn't need to look like a real month, it
+    // needs to never collide with any OTHER value used in this file. The
+    // original `2027-${Date.now() % 12 + 1}` scheme (only 12 possible
+    // outputs) could and did land on "2027-01" -- the exact literal the
+    // "mobilityRowsNearingExpiry / runMobilityStalenessAlertPass" describe
+    // block below hardcodes via vi.setSystemTime(2027-01-20) -- and since
+    // this table's rows persist across tests in this file (no per-test
+    // reset), that 1-in-12 collision silently pre-claimed the month that
+    // test depends on, making its own runMobilityStalenessAlertPass() call
+    // find the claim already taken and send nothing (found investigating a
+    // real "Mock called 0 times" failure, 2026-08-27 -- not a hypothetical).
+    // A distinct year prefix plus the full (unrounded) timestamp can't
+    // collide with "2027-01"/"2027-05"/"2027-06"/"2027-07" (this file's
+    // other hardcoded months) or with itself across repeated runs.
+    const month = `9999-${Date.now()}`;
     const first = await store.claimMobilityStalenessAlertForMonth(env.DB, month);
     const second = await store.claimMobilityStalenessAlertForMonth(env.DB, month);
     expect(first).toBe(true);

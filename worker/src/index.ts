@@ -115,6 +115,7 @@ import {
   RATE_LIMIT_MOBILITY_CHECK_BATCH,
   RATE_LIMIT_MOBILITY_CHECK_UNMETERED,
   RATE_LIMIT_MOBILITY_CHECK_ROSTER,
+  RATE_LIMIT_ASSISTANT_API,
   RATE_LIMIT_FIRM_LICENSE_CREATE,
   RATE_LIMIT_FIRM_LICENSE_PATCH,
   RATE_LIMIT_FIRM_LICENSE_DELETE,
@@ -252,6 +253,15 @@ import {
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
 import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, isPreCutoverSignup } from "./entitlements";
+import {
+  lookupAssistantDeadlines,
+  lookupAssistantCpe,
+  lookupAssistantReinstatement,
+  lookupAssistantRenewalFee,
+  lookupAssistantRuleChanges,
+  buildAssistantMobilityResponse,
+  assistantStateName,
+} from "./assistant";
 import { firmTierByPlanTier, firmTierForSeatCount, seatCapForFirmTier, stripePriceIdForTier } from "./tiers";
 import {
   createCheckoutSession,
@@ -5567,6 +5577,100 @@ function roadmapVoterCookieHeader(voterId: string, env: Env): string {
   );
 }
 
+/** Shared by every /assistant/* handler below: a `state` query param that
+ * doesn't resolve to a real jurisdiction is a 400, never a silent empty
+ * result that reads to a caller (or the LLM behind it) as "this state has
+ * no data" -- same "unknown slug must be loud" posture MAP-1's own home/
+ * target validation already established for the firm-facing mobility
+ * route. */
+function assistantStateSlugOrError(url: URL): { slug: string } | Response {
+  const slug = url.searchParams.get("state") ?? "";
+  if (!assistantStateName(slug)) {
+    return jsonResponse(400, { error: "Unknown or missing 'state' parameter -- expected a state slug like 'texas' or 'new-york'." });
+  }
+  return { slug };
+}
+
+/** GET /assistant/deadline?state=X&license_type=Y (license_type optional --
+ * omit it to get every record DeadlineRadar tracks for that state, e.g.
+ * both fl-individual and fl-firm). */
+function handleAssistantDeadline(url: URL): Response {
+  const stateResult = assistantStateSlugOrError(url);
+  if (stateResult instanceof Response) return stateResult;
+  const licenseType = url.searchParams.get("license_type") ?? undefined;
+  const results = lookupAssistantDeadlines(stateResult.slug, licenseType);
+  if (results.length === 0) {
+    return jsonResponse(404, { error: "No matching license-type record for that state." });
+  }
+  return jsonResponse(200, { records: results });
+}
+
+/** GET /assistant/cpe?state=X */
+function handleAssistantCpe(url: URL): Response {
+  const stateResult = assistantStateSlugOrError(url);
+  if (stateResult instanceof Response) return stateResult;
+  const result = lookupAssistantCpe(stateResult.slug);
+  if (!result) return jsonResponse(404, { error: "No CPE data on file for that state." });
+  return jsonResponse(200, result);
+}
+
+/** GET /assistant/reinstatement?state=X */
+function handleAssistantReinstatement(url: URL): Response {
+  const stateResult = assistantStateSlugOrError(url);
+  if (stateResult instanceof Response) return stateResult;
+  const result = lookupAssistantReinstatement(stateResult.slug);
+  if (!result) return jsonResponse(404, { error: "No reinstatement data on file for that state." });
+  return jsonResponse(200, result);
+}
+
+/** GET /assistant/renewal-fee?state=X */
+function handleAssistantRenewalFee(url: URL): Response {
+  const stateResult = assistantStateSlugOrError(url);
+  if (stateResult instanceof Response) return stateResult;
+  const result = lookupAssistantRenewalFee(stateResult.slug);
+  if (!result) return jsonResponse(404, { error: "No renewal-fee data on file for that state." });
+  return jsonResponse(200, result);
+}
+
+/** GET /assistant/mobility?home=X&target=Y&service_type=Z. Reuses the exact
+ * evaluateMobility() call the firm-facing /firm/mobility/check route makes
+ * (MOBILITY_RULES_BY_SLUG is already built at module load) -- no personal-
+ * attestation params accepted here (an assistant caller has no way to know
+ * a CPA's own license-standing/equivalence facts), so this always evaluates
+ * with licenseInGoodStanding/substantiallyEquivalent at their conservative
+ * defaults (false) and says so explicitly in the response -- see
+ * buildAssistantMobilityResponse()'s attestation_note. */
+function handleAssistantMobility(url: URL): Response {
+  const homeSlug = url.searchParams.get("home") ?? "";
+  const targetSlug = url.searchParams.get("target") ?? "";
+  const serviceTypeRaw = url.searchParams.get("service_type") ?? "";
+  const homeStateLabel = assistantStateName(homeSlug);
+  const targetStateLabel = assistantStateName(targetSlug);
+  if (!homeStateLabel || !targetStateLabel) {
+    return jsonResponse(400, { error: "Unknown or missing 'home'/'target' parameter -- expected state slugs like 'texas' or 'new-york'." });
+  }
+  if (!isValidServiceType(serviceTypeRaw)) {
+    return jsonResponse(400, { error: "Missing or invalid 'service_type' parameter." });
+  }
+  const result = evaluateMobility(
+    { homeStateSlug: homeSlug, targetStateSlug: targetSlug, serviceType: serviceTypeRaw, licenseInGoodStanding: false, substantiallyEquivalent: false },
+    MOBILITY_RULES_BY_SLUG[targetSlug] ?? null,
+    undefined,
+    MOBILITY_RULES_BY_SLUG[homeSlug] ?? null
+  );
+  return jsonResponse(200, buildAssistantMobilityResponse(homeStateLabel, targetStateLabel, serviceTypeRaw, result));
+}
+
+/** GET /assistant/rule-changes?state=X -- may legitimately return an empty
+ * array (most states have no open rule-change event right now); that's not
+ * a 404, it's the honest common case, same posture /rule-changes/ itself
+ * already takes for a quiet jurisdiction. */
+function handleAssistantRuleChanges(url: URL): Response {
+  const stateResult = assistantStateSlugOrError(url);
+  if (stateResult instanceof Response) return stateResult;
+  return jsonResponse(200, { events: lookupAssistantRuleChanges(stateResult.slug) });
+}
+
 /** GET /roadmap-data -- public, no session. Returns every active idea with
  * its live vote count and whether THIS browser (by cookie) already voted
  * for it. No cookie yet (first-ever visit) reads as "voted nothing", never
@@ -8465,6 +8569,27 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     // one-time link before the human ever clicks it. The state change happens
     // only on the POST below (the button on this page), which scanners don't do.
     if (request.method === "GET") {
+      // /assistant/* (2026-08-27) -- read-only lookups for orchestrator's
+      // chat-assistant droplet, see assistant.ts's own module docstring for
+      // the full design reasoning. One shared rate-limit check up front
+      // (not per-route) since all six share one bucket by design.
+      if (url.pathname.startsWith("/assistant/")) {
+        const allowed = await checkRateLimit(env.DB, ip, "assistant_api", RATE_LIMIT_ASSISTANT_API);
+        if (!allowed) {
+          return jsonResponse(429, { error: "Too many requests. Please try again later." });
+        }
+        try {
+          if (url.pathname === "/assistant/deadline") return handleAssistantDeadline(url);
+          if (url.pathname === "/assistant/cpe") return handleAssistantCpe(url);
+          if (url.pathname === "/assistant/reinstatement") return handleAssistantReinstatement(url);
+          if (url.pathname === "/assistant/renewal-fee") return handleAssistantRenewalFee(url);
+          if (url.pathname === "/assistant/mobility") return handleAssistantMobility(url);
+          if (url.pathname === "/assistant/rule-changes") return handleAssistantRuleChanges(url);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
       if (url.pathname === "/roadmap-data") {
         try {
           return await handleRoadmapData(request, env);
