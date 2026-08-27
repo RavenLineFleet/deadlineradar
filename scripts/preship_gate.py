@@ -345,7 +345,7 @@ def check_worker_error_strings_no_api_internals(repo_root: Path) -> list[str]:
     return errors
 
 
-def check_stylesheet_integrity(html_files: list[Path]) -> list[str]:
+def check_stylesheet_integrity(html_files: list[Path], docs_dir: Path) -> list[str]:
     """Catch a TRUNCATED stylesheet -- the worst silent failure this site has.
 
     On 2026-07-31 a block of Python `#` comments was inserted INTO generate.py's
@@ -362,46 +362,64 @@ def check_stylesheet_integrity(html_files: list[Path]) -> list[str]:
 
     So: assert the shipped CSS contains nothing that a CSS parser will choke
     on, and that the stylesheet still ends where a complete one should.
+
+    Page-weight audit (2026-08-27): PAGE_CSS moved from an inline <style>
+    block on every page to a single external docs/styles.css, linked via
+    <link rel="stylesheet">. The truncation risk this check exists for is
+    IDENTICAL either way (still the same Python string, still one `#`
+    away from the same failure) -- only WHERE the shipped CSS lives
+    changed, so the check now reads that one file instead of scanning
+    inline blocks. Kept GATE-11's "measuring nothing" guard, re-pointed at
+    the new failure mode: every page must actually link to the stylesheet,
+    not just that the file itself is intact.
     """
     errors = []
-    style_blocks_found = 0
-    for f in html_files:
-        text = f.read_text(encoding="utf-8")
-        for m in re.finditer(r"<style>(.*?)</style>", text, re.S):
-            style_blocks_found += 1
-            css = m.group(1)
-            base_line = text.count("\n", 0, m.start(1)) + 1
-            for i, line in enumerate(css.split("\n")):
-                s = line.strip()
-                if s.startswith("#") and not s.startswith("#-"):
-                    errors.append(
-                        f"[B][{f}:{base_line + i}] python comment leaked into shipped CSS "
-                        f"-- a CSS parser stops here and drops every rule after it: {s[:60]}"
-                    )
-                    break
-            if css.count("{") != css.count("}"):
-                errors.append(
-                    f"[B][{f}] unbalanced braces in shipped CSS "
-                    f"({css.count('{')} open vs {css.count('}')} close)"
-                )
-            if css.count("/*") != css.count("*/"):
-                errors.append(
-                    f"[B][{f}] unterminated CSS comment -- everything after it is swallowed"
-                )
-            if css.count("{") < MIN_SHIPPED_CSS_RULE_BLOCKS:
-                errors.append(
-                    f"[B][{f}] shipped CSS has only {css.count('{')} rule blocks "
-                    f"(floor: {MIN_SHIPPED_CSS_RULE_BLOCKS}) -- a truncated or emptied "
-                    f"stylesheet passes every other assertion in this check vacuously"
-                )
-    # GATE-11 (AuditLab, 2026-08-22): if the `<style>` tag shape itself
-    # changes (a different embedding mechanism, an attribute added), every
-    # assertion above silently passes on zero blocks found -- the exact
-    # "measuring nothing" failure mode CSRF-2 already guards against.
-    if html_files and style_blocks_found == 0:
-        return ["[STYLE] found NO <style>...</style> blocks across any rendered page. Either the "
-                "embedding shape changed or the stylesheet is gone entirely -- this check is "
-                "measuring nothing and must be repaired."]
+    css_path = docs_dir / "styles.css"
+    if not css_path.is_file():
+        return ["[STYLE] docs/styles.css does not exist -- the stylesheet extraction (2026-08-27) "
+                "either never ran or the file was deleted. Every page links to it; none has a "
+                "fallback."]
+    css = css_path.read_text(encoding="utf-8")
+    for i, line in enumerate(css.split("\n")):
+        s = line.strip()
+        if s.startswith("#") and not s.startswith("#-"):
+            errors.append(
+                f"[B][docs/styles.css:{i + 1}] python comment leaked into shipped CSS "
+                f"-- a CSS parser stops here and drops every rule after it: {s[:60]}"
+            )
+            break
+    if css.count("{") != css.count("}"):
+        errors.append(
+            f"[B][docs/styles.css] unbalanced braces in shipped CSS "
+            f"({css.count('{')} open vs {css.count('}')} close)"
+        )
+    if css.count("/*") != css.count("*/"):
+        errors.append(
+            "[B][docs/styles.css] unterminated CSS comment -- everything after it is swallowed"
+        )
+    if css.count("{") < MIN_SHIPPED_CSS_RULE_BLOCKS:
+        errors.append(
+            f"[B][docs/styles.css] shipped CSS has only {css.count('{')} rule blocks "
+            f"(floor: {MIN_SHIPPED_CSS_RULE_BLOCKS}) -- a truncated or emptied "
+            f"stylesheet passes every other assertion in this check vacuously"
+        )
+    # GATE-11 (AuditLab, 2026-08-22), re-pointed: if the <link> tag shape
+    # changes (a different embedding mechanism, no href, an attribute
+    # added), every assertion above passes on a file nothing actually
+    # loads -- the exact "measuring nothing" failure mode CSRF-2 already
+    # guards against, just on the new architecture.
+    linked_count = sum(1 for f in html_files if '<link rel="stylesheet" href="/styles.css' in f.read_text(encoding="utf-8"))
+    if html_files and linked_count == 0:
+        errors.append(
+            "[STYLE] found NO pages linking to /styles.css. Either the embedding shape changed "
+            "or nothing loads the stylesheet -- this check is measuring nothing and must be "
+            "repaired."
+        )
+    elif html_files and linked_count < len(html_files):
+        errors.append(
+            f"[STYLE] only {linked_count}/{len(html_files)} pages link to /styles.css -- every "
+            f"page should load the shared stylesheet."
+        )
     return errors
 
 
@@ -699,7 +717,6 @@ def check_birth_month_table_currency(html_files: list[Path]) -> list[str]:
 _HIDDEN_TAG_RE = re.compile(r"<[a-zA-Z][a-zA-Z0-9]*\b[^>]*>")
 _HIDDEN_ATTR_RE = re.compile(r"(?<![\w-])hidden(?![\w-])")
 _HIDDEN_CLASS_ATTR_RE = re.compile(r'\bclass="([^"]*)"')
-_STYLE_BLOCK_RE = re.compile(r"<style[^>]*>(.*?)</style>", re.DOTALL)
 _CSS_RULE_RE = re.compile(r"([^{}]+)\{([^{}]*)\}")
 _CSS_DISPLAY_RE = re.compile(r"display\s*:\s*([a-zA-Z-]+)")
 
@@ -712,7 +729,7 @@ _CSS_DISPLAY_RE = re.compile(r"display\s*:\s*([a-zA-Z-]+)")
 _HIDDEN_DISPLAY_OVERRIDE_ALLOWLIST: set[str] = set()
 
 
-def check_hidden_display_override(html_files: list[Path]) -> list[str]:
+def check_hidden_display_override(html_files: list[Path], docs_dir: Path) -> list[str]:
     """AuditLab HIDDEN-1 (LOW/preventive, 2026-08-07, recommended for
     wiring in): a class-based `display` rule with equal CSS specificity to
     the browser's built-in `[hidden] { display: none }` UA rule wins the
@@ -729,8 +746,8 @@ def check_hidden_display_override(html_files: list[Path]) -> list[str]:
     AuditLab's own design note: scan the built HTML/CSS, not the JS --
     `errEl`/`okEl`/`panel`-style local variable names are reused across
     scopes and defeat a source-level scan, but the shipped DOM already
-    names the real classes on the real elements and the shipped <style>
-    block already has every rule, so no variable-name inference or scope
+    names the real classes on the real elements and the shipped CSS
+    already has every rule, so no variable-name inference or scope
     analysis is needed. Validated 2/2 against the pre-fix versions of two
     of the three historical bugs before being recommended for wiring in.
 
@@ -738,14 +755,25 @@ def check_hidden_display_override(html_files: list[Path]) -> list[str]:
     dropped): this only catches elements that SHIP hidden. An element that
     starts visible and is only ever hidden at runtime (`el.hidden = true`
     from JS) is the same underlying bug but outside this check's reach --
-    flagged as a follow-on if it ever bites, not treated as covered here."""
+    flagged as a follow-on if it ever bites, not treated as covered here.
+
+    Page-weight audit (2026-08-27): PAGE_CSS moved from an inline <style>
+    block per page to a single external docs/styles.css. Reading it from
+    an inline block here would silently find nothing on every page and
+    report a vacuous pass -- exactly the "check that can pass BECAUSE the
+    thing under test is missing" failure check_stylesheet_integrity's own
+    docstring warns about, on THIS check instead. Reads the shared
+    stylesheet once (same rules apply to every page now, so this is also
+    strictly less work than the old per-page re-parse)."""
+    css_path = docs_dir / "styles.css"
+    style_text = css_path.read_text(encoding="utf-8") if css_path.is_file() else ""
+    css_rules = [(sel, decl) for sel, decl in _CSS_RULE_RE.findall(style_text)] if style_text.strip() else []
+    if not css_rules:
+        return ["[HIDDEN-1] docs/styles.css is missing or empty -- this check has no CSS rules to "
+                "test hidden-element overrides against and would otherwise report a vacuous pass."]
     errors = []
     for f in html_files:
         html_text = f.read_text(encoding="utf-8")
-        style_text = " ".join(m.group(1) for m in _STYLE_BLOCK_RE.finditer(html_text))
-        if not style_text.strip():
-            continue
-        css_rules = [(sel, decl) for sel, decl in _CSS_RULE_RE.findall(style_text)]
 
         def _class_has_unconditional_visible_display(cls: str) -> bool:
             escaped = re.escape(cls)
@@ -4345,7 +4373,7 @@ def main():
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
-    all_errors += check_stylesheet_integrity(html_files)
+    all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
     all_errors += check_affiliate_disclosure(html_files)
     all_errors += check_named_vendor_disparagement(html_files)
@@ -4353,7 +4381,7 @@ def main():
     all_errors += check_cpe_hours_manifest_consistency(repo_root)
     all_errors += check_deadline_currency(data_path)
     all_errors += check_birth_month_table_currency(html_files)
-    all_errors += check_hidden_display_override(html_files)
+    all_errors += check_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
