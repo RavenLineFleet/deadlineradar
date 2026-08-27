@@ -117,6 +117,20 @@ def _public_summary(r: dict, is_conflict: bool) -> str:
     stripped/redacted version of the prose -- stripping specific patterns out
     of free text is exactly the kind of check that silently misses the next
     variant. Never derive this from flux_note/notes again.
+
+    KNOWN BUG, do not re-enable blind (AuditLab REGEN-4, 2026-08-26): the
+    `basis` branch below reads `equivalence_test`, which is the record's
+    CURRENT classification, and asserts the rule "is changing to" that same
+    basis -- self-contradictory for a state whose target IS its current
+    basis (confirmed live-wrong for Indiana and Massachusetts; only reads
+    "correct" for Louisiana/Missouri by what looks like coincidence, not a
+    verified current-vs-target distinction anyone has actually confirmed).
+    Currently dead code: every mobility record that would reach this branch
+    is withheld (missing `status`, see `build()`'s elif). The MOMENT any of
+    those 9 withheld records gets an authored `status` field added back
+    (REGEN-5 follow-up), this bug republishes itself unless this function is
+    fixed first -- don't add a status field to one of them without also
+    fixing or removing this branch.
     """
     state = r.get("state") or r.get("state_slug") or "This jurisdiction"
     if is_conflict:
