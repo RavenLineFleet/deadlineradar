@@ -842,6 +842,26 @@ PAGE_CSS = """
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
+  /* AuditLab A11Y-13 (LOW-MEDIUM, 2026-08-27): WCAG 2.4.1 Bypass Blocks
+     (Level A) -- none of the 237 pages offered a way past the nav to reach
+     content, and none had a <main> landmark. Same clip-based hidden state
+     as .dr-visually-hidden (not display:none, which would make the link
+     itself unfocusable), but reversed on :focus so a sighted keyboard user
+     sees it appear at the very top of the page instead of only hearing it
+     announced. Same --accent/--on-accent pairing every other CTA on the
+     site already uses, so it reads as "this site's button," not a
+     bolted-on accessibility widget. */
+  .dr-skip-link {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .dr-skip-link:focus {
+    position: fixed; top: 0.5rem; left: 0.5rem; width: auto; height: auto;
+    margin: 0; padding: 0.6rem 1.1rem; overflow: visible; clip: auto;
+    white-space: normal; z-index: 1000; border-radius: 0.4rem;
+    background: var(--accent); color: var(--on-accent); font-weight: 600;
+    text-decoration: none; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  }
   /* Roadmap #41: programmatic grouping for the reminder-cadence checkboxes
      via <fieldset>/<legend> (the legend itself is visually-hidden -- the
      panel's own <h2> already labels it for sighted users). Reset default
@@ -4408,8 +4428,11 @@ def page_shell(
 {_SCROLL_REVEAL_HEAD_JS}
 </head>
 <body>
+<a href="#main" class="dr-skip-link">{esc(_t("a11y.skip_to_content", lang))}</a>
 {site_header(home_href, hide_signin=hide_signin, has_remind_anchor=has_remind_anchor, sticky_top_nav=sticky_top_nav, lang=lang)}
+<main id="main">
 {body}
+</main>
 {site_footer(lang=lang)}
 {_SHOW_PASSWORD_TOGGLE_HTML}
 {_COOKIE_NOTICE_HTML}

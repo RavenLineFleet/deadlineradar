@@ -44,6 +44,8 @@ def _hash(s: str) -> str:
 # in by the caller with proper nouns/numbers/dates -- never translated text.
 # ---------------------------------------------------------------------------
 EN: dict[str, str] = {
+    # Shared chrome -- page_shell() skip link (AuditLab A11Y-13, 2026-08-27)
+    "a11y.skip_to_content": "Skip to content",
     # Shared chrome -- site_header()
     "site.tagline": "CPA license renewal deadlines by state — verified and kept current",
     "nav.browse_states": "Browse States",
