@@ -78,9 +78,10 @@ full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
 <ul>
   <li><strong>HTTPS-only, always.</strong> Every connection sends an HTTP Strict-Transport-Security
   header instructing browsers to never downgrade to plain HTTP.</li>
-  <li><strong>Passwords never stored in plain text.</strong> Hashed with PBKDF2-HMAC-SHA256 at 100,000
-  iterations, each with its own random salt -- the standard the U.S. federal government's own NIST
-  password guidance describes.</li>
+  <li><strong>Passwords never stored in plain text.</strong> Hashed with PBKDF2-HMAC-SHA256 at
+  200,000 effective iterations (two chained rounds of 100,000 -- the per-call ceiling our hosting
+  platform enforces), each with its own random salt -- well above the U.S. federal government's own
+  NIST password guidance.</li>
   <li><strong>Session and login tokens</strong> are stored as one-way SHA-256 hashes, not the raw value
   a stolen database dump could reuse to sign in.</li>
   <li><strong>Uploaded documents</strong> (license and CPE certificates) are served back only with
