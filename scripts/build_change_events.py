@@ -405,7 +405,18 @@ def withheld_queue(today: date) -> list[dict]:
     return sorted(out, key=lambda x: x["jurisdiction_slug"])
 
 
-def _report_pending_clobber(new_events: list[dict]) -> None:
+# AuditLab REGEN-9 (2026-08-27): these 4 of the 11 _meta keys are hardcoded
+# prose a maintainer would plausibly hand-correct in place (exactly what
+# happened to `generated_from`'s 2026-08-21 note on the 3-vs-4 monitoring
+# discrepancy, clobbered by 4950497b7 alongside the MA/IN event records --
+# the guard below caught the events but silently missed this half of the
+# same incident). The other 7 keys (as_of, the five counts, and
+# generated_from itself) are legitimately recomputed every run and must
+# NOT be diffed, or the guard would cry wolf on every single invocation.
+_META_HAND_EDITABLE_KEYS = ("purpose", "separable", "status_derivation", "reverification_rule")
+
+
+def _report_pending_clobber(new_events: list[dict], new_meta: dict) -> None:
     """AuditLab REGEN-2 addendum (2026-08-27): this generator is write-only
     -- it never reads its own prior output, so any hand-correction made
     directly in data/reg_change_events.json (rather than upstream in
@@ -420,11 +431,18 @@ def _report_pending_clobber(new_events: list[dict]) -> None:
     against whatever's already on disk, BEFORE overwriting it, and print
     anything that would be silently removed, added, or field-changed. A
     clean diff means no hand-edit is sitting in the blast radius; a dirty
-    one is the loud warning that was missing on 2026-08-26."""
+    one is the loud warning that was missing on 2026-08-26.
+
+    Also diffs the hand-editable _meta prose keys (REGEN-9) -- the first
+    version of this guard only compared events and reported "clean" while
+    about to destroy a hand-edited _meta field, which is worse than no
+    check at all."""
     if not OUT.is_file():
         return
     try:
-        old_events = {e["event_id"]: e for e in json.loads(OUT.read_text(encoding="utf-8")).get("events", [])}
+        old_doc = json.loads(OUT.read_text(encoding="utf-8"))
+        old_events = {e["event_id"]: e for e in old_doc.get("events", [])}
+        old_meta = old_doc.get("_meta", {})
     except (OSError, json.JSONDecodeError, KeyError):
         print("  (pending-clobber check skipped -- existing data/reg_change_events.json unreadable)")
         return
@@ -437,7 +455,10 @@ def _report_pending_clobber(new_events: list[dict]) -> None:
         drifted_fields = sorted(k for k in (set(old_e) | set(new_e)) if old_e.get(k) != new_e.get(k))
         if drifted_fields:
             changed.append((event_id, drifted_fields))
-    if not removed and not added and not changed:
+    meta_changed = sorted(
+        k for k in _META_HAND_EDITABLE_KEYS if old_meta.get(k) != new_meta.get(k)
+    )
+    if not removed and not added and not changed and not meta_changed:
         print("  pending-clobber check: clean -- this run matches what's already on disk, no hand-edit at risk.")
         return
     print("  pending-clobber check: this run WOULD CHANGE the committed file --")
@@ -447,6 +468,8 @@ def _report_pending_clobber(new_events: list[dict]) -> None:
         print(f"    would ADD {len(added)} event(s): {', '.join(added)}")
     for event_id, fields in changed:
         print(f"    would change {event_id}: {', '.join(fields)}")
+    for key in meta_changed:
+        print(f"    would change _meta.{key}")
     print("  If any of the above is a hand-correction made directly in data/reg_change_events.json "
           "(not upstream in mobility_rules.json or a DiffLab event file), it will be lost -- move the "
           "fix upstream before re-running, or confirm the change is intentional.")
@@ -479,41 +502,43 @@ def main() -> int:
     conflicts = [e for e in events if e["kind"] == KIND_CONFLICT]
     difflab_live = [e for e in changes if e.get("source") == "difflab_reg_change_engine"]
 
-    _report_pending_clobber(events)
+    meta = {
+        "purpose": "Publishable rule-change events for the public changes feed.",
+        "generated_from": "worker/src/mobility_rules.json (batch research) + "
+                          "automated day-to-day source monitoring "
+                          f"({len(difflab_live)} currently promoted).",
+        "separable": "Deliberately independent of the mobility determination engine (AuditLab "
+                     "MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- "
+                     "/firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, "
+                     "and the /firm-mobility/ Practice Privilege Check UI are all live; this note "
+                     "previously said HELD, which stopped being true and would have misled a "
+                     "future maintainer about what's deployed). This feed publishes change facts "
+                     "+ citations only and stays architecturally independent of that engine "
+                     "either way -- a change fact does not require or imply a mobility "
+                     "determination for the same state.",
+        "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or "
+                             "the monitoring pipeline's own classified status). Status is NOT inferred from "
+                             "prose: 27 of 55 mobility records match enacted/proposed/rule "
+                             "signals simultaneously, so a regex label would be a guess. Records "
+                             "whose status cannot be established from structure are not emitted.",
+        "reverification_rule": "needs_reverification=true means the effective date has passed "
+                               "and we have NOT re-checked. The page must say 'effective [date]; "
+                               "we re-verify on/after that date' -- never 'is now in effect'.",
+        "as_of": today.isoformat(),
+        # Plain numeric fields so the page renders honest counts without
+        # string-parsing `generated_from` or hardcoding a figure that
+        # drifts from the data the next time this script runs.
+        "changes_published": len(changes),
+        "changes_upcoming": len(upcoming),
+        "changes_recent": len(recent),
+        "source_conflicts_published": len(conflicts),
+        "live_monitoring_count": len(difflab_live),
+    }
+
+    _report_pending_clobber(events, meta)
 
     OUT.write_text(json.dumps({
-        "_meta": {
-            "purpose": "Publishable rule-change events for the public changes feed.",
-            "generated_from": "worker/src/mobility_rules.json (batch research) + "
-                              "automated day-to-day source monitoring "
-                              f"({len(difflab_live)} currently promoted).",
-            "separable": "Deliberately independent of the mobility determination engine (AuditLab "
-                         "MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- "
-                         "/firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, "
-                         "and the /firm-mobility/ Practice Privilege Check UI are all live; this note "
-                         "previously said HELD, which stopped being true and would have misled a "
-                         "future maintainer about what's deployed). This feed publishes change facts "
-                         "+ citations only and stays architecturally independent of that engine "
-                         "either way -- a change fact does not require or imply a mobility "
-                         "determination for the same state.",
-            "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or "
-                                 "the monitoring pipeline's own classified status). Status is NOT inferred from "
-                                 "prose: 27 of 55 mobility records match enacted/proposed/rule "
-                                 "signals simultaneously, so a regex label would be a guess. Records "
-                                 "whose status cannot be established from structure are not emitted.",
-            "reverification_rule": "needs_reverification=true means the effective date has passed "
-                                   "and we have NOT re-checked. The page must say 'effective [date]; "
-                                   "we re-verify on/after that date' -- never 'is now in effect'.",
-            "as_of": today.isoformat(),
-            # Plain numeric fields so the page renders honest counts without
-            # string-parsing `generated_from` or hardcoding a figure that
-            # drifts from the data the next time this script runs.
-            "changes_published": len(changes),
-            "changes_upcoming": len(upcoming),
-            "changes_recent": len(recent),
-            "source_conflicts_published": len(conflicts),
-            "live_monitoring_count": len(difflab_live),
-        },
+        "_meta": meta,
         "events": events,
     }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
