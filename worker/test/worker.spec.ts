@@ -6178,6 +6178,14 @@ describe("POST /firm/sign-out-other-devices", () => {
   });
 
   it("rate-limits PER SESSION, not per firm -- one session's budget can't 429 a different session of the same firm", async () => {
+    // AuditLab TEST-9 (2026-08-27): up to 12 real sequential HTTP+D1 round
+    // trips genuinely runs long under full-suite contention, same as the
+    // CPE rate-limit tests above -- explicit timeout, not a sign anything's
+    // wrong. Previously flaked at vitest's 5s default and got pinned as a
+    // "known-flaky" test in scripts/run_worker_tests.py; the repo's own
+    // established remedy (this test's own two-tests-away CPE precedent)
+    // fixes the actual cause instead of permanently accepting the noise.
+    //
     // Adversarial-review finding (2026-08-05): a per-firm key would let a
     // STOLEN session burn the whole firm's hourly budget across many IPs,
     // then 429 the real owner's own fresh session out of the exact remedy
@@ -6206,7 +6214,7 @@ describe("POST /firm/sign-out-other-devices", () => {
     const owner = await store.createSession(env.DB, firmId);
     const ownerResp = await postSignOutOtherDevices(`dr_firm_session=${owner.rawSessionToken}`, "203.0.113.250");
     expect(ownerResp.status).toBe(200);
-  });
+  }, 20000);
 });
 
 // AuditLab (2026-08-05, findings/auditlab_20260805_signout_detection_email.spec.ts):
