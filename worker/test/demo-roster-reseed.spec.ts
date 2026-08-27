@@ -128,4 +128,86 @@ describe("reseedDemoFirmRosterIfBelowFloor", () => {
     expect(addedEmails).toContain("jordan.mitchell@demo.deadline-radar.com");
     expect(addedEmails).toContain("morgan.patel@demo.deadline-radar.com");
   });
+
+  it("never leaves a reserved identity with two rows even if its derived target state rotates between calls", async () => {
+    // Regression for the identity-vs-(email,state) dedup key change: a lone
+    // leftover row for a reserved email, sitting on WHATEVER state it was
+    // originally seeded under, must be recognized as "already present" and
+    // skipped, not duplicated -- reconcile (tested below), not reseed, is
+    // what's supposed to move it to a new state.
+    const firmId = await makeDemoFirm("rotation");
+    await store.addPending(env.DB, {
+      email: "jordan.mitchell@demo.deadline-radar.com",
+      stateSlug: "zz-test-legacy-state", // deliberately NOT whatever derivation would pick today
+      deadlineFields: { license_type_id: "zz-test-legacy-license" },
+      firstName: "Jordan",
+      firmId,
+      skipConfirmation: true,
+    });
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+    const rows = await store.listFirmLicenses(env.DB, firmId);
+    const jordanRows = rows.filter((r) => r.email === "jordan.mitchell@demo.deadline-radar.com");
+    expect(jordanRows.length).toBe(1);
+    expect(jordanRows[0]?.state_slug).toBe("zz-test-legacy-state"); // reseed doesn't move it, only reconcile does
+  });
+});
+
+describe("reconcileDemoFirmRosterDeadlines", () => {
+  it("no-ops when there is no demo firm at all", async () => {
+    const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
+    expect(result).toEqual({ updated: 0 });
+  });
+
+  it("updates a reserved staffer's stale state/license to the current derived pick, preserving other fields untouched", async () => {
+    const firmId = await makeDemoFirm("reconcile-stale");
+    const original = await store.addPending(env.DB, {
+      email: "jordan.mitchell@demo.deadline-radar.com",
+      stateSlug: "zz-test-legacy-state",
+      deadlineFields: { license_type_id: "zz-test-legacy-license" },
+      firstName: "Jordan",
+      firmId,
+      staffLabel: "Visitor-added label -- must survive reconcile",
+      skipConfirmation: true,
+    });
+
+    const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
+    expect(result.updated).toBeGreaterThan(0);
+
+    const rows = await store.listFirmLicenses(env.DB, firmId);
+    const jordan = rows.find((r) => r.email === "jordan.mitchell@demo.deadline-radar.com");
+    expect(jordan).toBeTruthy();
+    expect(jordan?.state_slug).not.toBe("zz-test-legacy-state"); // moved to today's derived pick
+    const fields = JSON.parse(jordan?.deadline_fields ?? "{}") as Record<string, string>;
+    expect(fields.license_type_id).toBeTruthy();
+    // Every derived deadline must actually be computable, not just present.
+    expect(fields.license_type_id).not.toBe("zz-test-legacy-license");
+    // The one thing this function must NOT clobber, unlike updateFirmLicense().
+    expect(jordan?.staff_label).toBe("Visitor-added label -- must survive reconcile");
+    expect(jordan?.id).toBe(original.id); // same row, updated in place -- not a delete+recreate
+  });
+
+  it("is a no-op (updated: 0) when the roster already matches today's derived picks", async () => {
+    const firmId = await makeDemoFirm("reconcile-noop");
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB); // seeds with today's derived picks already
+    const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
+    expect(result).toEqual({ updated: 0 });
+  });
+
+  it("skips a reserved identity that isn't currently on the roster at all -- that's reseed's job, not this one's", async () => {
+    const firmId = await makeDemoFirm("reconcile-partial");
+    await store.addPending(env.DB, {
+      email: "jordan.mitchell@demo.deadline-radar.com",
+      stateSlug: "zz-test-legacy-state",
+      deadlineFields: { license_type_id: "zz-test-legacy-license" },
+      firstName: "Jordan",
+      firmId,
+      skipConfirmation: true,
+    });
+    // No row at all for morgan.patel etc. -- reconcile must not crash or
+    // fabricate rows for identities it can't find.
+    const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
+    expect(result.updated).toBe(1); // only jordan's stale row is there to fix
+    const rows = await store.listFirmLicenses(env.DB, firmId);
+    expect(rows.length).toBe(1);
+  });
 });

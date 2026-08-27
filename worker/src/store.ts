@@ -18,7 +18,7 @@ import {
   sanitizeFirstName,
   sanitizeFreeText,
 } from "./validation";
-import { computeSubscriberDeadline } from "./deadline";
+import { computeSubscriberDeadline, nearestSimpleFixedCalendarDeadlines } from "./deadline";
 
 export const STATUS_PENDING = "pending_confirmation";
 export const STATUS_CONFIRMED = "confirmed";
@@ -2012,16 +2012,24 @@ export async function getDemoFirm(db: D1Database): Promise<FirmRow | null> {
  * rather than a state-count-dependent special case.
  *
  * All 5 baseline emails live on the `demo.deadline-radar.com` subdomain
- * deliberately -- `findActiveOrPending()` below (the same "don't duplicate
- * an existing row" check `handleFirmLicenseCreate()` uses) is scoped by
- * `(cooldown_key, state_slug)` only, NOT by `firm_id`. That's fine here
- * because there is exactly one `demo_locked = 1` firm in production and no
- * real customer will ever coincidentally sign up on this reserved
+ * deliberately -- there is exactly one `demo_locked = 1` firm in production
+ * and no real customer will ever coincidentally sign up on this reserved
  * subdomain, but a test file exercising more than one demo-locked firm
  * with these same fixed emails WILL see them collide across firms --
  * demo-roster-reseed.spec.ts's own `beforeEach` clears `subscribers`
  * between tests for exactly this reason; found the hard way while writing
  * it, not a theoretical caveat.
+ *
+ * DEMO-12 (2026-08-27): the reseed loop below dedupes each reserved
+ * identity by (firm_id, cooldown_key) alone, NOT `findActiveOrPending()`'s
+ * usual (cooldown_key, state_slug) -- deliberately, since `deriveDemoBaselineRoster()`
+ * means the target state for a given identity can itself change over time.
+ * Keying dedup by state too would let a state rotation spawn a SECOND row
+ * for the same demo person instead of updating the one that's already
+ * there (`reconcileDemoFirmRosterDeadlines()` below is what performs that
+ * update). One row per reserved identity is the actual product intent here
+ * -- unlike a real customer's roster, these 5 are never meant to represent
+ * one person licensed in more than one state.
  */
 const DEMO_ROSTER_FLOOR = 2;
 // AuditLab DEMO-10 (2026-08-27): the original 5 rows all had real deadlines
@@ -2030,26 +2038,49 @@ const DEMO_ROSTER_FLOOR = 2;
 // this week's luck -- until mid-2027. A prospect clicking "Live Demo" saw a
 // product with nothing to do, while the OTHER demo path (drBuildSampleLicenses(),
 // generate.py) deliberately ships an overdue + a due-soon row for exactly
-// this reason. Swapped two rows to real near-term records from the same
-// sourced dataset that drives every other page -- no fabricated dates, kept
-// each person's name/email (the audit-trail-continuity fix, DEMO-1) intact,
-// only changed which license they're tracking. co-firm (2026-08-31, 4 days
-// at filing) was deliberately NOT used -- it rolls to 2029-08-31 the very
-// next day, per AuditLab's own explicit caveat.
+// this reason.
 //
-// AuditLab's stated caveat, not yet built: any fixed pick decays as dates
-// roll (id-firm/me-all stop being "due soon" ~2026-10-04; mo-firm stops
-// ~2026-11-05) -- same stale-fixture class as TEST-6/STALE-11. Deriving
-// this roster by proximity-to-deadline at reseed time, rather than
-// hardcoding specific states, is the durable fix; flagged as real
-// follow-up work, not built here.
-const DEMO_BASELINE_ROSTER: { email: string; firstName: string; licenseTypeId: string; stateSlug: string }[] = [
-  { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan", licenseTypeId: "il-individual", stateSlug: "illinois" },
-  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan", licenseTypeId: "mo-firm", stateSlug: "missouri" },
-  { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis", licenseTypeId: "ga-individual", stateSlug: "georgia" },
-  { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam", licenseTypeId: "nc-all", stateSlug: "north-carolina" },
-  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor", licenseTypeId: "me-all", stateSlug: "maine" },
+// AuditLab DEMO-12 (2026-08-27): a first pass hardcoded two specific
+// near-term records (mo-firm, me-all) -- but a fixed pick decays as dates
+// roll (same stale-fixture class as TEST-6/STALE-11), and one of the two
+// picks turned out not to even clear the dashboard's own `daysUntilDeadline
+// <= 30` gate on the day it shipped. Replaced with `deriveDemoBaselineRoster()`
+// below: the 5 identities (name/email) stay fixed, for DEMO-1's audit-trail
+// continuity, but WHICH license/state each tracks is derived fresh from
+// `nearestSimpleFixedCalendarDeadlines()` every time this runs -- so it's
+// never more than a state's own renewal cycle away from "due soon," with no
+// re-pick needed as dates roll. Deliberately can never land on co-firm
+// specifically-that-day-only edge cases either: nearest-first naturally
+// rotates off a record the moment it's no longer nearest, before the
+// no-safe-rollover caveat AuditLab raised about it would matter.
+const DEMO_ROSTER_IDENTITIES: { email: string; firstName: string }[] = [
+  { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan" },
+  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan" },
+  { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis" },
+  { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam" },
+  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor" },
 ];
+
+/** Picks 5 distinct-state, nearest-deadline (state, license type) pairs for
+ * DEMO_ROSTER_IDENTITIES above -- see that constant's own comment. Falls
+ * back to repeating a state only if fewer than 5 distinct computable states
+ * exist at all (never true in production; the dataset covers 50+). */
+function deriveDemoBaselineRoster(asOf: Date): { email: string; firstName: string; licenseTypeId: string; stateSlug: string }[] {
+  const candidates = nearestSimpleFixedCalendarDeadlines(asOf);
+  const picks: { licenseTypeId: string; stateSlug: string }[] = [];
+  const pickedStates = new Set<string>();
+  for (const c of candidates) {
+    if (picks.length >= DEMO_ROSTER_IDENTITIES.length) break;
+    if (pickedStates.has(c.stateSlug)) continue;
+    pickedStates.add(c.stateSlug);
+    picks.push({ licenseTypeId: c.licenseTypeId, stateSlug: c.stateSlug });
+  }
+  for (const c of candidates) {
+    if (picks.length >= DEMO_ROSTER_IDENTITIES.length) break;
+    picks.push({ licenseTypeId: c.licenseTypeId, stateSlug: c.stateSlug });
+  }
+  return DEMO_ROSTER_IDENTITIES.map((identity, idx) => ({ ...identity, ...picks[idx]! }));
+}
 
 export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<{ seeded: boolean; count: number }> {
   const firm = await getDemoFirm(db);
@@ -2057,8 +2088,13 @@ export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<
   const currentCount = await countFirmLicenses(db, firm.id);
   if (currentCount >= DEMO_ROSTER_FLOOR) return { seeded: false, count: currentCount };
 
-  for (const staffer of DEMO_BASELINE_ROSTER) {
-    const existing = await findActiveOrPending(db, staffer.email, staffer.stateSlug);
+  for (const staffer of deriveDemoBaselineRoster(new Date())) {
+    // By identity alone (firm_id, cooldown_key), not findActiveOrPending()'s
+    // usual (cooldown_key, state_slug) -- see DEMO-12's comment above.
+    const existing = await db
+      .prepare(`SELECT 1 FROM subscribers WHERE firm_id = ?1 AND cooldown_key = ?2 AND status IN (?3, ?4) LIMIT 1`)
+      .bind(firm.id, cooldownKey(staffer.email), STATUS_PENDING, STATUS_CONFIRMED)
+      .first();
     if (existing) continue; // already there (e.g. only some rows were removed) -- don't duplicate
     const record = await addPending(db, {
       email: staffer.email,
@@ -2081,6 +2117,60 @@ export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<
     }
   }
   return { seeded: true, count: await countFirmLicenses(db, firm.id) };
+}
+
+/**
+ * AuditLab DEMO-11 (2026-08-27): `reseedDemoFirmRosterIfBelowFloor()` above
+ * only ever ADDS rows when the roster is below `DEMO_ROSTER_FLOOR` -- it
+ * never touches an already-populated roster, so a baseline pick change
+ * (like DEMO-10/DEMO-12's) can ship in code and still never reach the live
+ * demo firm, which already sits at 5 (well above the floor). This is the
+ * missing other half: reconciles each of the 5 RESERVED demo emails'
+ * CURRENT (state, license type) against what `deriveDemoBaselineRoster()`
+ * says it should be right now, updating only when they differ.
+ *
+ * Deliberately narrower than the generic `updateFirmLicense()` (the real
+ * admin-edit HTTP handler's storage layer): this is a shared, publicly
+ * mutable live account (see `reseedDemoFirmRosterIfBelowFloor()`'s own
+ * docstring), so a visitor may have already set a `staff_label`,
+ * `internal_notes`, or `renewal_fee_cents` on one of these rows while
+ * exploring. `updateFirmLicense()` requires re-supplying every column and
+ * would silently clobber those with blanks. This UPDATE touches only
+ * `state_slug` + `deadline_fields` (the two fields the roster PICK actually
+ * is) and leaves everything else on the row untouched.
+ *
+ * Matches by (firm_id, cooldown_key) rather than (cooldown_key, state_slug)
+ * like `findActiveOrPending()` -- the whole point here is finding a row
+ * whose state_slug may no longer match its target, so state can't be part
+ * of the lookup key.
+ */
+export async function reconcileDemoFirmRosterDeadlines(db: D1Database): Promise<{ updated: number }> {
+  const firm = await getDemoFirm(db);
+  if (!firm) return { updated: 0 };
+
+  let updated = 0;
+  for (const staffer of deriveDemoBaselineRoster(new Date())) {
+    const key = cooldownKey(staffer.email);
+    const row = await db
+      .prepare(
+        `SELECT * FROM subscribers WHERE firm_id = ?1 AND cooldown_key = ?2 AND status IN (?3, ?4) LIMIT 1`
+      )
+      .bind(firm.id, key, STATUS_PENDING, STATUS_CONFIRMED)
+      .first<SubscriberRow>();
+    if (!row) continue; // this reserved staffer isn't currently on the roster -- reseed's job, not this one's
+
+    const currentFields = JSON.parse(row.deadline_fields || "{}") as { license_type_id?: string };
+    if (row.state_slug === staffer.stateSlug && currentFields.license_type_id === staffer.licenseTypeId) {
+      continue; // already matches the current derived pick
+    }
+
+    await db
+      .prepare(`UPDATE subscribers SET state_slug = ?1, deadline_fields = ?2, last_edited_at = ?3 WHERE id = ?4 AND firm_id = ?5`)
+      .bind(staffer.stateSlug, JSON.stringify({ license_type_id: staffer.licenseTypeId }), nowIso(), row.id, firm.id)
+      .run();
+    updated++;
+  }
+  return { updated };
 }
 
 /**

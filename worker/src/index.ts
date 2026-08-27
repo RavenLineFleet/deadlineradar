@@ -2595,6 +2595,15 @@ async function handleDemoLogin(env: Env, ip: string): Promise<Response> {
   } catch {
     // Non-fatal -- the daily cron will still catch it eventually.
   }
+  // DEMO-11 (2026-08-27): reseed above only fills an EMPTY-below-floor
+  // roster; this is the half that keeps an already-populated one's picks
+  // current as `deriveDemoBaselineRoster()`'s nearest-deadline picks
+  // rotate over time. Same best-effort posture as the reseed call above.
+  try {
+    await store.reconcileDemoFirmRosterDeadlines(env.DB);
+  } catch {
+    // Non-fatal -- the daily cron will still catch it eventually.
+  }
   const { rawSessionToken } = await store.createSession(env.DB, firm.id);
   return new Response(null, {
     status: 302,
@@ -11531,6 +11540,16 @@ export default {
           }
         } catch (err) {
           console.log(`[demo-roster-cron] error: ${String(err)}`);
+        }
+        try {
+          // DEMO-11 (2026-08-27): keeps an already-populated roster's picks
+          // current -- reseed above only ever fills an empty-below-floor one.
+          const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
+          if (result.updated > 0) {
+            console.log(`[demo-roster-cron] reconciled ${result.updated} demo roster row(s) to current nearest-deadline picks`);
+          }
+        } catch (err) {
+          console.log(`[demo-roster-cron] reconcile error: ${String(err)}`);
         }
       })()
     );

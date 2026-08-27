@@ -568,3 +568,40 @@ export function computeSubscriberDeadline(
   }
   return null;
 }
+
+/**
+ * AuditLab DEMO-12 (2026-08-27): the shared demo firm's baseline roster
+ * used to hardcode which states/license types count as "due soon" -- a pick
+ * that's only true for a few weeks around when it was written, then decays
+ * back to the exact "nothing due for months" symptom the fix was for (see
+ * store.ts's DEMO_BASELINE_ROSTER comment). This derives candidates fresh
+ * instead: every (state, license type) whose deadline `computeSubscriberDeadline`
+ * can resolve from `license_type_id` ALONE, with no personal field
+ * (birth_month/parity/anchor_year/anchor_date/cohort_group) -- i.e. every
+ * state branch above that a demo person can plausibly represent without
+ * fabricating a fake birthdate or license-anchor date. Passing only
+ * `{license_type_id: r.id}` is what does the filtering: a state that
+ * requires one of those personal fields returns null on its own guard
+ * clause, so it's excluded for free, no separate state-slug allowlist to
+ * keep in sync as new states are added (2026-08-18's DNC sweep already
+ * added several after this shape existed for fl-firm/etc.).
+ */
+export function nearestSimpleFixedCalendarDeadlines(
+  asOf: Date
+): { licenseTypeId: string; stateSlug: string; daysUntil: number }[] {
+  const today = startOfUtcDay(asOf);
+  const seen = new Set<string>();
+  const out: { licenseTypeId: string; stateSlug: string; daysUntil: number }[] = [];
+  for (const r of DATA.records) {
+    const key = `${r.state_slug}:${r.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const d = computeSubscriberDeadline(r.state_slug, { license_type_id: r.id }, asOf);
+    if (!d) continue;
+    const daysUntil = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (daysUntil <= 0) continue; // already elapsed data, not a candidate to hand a demo visitor
+    out.push({ licenseTypeId: r.id, stateSlug: r.state_slug, daysUntil });
+  }
+  out.sort((a, b) => a.daysUntil - b.daysUntil);
+  return out;
+}
