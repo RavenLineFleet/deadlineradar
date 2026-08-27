@@ -1311,11 +1311,17 @@ export function buildRuleChangeAdminAlertEmail(
   // summary, and confidenceLabel are all already in scope and carry the
   // actual content, which the subject only gestures at.
   const preheader = `Effective ${effectiveDateLabel} (confidence: ${confidenceLabel}): ${summary}`;
+  // AuditLab COPY-14 (2026-08-26): "rule change (CPA regulatory/statutory
+  // change)" doubled the word the same way COPY-13 did on the site --
+  // topic is currently always that generic fallback string, which already
+  // ends in "change". Same guard as generate.py's fix: only append "rule
+  // change" when topic doesn't already read as one.
+  const topicPhrase = topic.trim().toLowerCase().endsWith("change") ? topic : `${topic} rule change`;
 
   const citationLine = citationUrl ? `Source: ${citationUrl}\n\n` : "";
   const textBody =
     `${safeFirmName},\n\n` +
-    `A new rule change (${topic}) was just added for ${jurisdiction} -- your roster has ` +
+    `A new ${topicPhrase} was just added for ${jurisdiction} -- your roster has ` +
     `staff licensed there, so it may be worth a look.\n\n` +
     `Effective ${effectiveDateLabel} (confidence: ${confidenceLabel}):\n${summary}\n\n` +
     citationLine +
@@ -1332,7 +1338,7 @@ export function buildRuleChangeAdminAlertEmail(
     `<h1 class="dr-fg" style="margin:0 0 16px;font-size:19px;font-weight:700;color:${LIGHT.fg};">` +
       `New ${esc(jurisdiction)} rule change affects your roster</h1>` +
       p(
-        `${esc(safeFirmName)}, a new rule change (${esc(topic)}) was just added for ` +
+        `${esc(safeFirmName)}, a new ${esc(topicPhrase)} was just added for ` +
           `${esc(jurisdiction)} -- your roster has staff licensed there, so it may be worth a look.`
       ) +
       p(
