@@ -38,8 +38,17 @@ async function sessionCookieFor(firmId: string, memberId: string): Promise<strin
   return `dr_firm_session=${rawSessionToken}`;
 }
 
-const REAL_EVENT_ID = "colorado-mobility-2026-08-12";
-const REAL_EVENT_STATE = "colorado";
+// AuditLab REGEN-8 (2026-08-26): the previous reference here
+// (colorado-mobility-2026-08-12) went stale once REGEN-3's status-fallback
+// fix correctly withheld it (missing status field), breaking this whole
+// describe block -- a real, dated event id is inherently a moving target.
+// Picked the live event with the FURTHEST-OUT effective_date at time of
+// writing (2026-11-01) to buy the most runway before this needs updating
+// again; there is no synthetic-event injection path in
+// runRuleChangeAlertPass() to test against instead (send() is the only
+// override RunReminderOptions exposes).
+const REAL_EVENT_ID = "oklahoma-regwatch-ff8bf9c424be";
+const REAL_EVENT_STATE = "oklahoma";
 
 describe("store.findFirmsEligibleForRuleChangeAlert()", () => {
   it("includes a firm with alerts enabled and an active roster license in the event's state", async () => {
@@ -315,6 +324,30 @@ describe("isEmailableRuleChangeEvent() -- AuditLab ALERT-1", () => {
     expect(isEmailableRuleChangeEvent(baseEvent({ kind: "source_conflict" }))).toBe(false);
     expect(isEmailableRuleChangeEvent(baseEvent({ upcoming: false }))).toBe(false);
     expect(isEmailableRuleChangeEvent(baseEvent({ effective_date: "" }))).toBe(false);
+  });
+
+  // AuditLab REGEN-8 (2026-08-26): `upcoming` is a boolean baked into the
+  // deployed JSON at whatever moment the data pipeline last ran (a manual
+  // step). Simulated: an event whose effective_date has since passed but
+  // whose stored `upcoming: true` never got a chance to flip, because
+  // nobody re-ran the sync + redeployed the worker between the record's
+  // last build and today. Before this fix, `isEmailableRuleChangeEvent`
+  // trusted the stale flag and would keep sending "an upcoming rule
+  // change" about a change already in force -- AuditLab's simulation
+  // predicted exactly this for Missouri on 2026-08-28.
+  it("does NOT email once effective_date has passed, even with a stale upcoming:true flag baked into the data", async () => {
+    const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
+    const staleEvent = baseEvent({ effective_date: "2026-08-28", upcoming: true });
+    expect(isEmailableRuleChangeEvent(staleEvent, new Date("2026-08-27T00:00:00Z"))).toBe(true);
+    expect(isEmailableRuleChangeEvent(staleEvent, new Date("2026-08-28T00:00:00Z"))).toBe(false);
+    expect(isEmailableRuleChangeEvent(staleEvent, new Date("2026-08-29T00:00:00Z"))).toBe(false);
+  });
+
+  it("a stored upcoming:false is never overridden to true by a future effective_date -- pure tightening, never widening", async () => {
+    const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
+    expect(
+      isEmailableRuleChangeEvent(baseEvent({ effective_date: "2027-01-01", upcoming: false }), new Date("2026-08-27T00:00:00Z"))
+    ).toBe(false);
   });
 });
 
