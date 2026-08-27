@@ -19820,9 +19820,21 @@ def build_firm_landing_page(state_slug: str, record: dict) -> tuple[str, str, st
     state_name = record["state"]
     slug = f"{state_slug}-cpa-firm-renewal"
     title = f"{state_name} CPA Firm Renewal — What the Firm Itself Must File"
+    # SEO audit (2026-08-27): `title` doubles as the visible <h1> below, so
+    # trimming it to fit Google's ~60-char SERP display budget would have
+    # shortened real page content, not just metadata. seo_title is a
+    # SEPARATE, shorter string used only for the <title> tag -- the H1 and
+    # everything else keeps the full descriptive text unchanged. Fits every
+    # state name in the dataset (max 58 chars incl. the site-name suffix).
+    seo_title = f"{state_name} CPA Firm Renewal"
+    # SEO audit (2026-08-27): trimmed to fit Google's ~160-char SERP snippet
+    # budget for every state (was 172 chars of fixed text alone, before the
+    # state name -- 180+ total, unfixable without shortening). Not echoed
+    # anywhere visible on the page (only the H1 above is), so no content
+    # change beyond the search-result snippet itself.
     meta_description = (
-        f"{state_name} CPA firm registration/permit renewal: when it's due, what's required, and the "
-        f"codified rule -- for whoever owns the firm's registration, not just individual staff licenses."
+        f"{state_name} CPA firm registration/permit renewal -- when it's due, what's required, sourced "
+        f"to the codified rule, for whoever owns the firm's filing."
     )
     body = f"""<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} firm registration/permit &mdash; not individual license renewal</p>
@@ -19867,7 +19879,7 @@ to hope someone's watching. <a href="../for-firms/">See firm-tier pricing &rarr;
         ],
     }]
     html = page_shell(
-        f"{title} — {SITE_NAME}", meta_description, body, home_href="../",
+        f"{seo_title} — {SITE_NAME}", meta_description, body, home_href="../",
         canonical_path=f"/{slug}/", json_ld=json_ld,
     )
     return slug, title, html
@@ -19949,6 +19961,12 @@ def build_cpe_hours_page(
     state_name = cpe_record["state"]
     slug = f"{cpe_record['state_slug']}-cpa-cpe-requirements"
     title = f"{state_name} CPA CPE Requirements: How Many Hours, By When"
+    # SEO audit (2026-08-27): same seo_title split as build_firm_landing_page()
+    # -- `title` stays full-length for the visible <h1>, seo_title is a
+    # shorter string for just the <title> tag so it fits Google's ~60-char
+    # SERP budget (fits every state but one -- Northern Mariana Islands runs
+    # 2 chars over even at this length, not worth losing "CPA CPE" for).
+    seo_title = f"{state_name} CPA CPE Requirements"
     period_phrase = _every_n_years(cpe_record["period_years"])
     # CTR fix (2026-07-25, per GSC: avg position ~19, 0.42% CTR): the raw legal
     # citation at the end of the old meta description ate SERP-snippet space
@@ -20097,7 +20115,7 @@ against the board's own page, never a guess.</p>
         ],
     }]
     html = page_shell(
-        f"{title} — {SITE_NAME}", meta_description, body, home_href="../",
+        f"{seo_title} — {SITE_NAME}", meta_description, body, home_href="../",
         canonical_path=f"/{slug}/", json_ld=json_ld, has_remind_anchor=True,
     )
     return slug, title, html
@@ -20457,6 +20475,13 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
     state_name = record["state"]
     slug = f"{record['state_slug']}-cpa-license-reinstatement"
     title = f"{state_name} CPA License Reinstatement: What a Lapsed License Costs"
+    # SEO audit (2026-08-27): same seo_title split as the other two flat-page
+    # builders -- `title` stays full for the visible <h1>, seo_title is
+    # shorter for just the <title> tag. Dropped "CPA" here specifically
+    # (unlike the CPE/firm-renewal pages) since keeping it still left 3
+    # states over Google's ~60-char budget; without it only the single
+    # longest jurisdiction name (Northern Mariana Islands) runs 3 chars over.
+    seo_title = f"{state_name} License Reinstatement"
     fee_str = _reinstatement_fee_str(record.get("reinstatement_fee_usd"))
     # CTR fix (2026-07-25, per GSC: avg position ~19, 0.42% CTR): the original
     # version appended the full legal citation to every meta description --
@@ -20545,7 +20570,7 @@ never a guess.</p>
         ],
     }]
     html = page_shell(
-        f"{title} — {SITE_NAME}", meta_description, body, home_href="../",
+        f"{seo_title} — {SITE_NAME}", meta_description, body, home_href="../",
         canonical_path=f"/{slug}/", json_ld=json_ld, has_remind_anchor=True,
     )
     return slug, title, html
