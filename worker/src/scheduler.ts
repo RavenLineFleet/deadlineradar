@@ -832,6 +832,28 @@ const RULE_CHANGE_EVENTS = (regChangeEventsData as unknown as { events: RuleChan
 // build_rule_changes_page() both use, PLUS two conditions those pages
 // don't need (their own reader can weigh a caveat visually; this filter's
 // output goes straight into an email asserting the change as fact) --
+// AuditLab REGEN-8 (2026-08-26): `upcoming` is a boolean baked into
+// worker/src/reg_change_events.json at whatever moment this repo's data
+// pipeline last ran (a manual step, median real-world gap ~5 days per git
+// history) -- it never updates itself as the calendar advances between
+// syncs. generate.py's `_is_still_upcoming()` fixed the identical bug for
+// the static site (2026-08-14, Colorado rendered "not yet in force" two
+// days after its effective date); this is the same fix for the worker,
+// which unlike a rebuilt static page has NO forcing function to re-check
+// itself -- a stale `worker/src/reg_change_events.json` left deployed past
+// an event's effective_date will keep emailing "an upcoming rule change"
+// about a change already in force, silently, for however long nobody
+// re-syncs and redeploys. Pure TIGHTENING of the stored flag, same as the
+// Python original: an event never marked upcoming stays not-upcoming
+// regardless of date; only "the date has now passed" gets corrected.
+function isStillUpcoming(e: RuleChangeEvent, today: Date): boolean {
+  if (!e.upcoming || !e.effective_date) return false;
+  const effMs = Date.parse(`${e.effective_date}T00:00:00Z`);
+  if (Number.isNaN(effMs)) return false;
+  const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return effMs > todayMs;
+}
+
 // AuditLab ALERT-1: `kind`/`upcoming`/`effective_date` alone let a future
 // event flagged needs_reverification=true through (Louisiana qualified on
 // every axis except the calendar), and let a PROPOSED rule (frequently
@@ -844,12 +866,23 @@ const RULE_CHANGE_EVENTS = (regChangeEventsData as unknown as { events: RuleChan
 // combines needs_reverification=true or a non-ENACTED status with
 // upcoming=true, so a live-data test alone couldn't prove this closes the
 // gap it's meant to.
-export function isEmailableRuleChangeEvent(e: RuleChangeEvent): boolean {
-  return e.kind === "rule_change" && e.upcoming && Boolean(e.effective_date) && e.status === "ENACTED" && !e.needs_reverification;
+//
+// `today` defaults to `new Date()` (not passed by any existing caller/test)
+// so this stays backward-compatible; runRuleChangeAlertPass/the newsletter
+// digest pass their own `asOf` so a test can simulate a future date without
+// waiting real days, same pattern as every other date-derived check here.
+export function isEmailableRuleChangeEvent(e: RuleChangeEvent, today: Date = new Date()): boolean {
+  return (
+    e.kind === "rule_change" &&
+    isStillUpcoming(e, today) &&
+    Boolean(e.effective_date) &&
+    e.status === "ENACTED" &&
+    !e.needs_reverification
+  );
 }
 
-function upcomingRuleChangeEvents(): RuleChangeEvent[] {
-  return RULE_CHANGE_EVENTS.filter(isEmailableRuleChangeEvent);
+function upcomingRuleChangeEvents(today: Date = new Date()): RuleChangeEvent[] {
+  return RULE_CHANGE_EVENTS.filter((e) => isEmailableRuleChangeEvent(e, today));
 }
 
 export interface RuleChangeAlertSummary {
@@ -870,6 +903,7 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
       return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
     });
+  const asOf = opts.asOf ?? new Date();
 
   const summary: RuleChangeAlertSummary = { eventsChecked: 0, firmsChecked: 0, sent: 0, errors: [] };
   const cap = dailyRuleChangeAlertSendCap(env);
@@ -878,7 +912,7 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
   const accountSettingsUrl = `${staticBase}/firm-dashboard/#account`;
 
   let capReached = false;
-  for (const event of upcomingRuleChangeEvents()) {
+  for (const event of upcomingRuleChangeEvents(asOf)) {
     if (capReached) break;
     summary.eventsChecked += 1;
     const stateName = stateNameForSlug(event.jurisdiction_slug) ?? event.jurisdiction;
@@ -2174,7 +2208,7 @@ export async function runComplianceNewsletterPass(
   }
   const alreadyIncludedSet = new Set(alreadyIncluded);
 
-  const candidates = upcomingRuleChangeEvents().filter((e) => !alreadyIncludedSet.has(e.event_id));
+  const candidates = upcomingRuleChangeEvents(asOf).filter((e) => !alreadyIncludedSet.has(e.event_id));
   summary.candidateEvents = candidates.length;
 
   // Never manufacture filler -- a content-free month simply doesn't send,

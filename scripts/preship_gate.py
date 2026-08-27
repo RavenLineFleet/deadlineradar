@@ -4200,6 +4200,48 @@ def print_rule_change_monitoring_staleness_advisory(repo_root: Path) -> None:
         pass
 
 
+def print_deployed_rule_change_staleness_advisory(repo_root: Path) -> None:
+    """AuditLab REGEN-8 (2026-08-26): worker_deploy_staleness_check.py only
+    answers "has anything under worker/src/ changed since the last deploy"
+    -- a git-diff notion. It structurally cannot see this failure mode: the
+    deployed worker/src/reg_change_events.json can be byte-for-byte
+    unchanged and still go wrong, purely because the calendar advanced past
+    an event's effective_date while its stored `upcoming: true` never got a
+    chance to flip (that only happens on the next sync + `wrangler deploy`,
+    both manual, median real-world gap ~5 days). The runtime fix
+    (scheduler.ts's isEmailableRuleChangeEvent now recomputes against the
+    real current date) stops a bad email from actually sending; this
+    advisory is the other half AuditLab asked for -- it tells a human the
+    DEPLOYED data has drifted, which is the more general problem (the same
+    drift would eventually mislabel the /rule-changes/ badge shown to admins
+    on the dashboard, not just the email). Advisory only, same as every
+    other detector here."""
+    events_path = repo_root / "worker" / "src" / "reg_change_events.json"
+    if not events_path.is_file():
+        return
+    try:
+        events = json.loads(events_path.read_text(encoding="utf-8")).get("events", [])
+    except (OSError, json.JSONDecodeError):
+        return
+    today_iso = date.today().isoformat()
+    stale = [
+        e for e in events
+        if e.get("kind") == "rule_change" and e.get("upcoming") is True
+        and e.get("effective_date") and e["effective_date"] < today_iso
+    ]
+    print("\n--- deployed-rule-change-staleness advisory (does not affect gate exit code) ---")
+    if not stale:
+        print(f"PASS -- no deployed event has an elapsed effective_date still marked upcoming=true (as of {today_iso}).")
+        return
+    print(f"STALE -- {len(stale)} deployed event(s) have an effective_date already past but upcoming=true "
+          f"still baked into worker/src/reg_change_events.json (as of {today_iso}):")
+    for e in stale:
+        print(f"  {e.get('event_id')}: effective_date={e.get('effective_date')}")
+    print("The runtime check now recomputes freshness itself, so this alone won't send a bad email -- "
+          "but re-run scripts/build_change_events.py + `python scripts/deploy_worker.py` to bring the "
+          "deployed data current before it drifts further.")
+
+
 def print_guide_review_staleness_advisory(repo_root: Path) -> None:
     """Surfaces guide_review_staleness_check.py (AuditLab PROSE-1, 2026-08-04
     -> tripwire built 2026-08-07) as part of the normal pre-ship run, same
@@ -4357,6 +4399,7 @@ def main():
         print_reinstatement_staleness_advisory(repo_root)
         print_renewal_fee_staleness_advisory(repo_root)
         print_rule_change_monitoring_staleness_advisory(repo_root)
+        print_deployed_rule_change_staleness_advisory(repo_root)
         print_guide_review_staleness_advisory(repo_root)
         print_changelog_staleness_advisory(repo_root)
         print_dual_credential_citation_advisory(repo_root)
@@ -4373,6 +4416,7 @@ def main():
     print_reinstatement_staleness_advisory(repo_root)
     print_renewal_fee_staleness_advisory(repo_root)
     print_rule_change_monitoring_staleness_advisory(repo_root)
+    print_deployed_rule_change_staleness_advisory(repo_root)
     print_guide_review_staleness_advisory(repo_root)
     print_changelog_staleness_advisory(repo_root)
     print_dual_credential_citation_advisory(repo_root)
