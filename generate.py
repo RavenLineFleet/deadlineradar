@@ -39,6 +39,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -2990,6 +2991,16 @@ PAGE_CSS = """
   }
 """
 
+# Page-weight audit (2026-08-27): PAGE_CSS was inlined into every single
+# page's <style> block -- 93KB of byte-identical CSS on all 237 pages,
+# ~88% of even the smallest page's bytes, re-downloaded on every page view
+# since an inline block can never be cached by the browser. page_shell()
+# now links to a single external stylesheet (written once, below) instead.
+# Query-string version derived from the CSS's own content hash so a future
+# edit invalidates any cached copy automatically -- no version number to
+# remember to bump, and unrelated commits (data-only, e.g.) don't churn it.
+PAGE_CSS_VERSION = hashlib.sha256(PAGE_CSS.encode("utf-8")).hexdigest()[:10]
+
 
 # Task #20 (2026-08-06): the hamburger button above ~680px does nothing on
 # its own -- this toggles .dr-nav-open (shown/hidden by the media query on
@@ -4182,7 +4193,6 @@ def _strip_css_comments(css: str) -> str:
     return stripped
 
 
-_STYLE_BLOCK_RE = re.compile(r"<style>\n?(.*?)\n?</style>", re.DOTALL)
 _SCRIPT_BLOCK_RE = re.compile(r"<script>(.*?)</script>", re.DOTALL)
 
 
@@ -4190,15 +4200,19 @@ def _strip_shipped_comments(page_html: str) -> str:
     """Applied once, in page_shell(), the single choke point all ~20
     build_*_page() functions already route through -- covers every current
     and future page without needing to touch each call site. Deliberately
-    matches ONLY the exact-attribute-free <style> and <script> tags this
-    codebase actually emits -- never <script type="application/ld+json">
-    (structured data, not JS -- running it through a JS parser would be both
-    wrong and pointless, json.dumps() output never has comments to strip)
-    and never <script src="..."> (external, empty body -- e.g. the Turnstile
-    widget loader)."""
-    page_html = _STYLE_BLOCK_RE.sub(
-        lambda m: "<style>\n" + _strip_css_comments(m.group(1)) + "\n</style>", page_html, count=1
-    )
+    matches ONLY the exact-attribute-free <script> tags this codebase
+    actually emits -- never <script type="application/ld+json"> (structured
+    data, not JS -- running it through a JS parser would be both wrong and
+    pointless, json.dumps() output never has comments to strip) and never
+    <script src="..."> (external, empty body -- e.g. the Turnstile widget
+    loader).
+
+    Page-weight audit (2026-08-27): used to also strip an inline <style>
+    block's comments here -- PAGE_CSS moved to a single external
+    docs/styles.css (main() writes it once via _strip_css_comments(), same
+    underlying stripper, still comment-free), so there is no per-page
+    <style> block left for this function to find. CSS stripping removed
+    rather than left as dead code that silently matches nothing."""
     page_html = _SCRIPT_BLOCK_RE.sub(
         lambda m: "<script>" + _strip_js_comments(m.group(1)) + "</script>", page_html
     )
@@ -4432,9 +4446,7 @@ def page_shell(
 {_turnstile_head_html()}
 {_json_ld_html(json_ld)}
 {extra_head}
-<style>
-{PAGE_CSS}
-</style>
+<link rel="stylesheet" href="/styles.css?v={PAGE_CSS_VERSION}">
 {_SCROLL_REVEAL_HEAD_JS}
 </head>
 <body>
@@ -22617,6 +22629,17 @@ def main() -> None:
 
     (SITE_DIR / "favicon.svg").write_text(FAVICON_SVG, encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/favicon.svg")
+
+    # _strip_css_comments(), NOT the raw PAGE_CSS -- _strip_shipped_comments()
+    # used to do this automatically because the CSS used to live inside an
+    # inline <style> block that function scans for. Now that it's written
+    # straight to its own file, this is the only place stripping happens;
+    # skipping it would ship 155 internal editorial comments (AuditLab
+    # review notes, exact contrast-ratio measurements, etc.) verbatim into
+    # a public file.
+    _shipped_css = _strip_css_comments(PAGE_CSS)
+    (SITE_DIR / "styles.css").write_text(_shipped_css, encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/styles.css  (v{PAGE_CSS_VERSION}, {len(_shipped_css.encode('utf-8'))/1024:.1f} KB, linked from every page instead of inlined)")
 
     print(f"\nDone. {len(built)} state pages generated under {SITE_DIR}")
 
