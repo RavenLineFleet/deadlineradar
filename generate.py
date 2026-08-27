@@ -19347,7 +19347,7 @@ def build_firm_dashboard_page(
 
       <div class="dr-account-panel">
         <h2>Proactive rule-change alerts</h2>
-        <p class="signup-microcopy">We'll email you when a new mobility rule change affects a state
+        <p class="signup-microcopy">We'll email you when a new rule change affects a state
         your roster is licensed in -- on by default. You still choose whether to notify staff; this
         just means you don't have to remember to check the Calendar yourself.</p>
         <form id="dr-rule-change-alerts-form">
