@@ -320,6 +320,36 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
   const todayIso = asOfDay.toISOString().slice(0, 10);
 
   const subscribers = await store.allConfirmedActive(env.DB);
+
+  // AuditLab SEND-3 (2026-08-27): allConfirmedActive() has no ORDER BY, so
+  // SQLite returns rows in whatever order the plan yields (in practice
+  // rowid/signup order). Once REMINDERS_DAILY_SEND_CAP binds, whoever
+  // happens to sort last silently loses their reminder for the day --
+  // including a subscriber 1 day from their deadline, while a 60-day-out
+  // reminder already consumed the cap. Same reasoning as DIGEST-2's
+  // within-email sort (this file, "day-driven order"): the only defensible
+  // thing for a cap to truncate is the least-urgent tail. Sorting here
+  // changes ONLY the traversal order the loop below runs in -- every side
+  // effect, threshold rule, and grace-period check inside that loop is
+  // completely unchanged, it just now considers the most-urgent
+  // subscribers first when the cap is what decides who gets left out.
+  // Errors/no-computable-deadline subscribers sort last (Infinity) -- the
+  // loop below already handles them identically (skipped_no_deadline /
+  // recorded error) regardless of when in the pass it reaches them.
+  const approxDaysRemaining = (sub: store.SubscriberRow): number => {
+    try {
+      const deadline =
+        sub.deadline_source === store.DEADLINE_SOURCE_USER && sub.user_deadline
+          ? new Date(`${sub.user_deadline}T00:00:00Z`)
+          : computeSubscriberDeadline(sub.state_slug, JSON.parse(sub.deadline_fields || "{}"), asOf);
+      if (!deadline) return Number.POSITIVE_INFINITY;
+      return Math.round((deadline.getTime() - asOfDay.getTime()) / MS_PER_DAY);
+    } catch {
+      return Number.POSITIVE_INFINITY;
+    }
+  };
+  subscribers.sort((a, b) => approxDaysRemaining(a) - approxDaysRemaining(b));
+
   for (const sub of subscribers) {
     summary.checked += 1;
 
