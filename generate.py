@@ -1747,7 +1747,15 @@ PAGE_CSS = """
     line-height: 15px; text-align: center;
   }
   .dr-notif-panel {
-    position: absolute; z-index: 20; left: 1rem; top: 3.6rem; width: 300px; max-width: calc(100vw - 2rem);
+    /* Devin, live, 2026-08-28: on a fresh/demo session the product tour
+       (z-index 40, see .dr-product-tour) auto-starts, and its tooltip card
+       sits directly over where this panel opens -- a user who clicks the
+       bell mid-tour sees the tour card covering their own notifications,
+       reading as "notifications fall behind." This panel is something the
+       user just explicitly clicked open, so it should win over a
+       passive/ambient tour overlay; still below the chat FAB (45) and any
+       real modal (50), which should always win over both. */
+    position: absolute; z-index: 41; left: 1rem; top: 3.6rem; width: 300px; max-width: calc(100vw - 2rem);
     background: var(--card-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0,0,0,.25); max-height: 60vh; overflow-y: auto; padding: 0.6rem;
   }
