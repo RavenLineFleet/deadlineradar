@@ -134,6 +134,20 @@ describe("GET /assistant/mobility", () => {
     expect((await getAssistant("/api/assistant/mobility?home=narnia&target=california&service_type=tax")).status).toBe(400);
     expect((await getAssistant("/api/assistant/mobility?home=texas&target=narnia&service_type=tax")).status).toBe(400);
   });
+
+  it("AuditLab LEAK-4 (2026-08-27): never leaks mobility_rules.json's internal data_gap_note, even for a state whose real record's note names internal fields by name", async () => {
+    // Alaska's real record is one AuditLab found referencing flux_note/
+    // firm_registration_attest by name in its own internal data_gap_note --
+    // MobilityFinding no longer has a dataGapNote field at all (removed at
+    // the source in mobility.ts, not just filtered here), so this is a
+    // guaranteed-to-fail-loudly check if that's ever reintroduced.
+    const resp = await getAssistant("/api/assistant/mobility?home=texas&target=alaska&service_type=tax");
+    expect(resp.status).toBe(200);
+    const rawBody = await resp.text();
+    expect(rawBody).not.toContain("dataGapNote");
+    expect(rawBody).not.toContain("flux_note");
+    expect(rawBody).not.toContain("firm_registration_attest");
+  });
 });
 
 describe("GET /assistant/rule-changes", () => {
