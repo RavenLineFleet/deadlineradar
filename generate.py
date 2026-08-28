@@ -9167,6 +9167,29 @@ to create an account yet? <a href="#firm-lead">Leave your email instead</a> and 
 # ---------------------------------------------------------------------------
 
 
+def _firm_sso_buttons_html() -> str:
+    """The Google SSO button + "or" divider shown above the firm password
+    form. Factored out (2026-08-28, sign-in-friction fix) so build_signin_page()'s
+    embedded firm sign-in view can render the identical block rather than a
+    second hand-maintained copy -- was inline in build_firm_login_page()
+    until then."""
+    if "google" not in SSO_PROVIDERS:
+        return ""
+    return f"""
+  <div class="dr-sso-block dr-sso-top">
+    <a class="dr-sso-button" href="{REMINDER_BACKEND_BASE_URL}/firm/auth/google/start">
+      <svg class="dr-sso-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+      </svg>
+      <span>Continue with Google</span>
+    </a>
+    <div class="dr-sso-divider"><span>or</span></div>
+  </div>"""
+
+
 def build_firm_login_page() -> str:
     """Firm sign-in / create-account, rebuilt to the CONVENTIONAL pattern
     (2026-07-31, Devin off a screenshot: "How do normal sign ins work? I
@@ -9208,21 +9231,7 @@ def build_firm_login_page() -> str:
     by having the form shouted at them. The original bug was the SILENT
     failure (no visible route to signup at all), not the form's position.
     """
-    sso_buttons_html = ""
-    if "google" in SSO_PROVIDERS:
-        sso_buttons_html = f"""
-  <div class="dr-sso-block dr-sso-top">
-    <a class="dr-sso-button" href="{REMINDER_BACKEND_BASE_URL}/firm/auth/google/start">
-      <svg class="dr-sso-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
-        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
-        <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
-        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
-      </svg>
-      <span>Continue with Google</span>
-    </a>
-    <div class="dr-sso-divider"><span>or</span></div>
-  </div>"""
+    sso_buttons_html = _firm_sso_buttons_html()
 
     body = f"""<div class="dr-auth-card">
 
@@ -9827,10 +9836,10 @@ def build_signin_page() -> str:
 <p class="subhead">Two kinds of account. Pick the one you have.</p>
 
 <div class="signin-choice">
-  <a class="signin-card" href="/firm-login/">
+  <a class="signin-card" href="#signin-firm">
     <span class="signin-kind">Firm account</span>
     <span class="signin-desc">You manage renewals for a team. Roster, calendar, CPE tracking.</span>
-    <span class="signin-go">Sign in to your firm dashboard &rarr;</span>
+    <span class="signin-go">Sign in below &darr;</span>
   </a>
   <a class="signin-card" href="#signin-individual">
     <span class="signin-kind">Just my own license</span>
@@ -9843,7 +9852,7 @@ def build_signin_page() -> str:
   <h2 id="dr-signin-sub-heading">Sign in to your own reminders</h2>
   <p class="signup-microcopy" id="dr-signin-sub-intro">Free, and there's no password &mdash; enter the
   email address your reminders go to and we'll send you a one-time sign-in link. <strong>Managing a
-  firm? Use the firm dashboard above &mdash; this form cannot sign you into a firm account.</strong></p>
+  firm? Use the firm sign-in below &mdash; this form cannot sign you into a firm account.</strong></p>
   <form method="post" action="{REMINDER_BACKEND_BASE_URL}/subscriber/login" id="dr-signin-sub-form">
     {_BOT_DEFENSE_FIELDS_HTML}
     <label for="signin-sub-email">Your email</label>
@@ -9858,6 +9867,31 @@ def build_signin_page() -> str:
   state</a> to start getting free renewal reminders &mdash; no account needed.</p>
 </div>
 {_SIGNIN_SUB_FORM_JS_HTML}
+
+<div class="signup-form" id="signin-firm">
+  <h2>Sign in to your firm dashboard</h2>
+  <p class="signup-microcopy">One roster for every staff CPA's license renewal. <strong>Tracking just
+  your own license? Use the sign-in above &mdash; this form is for firm accounts only.</strong></p>
+  {_firm_sso_buttons_html()}
+  <form method="post" action="{REMINDER_BACKEND_BASE_URL}/firm/login/password" id="dr-signin-firm-form">
+    {_bot_defense_fields_html("-firm")}
+    <label for="signin-firm-email">Email</label>
+    <input type="email" id="signin-firm-email" name="admin_email" required autocomplete="username"
+    placeholder="you@yourfirm.com">
+    <label for="signin-firm-password">Password</label>
+    <input type="password" id="signin-firm-password" name="password" required
+    autocomplete="current-password">
+    <button type="submit">Sign in</button>
+  </form>
+  <p id="dr-signin-firm-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
+  <p class="dr-auth-secondary">
+    <a href="/firm-login/#dr-view-magic">Forgot your password, or want an emailed sign-in link
+    instead?</a>
+  </p>
+  <p class="signup-microcopy">New firm? <a href="/firm-login/#dr-view-signup">Create an account</a>
+  &mdash; free, no card required.</p>
+</div>
+{_SIGNIN_FIRM_FORM_JS_HTML}
 """
 
     return page_shell(
@@ -9961,6 +9995,100 @@ _SIGNIN_SUB_FORM_JS_HTML = """<script>
           if (okEl) okEl.hidden = false;
           return;
         }
+        if (errEl) { errEl.textContent = firstParagraphText(html); errEl.hidden = false; }
+        recoverThenReenable(submitBtn);
+      });
+    }).catch(function () {
+      if (errEl) { errEl.textContent = "Something went wrong. Please try again."; errEl.hidden = false; }
+      recoverThenReenable(submitBtn);
+    });
+  });
+})();
+</script>"""
+
+
+# Sign-in-friction fix (2026-08-28, Devin directly: "Can't the Firm sign in
+# live on the part too?"). Embeds the /firm-login/ sign-in view's own
+# `/firm/login/password` form directly on /signin/, revealed the same
+# anchor-scroll way #signin-individual already is (see build_signin_page()'s
+# docstring). Deliberately self-contained rather than sharing
+# _FIRM_LOGIN_VIEW_JS_HTML -- that script also drives view-switching between
+# 3 forms (signin/signup/magic-link) that don't exist on this page, plus a
+# ?demo=1 prefill and a ?tier= note irrelevant here; dragging all of it in
+# would mean dead code paths and id lookups that always miss. Same "one
+# page-local form, one independent (non-shared) Turnstile widget" pattern as
+# _SIGNIN_SUB_FORM_JS_HTML directly above -- this page's two forms each get
+# their own widget rather than sharing one, which Cloudflare explicitly
+# supports (see _bot_defense_fields_html()'s docstring) and avoids adopting
+# /firm-login/'s 3-form shared-widget machinery for a page that only ever
+# embeds one of its views.
+_SIGNIN_FIRM_FORM_JS_HTML = """<script>
+(function () {
+  var form = document.getElementById('dr-signin-firm-form');
+  if (!form) return;
+  var errEl = document.getElementById('dr-signin-firm-error');
+
+  function firstParagraphText(html) {
+    var match = /<p>([\\s\\S]*?)<\\/p>/.exec(html);
+    if (!match) return "Something went wrong. Please try again.";
+    var div = document.createElement("div");
+    div.innerHTML = match[1];
+    return div.textContent || div.innerText || "Something went wrong. Please try again.";
+  }
+
+  function turnstileField() {
+    return form.querySelector('input[name="cf-turnstile-response"]');
+  }
+
+  // Same discipline as _SIGNIN_SUB_FORM_JS_HTML's recoverThenReenable,
+  // scoped to this form's own independent widget.
+  function recoverThenReenable(submitBtn) {
+    var field = turnstileField();
+    if (field) field.value = "";
+    if (window.turnstile && typeof window.turnstile.reset === "function") {
+      try { window.turnstile.reset(); } catch (err) {}
+    }
+    var done = false;
+    function finish() { if (done) return; done = true; if (submitBtn) submitBtn.disabled = false; }
+    var elapsed = 0;
+    var poll = setInterval(function () {
+      elapsed += 150;
+      var f = turnstileField();
+      if ((f && f.value) || elapsed >= 8000) {
+        clearInterval(poll);
+        finish();
+      }
+    }, 150);
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (errEl) { errEl.hidden = true; errEl.textContent = ""; }
+    var submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    var field = turnstileField();
+    if (field && !field.value) {
+      if (errEl) {
+        errEl.textContent = "Security check hasn't finished loading -- give it a moment and try "
+          + "again, or disable your ad blocker for this page.";
+        errEl.hidden = false;
+      }
+      recoverThenReenable(submitBtn);
+      return;
+    }
+    fetch(form.getAttribute("action"), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(new FormData(form)).toString(),
+    }).then(function (resp) {
+      // Same success signal as /firm-login/'s own dr-firmlogin-signin-form
+      // handler (_FIRM_LOGIN_VIEW_JS_HTML) -- a successful password login
+      // can either 302-redirect (fetch follows it, resp.redirected is true)
+      // or return 200 directly; either way the destination is the same.
+      if (resp.redirected) { window.location.href = "/firm-dashboard/"; return; }
+      return resp.text().then(function (html) {
+        if (resp.ok) { window.location.href = "/firm-dashboard/"; return; }
         if (errEl) { errEl.textContent = firstParagraphText(html); errEl.hidden = false; }
         recoverThenReenable(submitBtn);
       });
