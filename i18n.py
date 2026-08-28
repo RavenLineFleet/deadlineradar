@@ -148,7 +148,10 @@ EN: dict[str, str] = {
         "automatically. Where that's the case, those citations were still individually confirmed by "
         "hand at the time they were published; we disclose the tooling gap rather than pretend an "
         "easier check covers it. If a rule changes between our checks, use the contact link below to "
-        "flag it and we'll re-verify and correct it quickly."
+        "flag it and we'll re-verify and correct it quickly. Articles here are credited to Moose & "
+        "Raven LLC, the company behind Deadline-Radar, rather than to a named individual author — the "
+        "honest construction for a team this size, and every fact stands on its own cited source "
+        "regardless of byline."
     ),
     "methodology.h2_what_we_dont_verify": "What we don't verify this way",
     "methodology.dont_verify_body": (
