@@ -4885,14 +4885,18 @@ describe("store.claimMobilityStalenessAlertForMonth (AuditLab STALE-10)", () => 
 });
 
 describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab STALE-10)", () => {
-  // Real bundled data: individual rows verified 2026-07-31..2026-08-17,
-  // firm rows verified 2026-08-07..2026-08-17, both at the real 180-day
-  // TTL -- earliest expiry 2027-01-27, latest 2027-02-13 (matches
-  // AuditLab's own finding evidence exactly). Rather than mock the JSON
-  // files, these tests move the clock to real dates around that real
-  // window and check against the REAL shipped data -- a stronger check
-  // than a synthetic fixture, and it would catch a future re-verification
-  // pass that widens or narrows the spread.
+  // Real bundled data: individual rows verified 2026-07-31..2026-08-27,
+  // firm rows verified 2026-08-07..2026-08-21, both at the real 180-day
+  // TTL -- earliest expiry 2027-01-27 (matches AuditLab's own finding
+  // evidence exactly). Rather than mock the JSON files, these tests move
+  // the clock to real dates around that real window and check against the
+  // REAL shipped data -- a stronger check than a synthetic fixture, and it
+  // would catch a future re-verification pass that widens or narrows the
+  // spread. AuditLab CITE-63 (2026-08-27) re-verified Guam and bumped its
+  // verified_date from 2026-07-31 to 2026-08-27, pushing its 180-day TTL
+  // out to 2027-02-23 -- 34 days out at the 2027-01-20 test point below,
+  // outside the 30-day window, so Guam-individual is now the one row of
+  // 110 that does NOT appear (109 real rows should appear).
 
   it("nothing is nearing expiry today (2026) -- the real window is 5 months out", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
@@ -4902,11 +4906,14 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
 
   it("rows ARE nearing expiry once inside the real 30-day warning window", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
-    // 2027-01-20: earliest expiry (2027-01-27) is 7 days out, latest
-    // (2027-02-13) is 24 days out -- both inside the 30-day window, so
-    // every one of the 110 real rows should appear.
+    // 2027-01-20: earliest expiry (2027-01-27) is 7 days out -- inside the
+    // 30-day window, so every real row still within TTL at this point
+    // should appear (109 of the 110 total; Guam-individual's freshly
+    // re-verified TTL now expires 2027-02-23, 34 days out, outside the
+    // window -- see the describe-block comment above).
     const nearing = mobilityRowsNearingExpiry(new Date("2027-01-20T00:00:00Z"));
-    expect(nearing.length).toBe(110);
+    expect(nearing.length).toBe(109);
+    expect(nearing.some((r) => r.state === "Guam" && r.type === "individual")).toBe(false);
     // Sorted soonest-first.
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
