@@ -236,3 +236,119 @@ describe("POST /assistant/chat -- rate limiting ('assistant_chat' bucket, 100/ho
     }
   });
 });
+
+describe("POST /assistant/chat -- ASSIST-1 retry (droplet's own canned-apology text at HTTP 200)", () => {
+  it("a genuine first-attempt success does NOT retry -- exactly one fetch call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("Texas renews annually on your birth month."));
+    try {
+      const resp = await postChat({ message: "When does Texas renew?" });
+      expect(resp.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("apology text on attempt 1, real answer on attempt 2 -- the real answer ships", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(droplet("Something went wrong answering that just now -- not a problem with your question."))
+      .mockResolvedValueOnce(droplet("Florida requires 80 CPE hours per 2-year period."));
+    try {
+      const resp = await postChat({ message: "Florida CPE hours?" });
+      expect(resp.status).toBe(200);
+      const body = (await resp.json()) as { reply: string };
+      expect(body.reply).toBe("Florida requires 80 CPE hours per 2-year period.");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("apology text on BOTH attempts -- surfaces the real (apology) reply, never fabricates one", async () => {
+    // mockImplementation (not mockResolvedValue) so each call gets its OWN
+    // fresh Response object -- a real fetch() never returns the same
+    // Response instance twice, and a shared instance's body can only be
+    // read once, which would make attempt 2's own resp.json() throw
+    // (masking this test's actual intent behind a false 502).
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => droplet("Something went wrong answering that just now."));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(200);
+      const body = (await resp.json()) as { reply: string };
+      expect(body.reply).toBe("Something went wrong answering that just now.");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a non-2xx on attempt 1, success on attempt 2 -- the retry's real answer ships", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("error", { status: 500 }))
+      .mockResolvedValueOnce(droplet("California renews every 2 years."));
+    try {
+      const resp = await postChat({ message: "California renewal cycle?" });
+      expect(resp.status).toBe(200);
+      const body = (await resp.json()) as { reply: string };
+      expect(body.reply).toBe("California renews every 2 years.");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("non-2xx on both attempts -- 502, exactly two fetch calls, no third attempt", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("error", { status: 500 }));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(502);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("network failure on both attempts -- 504, exactly two fetch calls", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(504);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the failure-signature match is case-insensitive", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(droplet("SOMETHING WENT WRONG ANSWERING THAT JUST NOW."))
+      .mockResolvedValueOnce(droplet("A real answer."));
+    try {
+      const resp = await postChat({ message: "hello" });
+      const body = (await resp.json()) as { reply: string };
+      expect(body.reply).toBe("A real answer.");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a real answer that happens to discuss something going wrong with a filing does NOT trigger a retry", async () => {
+    // Guards against the signature being so broad it false-positives on a
+    // genuine answer -- the real droplet text is specifically about ITS OWN
+    // failure to answer, not about renewal/filing problems in general.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      droplet("If something goes wrong with your filing, contact the board directly.")
+    );
+    try {
+      const resp = await postChat({ message: "What if my filing has an error?" });
+      expect(resp.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
