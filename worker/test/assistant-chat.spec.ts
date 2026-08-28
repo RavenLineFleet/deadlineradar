@@ -413,3 +413,68 @@ describe("POST /assistant/chat -- ASSIST-1 root cause: the droplet's own 429 rat
     }
   });
 });
+
+describe("POST /assistant/chat -- session_id forwarding (conversation continuity, orchestrator 2026-08-28)", () => {
+  it("a valid session_id is forwarded to the droplet as-is", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      await postChat({ message: "hello", session_id: "abc-123-def" });
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ message: "hello", session_id: "abc-123-def" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("no session_id -- the droplet call omits the field entirely (same shape as before this feature)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      await postChat({ message: "hello" });
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ message: "hello" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a non-string session_id is dropped, not forwarded, and does not 400 the request", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      const resp = await postChat({ message: "hello", session_id: 12345 });
+      expect(resp.status).toBe(200);
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ message: "hello" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("an oversized session_id (>200 chars) is dropped, not forwarded", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      const resp = await postChat({ message: "hello", session_id: "x".repeat(201) });
+      expect(resp.status).toBe(200);
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ message: "hello" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("session_id is forwarded on the retry attempt too", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => new Response("error", { status: 500 }))
+      .mockImplementationOnce(async () => droplet("a real answer"));
+    try {
+      await postChat({ message: "hello", session_id: "continuity-check" });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      for (const call of fetchSpy.mock.calls) {
+        const init = call[1] as RequestInit;
+        expect(JSON.parse(init.body as string)).toEqual({ message: "hello", session_id: "continuity-check" });
+      }
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
