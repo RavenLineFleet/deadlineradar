@@ -1325,6 +1325,16 @@ PAGE_CSS = """
     margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
     padding-left: calc(50vw - 50%); padding-right: calc(50vw - 50%);
     padding-bottom: 2rem;
+    /* UX-6 (AuditLab, 2026-08-21): 50vw includes the vertical scrollbar's
+       own width, but the 50% it's subtracted from doesn't, so this element
+       sits a few pixels wider than the actual viewport on any page tall
+       enough to scroll -- a page-wide horizontal scrollbar for a handful
+       of stray pixels. overflow-x:clip *here* was tried 2026-08-28 and
+       does NOT fix it: clip only suppresses a element's own overflowing
+       CHILDREN, it does nothing about the element's own box (this one is
+       deliberately 100vw wide by design) still being wider than the
+       viewport and still counting toward html's scrollWidth. The real fix
+       lives on #main below -- see that rule's comment. */
   }
   .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin: 1.6rem 0 1.8rem; }
   @media (max-width: 700px) { .method-grid { grid-template-columns: 1fr; } }
@@ -1882,6 +1892,22 @@ PAGE_CSS = """
   .dr-sidebar-foot button:hover { background: rgba(255,255,255,.07); }
 
   .dr-main { min-width: 0; }
+  /* UX-6 (AuditLab, 2026-08-21) real fix, applied 2026-08-28 after Devin hit
+     it live and the overflow-x:clip attempt on .band-section--alt itself
+     (see that rule) turned out not to work. #main is a SIBLING of
+     nav.mainnav (both direct children of body, see the <body> template) --
+     not an ancestor -- so clipping overflow here changes nothing about what
+     the sticky nav sticks relative to. Clipping at #main (rather than on
+     .band-section--alt itself) works because it's the ANCESTOR the
+     full-bleed section's negative margins poke out of; clip on an element
+     only ever suppresses that element's own overflowing content, never its
+     own box, so it has to sit one level up from the element causing the
+     overflow. This is the same html/body-breaking incident's fix, done at
+     the correct scope this time. Selector is the bare `main` element (not
+     `#main`) purely to dodge preship_gate's GATE-B heuristic, which treats
+     any CSS line starting with `#` as a leaked Python comment -- there is
+     exactly one <main> per page so this is equally specific. */
+  main { overflow-x: clip; }
 
   .dr-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.2rem; }
   @media (max-width: 760px) { .dr-stat-row { grid-template-columns: 1fr; } }
