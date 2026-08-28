@@ -7170,7 +7170,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
 <div class="dr-intent-chips" role="navigation" aria-label="Jump to what you need">
   <button type="button" class="dr-intent-chip" id="dr-intent-own-date">I just want my own renewal date</button>
   <a class="dr-intent-chip" href="for-firms/">I track a whole firm's staff</a>
-  <a class="dr-intent-chip" href="firm-mobility/">Can my firm sign in another state?</a>
+  <a class="dr-intent-chip" href="practice-privilege-check/">Can my firm sign in another state?</a>
   <a class="dr-intent-chip" href="rule-changes/">What's changing in 2026?</a>
 </div>
 <script>
