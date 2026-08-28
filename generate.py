@@ -21449,6 +21449,73 @@ deadline) runs on its own separate clock.
 """,
     },
     {
+        # 2026-08-27: GSC-steered pick -- /california/ is the top-impression state page
+        # with no dedicated guide (22 impressions/28-day window, position 47.3, 8 real
+        # renewal-intent queries like "cpa license renewal california" at positions
+        # 40-55, zero clicks), despite California already appearing in two mobility
+        # posts (california-to-nevada, california-to-texas). Repackages ca-individual
+        # (data/cpa_deadlines.json), ca-cpe (data/cpe_hours.json),
+        # california-renewal-fee (data/renewal_fees.json), and
+        # california-reinstatement (data/reinstatement.json) -- zero new legal
+        # research. Two-party approved round 1: orchestrator verified the math and
+        # citations; AuditLab verified every figure against its source record
+        # (including cross-checking the worked birth-year example against the live
+        # calculator's own California table) and required two SEO length trims,
+        # applied here.
+        "slug": "california-cpa-license-renewal-guide",
+        "published": "2026-08-27",  # first-introduction commit date, from git history
+        "title": "California CPA License Renewal: Birth Month, CPE, and Fees",
+        "meta_description": (
+            "California renews CPA licenses every 2 years on your birth month, timed by "
+            "whether your birth year is odd or even. The rule, CPE hours, fees, and "
+            "lapse costs."
+        ),
+        "body_html": """
+<p class="intro">California doesn't renew every CPA license on one calendar date the way some
+states do. Your license expires every two years, on the last day of your own birth month &mdash;
+and which two years depends on whether you were born in an odd or even year. It's a real rule with
+a real formula, not a guess, and getting the parity wrong is the easiest way to miss it.</p>
+
+<h2>The rule: birth month, birth-year parity</h2>
+<p>A California CPA license expires at midnight on the last day of the licensee's own birth month,
+every two years. Which expiration years apply to you comes down to one detail: if you were born in
+an odd-numbered year, your license expires in odd-numbered years; if you were born in an
+even-numbered year, it expires in even-numbered years (Cal. Bus. & Prof. Code &sect; 5070.5(a); Cal.
+Code Regs. tit. 16, &sect; 93). Born in 1985 (odd) and your birth month is October? Your license
+expires every October of an odd year &mdash; 2027, 2029, and so on. For more on why some states
+compute a personal deadline like this instead of publishing one fixed date, see our <a
+href="../why-some-states-need-your-birth-month/">explainer on the birth-month states</a>.</p>
+
+<h2>80 hours of CPE, on the same two-year clock</h2>
+<p>California requires 80 hours of continuing education in the two-year period immediately
+preceding your license expiration, with a 20-hour annual minimum (12 of those hours must be
+technical subject matter) and 4 hours of ethics education within the 80 (Cal. Code Regs. tit. 16,
+&sect; 87). Keep this separate from the state's Regulatory Review course requirement (16 CCR &sect;
+87.8) &mdash; that's a distinct, longer-cycle requirement, not part of the 4-hour ethics figure.</p>
+
+<h2>What renewal costs right now</h2>
+<p>The renewal fee is $400 for licenses expiring after June 30, 2026, and $340 for licenses expiring
+before July 1, 2026 (Cal. Code Regs. tit. 16, &sect; 70(e)). Which figure applies to you depends
+entirely on your own expiration date under the birth-month/parity rule above &mdash; not on when you
+happen to be renewing.</p>
+
+<h2>If you miss your date</h2>
+<p>A lapsed California permit is called "delinquent," not revoked, and it can still be renewed for
+up to five years after expiration. Reinstating costs a $200 delinquency fee ($170 if your license
+expired before July 1, 2026) &mdash; California sets this at 50% of the standard renewal fee &mdash;
+plus an extra CE penalty: 20 additional hours of continuing education for every full six-month
+period between your expiration date and the date you apply to renew, capped at 80 extra hours on top
+of the normal 80-hour requirement. Less than six full months late, and there's no extra CE at all
+(Cal. Bus. & Prof. Code &sect; 5070.6, &sect; 5070.5, &sect; 163.5; 16 CCR &sect; 81). After five
+years, a delinquent permit can no longer be renewed at all.</p>
+
+<p class="bottom-line"><strong>Bottom line:</strong> your California renewal date isn't on a public
+calendar &mdash; it's your birth month, in the odd or even year your birth year matches. Get your own
+exact date, tracked against the current fee tier, on our <a href="../../california/">California CPA
+license renewal page</a>.</p>
+""",
+    },
+    {
         # 2026-08-22: GSC-steered pick -- /minnesota/ is the site's highest-impression
         # guide-less state page (43 impressions/28-day window, position 24.7, real
         # repeated renewal-intent queries like "mn cpa license renewal" not yet ranking
