@@ -865,6 +865,15 @@
   .dr-nav a.is-active { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; }
   .dr-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
   
+  .dr-nav a.dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
+  @keyframes dr-tour-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); }
+    50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 8px rgba(58,124,199,.15); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dr-nav a.dr-tour-target { animation: none; }
+  }
+  
   .dr-mobility-callout { background: var(--row-alt); border-left: 3px solid var(--border-strong); border-radius: 6px; padding: 0.9rem 1.1rem; margin-bottom: 1.4rem; font-size: 0.88rem; line-height: 1.55; }
   .dr-mob-check { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.7rem 0; font-size: 0.9rem; font-weight: 400; }
   .dr-mob-check input { margin-top: 0.2rem; flex: 0 0 auto; }
@@ -973,6 +982,10 @@
   .dr-onboarding-checklist[hidden] { display: none; }
   .dr-onboarding-checklist-head { display: flex; align-items: center; justify-content: space-between; }
   .dr-onboarding-checklist-head h2 { font-size: 0.98rem; margin: 0; font-family: var(--font-display); }
+  .dr-onboarding-title-group { display: flex; align-items: center; gap: 0.6rem; }
+  
+  .dr-onboarding-progress { font-size: 0.76rem; font-weight: 600; color: var(--accent); background: var(--accent-bg); border-radius: 999px; padding: 0.15rem 0.6rem; }
+  .dr-onboarding-progress:empty { display: none; }
   .dr-onboarding-dismiss {
     background: transparent; border: none; color: var(--muted); font-size: 1.3rem; line-height: 1;
     cursor: pointer; padding: 0.1rem 0.3rem;
@@ -1016,14 +1029,30 @@
     position: fixed; z-index: 40; width: 260px; background: var(--card-bg);
     border: 1px solid var(--accent); border-radius: 10px; padding: 1rem 1.1rem;
     box-shadow: var(--shadow);
+    transition: top 0.28s ease, left 0.28s ease;
   }
   .dr-product-tour[hidden] { display: none; }
-  .dr-product-tour-step { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+  
+  .dr-product-tour::before {
+    content: ""; position: absolute; top: 50%; left: -7px; width: 12px; height: 12px;
+    background: var(--card-bg); border-left: 1px solid var(--accent); border-bottom: 1px solid var(--accent);
+    transform: translateY(-50%) rotate(45deg); border-radius: 0 0 0 2px;
+  }
+  .dr-product-tour-step { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .dr-tour-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); flex: none; transition: background 0.2s ease, transform 0.2s ease; }
+  .dr-tour-dot.is-current { background: var(--accent); transform: scale(1.6); }
+  .dr-product-tour-body-wrap { animation: dr-tour-step-in 0.22s ease; }
+  @keyframes dr-tour-step-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .dr-product-tour { transition: none; }
+    .dr-product-tour-body-wrap { animation: none; }
+  }
   .dr-product-tour p { font-size: 0.88rem; margin: 0 0 0.9rem; }
   .dr-product-tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
   @media (max-width: 860px) {
     
     .dr-product-tour { position: fixed; top: 12px !important; left: 12px !important; right: 12px; width: auto; }
+    .dr-product-tour::before { display: none; }
   }
   
   .dr-report-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }

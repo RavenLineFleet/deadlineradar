@@ -1701,6 +1701,21 @@ PAGE_CSS = """
   .dr-nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
   .dr-nav a.is-active { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; }
   .dr-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
+  /* Product-tour spotlight (2026-08-28, Devin: tour "looks too basic") --
+     distinct from .is-active's static background, so the item the tour is
+     CURRENTLY describing visually pops even though is-active alone is
+     already true for every step (the tour switches the live view each
+     step). A soft pulsing ring rather than a full-page dimming overlay --
+     cheaper to get right on a page with a resizable/collapsing sidebar and
+     no risk of a stray overlay trapping clicks on a real dashboard. */
+  .dr-nav a.dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
+  @keyframes dr-tour-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); }
+    50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 8px rgba(58,124,199,.15); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dr-nav a.dr-tour-target { animation: none; }
+  }
   /* ---- Practice-privilege checker (2026-07-30, pay-gated) ---- */
   .dr-mobility-callout { background: var(--row-alt); border-left: 3px solid var(--border-strong); border-radius: 6px; padding: 0.9rem 1.1rem; margin-bottom: 1.4rem; font-size: 0.88rem; line-height: 1.55; }
   .dr-mob-check { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.7rem 0; font-size: 0.9rem; font-weight: 400; }
@@ -1850,6 +1865,13 @@ PAGE_CSS = """
   .dr-onboarding-checklist[hidden] { display: none; }
   .dr-onboarding-checklist-head { display: flex; align-items: center; justify-content: space-between; }
   .dr-onboarding-checklist-head h2 { font-size: 0.98rem; margin: 0; font-family: var(--font-display); }
+  .dr-onboarding-title-group { display: flex; align-items: center; gap: 0.6rem; }
+  /* Devin design-quality pass (2026-08-28): a subtle "N of M done" next to
+     the heading, alongside the existing per-step checkmarks -- not a
+     replacement for them, just more visual weight than 4 plain squares
+     alone. Empty text renders as nothing (no stray pill) until JS sets it. */
+  .dr-onboarding-progress { font-size: 0.76rem; font-weight: 600; color: var(--accent); background: var(--accent-bg); border-radius: 999px; padding: 0.15rem 0.6rem; }
+  .dr-onboarding-progress:empty { display: none; }
   .dr-onboarding-dismiss {
     background: transparent; border: none; color: var(--muted); font-size: 1.3rem; line-height: 1;
     cursor: pointer; padding: 0.1rem 0.3rem;
@@ -1892,14 +1914,39 @@ PAGE_CSS = """
   }
   /* Roadmap #30 (2026-08-07): in-app product tour. position:fixed -- JS
      computes top/left against a live sidebar nav item on every step change
-     and on resize (see drPositionProductTour()), not document flow. */
+     and on resize (see drPositionProductTour()), not document flow.
+     Devin design-quality pass (2026-08-28, "looks too basic"): added a
+     caret pointing at the anchor item, a smooth position/fade transition
+     between steps instead of an instant jump, and progress dots in place
+     of a plain "1 OF 4" label -- see drRenderProductTourStep() for the
+     dot-rendering half. */
   .dr-product-tour {
     position: fixed; z-index: 40; width: 260px; background: var(--card-bg);
     border: 1px solid var(--accent); border-radius: 10px; padding: 1rem 1.1rem;
     box-shadow: var(--shadow);
+    transition: top 0.28s ease, left 0.28s ease;
   }
   .dr-product-tour[hidden] { display: none; }
-  .dr-product-tour-step { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+  /* Caret: the card is always placed to the right of its anchor (see
+     drPositionProductTour()'s `rect.right + 14`), so the caret is fixed on
+     the card's own left edge, vertically centred, pointing back at it -- a
+     rotated square with two matching borders, the standard CSS-triangle-
+     via-square-corner trick. Hidden in the sub-860px layout below, where
+     the card no longer anchors beside a specific nav item. */
+  .dr-product-tour::before {
+    content: ""; position: absolute; top: 50%; left: -7px; width: 12px; height: 12px;
+    background: var(--card-bg); border-left: 1px solid var(--accent); border-bottom: 1px solid var(--accent);
+    transform: translateY(-50%) rotate(45deg); border-radius: 0 0 0 2px;
+  }
+  .dr-product-tour-step { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .dr-tour-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); flex: none; transition: background 0.2s ease, transform 0.2s ease; }
+  .dr-tour-dot.is-current { background: var(--accent); transform: scale(1.6); }
+  .dr-product-tour-body-wrap { animation: dr-tour-step-in 0.22s ease; }
+  @keyframes dr-tour-step-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .dr-product-tour { transition: none; }
+    .dr-product-tour-body-wrap { animation: none; }
+  }
   .dr-product-tour p { font-size: 0.88rem; margin: 0 0 0.9rem; }
   .dr-product-tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
   @media (max-width: 860px) {
@@ -1908,6 +1955,7 @@ PAGE_CSS = """
        making sense there, so the tour anchors to a plain top-of-viewport
        banner instead of chasing a nav item that may no longer be visible. */
     .dr-product-tour { position: fixed; top: 12px !important; left: 12px !important; right: 12px; width: auto; }
+    .dr-product-tour::before { display: none; }
   }
   /* Roadmap #3 (2026-08-07): Reports tab (compliance-summary printable). */
   .dr-report-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -12447,6 +12495,9 @@ function drRenderOnboardingChecklist() {
     var el = document.getElementById(step.id);
     if (el) el.classList.toggle('dr-onboarding-step--done', step.done);
   });
+  var doneCount = steps.filter(function(step) { return step.done; }).length;
+  var progressEl = document.getElementById('dr-onboarding-progress');
+  if (progressEl) progressEl.textContent = doneCount + ' of ' + steps.length + ' done';
 }
 
 function drDismissOnboardingChecklist() {
@@ -12488,15 +12539,49 @@ function drPositionProductTour() {
   el.style.left = (rect.right + 14) + 'px';
 }
 
+// Devin design-quality pass (2026-08-28): the sidebar item the current step
+// describes gets a pulsing ring (.dr-tour-target, see CSS) so the card's
+// caret and the item it's pointing at read as one connected thing rather
+// than a floating box near some vaguely-nearby nav row. Always clears every
+// previous target first -- cheaper and safer than tracking "the" previously
+// targeted element across advance/skip/end, and idempotent if called twice.
+function drSetProductTourTarget(view) {
+  document.querySelectorAll('.dr-nav a.dr-tour-target').forEach(function(a) {
+    a.classList.remove('dr-tour-target');
+  });
+  if (!view) return;
+  var navEl = document.querySelector('.dr-nav a[data-view="' + view + '"]');
+  if (navEl) navEl.classList.add('dr-tour-target');
+}
+
 function drRenderProductTourStep() {
   var step = DR_PRODUCT_TOUR_STEPS[drProductTourStepIndex];
   var stepEl = document.getElementById('dr-product-tour-step');
   var bodyEl = document.getElementById('dr-product-tour-body');
+  var wrapEl = document.getElementById('dr-product-tour-body-wrap');
   var nextBtn = document.getElementById('dr-product-tour-next-btn');
   if (!stepEl || !bodyEl || !nextBtn) return;
-  stepEl.textContent = (drProductTourStepIndex + 1) + ' of ' + DR_PRODUCT_TOUR_STEPS.length;
+  // Progress dots in place of a plain "1 OF 4" label -- current step is the
+  // larger, accent-filled dot (see .dr-tour-dot/.is-current in CSS).
+  stepEl.innerHTML = '';
+  DR_PRODUCT_TOUR_STEPS.forEach(function(_, i) {
+    var dot = document.createElement('span');
+    dot.className = 'dr-tour-dot' + (i === drProductTourStepIndex ? ' is-current' : '');
+    stepEl.appendChild(dot);
+  });
   bodyEl.innerHTML = '<b>' + drEscapeHtml(step.title) + '</b> &mdash; ' + drEscapeHtml(step.body);
   nextBtn.textContent = (drProductTourStepIndex === DR_PRODUCT_TOUR_STEPS.length - 1) ? 'Done' : 'Next';
+  // Restart the fade-in animation on every step -- merely changing the
+  // wrapper's content does not replay a CSS animation already applied to
+  // it, so the class is removed, a reflow is forced by reading a layout
+  // property (offsetWidth; the read itself is what forces it, the value is
+  // unused), then re-added.
+  if (wrapEl) {
+    wrapEl.classList.remove('dr-product-tour-body-wrap');
+    void wrapEl.offsetWidth;
+    wrapEl.classList.add('dr-product-tour-body-wrap');
+  }
+  drSetProductTourTarget(step.view);
   drSwitchView(step.view);
   drPositionProductTour();
 }
@@ -12525,6 +12610,7 @@ function drEndProductTour() {
   drProductTourActive = false;
   var el = document.getElementById('dr-product-tour');
   if (el) el.hidden = true;
+  drSetProductTourTarget(null);
   fetch('/api/firm/product-tour/dismiss', {method: 'POST', credentials: 'include'}).catch(function() {});
 }
 
@@ -19114,8 +19200,10 @@ def build_firm_dashboard_page(
   {sidebar_html}
 
   <div class="dr-product-tour" id="dr-product-tour" hidden role="dialog" aria-label="Product tour" aria-describedby="dr-product-tour-body">
-    <div class="dr-product-tour-step" id="dr-product-tour-step"></div>
-    <p id="dr-product-tour-body"></p>
+    <div class="dr-product-tour-body-wrap" id="dr-product-tour-body-wrap">
+      <div class="dr-product-tour-step" id="dr-product-tour-step"></div>
+      <p id="dr-product-tour-body"></p>
+    </div>
     <div class="dr-product-tour-actions">
       <button type="button" class="dr-link-btn" id="dr-product-tour-skip-btn">Skip tour</button>
       <button type="button" class="dr-btn-edit" id="dr-product-tour-next-btn">Next</button>
@@ -19174,7 +19262,10 @@ def build_firm_dashboard_page(
 
     <div class="dr-onboarding-checklist" id="dr-onboarding-checklist" hidden>
       <div class="dr-onboarding-checklist-head">
-        <h2>Getting started</h2>
+        <span class="dr-onboarding-title-group">
+          <h2>Getting started</h2>
+          <span class="dr-onboarding-progress" id="dr-onboarding-progress"></span>
+        </span>
         <button type="button" class="dr-onboarding-dismiss" id="dr-onboarding-dismiss-btn" aria-label="Dismiss checklist">&times;</button>
       </div>
       <ul>
