@@ -4479,6 +4479,18 @@ _SHOW_PASSWORD_TOGGLE_HTML = """<script>
       input.type = revealed ? 'password' : 'text';
       btn.textContent = revealed ? 'Show' : 'Hide';
       btn.setAttribute('aria-label', revealed ? 'Show password' : 'Hide password');
+      // Devin, live (2026-08-28): "The show button needs fixing" -- on a
+      // field the BROWSER autofilled (not one the visitor typed into),
+      // Chrome sets the real value in the DOM but doesn't always repaint it
+      // after a script-driven type change, so toggling to "text" can look
+      // empty even though input.value genuinely holds the password. Known
+      // Chrome quirk, not something specific to this form. Forcing a
+      // reflow (read offsetHeight, a layout property, to make the browser
+      // actually recompute layout before the next paint) after the type
+      // flip fixes the stale paint without touching the real value at all.
+      input.style.display = 'none';
+      void input.offsetHeight;
+      input.style.display = '';
     });
     wrap.appendChild(btn);
   });
@@ -4590,7 +4602,16 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     el.className = 'dr-chat-msg dr-chat-msg--' + cls;
     el.textContent = text;
     messages.appendChild(el);
-    messages.scrollTop = messages.scrollHeight;
+    // Devin, live: a long reply reads as cut off, scrollbar not at the
+    // bottom. Setting scrollTop synchronously right after appendChild can
+    // race the browser's own layout pass for a long, freshly-wrapped
+    // multi-line message -- scrollHeight read in the same tick isn't
+    // guaranteed to reflect the final wrapped height yet. requestAnimationFrame
+    // runs after the browser has completed layout for this paint, so
+    // scrollHeight is the real, final number.
+    requestAnimationFrame(function () {
+      messages.scrollTop = messages.scrollHeight;
+    });
     return el;
   }
 
