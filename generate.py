@@ -4591,6 +4591,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   var GREETING_TEXT = 'Hi! Ask me about a CPA renewal deadline, CPE requirement, or practice-privilege question for any state we track.';
   var STORAGE_SESSION_KEY = 'dr_chat_session_id';
   var STORAGE_HISTORY_KEY = 'dr_chat_history';
+  var STORAGE_OPEN_KEY = 'dr_chat_open';
 
   function getSessionId() {
     try {
@@ -4616,11 +4617,19 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   }
   var history = loadHistory();
 
-  function setOpen(open) {
+  // Devin, live (2026-08-28): "can you have the chat window stay open even
+  // when changing tabs?" -- open/closed state now persists the same way
+  // the conversation itself already does. skipFocus is set only when
+  // RESTORING that state on a fresh page load -- a visitor who navigated
+  // to read a different page, not necessarily to keep typing, shouldn't
+  // have their focus silently stolen into the chat input the moment the
+  // page loads; a real click on the bubble still focuses it as before.
+  function setOpen(open, skipFocus) {
     widget.classList.toggle('is-open', open);
     panel.hidden = !open;
     bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) input.focus();
+    try { localStorage.setItem(STORAGE_OPEN_KEY, open ? '1' : '0'); } catch (e) {}
+    if (open && !skipFocus) input.focus();
   }
   bubble.addEventListener('click', function () { setOpen(panel.hidden); });
   if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); bubble.focus(); });
@@ -4661,6 +4670,13 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     history = [{ text: GREETING_TEXT, cls: 'assistant' }];
     saveHistory(history);
   }
+
+  // Restore the open/closed state AFTER the conversation itself is in the
+  // DOM, so a visitor who left the panel open sees their actual
+  // conversation the instant it appears, not a flash of the greeting.
+  try {
+    if (localStorage.getItem(STORAGE_OPEN_KEY) === '1') setOpen(true, true);
+  } catch (e) {}
 
   function addMessage(text, cls) {
     var el = renderMessage(text, cls);

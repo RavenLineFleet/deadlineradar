@@ -478,3 +478,53 @@ describe("POST /assistant/chat -- session_id forwarding (conversation continuity
     }
   });
 });
+
+describe("POST /assistant/chat -- real visitor IP forwarded to the droplet (ShopLab, 2026-08-28)", () => {
+  it("the inbound cf-connecting-ip is forwarded as CF-Connecting-IP on the outbound droplet call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      await postChat({ message: "hello" }, { ip: "198.51.100.42" });
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      var headers = new Headers(init.headers);
+      expect(headers.get("CF-Connecting-IP")).toBe("198.51.100.42");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a request with no cf-connecting-ip header forwards the documented 0.0.0.0 fallback, not an omitted header", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      const resp = await workerFetch(
+        new Request(`${BASE}/api/assistant/chat`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Origin: "https://deadline-radar.com" },
+          body: JSON.stringify({ message: "hello" }),
+        })
+      );
+      expect(resp.status).toBe(200);
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      var headers = new Headers(init.headers);
+      expect(headers.get("CF-Connecting-IP")).toBe("0.0.0.0");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the forwarded IP is the SAME on a retry attempt, not dropped or altered", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => new Response("error", { status: 500 }))
+      .mockImplementationOnce(async () => droplet("a real answer"));
+    try {
+      await postChat({ message: "hello" }, { ip: "198.51.100.99" });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      for (const call of fetchSpy.mock.calls) {
+        var headers = new Headers((call[1] as RequestInit).headers);
+        expect(headers.get("CF-Connecting-IP")).toBe("198.51.100.99");
+      }
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
