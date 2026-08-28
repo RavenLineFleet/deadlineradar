@@ -31,7 +31,7 @@
       "state": "Texas",
       "state_slug": "texas",
       "field": "data_gap_note",
-      "note": "22 TAC 515.3(a)(1), reached via the Appian portal's real browse navigation (Title 22 -> Part 22 -> Chapter 515 Licenses -> 515.3), confirmed verbatim: 'Licenses for individuals have staggered expiration dates based on the last day of the individual's birth month.' Matches this record's cycle_description exactly. 22 TAC 521.1 (Fee Schedule) separately confirms the annual fee is 'established by the board on an annual basis' plus a codified $10.00 Scholarship Trust Fund fee -- corroborating renewal_fees/texas-renewal-fee's board-resolution framing. Neither URL is fetchable by our own tooling (Appian's client-only rendering); both were read in a real browser, matching DiffLab's own independent finding that this host has no script-addressable rule pages.",
+      "note": "22 TAC 515.3(a)(1), reached via the Appian portal's real browse navigation (Title 22 -> Part 22 -> Chapter 515 Licenses -> 515.3), confirmed verbatim: 'Licenses for individuals have staggered expiration dates based on the last day of the individual's birth month.' Matches the renewal cycle described above exactly. 22 TAC 521.1 (Fee Schedule) separately confirms the annual fee is 'established by the board on an annual basis' plus a codified $10.00 Scholarship Trust Fund fee -- corroborating the annual renewal fee's own board-resolution framing. Neither URL is fetchable by our own tooling (Appian's client-only rendering); both were read in a real browser, matching DiffLab's own independent finding that this host has no script-addressable rule pages.",
       "is_block_claim": false
     },
     {
@@ -103,7 +103,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "The 17 DCMR 2547 citation above confirms the FIRM permit's December 31/even-year expiration (issued under 2542, a firm-specific term distinct from an individual 'license'), but does not cover the individual license. We have not found a codified provision that independently confirms the individual license's own term/renewal date -- see verification_history for the 2026-08-24 sustained research attempt and exactly what was checked.",
+      "note": "The 17 DCMR 2547 citation above confirms the FIRM permit's December 31/even-year expiration (issued under 2542, a firm-specific term distinct from an individual 'license'), but does not cover the individual license. We have not found a codified provision that independently confirms the individual license's own term/renewal date. Confirm directly with the DC Board of Accountancy.",
       "is_block_claim": false
     },
     {
@@ -112,7 +112,7 @@
       "state": "Montana",
       "state_slug": "montana",
       "field": "data_gap_note",
-      "note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- it is now a JavaScript SPA that returns only an empty shell to automated fetches, and the legacy mtrules.org mirror no longer resolves. The renewal date and requirements are confirmed on the Board's own license-information page AND independently on Cornell LII's mirror of ARM 24.101.413 (secondary_source_url), which serves the rule's full operative text and states them in plain language matching this record exactly.",
+      "note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- it is now a JavaScript SPA that returns only an empty shell to automated fetches, and the legacy mtrules.org mirror no longer resolves. The renewal date and requirements are confirmed on the Board's own license-information page AND independently on Cornell LII's mirror of ARM 24.101.413, which serves the rule's full operative text and states them in plain language matching this record exactly.",
       "is_block_claim": false
     },
     {

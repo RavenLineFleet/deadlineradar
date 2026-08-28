@@ -429,6 +429,77 @@ def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> li
     return errors
 
 
+# GATE-16 (AuditLab, 2026-08-27, LOW): worker/src/assistant.ts's /api/assistant/*
+# endpoints serve data_gap_note/fee_notes/notes/etc. straight out of these
+# four datasets' JSON -- never through generate.py's rendering at all, so
+# BOTH leak detectors above (which only ever look at rendered HTML) are
+# structurally blind to this surface. LEAK-2 (same day) already showed two
+# of its five instances (ma-firm, montana-renewal-fee) were only caught by
+# actually running a detector against the built output, not by inspection --
+# a future internal note in a record that renders nowhere would now publish
+# via the API with nothing watching it. AuditLab explicitly tested and
+# rejected extending GATE-15's length ceiling to this surface (33 of 154
+# legitimate dataset notes exceed 600 chars, up to 1,224 -- factual CPE-hour
+# prose is long by nature, unlike the calculator's short visitor notes) --
+# the editorial-history/finding-ID/tracker-ref/snake_case fingerprints are
+# the right instrument here, confirmed against a live probe: zero hits today.
+#
+# Field list is a literal, hand-kept duplicate of assistant.ts's own
+# allowlist (same "cheap to keep in sync by eye" call as
+# check_stripe_price_reconciliation.py's EXPECTED_TIERS) -- if assistant.ts
+# ever exposes a new field, add it here too, or this check silently stops
+# covering it.
+_ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
+    "cpa_deadlines.json": ["cycle_description", "data_gap_note", "citation"],
+    "cpe_hours.json": ["notes", "data_gap_note", "citation"],
+    "reinstatement.json": ["reinstatement_fee_notes", "penalty_cpe_notes", "lapse_trigger", "data_gap_note", "citation"],
+    # fee_basis/confidence are deliberately excluded -- both are short,
+    # fixed-vocabulary enum tags (fee_basis: "board_schedule"/"codified"/
+    # "unverifiable"; confidence similarly bounded), not free-text prose a
+    # maintainer could write editorial history into. Running these regexes
+    # against them is the wrong tool for the field type and produces
+    # nothing but guaranteed false positives (fee_basis's own values ARE
+    # snake_case, by design, every time) -- confirmed by an actual run
+    # before excluding them, not assumed.
+    "renewal_fees.json": ["fee_notes", "citation"],
+}
+
+
+def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
+    errors: list[str] = []
+    for filename, fields in _ASSISTANT_API_FIELDS_BY_DATASET.items():
+        path = data_dir / filename
+        if not path.exists():
+            errors.append(f"[SHAPE] {path} not found -- assistant.ts imports this dataset, this check can't verify it")
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        records = data.get("records", data if isinstance(data, list) else [])
+        for r in records:
+            if not isinstance(r, dict):
+                continue
+            record_id = r.get("id") or r.get("state_slug") or "?"
+            for field in fields:
+                val = r.get(field)
+                if not isinstance(val, str) or not val:
+                    continue
+                for pat, label in (
+                    (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                    (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                    (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                    (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                ):
+                    pm = pat.search(val)
+                    if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                        snippet = val[max(0, pm.start() - 60): pm.end() + 90].strip()
+                        errors.append(
+                            f"[SHAPE][{filename}:{record_id}.{field}] {label} '{pm.group(0)}' -- "
+                            f"...{snippet}... (this field is served directly by /api/assistant/* -- "
+                            f"see GATE-16, 2026-08-27 -- never passes through generate.py's rendering, "
+                            f"so no other gate checks it)"
+                        )
+    return errors
+
+
 # ERR-1 (AuditLab, 2026-08-20, orchestrator-approved 19:25 MDT): the "Mark
 # renewed" 400 error told a CPA to "Re-add them (POST /firm/licenses)" --
 # same leak family as GATE-5 (internal vocabulary reaching a customer), but a
@@ -4496,6 +4567,7 @@ def main():
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
+    all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
