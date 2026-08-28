@@ -12847,27 +12847,49 @@ function drDismissOnboardingChecklist() {
 // to upload a firm, download a firm?" -- the original 4 steps only pointed at
 // sidebar nav items describing what each screen SHOWS, never how to get data
 // in or out. A brand-new signup's roster is empty, so those 4 views were
-// useless until someone already knew where the import button was. Added
-// three steps: Import now leads (an empty roster makes Roster/Calendar/Map/
-// CPE all equally pointless for a new firm, so it has to come before them,
-// not after), and Reports/Export cover the two "download a firm" paths
-// (a CPE compliance report, and the raw roster itself) the original 4 never
-// mentioned. Calendar's own .ics download is called out in prose on the
-// Export step rather than getting a full extra stop of its own -- three new
-// steps already roughly doubles tour length; a fourth for one more download
-// link was a completeness-for-its-own-sake move, not a real signup need.
+// useless until someone already knew where the import button was. First pass
+// added 3 steps (Import/Reports/Export). Devin's follow-up: "expand to
+// anything that is important" -- broadened further to Add-staff (the more
+// common path for a firm adding one hire at a time, arguably more
+// fundamental than bulk CSV import), Calendar's own .ics export (previously
+// just a prose mention on the Export step, now gets its own stop since it's
+// a real, separate, easy-to-miss download action), Notifications (the bell
+// is the ONLY passive way this product surfaces renewal/CPE gaps without the
+// user checking back manually -- arguably the single most important thing to
+// not miss), Practice Privilege Check (a real paid feature, currently a bare
+// unexplained sidebar link with no tour coverage at all), and Account
+// (billing/staff seats/sign-in -- firm admin territory). Left out
+// deliberately: per-staff document upload. Every other target here is a
+// persistent, always-in-DOM element the tour can point at directly; document
+// upload only exists inside a per-staff modal that has to be opened first,
+// which the tour has no clean way to do without picking an arbitrary staff
+// row to open on someone's behalf -- a bigger, riskier mechanism for one
+// feature Devin's own original directive already flagged as "lower
+// priority, more advanced."
+//
 // Steps with a `target` CSS selector point the tour at that specific element
 // instead of the view's sidebar nav item (see drPositionProductTour/
-// drSetProductTourTarget below) -- needed here because "how to import" means
+// drSetProductTourTarget below) -- needed for "how to import" to mean
 // pointing at the actual import button, not just the Roster tab it lives on.
+// Steps with `skipViewSwitch: true` don't call drSwitchView at all: Practice
+// Privilege Check is a real separate PAGE, not a `.dr-view-*` tab -- calling
+// drSwitchView('mobility') would find no matching panel and hide every view,
+// leaving the dashboard blank. Its own nav link (no `data-view` attr, since
+// it's deliberately not a tab -- see _dashboard_sidebar_html's own docstring)
+// needs a target selector for the same reason.
 var DR_PRODUCT_TOUR_STEPS = [
-  {view: 'roster', target: '#dr-csv-import', title: 'Import your roster', body: 'New here? Start by uploading a CSV to add your whole staff roster at once, instead of one person at a time.'},
+  {view: 'roster', target: '#dr-add-staff', title: 'Add staff', body: 'Add one person here whenever a single new hire needs tracking -- no CSV needed for just one.'},
+  {view: 'roster', target: '#dr-csv-import', title: 'Import your roster', body: 'Onboarding a whole team? Upload a CSV to add your full staff roster at once instead.'},
   {view: 'roster', title: 'Roster', body: 'Your full staff list and renewal status, all in one place -- this is home base.'},
   {view: 'calendar', title: 'Calendar', body: 'Every upcoming renewal deadline laid out by date, so nothing sneaks up on you.'},
+  {view: 'calendar', target: '.dr-cal-export', title: 'Export to your calendar', body: 'Download every upcoming deadline as a calendar file (.ics) you can import into Outlook, Google Calendar, or Apple Calendar.'},
   {view: 'map', title: 'Map', body: 'See at a glance which states your firm is covered in, and where the gaps are.'},
   {view: 'cpe', title: 'CPE Hours', body: 'Track continuing-education progress against the real requirement for each state.'},
   {view: 'reports', target: '#dr-report-csv-btn', title: 'Reports', body: 'Download a CPE compliance report as CSV -- useful for board audits or your own records.'},
-  {view: 'roster', target: '#dr-csv-export', title: 'Export anytime', body: 'Everything here can leave the dashboard too: your roster as CSV, deadlines to your own calendar as .ics from the Calendar tab, or a report from Reports above.'}
+  {view: 'roster', target: '#dr-csv-export', title: 'Export your roster', body: 'Download your full roster as CSV any time -- a backup, or a spreadsheet for your own use.'},
+  {view: 'roster', target: '#dr-notif-bell-btn', title: 'Notifications', body: 'Renewal deadlines and CPE gaps show up here automatically -- check the bell instead of hunting through the roster yourself.'},
+  {skipViewSwitch: true, target: '.dr-nav a[href*="firm-mobility"]', title: 'Practice Privilege Check', body: 'See at a glance whether your firm can practice under another state through reciprocity rules, without a full license there.'},
+  {view: 'account', title: 'Account', body: 'Billing, staff seats, and sign-in settings for the whole firm live here.'}
 ];
 var drProductTourStepIndex = 0;
 var drProductTourActive = false;
@@ -12943,7 +12965,10 @@ function drRenderProductTourStep() {
   // drSwitchView must run BEFORE the target lookup below: a step's target
   // can now be an in-view element (e.g. #dr-csv-import), which only exists
   // in a visible, measurable state once its own tab is the active one.
-  drSwitchView(step.view);
+  // skipViewSwitch steps (Practice Privilege Check) skip this entirely --
+  // their target isn't inside any `.dr-view-*` tabpanel, and calling
+  // drSwitchView with a view that matches no panel hides every one of them.
+  if (!step.skipViewSwitch) drSwitchView(step.view);
   drSetProductTourTarget(step);
   // Unlike the sidebar nav (always on-screen, sticky), an in-view target
   // like #dr-csv-import can sit well below the fold -- scroll it into view
