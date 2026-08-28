@@ -4048,6 +4048,112 @@ def check_origin_check_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
+# AuditLab AUTH-1 (LOW, 2026-08-28): the CSRF-origin gate above covers every
+# write-dispatched handler but selects on POST/PATCH/DELETE/PUT, so a GET
+# handler is invisible to it -- as it is to every other gate in this file.
+# Read routes are the whole of charter scope #1's data-leak surface, so the
+# one route class with no coverage assertion is the class where a miss
+# leaks rather than mutates. Seeded with the 3 handlers AuditLab's own live
+# sweep (2026-08-28) confirmed are correctly public, out of 21 total
+# GET-dispatched handlers -- do NOT add a name here without the same
+# "provably no tenant data" reasoning check_origin_check_coverage's sibling
+# dict demands for writes.
+PUBLIC_READ_HANDLERS = {
+    # OAuth handshake (2) -- no session exists yet for either leg; the
+    # callback is what CREATES the session, so it cannot itself require one.
+    "handleOauthStart": "pre-auth",
+    "handleOauthCallback": "pre-auth",
+    # Public feature-idea roadmap listing (1) -- keyed only by an anonymous
+    # voter cookie (ROADMAP_VOTER_COOKIE_NAME), no tenant/session data of
+    # any kind in the query or the response.
+    "handleRoadmapData": "public-no-tenant-data",
+}
+
+
+def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
+    """AuditLab AUTH-1 advisory (LOW, 2026-08-28): every GET-dispatched
+    handler in worker/src/index.ts must either call one of the
+    session-establishing helpers (any `require*Session*(` variant --
+    requireFirmSession/requireFirmSessionWithFirm/
+    requireFirmSessionAndPaidTier/requireSubscriberSession, or
+    requireFirmRole, which doesn't carry "Session" in its name -- in its
+    own body, or be named (with a reason) in PUBLIC_READ_HANDLERS above.
+    Matching by the "Session" substring rather than an exact name list on
+    purpose: a first draft hardcoded 3 names, missed
+    requireFirmSessionWithFirm/AndPaidTier entirely, and produced 9 false
+    positives against real, correctly-gated handlers -- caught by running
+    it against the live file as a positive/negative control before
+    shipping, not by inspection. Same anchoring/comment-stripping
+    machinery as check_origin_check_coverage (its sibling for writes):
+    tracks the nearest-preceding `request.method === "..."` for every
+    `return await handleXxx(...)` dispatch, treating GET dispatches as
+    reads. Audited in both directions so the allowlist can't rot into a
+    rubber stamp: a read handler missing both the helper call and the
+    allowlist entry fails, and an allowlist entry naming a handler that is
+    no longer GET-dispatched (renamed, removed, or reclassified) fails
+    too."""
+    index_ts = repo_root / "worker" / "src" / "index.ts"
+    if not index_ts.exists():
+        return ["[AUTH-1] worker/src/index.ts not found -- read-route auth "
+                "coverage can't be verified and must be repaired."]
+    src = index_ts.read_text(encoding="utf-8")
+
+    method_re = re.compile(r'request\.method\s*===\s*"(\w+)"')
+    dispatch_re = re.compile(r"return\s+await\s+(handle\w+)\(")
+    events = [(m.start(), "method", m.group(1)) for m in method_re.finditer(src)]
+    events += [(m.start(), "dispatch", m.group(1)) for m in dispatch_re.finditer(src)]
+    events.sort(key=lambda e: e[0])
+
+    current_method = None
+    read_handlers: set[str] = set()
+    for _, kind, val in events:
+        if kind == "method":
+            current_method = val
+        elif current_method == "GET":
+            read_handlers.add(val)
+
+    if not read_handlers:
+        return ["[AUTH-1] found NO GET-dispatched handlers in index.ts. Either the dispatch "
+                "shape changed or nothing is wired -- this check is measuring nothing and "
+                "must be repaired."]
+
+    errors = []
+    stale_allowlist = sorted(set(PUBLIC_READ_HANDLERS) - read_handlers)
+    if stale_allowlist:
+        errors.append(
+            "[AUTH-1] PUBLIC_READ_HANDLERS names handler(s) that are no longer "
+            f"GET-dispatched in index.ts (renamed, removed, or reclassified): "
+            f"{', '.join(stale_allowlist)} -- remove the stale entry."
+        )
+
+    # `Session` substring, not an exact name list -- see the docstring
+    # above for why an exact list already produced 9 false positives here.
+    # requireFirmRole() doesn't carry "Session" in its name, so it needs
+    # its own alternative.
+    session_helper_re = re.compile(r"require\w*Session\w*\(|requireFirmRole\(")
+    for name in sorted(read_handlers - set(PUBLIC_READ_HANDLERS)):
+        fn_m = re.search(rf"async function {re.escape(name)}\([^)]*\)[^{{]*\{{", src)
+        if not fn_m:
+            errors.append(
+                f"[AUTH-1] {name} is GET-dispatched in index.ts but its definition was not "
+                f"found as `async function {name}(...)` -- read-route auth coverage can't be "
+                f"verified for it."
+            )
+            continue
+        fn_end = _bracket_match(src, fn_m.end() - 1)
+        fn_body = src[fn_m.end() - 1 : fn_end] if fn_end is not None else ""
+        fn_body_no_comments = re.sub(r"/\*.*?\*/", " ", fn_body, flags=re.S)
+        fn_body_no_comments = re.sub(r"//[^\n]*", " ", fn_body_no_comments)
+        if not session_helper_re.search(fn_body_no_comments):
+            errors.append(
+                f"[AUTH-1] {name} is GET-dispatched in index.ts but is neither in "
+                f"PUBLIC_READ_HANDLERS nor calls requireFirmSession()/requireFirmRole()/"
+                f"requireSubscriberSession() in its own body -- a read handler reachable "
+                f"without a session check leaks tenant data to any caller."
+            )
+    return errors
+
+
 def check_action_pages_post_switch_parity(repo_root: Path) -> list[str]:
     """AuditLab UX-7 (LOW, 2026-08-21, orchestrator-approved): every
     ACTION_PAGES key in worker/src/index.ts is a page an emailed link points
@@ -4690,6 +4796,7 @@ def main():
     all_errors += check_i18n_reviewed_entries_not_stale(repo_root)
     all_errors += check_send_pass_consent_gate_coverage(repo_root)
     all_errors += check_origin_check_coverage(repo_root)
+    all_errors += check_read_route_auth_coverage(repo_root)
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
 
