@@ -5,10 +5,10 @@
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
     "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'.",
-    "as_of": "2026-08-27",
+    "as_of": "2026-08-28",
     "changes_published": 5,
-    "changes_upcoming": 3,
-    "changes_recent": 2,
+    "changes_upcoming": 1,
+    "changes_recent": 4,
     "source_conflicts_published": 6,
     "live_monitoring_count": 5
   },
@@ -49,8 +49,8 @@
       "status": "ENACTED",
       "status_evidence": "Effective - 28 Aug 2026, 6 histories ... 326.289 8/28/2026 [Effective, no End date] ... The board may grant or renew permits to practice as a certified public accounting firm to applicants that demonstrate their qualifications in accordance with this chapter.",
       "status_source_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.289",
-      "upcoming": true,
-      "needs_reverification": false,
+      "upcoming": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -69,8 +69,8 @@
       "status": "ENACTED",
       "status_evidence": "Effective - 28 Aug 2026, 5 histories ... 326.283 8/28/2026 [Effective, no End date] ... An individual whose principal place of business, domicile, or residency is not in this state and who holds a valid and unrestricted license in good standing to practice public accounting from any state shall have all the privileges of licensees of this state without the need to obtain a license",
       "status_source_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.283",
-      "upcoming": true,
-      "needs_reverification": false,
+      "upcoming": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -107,8 +107,7 @@
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false,
-      "source_note": "AuditLab CITE-63 (2026-08-27): guamboa.org's TLS certificate expired 2026-05-31 (before this record's prior verified_date) -- re-fetched via curl -k (same access workaround already documented for this host in mobility_rules.json's data_gap_note) and confirmed the mobility FAQ content is unchanged, so dual_source stands. Plain HTTPS/browser access to this host will fail with a certificate error until Guam replaces it; that failure is expected, not evidence the page moved or changed."
+      "needs_reverification": false
     },
     {
       "event_id": "idaho-regwatch-3189d3f2b9ba",

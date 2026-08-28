@@ -2,7 +2,7 @@
   "_meta": {
     "purpose": "Jurisdictions NOT published to the changes feed, and why. A WORK QUEUE.",
     "policy": "Orchestrator 2026-08-02: withhold rather than guess a charter status; 40 well-labelled items beat 55 with some mislabelled. Tracked here so held-back items get resolved rather than silently forgotten.",
-    "as_of": "2026-08-27"
+    "as_of": "2026-08-28"
   },
   "withheld": [
     {
@@ -225,10 +225,10 @@
       "jurisdiction_slug": "missouri",
       "jurisdiction": "Missouri",
       "status": "UNDETERMINED",
-      "reason": "rule_in_flux with a determinable date (2026-08-28) but no explicit `status` field in mobility_rules.json -- withheld rather than defaulting to ENACTED with no basis",
+      "reason": "rule_changes_on=2026-08-28 is in the past and last_changed_on is absent -- ambiguous under the 2026-08-02 schema split; may be a consummated change or a stale forward value",
       "has_citation_url": true,
       "confidence": "dual_source",
-      "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / DIED) added to this record in worker/src/mobility_rules.json, sourced the same way DiffLab's regwatch events are"
+      "next_action": "awaiting the corrected forward-only rule_changes_on / last_changed_on split for this record"
     },
     {
       "jurisdiction_slug": "montana",
