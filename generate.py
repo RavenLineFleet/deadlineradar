@@ -4538,9 +4538,13 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
 # the rate-limit bucket backing it. A real bottom-right bubble+panel built
 # to match this site's own look (--card-bg/--accent/--shadow, same tokens
 # as .dr-product-tour/.dr-modal-overlay), not an iframe of the droplet's
-# own test page. Stateless per question -- each request sends only the
-# CURRENT message, matching the droplet's own {"message"} -> {"reply"}
-# contract exactly; no conversation history is part of that contract.
+# own test page. Conversation continuity: a per-browser session_id is
+# minted once and kept in localStorage (survives tab switches and page
+# navigation on this static multi-page site), sent with every request --
+# matches the droplet's own {"message", "session_id"} -> {"reply"}
+# contract, which already keys its in-memory session map on session_id.
+# Visible message history is persisted alongside it so the panel shows
+# the same conversation after navigating, not just the backend context.
 _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the DeadlineRadar assistant">
     <div class="dr-chat-panel-head">
@@ -4551,8 +4555,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
       <button type="button" class="dr-link-btn" id="dr-chat-panel-close" aria-label="Close chat">&times;</button>
     </div>
     <div class="dr-chat-messages" id="dr-chat-messages" aria-live="polite">
-      <div class="dr-chat-msg dr-chat-msg--assistant">Hi! Ask me about a CPA renewal deadline, CPE
-      requirement, or practice-privilege question for any state we track.</div>
+      <div class="dr-chat-msg dr-chat-msg--assistant">Hi! Ask me about a CPA renewal deadline, CPE requirement, or practice-privilege question for any state we track.</div>
     </div>
     <form id="dr-chat-form">
       <div class="dr-chat-input-row">
@@ -4585,6 +4588,34 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   var sendBtn = document.getElementById('dr-chat-send-btn');
   if (!widget || !bubble || !panel || !form || !input || !sendBtn) return;
 
+  var GREETING_TEXT = 'Hi! Ask me about a CPA renewal deadline, CPE requirement, or practice-privilege question for any state we track.';
+  var STORAGE_SESSION_KEY = 'dr_chat_session_id';
+  var STORAGE_HISTORY_KEY = 'dr_chat_history';
+
+  function getSessionId() {
+    try {
+      var id = localStorage.getItem(STORAGE_SESSION_KEY);
+      if (!id) {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() :
+          'dr-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+        localStorage.setItem(STORAGE_SESSION_KEY, id);
+      }
+      return id;
+    } catch (e) { return ''; }
+  }
+  var sessionId = getSessionId();
+
+  function loadHistory() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY));
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (e) { return null; }
+  }
+  function saveHistory(history) {
+    try { localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+  }
+  var history = loadHistory();
+
   function setOpen(open) {
     widget.classList.toggle('is-open', open);
     panel.hidden = !open;
@@ -4597,11 +4628,15 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     if (e.key === 'Escape' && !panel.hidden) { setOpen(false); bubble.focus(); }
   });
 
-  function addMessage(text, cls) {
+  function renderMessage(text, cls) {
     var el = document.createElement('div');
     el.className = 'dr-chat-msg dr-chat-msg--' + cls;
     el.textContent = text;
     messages.appendChild(el);
+    return el;
+  }
+
+  function scrollToBottom() {
     // Devin, live: a long reply reads as cut off, scrollbar not at the
     // bottom. Setting scrollTop synchronously right after appendChild can
     // race the browser's own layout pass for a long, freshly-wrapped
@@ -4612,6 +4647,28 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     requestAnimationFrame(function () {
       messages.scrollTop = messages.scrollHeight;
     });
+  }
+
+  if (history && history.length) {
+    // Restore a prior conversation (same browser, different tab/page) --
+    // replaces the default greeting markup already in the HTML.
+    messages.innerHTML = '';
+    for (var i = 0; i < history.length; i++) {
+      renderMessage(history[i].text, history[i].cls);
+    }
+    scrollToBottom();
+  } else {
+    history = [{ text: GREETING_TEXT, cls: 'assistant' }];
+    saveHistory(history);
+  }
+
+  function addMessage(text, cls) {
+    var el = renderMessage(text, cls);
+    if (cls !== 'pending') {
+      history.push({ text: text, cls: cls });
+      saveHistory(history);
+    }
+    scrollToBottom();
     return el;
   }
 
@@ -4635,7 +4692,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     fetch('/api/assistant/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ message: text, session_id: sessionId }),
     }).then(function (resp) {
       return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
     }).then(function (result) {
