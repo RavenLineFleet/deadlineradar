@@ -22,7 +22,7 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 
-<link rel="stylesheet" href="/styles.css?v=e13b997471">
+<link rel="stylesheet" href="/styles.css?v=053b0e37cc">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -134,9 +134,10 @@ of service providers strictly to run the service:</p>
   <li><strong>Google</strong> &mdash; only if you choose "Continue with Google" to sign in, to verify your
   identity.</li>
   <li><strong>Our chat assistant</strong> &mdash; anything you type into the "Ask DeadlineRadar" chat
-  bubble is sent to our own assistant service to generate a reply. We send only the text of your
-  question &mdash; never your IP address, cookies, or account/session identity alongside it, and using
-  the chat does not sign you in or link it to any account.</li>
+  bubble is sent to our own assistant service to generate a reply, along with your IP address (used only
+  to apply a per-visitor rate limit, so one visitor asking a lot of questions doesn't use up everyone
+  else's) and a randomly generated chat id held in your browser so a conversation can continue across
+  pages. None of this signs you in or links the conversation to any account.</li>
 </ul>
 <p>These providers process your data only to deliver the service on our behalf, never for their own
 marketing.</p>
@@ -146,7 +147,10 @@ marketing.</p>
 cookie by default. Signed-in firm and individual sessions use a strictly-necessary cookie to keep you
 logged in &mdash; not for tracking. We may use privacy-first, cookie-less analytics (such as Cloudflare
 Web Analytics) to understand aggregate traffic &mdash; this does not track you across the web or identify
-you personally.</p>
+you personally. The "Ask DeadlineRadar" chat bubble also uses your browser's own local storage (not a
+cookie, and never sent to anyone but our own assistant service) to hold your chat id, the conversation
+itself, and whether you left the panel open &mdash; so it's still there if you switch pages. This stays on
+your device; clearing your browser's site data removes it.</p>
 
 <h2>Your choices</h2>
 <p>Every reminder email includes a one-click link to stop all reminders instantly. Using it permanently
