@@ -517,7 +517,12 @@ JURISDICTION_COUNT = 51  # overwritten in main() from the real record count once
 # TERMS_LAST_CHANGED -- enforced by preship_gate.py's
 # check_terms_version_sync().
 TERMS_LAST_CHANGED = date(2026, 8, 5)
-PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # removed Tawk.to disclosure, added the new chat-assistant one
+PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # ASSIST-3 (AuditLab, same day): the chat-assistant bullet
+# added earlier today said "never your IP address ... or session identity" -- true when written, made
+# false ~2 hours later by 452860fd9's real fix for the assistant's per-visitor rate limiter (which has
+# to forward the visitor's IP to work at all) and the session_id continuity feature. Corrected to
+# describe what's actually sent, and added the missing localStorage disclosure (chat id, transcript,
+# open/closed state) to Cookies and analytics.
 
 
 def esc(s: str) -> str:
@@ -1783,13 +1788,17 @@ PAGE_CSS = """
      step). A soft pulsing ring rather than a full-page dimming overlay --
      cheaper to get right on a page with a resizable/collapsing sidebar and
      no risk of a stray overlay trapping clicks on a real dashboard. */
-  .dr-nav a.dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
+  /* Broadened from .dr-nav a.dr-tour-target (2026-08-28): a tour step's
+     target can now be any in-view element (an import/export button, a
+     report panel), not only a sidebar nav item -- see DR_PRODUCT_TOUR_STEPS'
+     own comment. */
+  .dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
   @keyframes dr-tour-pulse {
     0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); }
     50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 8px rgba(58,124,199,.15); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .dr-nav a.dr-tour-target { animation: none; }
+    .dr-tour-target { animation: none; }
   }
   /* ---- Practice-privilege checker (2026-07-30, pay-gated) ---- */
   .dr-mobility-callout { background: var(--row-alt); border-left: 3px solid var(--border-strong); border-radius: 6px; padding: 0.9rem 1.1rem; margin-bottom: 1.4rem; font-size: 0.88rem; line-height: 1.55; }
@@ -8342,9 +8351,10 @@ of service providers strictly to run the service:</p>
   <li><strong>Google</strong> &mdash; only if you choose "Continue with Google" to sign in, to verify your
   identity.</li>
   <li><strong>Our chat assistant</strong> &mdash; anything you type into the "Ask DeadlineRadar" chat
-  bubble is sent to our own assistant service to generate a reply. We send only the text of your
-  question &mdash; never your IP address, cookies, or account/session identity alongside it, and using
-  the chat does not sign you in or link it to any account.</li>
+  bubble is sent to our own assistant service to generate a reply, along with your IP address (used only
+  to apply a per-visitor rate limit, so one visitor asking a lot of questions doesn't use up everyone
+  else's) and a randomly generated chat id held in your browser so a conversation can continue across
+  pages. None of this signs you in or links the conversation to any account.</li>
 </ul>
 <p>These providers process your data only to deliver the service on our behalf, never for their own
 marketing.</p>
@@ -8354,7 +8364,10 @@ marketing.</p>
 cookie by default. Signed-in firm and individual sessions use a strictly-necessary cookie to keep you
 logged in &mdash; not for tracking. We may use privacy-first, cookie-less analytics (such as Cloudflare
 Web Analytics) to understand aggregate traffic &mdash; this does not track you across the web or identify
-you personally.</p>
+you personally. The "Ask DeadlineRadar" chat bubble also uses your browser's own local storage (not a
+cookie, and never sent to anyone but our own assistant service) to hold your chat id, the conversation
+itself, and whether you left the panel open &mdash; so it's still there if you switch pages. This stays on
+your device; clearing your browser's site data removes it.</p>
 
 <h2>Your choices</h2>
 <p>Every reminder email includes a one-click link to stop all reminders instantly. Using it permanently
@@ -12822,42 +12835,74 @@ function drDismissOnboardingChecklist() {
 // step actually switches the dashboard to that view (drSwitchView, already
 // defined) so the tour walks through real screens, not just nav labels.
 // ---------------------------------------------------------------------------
+// Devin, live, 2026-08-28: "isn't there more that we need to show them? How
+// to upload a firm, download a firm?" -- the original 4 steps only pointed at
+// sidebar nav items describing what each screen SHOWS, never how to get data
+// in or out. A brand-new signup's roster is empty, so those 4 views were
+// useless until someone already knew where the import button was. Added
+// three steps: Import now leads (an empty roster makes Roster/Calendar/Map/
+// CPE all equally pointless for a new firm, so it has to come before them,
+// not after), and Reports/Export cover the two "download a firm" paths
+// (a CPE compliance report, and the raw roster itself) the original 4 never
+// mentioned. Calendar's own .ics download is called out in prose on the
+// Export step rather than getting a full extra stop of its own -- three new
+// steps already roughly doubles tour length; a fourth for one more download
+// link was a completeness-for-its-own-sake move, not a real signup need.
+// Steps with a `target` CSS selector point the tour at that specific element
+// instead of the view's sidebar nav item (see drPositionProductTour/
+// drSetProductTourTarget below) -- needed here because "how to import" means
+// pointing at the actual import button, not just the Roster tab it lives on.
 var DR_PRODUCT_TOUR_STEPS = [
+  {view: 'roster', target: '#dr-csv-import', title: 'Import your roster', body: 'New here? Start by uploading a CSV to add your whole staff roster at once, instead of one person at a time.'},
   {view: 'roster', title: 'Roster', body: 'Your full staff list and renewal status, all in one place -- this is home base.'},
   {view: 'calendar', title: 'Calendar', body: 'Every upcoming renewal deadline laid out by date, so nothing sneaks up on you.'},
   {view: 'map', title: 'Map', body: 'See at a glance which states your firm is covered in, and where the gaps are.'},
-  {view: 'cpe', title: 'CPE Hours', body: 'Track continuing-education progress against the real requirement for each state.'}
+  {view: 'cpe', title: 'CPE Hours', body: 'Track continuing-education progress against the real requirement for each state.'},
+  {view: 'reports', target: '#dr-report-csv-btn', title: 'Reports', body: 'Download a CPE compliance report as CSV -- useful for board audits or your own records.'},
+  {view: 'roster', target: '#dr-csv-export', title: 'Export anytime', body: 'Everything here can leave the dashboard too: your roster as CSV, deadlines to your own calendar as .ics from the Calendar tab, or a report from Reports above.'}
 ];
 var drProductTourStepIndex = 0;
 var drProductTourActive = false;
+
+// Roadmap (2026-08-28, Devin live): steps can now target a specific in-view
+// element (step.target, a CSS selector -- e.g. the actual Import button)
+// instead of always pointing at the sidebar nav item for step.view. Falls
+// back to the nav item when a step has no `target`, so the original 4 steps'
+// behavior is unchanged.
+function drProductTourTargetEl(step) {
+  if (step.target) return document.querySelector(step.target);
+  return document.querySelector('.dr-nav a[data-view="' + step.view + '"]');
+}
 
 function drPositionProductTour() {
   var el = document.getElementById('dr-product-tour');
   if (!el || el.hidden) return;
   var step = DR_PRODUCT_TOUR_STEPS[drProductTourStepIndex];
-  var navEl = document.querySelector('.dr-nav a[data-view="' + step.view + '"]');
-  if (!navEl) return;
+  var targetEl = drProductTourTargetEl(step);
+  if (!targetEl) return;
   // position: fixed (see CSS) -- tracks the viewport, not document flow, so
-  // this only needs the nav item's current on-screen rect, recomputed on
+  // this only needs the target's current on-screen rect, recomputed on
   // every step change and on resize (wired below).
-  var rect = navEl.getBoundingClientRect();
+  var rect = targetEl.getBoundingClientRect();
   el.style.top = Math.max(12, rect.top + rect.height / 2 - el.offsetHeight / 2) + 'px';
   el.style.left = (rect.right + 14) + 'px';
 }
 
-// Devin design-quality pass (2026-08-28): the sidebar item the current step
-// describes gets a pulsing ring (.dr-tour-target, see CSS) so the card's
-// caret and the item it's pointing at read as one connected thing rather
-// than a floating box near some vaguely-nearby nav row. Always clears every
-// previous target first -- cheaper and safer than tracking "the" previously
-// targeted element across advance/skip/end, and idempotent if called twice.
-function drSetProductTourTarget(view) {
-  document.querySelectorAll('.dr-nav a.dr-tour-target').forEach(function(a) {
+// Devin design-quality pass (2026-08-28): the item the current step describes
+// gets a pulsing ring (.dr-tour-target, see CSS) so the card's caret and the
+// thing it's pointing at read as one connected element rather than a
+// floating box near something vaguely nearby. Always clears every previous
+// target first -- cheaper and safer than tracking "the" previously targeted
+// element across advance/skip/end, and idempotent if called twice. Scoped to
+// `.dr-tour-target` sitewide (not just `.dr-nav a`) now that a step's target
+// can be any in-view element, not only a sidebar nav item.
+function drSetProductTourTarget(step) {
+  document.querySelectorAll('.dr-tour-target').forEach(function(a) {
     a.classList.remove('dr-tour-target');
   });
-  if (!view) return;
-  var navEl = document.querySelector('.dr-nav a[data-view="' + view + '"]');
-  if (navEl) navEl.classList.add('dr-tour-target');
+  if (!step) return;
+  var targetEl = drProductTourTargetEl(step);
+  if (targetEl) targetEl.classList.add('dr-tour-target');
 }
 
 function drRenderProductTourStep() {
@@ -12887,8 +12932,21 @@ function drRenderProductTourStep() {
     void wrapEl.offsetWidth;
     wrapEl.classList.add('dr-product-tour-body-wrap');
   }
-  drSetProductTourTarget(step.view);
+  // drSwitchView must run BEFORE the target lookup below: a step's target
+  // can now be an in-view element (e.g. #dr-csv-import), which only exists
+  // in a visible, measurable state once its own tab is the active one.
   drSwitchView(step.view);
+  drSetProductTourTarget(step);
+  // Unlike the sidebar nav (always on-screen, sticky), an in-view target
+  // like #dr-csv-import can sit well below the fold -- scroll it into view
+  // first so drPositionProductTour's getBoundingClientRect() reflects where
+  // it will actually be, not wherever it happened to be before this step's
+  // view switch. Instant (not smooth) so the very next position read is
+  // already correct rather than racing an in-flight scroll animation.
+  if (step.target) {
+    var scrollTargetEl = document.querySelector(step.target);
+    if (scrollTargetEl) scrollTargetEl.scrollIntoView({block: 'center', behavior: 'auto'});
+  }
   drPositionProductTour();
 }
 

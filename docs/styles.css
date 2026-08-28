@@ -914,13 +914,14 @@
   .dr-nav a.is-active { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; }
   .dr-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
   
-  .dr-nav a.dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
+  
+  .dr-tour-target { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); animation: dr-tour-pulse 1.8s ease-in-out infinite; }
   @keyframes dr-tour-pulse {
     0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(58,124,199,.35); }
     50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 8px rgba(58,124,199,.15); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .dr-nav a.dr-tour-target { animation: none; }
+    .dr-tour-target { animation: none; }
   }
   
   .dr-mobility-callout { background: var(--row-alt); border-left: 3px solid var(--border-strong); border-radius: 6px; padding: 0.9rem 1.1rem; margin-bottom: 1.4rem; font-size: 0.88rem; line-height: 1.55; }
