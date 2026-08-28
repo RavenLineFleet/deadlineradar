@@ -4181,7 +4181,7 @@ SEO_TITLE_MAX = 60
 SEO_DESCRIPTION_MAX = 160
 
 
-def print_seo_length_drift_advisory(html_files: list[Path]) -> None:
+def print_seo_length_drift_advisory(html_files: list[Path], repo_root: Path) -> None:
     """AuditLab SEO-4 (LOW, 2026-08-04): 115 titles / 22 descriptions already
     exceeded Google's ~60/~160-char SERP display limits when first filed --
     fixing all of them wasn't worth the effort at LOW severity, but nothing
@@ -4192,20 +4192,38 @@ def print_seo_length_drift_advisory(html_files: list[Path]) -> None:
     build, the same "advisory, never gates" treatment as every other
     detector here. If this number climbs on a future page you're actively
     writing, that's the signal to trim ITS title/description, not to chase
-    the whole backlog."""
-    over_title = 0
-    over_description = 0
+    the whole backlog.
+
+    AuditLab SEO-6 (LOW, 2026-08-28): the count alone couldn't answer "which
+    page drifted" -- the CA blog post shipped over budget and was only
+    identified by re-implementing this same regex with filenames attached.
+    Now prints every over-budget path (repo-root-relative, matching how
+    AuditLab's own findings cite files) alongside the count, longest first,
+    so the next drift is traceable from this output alone."""
+    over_title: list[tuple[int, str]] = []
+    over_description: list[tuple[int, str]] = []
     for f in html_files:
         text = f.read_text(encoding="utf-8")
+        rel = f.relative_to(repo_root).as_posix()
         m = TITLE_RE.search(text)
-        if m and len(html.unescape(m.group(1))) > SEO_TITLE_MAX:
-            over_title += 1
+        if m:
+            length = len(html.unescape(m.group(1)))
+            if length > SEO_TITLE_MAX:
+                over_title.append((length, rel))
         m = META_DESCRIPTION_RE.search(text)
-        if m and len(html.unescape(m.group(1))) > SEO_DESCRIPTION_MAX:
-            over_description += 1
+        if m:
+            length = len(html.unescape(m.group(1)))
+            if length > SEO_DESCRIPTION_MAX:
+                over_description.append((length, rel))
+    over_title.sort(reverse=True)
+    over_description.sort(reverse=True)
     print(f"\n--- SEO title/description length advisory (does not affect gate exit code) ---")
-    print(f"titles > {SEO_TITLE_MAX} chars       : {over_title} / {len(html_files)}")
-    print(f"descriptions > {SEO_DESCRIPTION_MAX} chars : {over_description} / {len(html_files)}")
+    print(f"titles > {SEO_TITLE_MAX} chars       : {len(over_title)} / {len(html_files)}")
+    for length, rel in over_title:
+        print(f"  {length:4d}  {rel}")
+    print(f"descriptions > {SEO_DESCRIPTION_MAX} chars : {len(over_description)} / {len(html_files)}")
+    for length, rel in over_description:
+        print(f"  {length:4d}  {rel}")
 
 
 def print_worker_deploy_staleness_advisory(repo_root: Path) -> None:
@@ -4694,7 +4712,7 @@ def main():
         print_flux_blocked_pending_reverification_advisory(repo_root)
         print_gap_list_advisory(repo_root)
         print_es_translation_review_advisory(repo_root)
-        print_seo_length_drift_advisory(html_files)
+        print_seo_length_drift_advisory(html_files, repo_root)
         sys.exit(1)
     print("\nPASS -- no violations found.")
     print_worker_deploy_staleness_advisory(repo_root)
@@ -4711,7 +4729,7 @@ def main():
     print_flux_blocked_pending_reverification_advisory(repo_root)
     print_gap_list_advisory(repo_root)
     print_es_translation_review_advisory(repo_root)
-    print_seo_length_drift_advisory(html_files)
+    print_seo_length_drift_advisory(html_files, repo_root)
     sys.exit(0)
 
 
