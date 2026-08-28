@@ -500,6 +500,63 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
     return errors
 
 
+# AuditLab's own proactive sweep (2026-08-27, following LEAK-4's "a render
+# fix is half a fix" lesson): enumerated all 26 DR_* globals embedded across
+# every built page and found one more of the same shape -- DR_CPE_REQUIREMENTS
+# (embedded on /firm-dashboard/ and /my/) emits `carryover_note`, a value
+# COMPUTED by generate.py (cpe_requirements_json's own construction: the raw
+# cpe_hours.json record's `notes` field, copied verbatim whenever it mentions
+# "carry") rather than read from any dataset file directly. That derivation
+# detail is exactly why AuditLab's own suggested fix location (adding
+# "carryover_note" to _ASSISTANT_API_FIELDS_BY_DATASET["cpe_hours.json"])
+# would not actually have worked -- that check reads data/cpe_hours.json's
+# raw records, and carryover_note is never a key there, only in the BUILT
+# blob -- confirmed by checking generate.py's derivation code, not assumed.
+# Zero of 51 records currently populate it with anything unsafe (it can only
+# ever equal `notes`, which the check above DOES cover), but that's an
+# implementation detail of TODAY's derivation, not a structural guarantee --
+# the durable fix is scanning the actual shipped blob directly, same
+# technique as check_calculator_widget_data_no_internal_notes() above,
+# rather than trusting a field-name mapping that could silently stop holding.
+_CPE_REQUIREMENTS_BLOB_RE = re.compile(r"DR_CPE_REQUIREMENTS=(\{.*?\});", re.DOTALL)
+_CPE_REQUIREMENTS_NOTE_VALUE_RE = re.compile(r'(?:data_gap_note|carryover_note):"((?:[^"\\]|\\.)*)"')
+
+
+def check_cpe_requirements_blob_no_internal_notes(html_files: list[Path]) -> list[str]:
+    target_pages = [f for f in html_files if f.parent.name in ("firm-dashboard", "my") and f.name == "index.html"]
+    if not target_pages:
+        return ["[SHAPE] neither docs/firm-dashboard/index.html nor docs/my/index.html found -- have these pages moved or been renamed?"]
+    errors: list[str] = []
+    for f in target_pages:
+        html_text = f.read_text(encoding="utf-8")
+        m = _CPE_REQUIREMENTS_BLOB_RE.search(html_text)
+        if not m:
+            errors.append(f"[SHAPE][{f}] could not locate the DR_CPE_REQUIREMENTS blob -- widget markup changed, update this check's regex")
+            continue
+        blob = m.group(1)
+        note_values = _CPE_REQUIREMENTS_NOTE_VALUE_RE.findall(blob)
+        if not note_values:
+            errors.append(f"[SHAPE][{f}] found the DR_CPE_REQUIREMENTS blob but zero data_gap_note/carryover_note values in it -- widget data shape changed, update this check's regex (a silent zero here would hide every future leak)")
+            continue
+        for note_js in note_values:
+            note = note_js.encode().decode("unicode_escape")
+            for pat, label in (
+                (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+            ):
+                pm = pat.search(note)
+                if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                    snippet = note[max(0, pm.start() - 60): pm.end() + 90].strip()
+                    errors.append(
+                        f"[SHAPE][{f}] {label} '{pm.group(0)}' in a DR_CPE_REQUIREMENTS note field -- "
+                        f"...{snippet}... (this JSON-in-<script> blob is invisible to "
+                        f"check_prose_leak_shapes()'s <script>-stripping prose scan)"
+                    )
+    return errors
+
+
 # ERR-1 (AuditLab, 2026-08-20, orchestrator-approved 19:25 MDT): the "Mark
 # renewed" 400 error told a CPA to "Re-add them (POST /firm/licenses)" --
 # same leak family as GATE-5 (internal vocabulary reaching a customer), but a
@@ -4568,6 +4625,7 @@ def main():
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
+    all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
