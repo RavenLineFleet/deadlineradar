@@ -5684,10 +5684,13 @@ function handleAssistantRuleChanges(url: URL): Response {
 // orchestrator ever redeploys the droplet to a new address, update this
 // one line and redeploy, same as any other vendor-endpoint change here.
 const ASSISTANT_CHAT_DROPLET_URL = "https://deadlineradar-assistant.143-198-52-110.nip.io/chat";
-// A real conversational reply is slower than a static-data lookup; 20s is
-// generous without leaving a browser tab hanging indefinitely if the
-// droplet is unreachable.
-const ASSISTANT_CHAT_TIMEOUT_MS = 20000;
+// AuditLab ASSIST-1 update (2026-08-28): live-measured successful replies at
+// 15.6-15.8s -- only ~4s of headroom against the original 20s budget below,
+// meaning any upstream slowdown on the droplet's own happy path would have
+// converted today's real successes into false 504 timeouts on this side.
+// 25s keeps a real conversational reply generous without leaving a browser
+// tab hanging indefinitely if the droplet is genuinely unreachable.
+const ASSISTANT_CHAT_TIMEOUT_MS = 25000;
 const ASSISTANT_CHAT_MAX_MESSAGE_CHARS = 2000;
 // AuditLab ASSIST-1 (HIGH, 2026-08-28): live-measured 1 full success out of
 // 10 real questions through this route in the first hour after launch. The
