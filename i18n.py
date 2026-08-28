@@ -184,15 +184,6 @@ EN: dict[str, str] = {
         "queue. Our address is also published machine-readably at {security_txt_link} per "
         "{rfc_link}."
     ),
-    "contact.privacy_policy_link_text": "Privacy Policy",
-    "contact.h2_live_chat": "Live chat",
-    "contact.live_chat_body": (
-        "Prefer to talk it through right now? Starting a chat loads a live-chat widget (Tawk.to) "
-        "— it isn't running on this page until you click the button below, so it never sets its "
-        "own cookie unless you actually use it. See our {privacy_link} for what that widget does "
-        "and doesn't share."
-    ),
-    "contact.live_chat_button": "Start a live chat",
     "contact.h2_wrong_date": "Spotted a wrong date?",
     "contact.wrong_date_body": (
         "Deadlines are compiled from official state board sources and we work hard to keep them "
@@ -208,13 +199,8 @@ EN: dict[str, str] = {
     "contact.h2_mailing_address": "Mailing address",
     "contact.meta_description": (
         "Contact Deadline-Radar — questions, deadline corrections, or help with your CPA "
-        "license renewal reminders. Email us or start a live chat."
+        "license renewal reminders. We read every message."
     ),
-    # Live-chat button JS states
-    "contact.chat_loading": "Loading chat…",
-    "contact.chat_loading_hint": "This can take a few seconds on a slow connection.",
-    "contact.chat_ready": "Chat loaded — look for the bubble in the corner",
-    "contact.chat_slow": "Still connecting — if this doesn't finish in a few more seconds, email us instead: {email}",
     # /multi-state-firms/ -- build_multi_state_firms_page()
     "msf.h1": "Running a Multi-State CPA Firm? Here's the Full Picture.",
     "msf.intro": (
@@ -742,26 +728,6 @@ ES: dict[str, dict] = {
         "en_hash": 'cf483167dc0e6e13',
         "reviewed": False,
     },
-    'contact.chat_loading': {
-        "text": 'Cargando chat…',
-        "en_hash": '043e8f3c0b4c84cb',
-        "reviewed": False,
-    },
-    'contact.chat_loading_hint': {
-        "text": 'Esto puede tardar unos segundos en una conexión lenta.',
-        "en_hash": '2f83787e261e11b8',
-        "reviewed": False,
-    },
-    'contact.chat_ready': {
-        "text": 'Chat cargado — busque la burbuja en la esquina',
-        "en_hash": '0c00d0b8e64d3938',
-        "reviewed": False,
-    },
-    'contact.chat_slow': {
-        "text": 'Todavía conectando — si esto no termina en unos segundos más, escríbanos en su lugar: {email}',
-        "en_hash": '0cb8ac72d543d709',
-        "reviewed": False,
-    },
     'contact.email_body': {
         "text": 'Leemos cada mensaje y normalmente respondemos en un par de días hábiles. Este es un proyecto pequeño e independiente — hay una persona real del otro lado, no una cola de soporte. Nuestra dirección también se publica de forma legible por máquina en {security_txt_link} según {rfc_link}.',
         "en_hash": '9fd5d0895e10799f',
@@ -775,11 +741,6 @@ ES: dict[str, dict] = {
     'contact.h2_email_us': {
         "text": 'Escríbanos',
         "en_hash": 'd9172c43bec620b2',
-        "reviewed": False,
-    },
-    'contact.h2_live_chat': {
-        "text": 'Chat en vivo',
-        "en_hash": '1c7cc7287ca8090e',
         "reviewed": False,
     },
     'contact.h2_mailing_address': {
@@ -802,24 +763,9 @@ ES: dict[str, dict] = {
         "en_hash": 'ed62b5488c50ce0e',
         "reviewed": False,
     },
-    'contact.live_chat_body': {
-        "text": '¿Prefiere hablarlo ahora mismo? Iniciar un chat carga un widget de chat en vivo (Tawk.to) — no se ejecuta en esta página hasta que hace clic en el botón de abajo, por lo que nunca establece su propia cookie a menos que realmente lo use. Consulte nuestra {privacy_link} para saber qué comparte ese widget y qué no.',
-        "en_hash": 'ec78895078735233',
-        "reviewed": False,
-    },
-    'contact.live_chat_button': {
-        "text": 'Iniciar un chat en vivo',
-        "en_hash": '379c1f1a5af158e3',
-        "reviewed": False,
-    },
     'contact.meta_description': {
         "text": 'Contacte a Deadline-Radar — preguntas, correcciones de fechas límite, o ayuda con sus recordatorios de renovación de licencia de CPA. Escríbanos por correo o inicie un chat en vivo.',
         "en_hash": 'deb602834aebfe2f',
-        "reviewed": False,
-    },
-    'contact.privacy_policy_link_text': {
-        "text": 'Política de Privacidad',
-        "en_hash": '506ff394621596dd',
         "reviewed": False,
     },
     'contact.stop_reminders_body': {
