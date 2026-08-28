@@ -5689,6 +5689,27 @@ const ASSISTANT_CHAT_DROPLET_URL = "https://deadlineradar-assistant.143-198-52-1
 // droplet is unreachable.
 const ASSISTANT_CHAT_TIMEOUT_MS = 20000;
 const ASSISTANT_CHAT_MAX_MESSAGE_CHARS = 2000;
+// AuditLab ASSIST-1 (HIGH, 2026-08-28): live-measured 1 full success out of
+// 10 real questions through this route in the first hour after launch. The
+// fault is confirmed droplet-side (same failure reproduces calling the
+// droplet directly, bypassing this proxy entirely) -- flagged to
+// orchestrator, who owns it, rather than guessed at. This retry is the
+// mitigation available on THIS side while that's pending: AuditLab's own
+// evidence table shows the exact same question that failed with the
+// droplet's own canned apology succeeded ~60s later, and this session's own
+// testing found the same question failing then succeeding again after a
+// ~5-8s gap -- but ALSO that hammering it with immediate repeats (3s apart)
+// made things WORSE (502s, not more apologies). One retry, after a short
+// delay, not a loop -- enough to plausibly turn a real fraction of
+// failures into successes without piling more load on an already-struggling
+// service. Never fabricates or upgrades a real failure into a fake success:
+// if the retry ALSO fails, whatever it actually returned is what ships.
+const ASSISTANT_CHAT_RETRY_DELAY_MS = 2500;
+// The droplet's own literal apology text (verified live, 2026-08-28) for
+// when IT fails internally -- a real HTTP 200 with a reply string that
+// reads as an answer but isn't one. Distinctive enough not to collide with
+// a genuine answer to a real CPA question.
+const ASSISTANT_CHAT_FAILURE_SIGNATURE = "something went wrong answering that";
 
 /**
  * POST /assistant/chat (2026-08-28, Devin: embed the chat assistant on the
@@ -5741,6 +5762,28 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     return jsonResponse(400, { error: "Message is empty or too long." });
   }
 
+  const attempt1 = await callAssistantDroplet(message);
+  if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
+    return jsonResponse(200, { reply: attempt1.reply });
+  }
+  await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
+  const attempt2 = await callAssistantDroplet(message);
+  // Whatever attempt 2 actually returned ships, success or not -- never
+  // silently prefer attempt 1's result once a retry has run, and never
+  // synthesize anything neither attempt actually said.
+  return attempt2.ok
+    ? jsonResponse(200, { reply: attempt2.reply })
+    : jsonResponse(attempt2.status, { error: attempt2.error });
+}
+
+type AssistantDropletResult =
+  | { ok: true; reply: string }
+  | { ok: false; status: number; error: string };
+
+/** One real call to the droplet -- no retry logic here, that lives in the
+ * caller so it can apply the short inter-attempt delay without this
+ * function's own timeout accounting getting involved twice. */
+async function callAssistantDroplet(message: string): Promise<AssistantDropletResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_CHAT_TIMEOUT_MS);
   try {
@@ -5751,21 +5794,21 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
       signal: controller.signal,
     });
     if (!resp.ok) {
-      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
     }
     let data: { reply?: unknown };
     try {
       data = (await resp.json()) as { reply?: unknown };
     } catch {
-      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
     }
     if (typeof data.reply !== "string") {
-      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
     }
-    return jsonResponse(200, { reply: data.reply });
+    return { ok: true, reply: data.reply };
   } catch {
     // Covers both a network failure and the AbortController firing.
-    return jsonResponse(504, { error: "The assistant took too long to respond. Please try again." });
+    return { ok: false, status: 504, error: "The assistant took too long to respond. Please try again." };
   } finally {
     clearTimeout(timeoutId);
   }

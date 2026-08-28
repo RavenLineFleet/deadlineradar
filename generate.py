@@ -517,7 +517,7 @@ JURISDICTION_COUNT = 51  # overwritten in main() from the real record count once
 # TERMS_LAST_CHANGED -- enforced by preship_gate.py's
 # check_terms_version_sync().
 TERMS_LAST_CHANGED = date(2026, 8, 5)
-PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # removed the Tawk.to live-chat disclosure (widget retired)
+PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # removed Tawk.to disclosure, added the new chat-assistant one
 
 
 def esc(s: str) -> str:
@@ -8221,6 +8221,10 @@ of service providers strictly to run the service:</p>
   details directly; we do not.</li>
   <li><strong>Google</strong> &mdash; only if you choose "Continue with Google" to sign in, to verify your
   identity.</li>
+  <li><strong>Our chat assistant</strong> &mdash; anything you type into the "Ask DeadlineRadar" chat
+  bubble is sent to our own assistant service to generate a reply. We send only the text of your
+  question &mdash; never your IP address, cookies, or account/session identity alongside it, and using
+  the chat does not sign you in or link it to any account.</li>
 </ul>
 <p>These providers process your data only to deliver the service on our behalf, never for their own
 marketing.</p>
