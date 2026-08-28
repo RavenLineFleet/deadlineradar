@@ -4589,10 +4589,10 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
 # Visible message history is persisted alongside it so the panel shows
 # the same conversation after navigating, not just the backend context.
 _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
-  <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the DeadlineRadar assistant">
+  <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the Deadline-Radar assistant">
     <div class="dr-chat-panel-head">
       <div>
-        <strong>Ask DeadlineRadar</strong>
+        <strong>Ask Deadline-Radar</strong>
         <p class="dr-chat-panel-subhead">CPA renewal questions, answered live</p>
       </div>
       <button type="button" class="dr-link-btn" id="dr-chat-panel-close" aria-label="Close chat">&times;</button>
@@ -4610,7 +4610,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     confirm with your state board before relying on an answer.</p>
   </div>
   <button type="button" class="dr-chat-bubble" id="dr-chat-bubble" aria-expanded="false"
-  aria-controls="dr-chat-panel" aria-label="Chat with the DeadlineRadar assistant">
+  aria-controls="dr-chat-panel" aria-label="Chat with the Deadline-Radar assistant">
     <svg class="dr-chat-open-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M12 3.5C6.75 3.5 2.5 6.9 2.5 11.1c0 2.4 1.35 4.55 3.5 5.95L5 21l4.4-2c.85.2 1.75.3 2.6.3 5.25 0 9.5-3.4 9.5-7.6s-4.25-7.6-9.5-7.6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
     </svg>
@@ -8358,7 +8358,7 @@ of service providers strictly to run the service:</p>
   details directly; we do not.</li>
   <li><strong>Google</strong> &mdash; only if you choose "Continue with Google" to sign in, to verify your
   identity.</li>
-  <li><strong>Our chat assistant</strong> &mdash; anything you type into the "Ask DeadlineRadar" chat
+  <li><strong>Our chat assistant</strong> &mdash; anything you type into the "Ask Deadline-Radar" chat
   bubble is sent to our own assistant service to generate a reply, along with your IP address (used only
   to apply a per-visitor rate limit, so one visitor asking a lot of questions doesn't use up everyone
   else's) and a randomly generated chat id held in your browser so a conversation can continue across
@@ -8372,7 +8372,7 @@ marketing.</p>
 cookie by default. Signed-in firm and individual sessions use a strictly-necessary cookie to keep you
 logged in &mdash; not for tracking. We may use privacy-first, cookie-less analytics (such as Cloudflare
 Web Analytics) to understand aggregate traffic &mdash; this does not track you across the web or identify
-you personally. The "Ask DeadlineRadar" chat bubble also uses your browser's own local storage (not a
+you personally. The "Ask Deadline-Radar" chat bubble also uses your browser's own local storage (not a
 cookie, and never sent to anyone but our own assistant service) to hold your chat id, the conversation
 itself, and whether you left the panel open &mdash; so it's still there if you switch pages. This stays on
 your device; clearing your browser's site data removes it.</p>
@@ -22717,6 +22717,88 @@ particular pair, anything past early November 2026 deserves a fresh check. Run y
 through <a href="../../practice-privilege-check/">our Practice Privilege Check tool</a>, or confirm
 with the D.C. Board of Accountancy directly. And keep your own Virginia renewal on track &mdash; it's
 due every June 30. <a href="../../virginia/">Check your Virginia renewal date here</a>.</p>
+""",
+    },
+    {
+        # Rec D (ValueLab, orchestrator-greenlit 2026-08-28 09:50, Devin's framing call:
+        # generic, don't name the vendor). Two-party approved round 1 --
+        # orchestrator_20260828_blog_APPROVED_why-third-party-cpe-numbers-go-stale.md,
+        # auditlab_20260828_blog_APPROVED_why-third-party-cpe-numbers-go-stale.md. Every
+        # figure restates data/cpe_hours.json's wa-cpe record (verified_date 2026-08-13),
+        # zero new legal research -- ValueLab independently re-verified the same rule text
+        # against the WA code-reviser site before filing the rec, so this is a second
+        # independent check landing on the same figures, not one source repeated. The
+        # unnamed vendor is Canopy (getcanopy.com/blog/ultimate-guide-managing-cpe-credits-
+        # courses/) -- deliberately not named or linked here per Devin's framing call, and
+        # check_named_vendor_disparagement enforces that at the gate level, not just
+        # editorially. Publish-day re-check (AuditLab's own required condition): fetched
+        # the live page again today, 2026-08-28, HTTP 200, still reads "no more than 72
+        # non-technical" -- the "is wrong" claim is safe.
+        "slug": "why-third-party-cpe-numbers-go-stale",
+        "published": "2026-08-28",  # first-introduction commit date, from git history
+        "title": "Why the CPE Numbers on a Vendor Blog Can Be Wrong Even When They Used to Be Right",
+        "seo_title": "Why CPE Numbers on Vendor Blogs Go Stale",
+        "meta_description": (
+            "A 2018 vendor guide gets Washington's CPE rule wrong in two ways. The pattern "
+            "behind stale numbers, and how to check any source in under a minute."
+        ),
+        "body_html": """
+<p class="intro">If you searched for Washington's CPA continuing-education requirement recently,
+there's a good chance you landed on a guide published in 2018 by a widely-read practice-management
+vendor. It still ranks. It still gets read. And on two of its four numbers, it's wrong.</p>
+
+<p>The guide says Washington CPAs need 120 CPE credits every three years, with at least 4 hours of
+board-approved ethics, and "no more than 72 non-technical courses." Two of those four figures are
+correct. Two are not, in ways a practitioner would only discover by missing them.</p>
+
+<h2>What the current rule actually says</h2>
+<p>WAC 4-30-134, verified directly against the Washington State Legislature's own code site:</p>
+<ul>
+  <li>120 CPE credit hours within the three-year reporting period &mdash; correct in the 2018
+  guide.</li>
+  <li>A 4-hour Washington-board-approved ethics course &mdash; correct in the 2018 guide.</li>
+  <li><strong>At least 20 CPE credit hours during each individual calendar year</strong> &mdash;
+  absent from the 2018 guide entirely. It isn't wrong about this one; it just doesn't mention it. A
+  CPA who front-loads their three-year total in year one and skips years two and three has met the
+  120-hour total and still failed the rule.</li>
+  <li><strong>No more than 60 credit hours in nontechnical subject areas</strong> &mdash; the 2018
+  guide says 72. The actual cap is 60. Twelve hours of the wrong kind of credit is enough to fall
+  short at renewal.</li>
+</ul>
+<p>Two real numbers, wrong or missing, sitting on a page that still ranks for the exact question a
+CPA would ask.</p>
+
+<h2>Why a number like this goes stale</h2>
+<p>Rules get renumbered. A citation that was correct when a page was written can point to a section
+that no longer exists, or that no longer says what it used to say, without the page itself ever
+changing. Washington's own current rule carries a trace of this: it superseded an older section, WAC
+4-25, that still circulates on third-party CPE-vendor sites years after the renumbering. A page that
+cited WAC 4-25 accurately in the year it was written can be citing dead law today, with no visible
+sign that anything changed &mdash; no broken link, no error message, nothing to flag it to a reader
+who isn't checking.</p>
+<p>That's the actual failure mode, and it has nothing to do with anyone acting in bad faith. A guide
+gets written once, against the rule as it existed that day. Rules don't stay still. The guide
+does.</p>
+
+<h2>How to check a number yourself, in under a minute</h2>
+<p>You don't need to trust us, and you shouldn't trust any single source blindly, including this
+one. Three things to look for on any page citing a state CPE or licensing rule:</p>
+<ol>
+  <li><strong>Does it cite the actual rule section, not just "the state board's website"?</strong> A
+  real citation (like "WAC 4-30-134") is something you can look up directly and confirm word for
+  word. "Check with your state board" is not a citation.</li>
+  <li><strong>Does the page say when it was last checked?</strong> A rule requirement with no
+  visible verification date is a number frozen at some unknown point in the past.</li>
+  <li><strong>Does the cited section still exist, and still say what the page claims?</strong> Rule
+  sites publish the current text for free. It takes one search to confirm a citation is live,
+  current, and says what's claimed.</li>
+</ol>
+
+<p class="bottom-line"><strong>Bottom line:</strong> every figure on this site carries a citation to
+the primary rule and a "Last verified" date for exactly this reason &mdash; see our
+<a href="../../methodology/">verification method</a> for the full standard. For Washington
+specifically, the current, cited figures are on our
+<a href="../../washington-cpa-cpe-requirements/">Washington CPE requirements page</a>.</p>
 """,
     },
 ]
