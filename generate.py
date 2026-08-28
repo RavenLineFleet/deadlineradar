@@ -953,6 +953,59 @@ PAGE_CSS = """
      double-checked. [hidden] + class beats the bare class on specificity
      alone, no !important needed. */
   .dr-cookie-notice[hidden] { display: none; }
+  /* Roadmap: DeadlineRadar chat assistant (2026-08-28, Devin: embed it
+     site-wide, replacing the retired Tawk.to widget in the same visual
+     slot). Built to match the site's own look, not an iframe of the
+     droplet's own test page -- a plain fixed bubble + panel using the same
+     --card-bg/--accent/--shadow tokens every other floating UI element on
+     this site already uses (.dr-product-tour, .dr-modal-overlay). z-index
+     45: above the product tour (40) and the cookie notice (40), below a
+     real modal (50) -- if a modal opens, it should cover the bubble, not
+     the other way round. */
+  .dr-chat-widget { position: fixed; right: 20px; bottom: 20px; z-index: 45; }
+  .dr-chat-bubble {
+    width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); display: flex; align-items: center;
+    justify-content: center; box-shadow: var(--shadow); padding: 0;
+  }
+  .dr-chat-bubble svg { width: 26px; height: 26px; }
+  .dr-chat-bubble .dr-chat-close-icon { display: none; }
+  .dr-chat-widget.is-open .dr-chat-bubble .dr-chat-open-icon { display: none; }
+  .dr-chat-widget.is-open .dr-chat-bubble .dr-chat-close-icon { display: block; }
+  .dr-chat-panel {
+    position: absolute; right: 0; bottom: 68px; width: min(340px, calc(100vw - 40px));
+    height: min(480px, calc(100vh - 120px)); background: var(--card-bg); border: 1px solid var(--border-strong);
+    border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .dr-chat-panel[hidden] { display: none; }
+  .dr-chat-panel-head {
+    padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); display: flex;
+    align-items: center; justify-content: space-between; flex: none;
+  }
+  .dr-chat-panel-head strong { font-family: var(--font-display); font-size: 0.95rem; }
+  .dr-chat-panel-subhead { font-size: 0.74rem; color: var(--muted); margin: 0.1rem 0 0; }
+  .dr-chat-messages { flex: 1; overflow-y: auto; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .dr-chat-msg { font-size: 0.86rem; line-height: 1.45; padding: 0.5rem 0.7rem; border-radius: 9px; max-width: 88%; white-space: pre-wrap; }
+  .dr-chat-msg--user { align-self: flex-end; background: var(--accent); color: var(--on-accent); }
+  .dr-chat-msg--assistant { align-self: flex-start; background: var(--row-alt); }
+  .dr-chat-msg--error { align-self: flex-start; background: var(--row-alt); color: #c33737; }
+  .dr-chat-msg--pending { align-self: flex-start; background: var(--row-alt); color: var(--muted); font-style: italic; }
+  .dr-chat-input-row { flex: none; border-top: 1px solid var(--border); padding: 0.7rem; display: flex; gap: 0.5rem; }
+  .dr-chat-input-row textarea {
+    flex: 1; resize: none; font-family: inherit; font-size: 0.86rem; padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg);
+    max-height: 5.5rem;
+  }
+  .dr-chat-input-row button {
+    flex: none; background: var(--accent); color: var(--on-accent); border: none; border-radius: 8px;
+    padding: 0 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.86rem;
+  }
+  .dr-chat-input-row button:disabled { opacity: 0.55; cursor: default; }
+  .dr-chat-disclaimer { font-size: 0.68rem; color: var(--muted); padding: 0 1rem 0.7rem; margin: 0; flex: none; }
+  @media (max-width: 480px) {
+    .dr-chat-widget { right: 12px; bottom: 12px; }
+    .dr-chat-panel { right: -4px; }
+  }
   .table-wrap {
     position: relative; overflow-x: auto; margin: 1.1rem 0; border: 1px solid var(--border); border-radius: 8px;
     -webkit-overflow-scrolling: touch;
@@ -4453,6 +4506,122 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
 })();
 </script>"""
 
+# DeadlineRadar chat assistant embed (2026-08-28, Devin: "yes -- embed the
+# chat assistant on the live site, bottom-right"). Site-wide (rendered from
+# page_shell(), same as the cookie notice above), same-origin proxy at
+# /api/assistant/chat -- see handleAssistantChat() in worker/src/index.ts
+# for why a proxy is needed (the droplet itself has no CORS headers) and
+# the rate-limit bucket backing it. A real bottom-right bubble+panel built
+# to match this site's own look (--card-bg/--accent/--shadow, same tokens
+# as .dr-product-tour/.dr-modal-overlay), not an iframe of the droplet's
+# own test page. Stateless per question -- each request sends only the
+# CURRENT message, matching the droplet's own {"message"} -> {"reply"}
+# contract exactly; no conversation history is part of that contract.
+_CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
+  <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the DeadlineRadar assistant">
+    <div class="dr-chat-panel-head">
+      <div>
+        <strong>Ask DeadlineRadar</strong>
+        <p class="dr-chat-panel-subhead">CPA renewal questions, answered live</p>
+      </div>
+      <button type="button" class="dr-link-btn" id="dr-chat-panel-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="dr-chat-messages" id="dr-chat-messages" aria-live="polite">
+      <div class="dr-chat-msg dr-chat-msg--assistant">Hi! Ask me about a CPA renewal deadline, CPE
+      requirement, or practice-privilege question for any state we track.</div>
+    </div>
+    <form id="dr-chat-form">
+      <div class="dr-chat-input-row">
+        <textarea id="dr-chat-input" rows="1" maxlength="2000" placeholder="Ask a question&hellip;" aria-label="Your question"></textarea>
+        <button type="submit" id="dr-chat-send-btn">Send</button>
+      </div>
+    </form>
+    <p class="dr-chat-disclaimer">General orientation, not legal/tax/professional advice. Always
+    confirm with your state board before relying on an answer.</p>
+  </div>
+  <button type="button" class="dr-chat-bubble" id="dr-chat-bubble" aria-expanded="false"
+  aria-controls="dr-chat-panel" aria-label="Chat with the DeadlineRadar assistant">
+    <svg class="dr-chat-open-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.5C6.75 3.5 2.5 6.9 2.5 11.1c0 2.4 1.35 4.55 3.5 5.95L5 21l4.4-2c.85.2 1.75.3 2.6.3 5.25 0 9.5-3.4 9.5-7.6s-4.25-7.6-9.5-7.6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+    <svg class="dr-chat-close-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+<script>
+(function () {
+  var widget = document.getElementById('dr-chat-widget');
+  var bubble = document.getElementById('dr-chat-bubble');
+  var panel = document.getElementById('dr-chat-panel');
+  var closeBtn = document.getElementById('dr-chat-panel-close');
+  var messages = document.getElementById('dr-chat-messages');
+  var form = document.getElementById('dr-chat-form');
+  var input = document.getElementById('dr-chat-input');
+  var sendBtn = document.getElementById('dr-chat-send-btn');
+  if (!widget || !bubble || !panel || !form || !input || !sendBtn) return;
+
+  function setOpen(open) {
+    widget.classList.toggle('is-open', open);
+    panel.hidden = !open;
+    bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) input.focus();
+  }
+  bubble.addEventListener('click', function () { setOpen(panel.hidden); });
+  if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); bubble.focus(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !panel.hidden) { setOpen(false); bubble.focus(); }
+  });
+
+  function addMessage(text, cls) {
+    var el = document.createElement('div');
+    el.className = 'dr-chat-msg dr-chat-msg--' + cls;
+    el.textContent = text;
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+    return el;
+  }
+
+  // Enter sends (matching every other single-line chat UI); Shift+Enter
+  // inserts a newline, same convention as Slack/iMessage/etc.
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = input.value.trim();
+    if (!text) return;
+    addMessage(text, 'user');
+    input.value = '';
+    sendBtn.disabled = true;
+    var pending = addMessage('Thinking\\u2026', 'pending');
+    fetch('/api/assistant/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    }).then(function (resp) {
+      return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+    }).then(function (result) {
+      pending.remove();
+      if (result.ok && result.data && typeof result.data.reply === 'string') {
+        addMessage(result.data.reply, 'assistant');
+      } else {
+        addMessage((result.data && result.data.error) || 'Something went wrong. Please try again.', 'error');
+      }
+    }).catch(function () {
+      pending.remove();
+      addMessage('Something went wrong. Please try again.', 'error');
+    }).finally(function () {
+      sendBtn.disabled = false;
+    });
+  });
+})();
+</script>"""
+
 
 def page_shell(
     title: str,
@@ -4504,6 +4673,7 @@ def page_shell(
 {site_footer(lang=lang)}
 {_SHOW_PASSWORD_TOGGLE_HTML}
 {_COOKIE_NOTICE_HTML}
+{_CHAT_WIDGET_HTML}
 {_SCROLL_REVEAL_BODY_JS}
 {_TABLE_SCROLL_HINT_JS}
 {_STALE_BADGE_RUNTIME_JS}

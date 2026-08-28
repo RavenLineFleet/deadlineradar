@@ -116,6 +116,7 @@ import {
   RATE_LIMIT_MOBILITY_CHECK_UNMETERED,
   RATE_LIMIT_MOBILITY_CHECK_ROSTER,
   RATE_LIMIT_ASSISTANT_API,
+  RATE_LIMIT_ASSISTANT_CHAT,
   RATE_LIMIT_FIRM_LICENSE_CREATE,
   RATE_LIMIT_FIRM_LICENSE_PATCH,
   RATE_LIMIT_FIRM_LICENSE_DELETE,
@@ -5671,6 +5672,105 @@ function handleAssistantRuleChanges(url: URL): Response {
   return jsonResponse(200, { events: lookupAssistantRuleChanges(stateResult.slug) });
 }
 
+// Orchestrator's own DeadlineRadar chat-assistant droplet -- deployed,
+// adversarially tested (jailbreak/off-topic refusal, cross-firm boundary
+// held, no guessing on missing data), re-verified live 2026-08-28. This
+// constant is the one place its address is known to this Worker; nothing
+// client-facing ever references the droplet host directly, only this
+// route (see handleAssistantChat's own docstring for why). Hardcoded the
+// same way this file already hardcodes the Stripe/SendGrid/Slack API
+// hosts -- a stable address for a specific external service, not
+// per-environment config -- rather than a new wrangler var/secret; if
+// orchestrator ever redeploys the droplet to a new address, update this
+// one line and redeploy, same as any other vendor-endpoint change here.
+const ASSISTANT_CHAT_DROPLET_URL = "https://deadlineradar-assistant.143-198-52-110.nip.io/chat";
+// A real conversational reply is slower than a static-data lookup; 20s is
+// generous without leaving a browser tab hanging indefinitely if the
+// droplet is unreachable.
+const ASSISTANT_CHAT_TIMEOUT_MS = 20000;
+const ASSISTANT_CHAT_MAX_MESSAGE_CHARS = 2000;
+
+/**
+ * POST /assistant/chat (2026-08-28, Devin: embed the chat assistant on the
+ * live site). Same-origin proxy to the droplet's own POST /chat -- that
+ * endpoint has no CORS headers (confirmed via curl with a real Origin
+ * header: no Access-Control-Allow-Origin back), so a browser cannot call it
+ * directly without either a CORS fix on the droplet side (outside this
+ * repo, ShopLab/orchestrator's infra) or a same-origin proxy here, the
+ * exact pattern already used for /assistant/{deadline,cpe,...} -- this is
+ * that pattern's mirror image, this Worker calling OUT to the droplet on
+ * the browser's behalf instead of the droplet calling IN.
+ *
+ * Public, no session, by design -- the widget this backs is a site-wide
+ * bottom-right bubble any visitor (signed in or not, individual or firm)
+ * can use, not a paid-tier-gated feature. originAllowed() still applies
+ * (same default every write-shaped route on this site gets); there's no
+ * session to protect, but a forged cross-site request would otherwise
+ * consume this IP's own rate-limit budget for free.
+ */
+async function handleAssistantChat(request: Request, env: Env, ip: string): Promise<Response> {
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please ask from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, ip, "assistant_chat", RATE_LIMIT_ASSISTANT_CHAT);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many questions from this address. Please try again later." });
+  }
+
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  if (raw.length === 0 || raw.length > MAX_BODY_BYTES) {
+    return jsonResponse(400, { error: "Request too large or empty." });
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (!message || message.length > ASSISTANT_CHAT_MAX_MESSAGE_CHARS) {
+    return jsonResponse(400, { error: "Message is empty or too long." });
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_CHAT_TIMEOUT_MS);
+  try {
+    const resp = await fetch(ASSISTANT_CHAT_DROPLET_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+    }
+    let data: { reply?: unknown };
+    try {
+      data = (await resp.json()) as { reply?: unknown };
+    } catch {
+      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+    }
+    if (typeof data.reply !== "string") {
+      return jsonResponse(502, { error: "The assistant is temporarily unavailable. Please try again shortly." });
+    }
+    return jsonResponse(200, { reply: data.reply });
+  } catch {
+    // Covers both a network failure and the AbortController firing.
+    return jsonResponse(504, { error: "The assistant took too long to respond. Please try again." });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /** GET /roadmap-data -- public, no session. Returns every active idea with
  * its live vote count and whether THIS browser (by cookie) already voted
  * for it. No cookie yet (first-ever visit) reads as "voted nothing", never
@@ -9299,6 +9399,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/roadmap/vote") {
         try {
           return await handleRoadmapVote(request, env, ip);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (url.pathname === "/assistant/chat") {
+        try {
+          return await handleAssistantChat(request, env, ip);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }

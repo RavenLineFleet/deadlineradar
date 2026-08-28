@@ -987,6 +987,18 @@ export const RATE_LIMIT_MOBILITY_CHECK_ROSTER: RateLimit = { max: 120, windowSec
  * a per-question one. */
 export const RATE_LIMIT_ASSISTANT_API: RateLimit = { max: 600, windowSeconds: 3600 };
 
+/** POST /api/assistant/chat (2026-08-28) -- the browser-facing proxy to the
+ * droplet's own /chat endpoint, backing the site-wide chat widget. Keyed by
+ * IP (no session exists for a widget any visitor, signed in or not, can
+ * use). Deliberately TIGHTER than RATE_LIMIT_ASSISTANT_API above: that
+ * bucket covers 6 cheap, static-data lookups the droplet itself makes
+ * server-to-server, aggregated across every concurrent conversation; this
+ * one is the real end-user-facing ceiling per browser/IP, and
+ * RATE_LIMIT_ASSISTANT_API's own comment already named the intended number
+ * for it -- "100 questions/hour on the paid tier per Devin's design" --
+ * before this route existed to enforce it. */
+export const RATE_LIMIT_ASSISTANT_CHAT: RateLimit = { max: 100, windowSeconds: 3600 };
+
 /** Returns true if this request is ALLOWED, false if it should be blocked. */
 export async function checkRateLimit(
   db: D1Database,
