@@ -352,3 +352,64 @@ describe("POST /assistant/chat -- ASSIST-1 retry (droplet's own canned-apology t
     }
   });
 });
+
+describe("POST /assistant/chat -- ASSIST-1 root cause: the droplet's own 429 rate limit must never be retried", () => {
+  it("a 429 with a {reply} JSON body surfaces that text at 429, with exactly ONE fetch call (no retry)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ reply: "Rate limited. It resets in about 50 minutes." }), { status: 429 })
+    );
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error).toBe("Rate limited. It resets in about 50 minutes.");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a 429 with a plain-text (non-JSON) body surfaces that text at 429, one fetch call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response("Too many requests. It resets in about 50 minutes. Email support@deadline-radar.com if you need an answer sooner.", { status: 429 })
+    );
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error).toContain("resets in about 50 minutes");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a 429 with an empty body falls back to a generic rate-limited message, still no retry", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("", { status: 429 }));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error.length).toBeGreaterThan(0);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("attempt 1 is a genuine non-429 failure, attempt 2 is a 429 -- surfaces the 429 honestly (no third attempt)", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => new Response("error", { status: 500 }))
+      .mockImplementationOnce(async () => new Response(JSON.stringify({ reply: "Rate limited now too." }), { status: 429 }));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error).toBe("Rate limited now too.");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});

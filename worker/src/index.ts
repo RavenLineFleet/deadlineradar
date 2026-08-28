@@ -5769,11 +5769,27 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
     return jsonResponse(200, { reply: attempt1.reply });
   }
+  // AuditLab ASSIST-1 root cause (2026-08-28): the droplet has its OWN rate
+  // limit, separate from RATE_LIMIT_ASSISTANT_CHAT above -- a 429 from it
+  // was being flattened into a generic 502 here, which is what made a real,
+  // human-readable "you're rate-limited, try again in ~50 minutes" response
+  // look like a mystery instant-fail to both AuditLab and this session's own
+  // testing. NEVER retry a 429: the binding constraint is a request BUDGET,
+  // so a second call hits the exact same exhausted budget as the first --
+  // AuditLab measured this literally happening after the retry shipped (0/4
+  // successes, each ~0.2s-fail + the 2.5s delay + 0.2s-fail). Return
+  // immediately with whatever the droplet itself said, honestly labeled.
+  if (!attempt1.ok && attempt1.rateLimited) {
+    return jsonResponse(429, { error: attempt1.error });
+  }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
   const attempt2 = await callAssistantDroplet(message);
   // Whatever attempt 2 actually returned ships, success or not -- never
   // silently prefer attempt 1's result once a retry has run, and never
-  // synthesize anything neither attempt actually said.
+  // synthesize anything neither attempt actually said. attempt2 CAN itself
+  // be a 429 (e.g. attempt1 failed some other way, and the budget ran out
+  // in between) -- surfaced honestly either way, no special-casing needed
+  // since we're not retrying again regardless of what attempt2 says.
   return attempt2.ok
     ? jsonResponse(200, { reply: attempt2.reply })
     : jsonResponse(attempt2.status, { error: attempt2.error });
@@ -5781,7 +5797,11 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
 
 type AssistantDropletResult =
   | { ok: true; reply: string }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; rateLimited: boolean };
+
+const ASSISTANT_CHAT_GENERIC_UNAVAILABLE = "The assistant is temporarily unavailable. Please try again shortly.";
+const ASSISTANT_CHAT_GENERIC_RATE_LIMITED =
+  "The assistant is getting a lot of questions right now. Please try again in a little while.";
 
 /** One real call to the droplet -- no retry logic here, that lives in the
  * caller so it can apply the short inter-attempt delay without this
@@ -5796,22 +5816,51 @@ async function callAssistantDroplet(message: string): Promise<AssistantDropletRe
       body: JSON.stringify({ message }),
       signal: controller.signal,
     });
+    if (resp.status === 429) {
+      // The droplet's own 429 body is a human-readable message (AuditLab's
+      // own live evidence: "...It resets in about 50 minutes. If you need
+      // an answer sooner, email support@..."), not necessarily the same
+      // {reply: "..."} shape a success uses. Try that shape first (in case
+      // it IS), then fall back to the raw text, then a generic message --
+      // never fail to surface SOMETHING true rather than nothing.
+      let message429: string | null = null;
+      try {
+        const data = (await resp.clone().json()) as { reply?: unknown };
+        if (typeof data.reply === "string" && data.reply) message429 = data.reply;
+      } catch {
+        // Not JSON -- fall through to reading it as plain text below.
+      }
+      if (!message429) {
+        try {
+          const text = (await resp.text()).trim();
+          if (text) message429 = text;
+        } catch {
+          // Leave message429 null; the generic fallback below covers it.
+        }
+      }
+      return {
+        ok: false,
+        status: 429,
+        error: message429 || ASSISTANT_CHAT_GENERIC_RATE_LIMITED,
+        rateLimited: true,
+      };
+    }
     if (!resp.ok) {
-      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
+      return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
     }
     let data: { reply?: unknown };
     try {
       data = (await resp.json()) as { reply?: unknown };
     } catch {
-      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
+      return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
     }
     if (typeof data.reply !== "string") {
-      return { ok: false, status: 502, error: "The assistant is temporarily unavailable. Please try again shortly." };
+      return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
     }
     return { ok: true, reply: data.reply };
   } catch {
     // Covers both a network failure and the AbortController firing.
-    return { ok: false, status: 504, error: "The assistant took too long to respond. Please try again." };
+    return { ok: false, status: 504, error: "The assistant took too long to respond. Please try again.", rateLimited: false };
   } finally {
     clearTimeout(timeoutId);
   }
