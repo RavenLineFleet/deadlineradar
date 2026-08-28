@@ -537,7 +537,20 @@ export interface MobilityFinding {
   sourceUrl: string | null;
   verifiedDate: string | null;
   confidence: MobilityRuleRow["confidence"];
-  dataGapNote: string | null;
+  // AuditLab LEAK-4 (2026-08-27): this interface used to carry a
+  // `dataGapNote: string | null` field, populated as a straight passthrough
+  // of the raw MobilityRuleRow.data_gap_note. That field is authored as
+  // INTERNAL verification methodology across most of this dataset's records
+  // (dated corrections, "UPDATE (verifier)"/"RESOLVED (verifier)" research
+  // narrative, and -- the specific live leak -- literal references to other
+  // internal field names like flux_note/firm_registration_attest), never
+  // customer copy; generate.py's own 2026-08-05 fix already stopped
+  // RENDERING it on the static site for exactly this reason. Removing it
+  // from the type (rather than rewording ~25 internal-research-style
+  // records one at a time, which the next re-verification pass could just
+  // as easily reintroduce) is the durable fix -- confirmed safe by grep:
+  // dataGapNote was assigned in every branch below but never READ anywhere
+  // in this codebase, so no UI or downstream logic depended on it.
   /** Always present. The UI must render it next to every determination. */
   disclaimer: string;
 }
@@ -675,7 +688,6 @@ function blockingRuleCondition(rule: MobilityRuleRow, now: Date): MobilityFindin
       sourceUrl: rule.source_url,
       verifiedDate: rule.verified_date,
       confidence: rule.confidence,
-      dataGapNote: rule.data_gap_note,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -697,7 +709,6 @@ function blockingRuleCondition(rule: MobilityRuleRow, now: Date): MobilityFindin
       sourceUrl: rule.source_url,
       verifiedDate: rule.verified_date,
       confidence: rule.confidence,
-      dataGapNote: rule.data_gap_note,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -714,7 +725,6 @@ function notVerified(rule: MobilityRuleRow | null, reason: string, summary: stri
     sourceUrl: rule?.source_url ?? null,
     verifiedDate: rule?.verified_date ?? null,
     confidence: rule?.confidence ?? null,
-    dataGapNote: rule?.data_gap_note ?? null,
     disclaimer: MOBILITY_DISCLAIMER,
   };
 }
@@ -856,7 +866,6 @@ function evaluateIndividualMobilityInner(
       sourceUrl: null,
       verifiedDate: null,
       confidence: null,
-      dataGapNote: null,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -873,7 +882,6 @@ function evaluateIndividualMobilityInner(
       sourceUrl: rule?.source_url ?? null,
       verifiedDate: rule?.verified_date ?? null,
       confidence: rule?.confidence ?? null,
-      dataGapNote: rule?.data_gap_note ?? null,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -942,7 +950,6 @@ function evaluateIndividualMobilityInner(
         sourceUrl: rule.source_url,
         verifiedDate: rule.verified_date,
         confidence: rule.confidence,
-        dataGapNote: rule.data_gap_note,
         disclaimer: MOBILITY_DISCLAIMER,
       };
     }
@@ -969,7 +976,6 @@ function evaluateIndividualMobilityInner(
       sourceUrl: rule?.source_url ?? null,
       verifiedDate: rule?.verified_date ?? null,
       confidence: rule?.confidence ?? null,
-      dataGapNote: rule?.data_gap_note ?? null,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -1002,7 +1008,6 @@ function evaluateIndividualMobilityInner(
       sourceUrl: rule.source_url,
       verifiedDate: rule.verified_date,
       confidence: rule.confidence,
-      dataGapNote: rule.data_gap_note,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -1032,7 +1037,6 @@ function evaluateIndividualMobilityInner(
     sourceUrl: rule.source_url,
     verifiedDate: rule.verified_date,
     confidence: rule.confidence,
-    dataGapNote: rule.data_gap_note,
     disclaimer: MOBILITY_DISCLAIMER,
   });
 }
@@ -1070,7 +1074,6 @@ function evaluateFirmRegistrationInner(
       sourceUrl: null,
       verifiedDate: null,
       confidence: null,
-      dataGapNote: null,
       disclaimer: MOBILITY_DISCLAIMER,
     };
   }
@@ -1145,7 +1148,6 @@ function evaluateFirmRegistrationInner(
       sourceUrl: rule.source_url,
       verifiedDate: rule.verified_date,
       confidence: rule.confidence,
-      dataGapNote: rule.data_gap_note,
       disclaimer: MOBILITY_DISCLAIMER,
     });
   }
@@ -1166,7 +1168,6 @@ function evaluateFirmRegistrationInner(
     sourceUrl: rule.source_url,
     verifiedDate: rule.verified_date,
     confidence: rule.confidence,
-    dataGapNote: rule.data_gap_note,
     disclaimer: MOBILITY_DISCLAIMER,
   };
 }

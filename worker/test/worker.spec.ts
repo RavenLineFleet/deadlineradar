@@ -7589,6 +7589,21 @@ describe("POST /firm/mobility/check -- never asserts what it hasn't verified", (
     expect(body.individual.disclaimer).toMatch(/not legal advice/i);
   });
 
+  it("AuditLab LEAK-4 (2026-08-27): never leaks mobility_rules.json's internal data_gap_note -- checked against a state whose real record's note contains internal field-name references", async () => {
+    // Alaska's real mobility_rules.json record is one of the ones AuditLab
+    // found naming internal fields (flux_note, firm_registration_attest) in
+    // its own data_gap_note -- if MobilityFinding.dataGapNote were ever
+    // reintroduced, this is a state guaranteed to expose it, not a
+    // coincidental pass.
+    const { cookie } = await firmOnTier("firm", new Date().toISOString());
+    const resp = await postMobilityCheck({ ...VALID_CHECK, target_state_slug: "alaska" }, cookie);
+    expect(resp.status).toBe(200);
+    const rawBody = await resp.text();
+    expect(rawBody).not.toContain("dataGapNote");
+    expect(rawBody).not.toContain("flux_note");
+    expect(rawBody).not.toContain("firm_registration_attest");
+  });
+
   it("still returns not_verified with a disclaimer for a state genuinely absent from the dataset", async () => {
     const { cookie } = await firmOnTier("firm", new Date().toISOString());
     const resp = await postMobilityCheck({ ...VALID_CHECK, target_state_slug: "guam" }, cookie);
