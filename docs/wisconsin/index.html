@@ -23,7 +23,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Deadline-Radar", "item": "https://deadline-radar.com/"}, {"@type": "ListItem", "position": 2, "name": "Wisconsin CPA Renewal", "item": "https://deadline-radar.com/wisconsin/"}]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does Wisconsin's CPA license renewal cycle work?", "acceptedAnswer": {"@type": "Answer", "text": "Biennial. Individual CPA licenses renew December 15 of each odd-numbered year, the same statutory date for every licensee -- fixed calendar, not birth-month or cohort-based. (Some Board materials describe the practical deadline as December 14; December 15 is the codified date we publish.) CPE compliance period is the 2-year period immediately preceding renewal (80 credit hours, min 40 formal learning, 3 ethics, at least 20 hours in each 12-month half); no separate CE-reporting deadline apart from the renewal date."}}, {"@type": "Question", "name": "How much does it cost to renew a CPA license in Wisconsin?", "acceptedAnswer": {"@type": "Answer", "text": "$43. Flat $43 renewal fee (Reg Type 1, Certified Public Accountant), $68 with the late fee; renews December 15 of odd-numbered years per Wis. Stat. 440.08(2)(a)1., the codified date -- DSPS's own fee schedule still prints 12/14, one day earlier; renew by the 14th and either is satisfied."}}, {"@type": "Question", "name": "Does Wisconsin require CPE hours to renew a CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "Yes -- Wisconsin requires 80 hours of CPE every 2 years. That includes 3 ethics hours. See the full Wisconsin CPE requirements page for the exact citation."}}, {"@type": "Question", "name": "What does it cost to reinstate a lapsed Wisconsin CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "$68. DSPS's official fee schedule (Renewal Dates and Fees PDF) states $43 renewal fee / $68 with late fee for Reg Type 1 (CPA) -- the $68 total is consistent with the $25 late fee codified at Wis. Stat. 440.08(3)(a) ($43 + $25 = $68). Accy 2.501 cross-references this same fee for both 5+-year late renewal and formal reinstatement."}}, {"@type": "Question", "name": "Does a CPA firm need to register separately in Wisconsin?", "acceptedAnswer": {"@type": "Answer", "text": "Yes -- Wisconsin has its own firm-level registration or permit requirement, separate from an individual CPA's license renewal. See the full Wisconsin firm renewal page for the exact cycle and citation."}}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=ae6f6ba0cc">
+<link rel="stylesheet" href="/styles.css?v=d8a46e350c">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -225,6 +225,39 @@
   <button type="button" id="dr-cookie-notice-dismiss">Got it</button>
 </div>
 <script>(function(){try{if(window.localStorage.getItem("dr_cookie_notice_dismissed"))return}catch(e){return}var el=document.getElementById("dr-cookie-notice");if(!el)return;el.hidden=false;var btn=document.getElementById("dr-cookie-notice-dismiss");if(btn){btn.addEventListener("click",function(){el.hidden=true;try{window.localStorage.setItem("dr_cookie_notice_dismissed","1")}catch(e){}})}})();</script>
+<div class="dr-chat-widget" id="dr-chat-widget">
+  <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the DeadlineRadar assistant">
+    <div class="dr-chat-panel-head">
+      <div>
+        <strong>Ask DeadlineRadar</strong>
+        <p class="dr-chat-panel-subhead">CPA renewal questions, answered live</p>
+      </div>
+      <button type="button" class="dr-link-btn" id="dr-chat-panel-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="dr-chat-messages" id="dr-chat-messages" aria-live="polite">
+      <div class="dr-chat-msg dr-chat-msg--assistant">Hi! Ask me about a CPA renewal deadline, CPE
+      requirement, or practice-privilege question for any state we track.</div>
+    </div>
+    <form id="dr-chat-form">
+      <div class="dr-chat-input-row">
+        <textarea id="dr-chat-input" rows="1" maxlength="2000" placeholder="Ask a question&hellip;" aria-label="Your question"></textarea>
+        <button type="submit" id="dr-chat-send-btn">Send</button>
+      </div>
+    </form>
+    <p class="dr-chat-disclaimer">General orientation, not legal/tax/professional advice. Always
+    confirm with your state board before relying on an answer.</p>
+  </div>
+  <button type="button" class="dr-chat-bubble" id="dr-chat-bubble" aria-expanded="false"
+  aria-controls="dr-chat-panel" aria-label="Chat with the DeadlineRadar assistant">
+    <svg class="dr-chat-open-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.5C6.75 3.5 2.5 6.9 2.5 11.1c0 2.4 1.35 4.55 3.5 5.95L5 21l4.4-2c.85.2 1.75.3 2.6.3 5.25 0 9.5-3.4 9.5-7.6s-4.25-7.6-9.5-7.6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+    <svg class="dr-chat-close-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+<script>(function(){var widget=document.getElementById("dr-chat-widget");var bubble=document.getElementById("dr-chat-bubble");var panel=document.getElementById("dr-chat-panel");var closeBtn=document.getElementById("dr-chat-panel-close");var messages=document.getElementById("dr-chat-messages");var form=document.getElementById("dr-chat-form");var input=document.getElementById("dr-chat-input");var sendBtn=document.getElementById("dr-chat-send-btn");if(!widget||!bubble||!panel||!form||!input||!sendBtn)return;function setOpen(open){widget.classList.toggle("is-open",open);panel.hidden=!open;bubble.setAttribute("aria-expanded",open?"true":"false");if(open)input.focus()}bubble.addEventListener("click",function(){setOpen(panel.hidden)});if(closeBtn)closeBtn.addEventListener("click",function(){setOpen(false);bubble.focus()});document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!panel.hidden){setOpen(false);bubble.focus()}});function addMessage(text,cls){var el=document.createElement("div");el.className="dr-chat-msg dr-chat-msg--"+cls;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}input.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});form.addEventListener("submit",function(e){e.preventDefault();var text=input.value.trim();if(!text)return;addMessage(text,"user");input.value="";sendBtn.disabled=true;var pending=addMessage("Thinking…","pending");fetch("/api/assistant/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text})}).then(function(resp){return resp.json().then(function(data){return{ok:resp.ok,data:data}})}).then(function(result){pending.remove();if(result.ok&&result.data&&typeof result.data.reply==="string"){addMessage(result.data.reply,"assistant")}else{addMessage(result.data&&result.data.error||"Something went wrong. Please try again.","error")}}).catch(function(){pending.remove();addMessage("Something went wrong. Please try again.","error")}).finally(function(){sendBtn.disabled=false})})})();</script>
 <script>(function(){if(!document.documentElement.classList.contains("js-reveal"))return;var els=document.querySelectorAll(".dr-reveal");if(!els.length)return;var obs=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add("dr-reveal--visible");obs.unobserve(entry.target)}})},{threshold:.15,rootMargin:"0px 0px -40px 0px"});els.forEach(function(el){obs.observe(el)})})();</script>
 <script>(function(){var wraps=document.querySelectorAll(".table-wrap");if(!wraps.length)return;function atEnd(wrap){return wrap.scrollLeft+wrap.clientWidth>=wrap.scrollWidth-1}function canScroll(wrap){var overflowX=window.getComputedStyle(wrap).overflowX;return overflowX==="auto"||overflowX==="scroll"}function update(){wraps.forEach(function(wrap){var hasOverflow=canScroll(wrap)&&wrap.scrollWidth>wrap.clientWidth+1;wrap.classList.toggle("dr-scrollable",hasOverflow&&!atEnd(wrap))})}update();window.addEventListener("resize",update);wraps.forEach(function(wrap){wrap.addEventListener("scroll",function(){wrap.classList.toggle("dr-scrollable",!atEnd(wrap))})})})();</script>
 <script>(function(){var marks=document.querySelectorAll("[data-verified]");if(!marks.length)return;var RUNTIME_STALE_DAYS=30;var now=new Date;marks.forEach(function(el){var iso=el.getAttribute("data-verified");if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return;var then=new Date(iso+"T00:00:00Z");if(isNaN(then.getTime()))return;var ageDays=(now-then)/864e5;if(ageDays<=RUNTIME_STALE_DAYS)return;var note=document.createElement("span");note.className="verified-stale-note";note.textContent=" · re-verification overdue — confirm with the state board";el.appendChild(note);el.classList.add("verified-stale")})})();</script>
