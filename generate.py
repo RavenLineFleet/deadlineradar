@@ -962,20 +962,33 @@ PAGE_CSS = """
      45: above the product tour (40) and the cookie notice (40), below a
      real modal (50) -- if a modal opens, it should cover the bubble, not
      the other way round. */
-  .dr-chat-widget { position: fixed; right: 20px; bottom: 20px; z-index: 45; }
+  /* Flex column, not absolute-positioned-with-a-magic-offset -- the panel
+     (first in the DOM) stacks directly above the bubble (second) via
+     ordinary flex flow, so "sits right above the bubble" is guaranteed by
+     layout, not a `bottom: Npx` number that has to be kept in sync with the
+     bubble's own height by hand. Devin reported the two visually
+     disconnected live (2026-08-28); this replaces the earlier
+     absolute-positioned version, whose OWN computed styles measured
+     correct (68px gap) in every render tested here, so the flex rewrite is
+     the more robust fix regardless of what his specific environment was
+     doing. */
+  .dr-chat-widget {
+    position: fixed; right: 20px; bottom: 20px; z-index: 45;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  }
   .dr-chat-bubble {
     width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
     background: var(--accent); color: var(--on-accent); display: flex; align-items: center;
-    justify-content: center; box-shadow: var(--shadow); padding: 0;
+    justify-content: center; box-shadow: var(--shadow); padding: 0; flex: none;
   }
   .dr-chat-bubble svg { width: 26px; height: 26px; }
   .dr-chat-bubble .dr-chat-close-icon { display: none; }
   .dr-chat-widget.is-open .dr-chat-bubble .dr-chat-open-icon { display: none; }
   .dr-chat-widget.is-open .dr-chat-bubble .dr-chat-close-icon { display: block; }
   .dr-chat-panel {
-    position: absolute; right: 0; bottom: 68px; width: min(340px, calc(100vw - 40px));
-    height: min(480px, calc(100vh - 120px)); background: var(--card-bg); border: 1px solid var(--border-strong);
-    border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
+    width: min(340px, calc(100vw - 40px)); height: min(480px, calc(100vh - 120px));
+    background: var(--card-bg); border: 1px solid var(--border-strong); border-radius: 12px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
   }
   .dr-chat-panel[hidden] { display: none; }
   .dr-chat-panel-head {
@@ -1004,7 +1017,6 @@ PAGE_CSS = """
   .dr-chat-disclaimer { font-size: 0.68rem; color: var(--muted); padding: 0 1rem 0.7rem; margin: 0; flex: none; }
   @media (max-width: 480px) {
     .dr-chat-widget { right: 12px; bottom: 12px; }
-    .dr-chat-panel { right: -4px; }
   }
   .table-wrap {
     position: relative; overflow-x: auto; margin: 1.1rem 0; border: 1px solid var(--border); border-radius: 8px;
