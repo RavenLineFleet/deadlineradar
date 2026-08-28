@@ -7361,8 +7361,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     if _live_conflicts:
         _c = _live_conflicts[0]
         _c_summary = _c.get("summary_public") or (
-            f"Our two primary sources for {_c.get('jurisdiction', 'this jurisdiction')} currently "
-            f"disagree. We withhold a determination rather than pick a side."
+            f"Our two primary sources for {_c.get('jurisdiction', 'this jurisdiction')} don't "
+            f"agree on this rule. Rather than guess, we're showing you exactly where they conflict."
         )
         live_conflict_proof_html = (
             f'<p class="mcard-proof"><strong>Right now:</strong> {esc(_c_summary)} '
@@ -8830,7 +8830,7 @@ def _rule_conflict_card_html(e: dict) -> str:
     <span class="rc-jurisdiction">{esc(e.get("jurisdiction") or e.get("jurisdiction_slug", ""))}</span>
     <span class="rc-badge rc-badge-conflict">Sources disagree</span>
   </div>
-  <p class="rc-detail">{esc(e.get("summary_public") or "Our primary sources for this jurisdiction currently disagree with each other. We withhold a determination rather than pick a side.")}</p>
+  <p class="rc-detail">{esc(e.get("summary_public") or "Our two primary sources for this jurisdiction don't agree with each other on this rule. Rather than guess, we're showing you exactly where they conflict below.")}</p>
   <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a></p>
 </div>"""
 
@@ -8958,11 +8958,21 @@ because its start date arrived.</p>
 {recent_html}
 """
     if conflicts:
+        # Devin, live, 2026-08-28: "We need to be positive in what we tell people and a IDK
+        # isn't something i want to publish." Reworded from "we withhold a determination"
+        # (reads as a shrug/dead-end) to lead with what we actually did: found a real conflict,
+        # and are showing both primary sources directly rather than guessing. Same substance --
+        # no determination is invented here that wasn't before -- different emphasis: catching
+        # and disclosing a conflict is the positive, trust-building act, not an admission of not
+        # knowing. Applied the same reframe to each conflict's own summary_public in
+        # data/reg_change_events.json, and to the homepage's Roadmap #326 live-proof card.
         body += f"""
 <h2>Sources under active disagreement ({len(conflicts)})</h2>
-<p class="rc-section-note">For these jurisdictions, our two primary sources currently state
-different rules for the same question. We withhold a determination rather than pick a side until
-the conflict resolves &mdash; these are not confirmed rule changes.</p>
+<p class="rc-section-note">For these jurisdictions, we found a real conflict between two primary
+legal sources on the same question &mdash; and we're showing you exactly where they disagree
+rather than guessing which one is right. Every citation below is a direct link: read both
+yourself, or confirm with the jurisdiction's own licensing board. These aren't confirmed rule
+changes &mdash; they're open conflicts between our own two primary sources.</p>
 {conflict_html}
 """
     body += """
