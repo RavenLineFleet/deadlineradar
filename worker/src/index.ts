@@ -5777,7 +5777,16 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
       ? body.session_id
       : undefined;
 
-  const attempt1 = await callAssistantDroplet(message, sessionId);
+  // ShopLab (2026-08-28): the Caddy CF-Connecting-IP passthrough fixed
+  // earlier today only helps if this Worker actually forwards the real
+  // visitor IP on ITS OWN outbound call below -- a Worker's fetch() goes
+  // out from Cloudflare egress, which does NOT inherit the inbound
+  // CF-Connecting-IP automatically. Without this, every real visitor still
+  // arrives at the droplet as this Worker's shared egress IP, collapsing
+  // back onto one 5/hour bucket -- exactly the bug believed fixed. `ip` is
+  // already the real header value via clientIp() above (falls back to
+  // "0.0.0.0" only if Cloudflare's edge somehow didn't set it).
+  const attempt1 = await callAssistantDroplet(message, sessionId, ip);
   if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
     return jsonResponse(200, { reply: attempt1.reply });
   }
@@ -5795,7 +5804,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     return jsonResponse(429, { error: attempt1.error });
   }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
-  const attempt2 = await callAssistantDroplet(message, sessionId);
+  const attempt2 = await callAssistantDroplet(message, sessionId, ip);
   // Whatever attempt 2 actually returned ships, success or not -- never
   // silently prefer attempt 1's result once a retry has run, and never
   // synthesize anything neither attempt actually said. attempt2 CAN itself
@@ -5821,13 +5830,20 @@ const ASSISTANT_CHAT_GENERIC_RATE_LIMITED =
  * optional and forwarded as-is when present -- the droplet's own /chat
  * keys its in-memory conversation map on it; omitting it just means this
  * one call gets no continuity, the same behavior this route always had. */
-async function callAssistantDroplet(message: string, sessionId?: string): Promise<AssistantDropletResult> {
+async function callAssistantDroplet(message: string, sessionId: string | undefined, ip: string): Promise<AssistantDropletResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_CHAT_TIMEOUT_MS);
   try {
+    // Forward the real visitor IP to the droplet's own Caddy, which now
+    // trusts this header (scoped to DeadlineRadar's site block only) and
+    // passes it on as request.client.host for the droplet's per-visitor
+    // 5/hour limiter. "0.0.0.0" (clientIp()'s fallback) is deliberately
+    // still sent rather than omitted -- an omitted header would make Caddy
+    // fall back to seeing this Worker's own shared egress IP again, the
+    // exact bug this exists to fix.
     const resp = await fetch(ASSISTANT_CHAT_DROPLET_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": ip },
       body: JSON.stringify(sessionId ? { message, session_id: sessionId } : { message }),
       signal: controller.signal,
     });
