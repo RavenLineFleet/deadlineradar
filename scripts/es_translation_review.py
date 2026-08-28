@@ -168,15 +168,6 @@ DRAFTS: dict[str, str] = {
         "soporte. Nuestra dirección también se publica de forma legible por máquina en "
         "{security_txt_link} según {rfc_link}."
     ),
-    "contact.privacy_policy_link_text": "Política de Privacidad",
-    "contact.h2_live_chat": "Chat en vivo",
-    "contact.live_chat_body": (
-        "¿Prefiere hablarlo ahora mismo? Iniciar un chat carga un widget de chat en vivo (Tawk.to) "
-        "— no se ejecuta en esta página hasta que hace clic en el botón de abajo, por lo que "
-        "nunca establece su propia cookie a menos que realmente lo use. Consulte nuestra "
-        "{privacy_link} para saber qué comparte ese widget y qué no."
-    ),
-    "contact.live_chat_button": "Iniciar un chat en vivo",
     "contact.h2_wrong_date": "¿Encontró una fecha incorrecta?",
     "contact.wrong_date_body": (
         "Las fechas límite se recopilan de fuentes oficiales de las juntas estatales y trabajamos "
@@ -196,10 +187,6 @@ DRAFTS: dict[str, str] = {
         "Contacte a Deadline-Radar — preguntas, correcciones de fechas límite, o ayuda con sus "
         "recordatorios de renovación de licencia de CPA. Escríbanos por correo o inicie un chat en vivo."
     ),
-    "contact.chat_loading": "Cargando chat…",
-    "contact.chat_loading_hint": "Esto puede tardar unos segundos en una conexión lenta.",
-    "contact.chat_ready": "Chat cargado — busque la burbuja en la esquina",
-    "contact.chat_slow": "Todavía conectando — si esto no termina en unos segundos más, escríbanos en su lugar: {email}",
     "msf.h1": "¿Dirige una firma de CPA multiestatal? Aquí está el panorama completo.",
     "msf.intro": (
         "Una firma con personal licenciado o ejerciendo en más de un estado tiene un problema "
