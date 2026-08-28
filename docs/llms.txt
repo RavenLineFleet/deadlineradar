@@ -1,0 +1,52 @@
+# Deadline-Radar
+
+> CPA license renewal deadlines by state, each traced to the state board's own page plus the
+> codified statute or rule behind it. Free individual reminders; a paid tier for firms tracking
+> multiple staff.
+
+## Coverage
+
+- 55 jurisdictions listed (the 50 states, DC, Puerto Rico, Guam, US Virgin Islands, and
+  the Northern Mariana Islands).
+- 49 of those have their exact next renewal date computed automatically from the
+  published rule or the visitor's own input (birth month, license issue date, etc., depending on the
+  jurisdiction's own cycle).
+- 6 jurisdictions have no independently verifiable published date -- the visitor enters
+  their own license's date and we track it from there rather than guess or round up.
+
+## How dates are verified
+
+Every published date traces to two independent sources before it ships: the state board's own page,
+and the actual codified statute or administrative rule the requirement derives from -- not a summary
+of it, the primary legal text. If the second source can't be found or confirmed, the date is not
+published as a confirmed fact; the page says so plainly instead of guessing. Full method:
+https://deadline-radar.com/methodology/
+
+## Datasets tracked, per jurisdiction where applicable
+
+- License renewal cycle and next deadline
+- CPE (continuing education) hour requirements
+- Reinstatement rules and delinquency fees/penalties for a lapsed license
+- Renewal fees
+- Interstate practice-privilege (mobility) rules for CPAs and firms
+- Pending rule changes we're actively monitoring: https://deadline-radar.com/rule-changes/
+
+## Free tools
+
+- Deadline calculator: https://deadline-radar.com/deadline-calculator/
+- Practice Privilege Check (can my firm/staff practice in another state?):
+  https://deadline-radar.com/practice-privilege-check/
+
+## What this site does not do
+
+Not legal, tax, or professional advice -- every page carries that disclosure. We do not verify CPE
+hour completion (self-reported wherever it appears) or a state's proposed-but-not-yet-effective rule
+changes; we wait for a rule to actually take effect before citing it as current.
+
+## Guides
+
+https://deadline-radar.com/blog/
+
+## Contact
+
+support@deadline-radar.com

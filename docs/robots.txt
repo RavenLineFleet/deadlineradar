@@ -2,3 +2,6 @@ User-agent: *
 Allow: /
 
 Sitemap: https://deadline-radar.com/sitemap.xml
+
+# AI / LLM discovery
+# https://deadline-radar.com/llms.txt

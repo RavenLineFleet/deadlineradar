@@ -22592,19 +22592,48 @@ def build_blog_index_page(articles: list[dict]) -> str:
     # this URL is already linked from elsewhere on the site and possibly
     # indexed, and a move would need real redirect infrastructure this repo
     # doesn't have yet. One page, no duplicate content, same URL.
+    #
+    # ValueLab Rec B (2026-08-28): every individual post already carries
+    # datePublished/dateModified and a visible "Last verified" stamp
+    # (build_blog_article_page()) -- this hub, the one page that lists all of
+    # them, showed none of that: no visible date, no <time> element, zero
+    # structured data. Same registry (data/guide_reviews.json) and the same
+    # "raise loudly if a guide is missing its review row" discipline
+    # build_blog_article_page() already uses, not a second copy of the dates.
+    reviews = json.loads(GUIDE_REVIEWS_PATH.read_text(encoding="utf-8"))["guides"]
+
+    def _review_row(slug: str) -> dict:
+        row = reviews.get(slug)
+        if not row:
+            raise RuntimeError(
+                f"guide '{slug}' has no row in data/guide_reviews.json -- "
+                "add one with a real review date before shipping it"
+            )
+        return row
+
     featured = next((a for a in articles if a["slug"] == "cpe-vs-license-renewal"), None)
     rest = [a for a in articles if a is not featured]
+
+    def _date_stamp_html(slug: str) -> str:
+        reviewed_on = fmt_date(date.fromisoformat(_review_row(slug)["last_reviewed"]))
+        return (
+            f'<div class="guide-verified-stamp"><span class="dot"></span>'
+            f'Last verified {esc(reviewed_on)}</div>'
+        )
+
     featured_html = ""
     if featured:
         featured_html = f"""<a class="state-card guide-card--featured" href="{esc(featured["slug"])}/">
   <div class="guide-featured-label">Start here</div>
   <div class="state-name">{esc(featured["title"])}</div>
   <div class="state-hint">{esc(featured["meta_description"])}</div>
+  {_date_stamp_html(featured["slug"])}
 </a>"""
     cards = "\n".join(
         f'<a class="state-card" href="{esc(a["slug"])}/">'
         f'<div class="state-name">{esc(a["title"])}</div>'
-        f'<div class="state-hint">{esc(a["meta_description"])}</div></a>'
+        f'<div class="state-hint">{esc(a["meta_description"])}</div>'
+        f'{_date_stamp_html(a["slug"])}</a>'
         for a in rest
     )
     body = f"""<h1>Guides</h1>
@@ -22616,12 +22645,32 @@ way as every state page on this site.</p>
 </div>
 <p class="backlink"><a href="../">&larr; Back to home</a></p>
 """
+    # ItemList, not a full BlogPosting per entry -- each post's own page
+    # already ships its own complete BlogPosting schema (see
+    # build_blog_article_page()); duplicating all of it here would just be a
+    # second, driftable copy. This is the standard, lighter shape for an
+    # index page: position + url + name, so a crawler can enumerate the
+    # collection without re-deriving it from the HTML grid.
+    item_list_schema = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": i + 1,
+                "url": f"{SITE_BASE_URL}/blog/{a['slug']}/",
+                "name": a["title"],
+            }
+            for i, a in enumerate(([featured] if featured else []) + rest)
+        ],
+    }
     return page_shell(
         f"Guides — {SITE_NAME}",
         "In-depth guides on CPA license renewal deadlines and CPE requirements, state by state.",
         body,
         home_href="../",
         canonical_path="/blog/",
+        json_ld=[item_list_schema],
     )
 
 
@@ -22743,6 +22792,74 @@ def build_robots() -> str:
 Allow: /
 
 Sitemap: {SITE_BASE_URL}/sitemap.xml
+
+# AI / LLM discovery
+# {SITE_BASE_URL}/llms.txt
+"""
+
+
+def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
+    """ValueLab Rec A (2026-08-28): a table of contents for a site that
+    already exists, not a new claim -- every number and link here is
+    derived from data already shipped elsewhere (the same _coverage_counts()
+    the homepage's own hero strip uses), never hand-typed, so this can't
+    silently drift out of sync the way a hand-maintained summary would.
+    Emerging informal convention (no RFC), plain text/markdown -- Canopy
+    publishes one at getcanopy.com/llms.txt and links it from robots.txt;
+    we 404 today on both /llms.txt and /llms-full.txt."""
+    cov = _coverage_counts(by_slug)
+    return f"""# {SITE_NAME}
+
+> CPA license renewal deadlines by state, each traced to the state board's own page plus the
+> codified statute or rule behind it. Free individual reminders; a paid tier for firms tracking
+> multiple staff.
+
+## Coverage
+
+- {cov["total"]} jurisdictions listed (the 50 states, DC, Puerto Rico, Guam, US Virgin Islands, and
+  the Northern Mariana Islands).
+- {cov["determined"]} of those have their exact next renewal date computed automatically from the
+  published rule or the visitor's own input (birth month, license issue date, etc., depending on the
+  jurisdiction's own cycle).
+- {cov["byod"]} jurisdictions have no independently verifiable published date -- the visitor enters
+  their own license's date and we track it from there rather than guess or round up.
+
+## How dates are verified
+
+Every published date traces to two independent sources before it ships: the state board's own page,
+and the actual codified statute or administrative rule the requirement derives from -- not a summary
+of it, the primary legal text. If the second source can't be found or confirmed, the date is not
+published as a confirmed fact; the page says so plainly instead of guessing. Full method:
+{SITE_BASE_URL}/methodology/
+
+## Datasets tracked, per jurisdiction where applicable
+
+- License renewal cycle and next deadline
+- CPE (continuing education) hour requirements
+- Reinstatement rules and delinquency fees/penalties for a lapsed license
+- Renewal fees
+- Interstate practice-privilege (mobility) rules for CPAs and firms
+- Pending rule changes we're actively monitoring: {SITE_BASE_URL}/rule-changes/
+
+## Free tools
+
+- Deadline calculator: {SITE_BASE_URL}/deadline-calculator/
+- Practice Privilege Check (can my firm/staff practice in another state?):
+  {SITE_BASE_URL}/practice-privilege-check/
+
+## What this site does not do
+
+Not legal, tax, or professional advice -- every page carries that disclosure. We do not verify CPE
+hour completion (self-reported wherever it appears) or a state's proposed-but-not-yet-effective rule
+changes; we wait for a rule to actually take effect before citing it as current.
+
+## Guides
+
+{SITE_BASE_URL}/blog/
+
+## Contact
+
+{CONTACT_EMAIL}
 """
 
 
@@ -22968,6 +23085,9 @@ def main() -> None:
 
     (SITE_DIR / "robots.txt").write_text(build_robots(), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/robots.txt")
+
+    (SITE_DIR / "llms.txt").write_text(build_llms_txt(by_slug), encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/llms.txt")
 
     (SITE_DIR / f"{INDEXNOW_KEY}.txt").write_text(INDEXNOW_KEY, encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/{INDEXNOW_KEY}.txt (IndexNow key)")
