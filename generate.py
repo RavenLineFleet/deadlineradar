@@ -517,7 +517,7 @@ JURISDICTION_COUNT = 51  # overwritten in main() from the real record count once
 # TERMS_LAST_CHANGED -- enforced by preship_gate.py's
 # check_terms_version_sync().
 TERMS_LAST_CHANGED = date(2026, 8, 5)
-PRIVACY_LAST_CHANGED = date(2026, 8, 12)  # roadmap #59: added the Tawk.to live-chat disclosure
+PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # removed the Tawk.to live-chat disclosure (widget retired)
 
 
 def esc(s: str) -> str:
@@ -3278,21 +3278,6 @@ def site_footer(lang: str = "en") -> str:
 
 
 CONTACT_EMAIL = "support@deadline-radar.com"
-
-# Roadmap #59 (2026-08-12): live chat, via Tawk.to (free tier, Devin's own
-# account -- see the embed snippet's property/widget id pair). Loaded
-# LAZILY, only when a visitor clicks "Start a live chat" on /contact/, not
-# injected unconditionally on every page load -- Tawk's widget sets its own
-# cookie the moment its script runs (confirmed via their own privacy policy:
-# real third-party cookies/tracking tech, not the "strictly-necessary
-# session cookie" class this site's own privacy page otherwise promises).
-# Click-to-load keeps a visitor who never opens chat from picking up that
-# cookie at all, matching the site's existing "cookieless by default"
-# posture rather than quietly widening it. See build_privacy_page()'s own
-# "Cookies and analytics" section, updated in the same pass this constant
-# was added, for the disclosure this loading behavior is described by.
-TAWK_TO_PROPERTY_ID = "6a7ca6ff7972931d43691568"
-TAWK_TO_WIDGET_ID = "1jvreolls"
 
 # Task #33 (2026-08-06): public demo firm account -- Devin + orchestrator's
 # decision was "public link, no gate" (the competitive-snooping risk is
@@ -8006,10 +7991,6 @@ of service providers strictly to run the service:</p>
   details directly; we do not.</li>
   <li><strong>Google</strong> &mdash; only if you choose "Continue with Google" to sign in, to verify your
   identity.</li>
-  <li><strong>Tawk.to</strong> &mdash; only if you click "Start a live chat" on our <a
-  href="/contact/">Contact page</a>; if you do, anything you type in that chat (and standard technical
-  details like your IP address) is shared with Tawk.to to operate the chat. It never loads unless you
-  click that button first.</li>
 </ul>
 <p>These providers process your data only to deliver the service on our behalf, never for their own
 marketing.</p>
@@ -8019,10 +8000,7 @@ marketing.</p>
 cookie by default. Signed-in firm and individual sessions use a strictly-necessary cookie to keep you
 logged in &mdash; not for tracking. We may use privacy-first, cookie-less analytics (such as Cloudflare
 Web Analytics) to understand aggregate traffic &mdash; this does not track you across the web or identify
-you personally. The one exception: if you click "Start a live chat" on our <a href="/contact/">Contact
-page</a>, that loads a third-party chat widget (Tawk.to) which sets its own cookie to keep your
-conversation working &mdash; it only loads after that click, never on page load and never anywhere else
-on the site.</p>
+you personally.</p>
 
 <h2>Your choices</h2>
 <p>Every reminder email includes a one-click link to stop all reminders instantly. Using it permanently
@@ -8660,18 +8638,12 @@ mistyped. Find your state below, or head back to the homepage.</p>
 def build_contact_page(lang: str = "en", publish_es: bool = True) -> str:
     security_txt_link = '<a href="/.well-known/security.txt">/.well-known/security.txt</a>'
     rfc_link = '<a href="https://www.rfc-editor.org/rfc/rfc9116">RFC&nbsp;9116</a>'
-    privacy_link = f'<a href="/privacy/">{esc(_t("contact.privacy_policy_link_text", lang))}</a>'
     body = f"""<h1>{_t("contact.h1", lang)}</h1>
 <p class="intro">{_t("contact.intro", lang)}</p>
 
 <h2>{_t("contact.h2_email_us", lang)}</h2>
 <p><a href="mailto:{esc(CONTACT_EMAIL)}">{esc(CONTACT_EMAIL)}</a></p>
 <p>{_t("contact.email_body", lang, security_txt_link=security_txt_link, rfc_link=rfc_link)}</p>
-
-<h2>{_t("contact.h2_live_chat", lang)}</h2>
-<p>{_t("contact.live_chat_body", lang, privacy_link=privacy_link)}</p>
-<button type="button" class="dr-link-btn" id="dr-live-chat-btn">{_t("contact.live_chat_button", lang)}</button>
-<p class="field-hint" id="dr-live-chat-status" hidden></p>
 
 <h2>{_t("contact.h2_wrong_date", lang)}</h2>
 <p>{_t("contact.wrong_date_body", lang)}</p>
@@ -8683,62 +8655,6 @@ def build_contact_page(lang: str = "en", publish_es: bool = True) -> str:
 <p>{esc(SITE_NAME)} by {esc(BRAND_NAME)}<br>
 18121 E Hampden Ave, Unit C #1324<br>
 Aurora, CO 80013</p>
-
-<script>
-(function () {{
-  var btn = document.getElementById('dr-live-chat-btn');
-  var status = document.getElementById('dr-live-chat-status');
-  if (!btn) return;
-  btn.addEventListener('click', function () {{
-    btn.disabled = true;
-    // Live report (2026-08-12): the button just going quietly disabled read
-    // as "nothing happened" -- Tawk's widget can take a real, noticeable
-    // few seconds to actually render AFTER its script file finishes
-    // downloading (s1.onload firing is not the same moment as the widget
-    // being usable), so the button's own text is now the loud, impossible-
-    // to-miss cue, not a small line of text below it.
-    btn.textContent = {json.dumps(_t("contact.chat_loading", lang))};
-    if (status) {{
-      status.hidden = false;
-      status.textContent = {json.dumps(_t("contact.chat_loading_hint", lang))};
-    }}
-    // Roadmap #59: script injected here, not on page load -- see
-    // TAWK_TO_PROPERTY_ID's own comment in generate.py for why this stays
-    // click-to-load rather than site-wide-on-every-page.
-    var s1 = document.createElement('script');
-    var s0 = document.getElementsByTagName('script')[0];
-    s1.async = true;
-    s1.src = 'https://embed.tawk.to/{esc(TAWK_TO_PROPERTY_ID)}/{esc(TAWK_TO_WIDGET_ID)}';
-    s1.charset = 'UTF-8';
-    s1.setAttribute('crossorigin', '*');
-    var ready = false;
-    // Poll for the widget actually being usable, not just the script file
-    // having downloaded -- window.Tawk_API exists as soon as Tawk's own
-    // bootstrap runs, before the chat bubble itself has rendered, so this
-    // is the closest available "it's really here" signal without reaching
-    // into Tawk's own internals.
-    var poll = setInterval(function () {{
-      if (window.Tawk_API) {{
-        ready = true;
-        clearInterval(poll);
-        if (status) status.hidden = true;
-        btn.textContent = {json.dumps(_t("contact.chat_ready", lang))};
-      }}
-    }}, 300);
-    // Live report (2026-08-12): give up on the "it's loading" framing after
-    // 8s and point to email instead, rather than leaving someone staring at
-    // a button that never visibly resolves -- the poll above keeps running
-    // in the background regardless, so a slow-but-eventually-successful
-    // load still updates the text the moment it's ready.
-    setTimeout(function () {{
-      if (!ready && status) {{
-        status.textContent = {json.dumps(_t("contact.chat_slow", lang, email=CONTACT_EMAIL))};
-      }}
-    }}, 8000);
-    s0.parentNode.insertBefore(s1, s0);
-  }});
-}})();
-</script>
 """
     # ES-2 (AuditLab, 2026-08-19): only advertise a Spanish sibling that
     # actually exists -- see _es_page_has_real_translation()/publish_es in main().
