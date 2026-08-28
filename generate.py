@@ -21465,6 +21465,11 @@ deadline) runs on its own separate clock.
         "slug": "california-cpa-license-renewal-guide",
         "published": "2026-08-27",  # first-introduction commit date, from git history
         "title": "California CPA License Renewal: Birth Month, CPE, and Fees",
+        # AuditLab SEO-5 (2026-08-28): round-1 measured the `title` field, not
+        # the rendered <title> tag (title + " — Deadline-Radar" = 75 chars,
+        # over the 60 budget) -- seo_title is the shorter <title>-only string;
+        # the H1 above keeps the full descriptive text unchanged.
+        "seo_title": "California CPA License Renewal Rules",
         "meta_description": (
             "California renews CPA licenses every 2 years on your birth month, timed by "
             "whether your birth year is odd or even. The rule, CPE hours, fees, and "
@@ -22242,8 +22247,14 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
         "author": {"@type": "Organization", "name": BRAND_NAME},
         "publisher": {"@type": "Organization", "name": BRAND_NAME},
     }
+    # AuditLab SEO-5 (2026-08-28): same seo_title split as the flat-page
+    # builders above -- `title` stays full-length for the visible <h1> (and
+    # the schema.org headline), seo_title is a separate, shorter string for
+    # the <title> tag only, so a blog post can be brought under Google's
+    # ~60-char SERP budget without shortening what a reader actually sees.
+    seo_title = article.get("seo_title", article["title"])
     return page_shell(
-        f"{article['title']} — {SITE_NAME}",
+        f"{seo_title} — {SITE_NAME}",
         article["meta_description"],
         body,
         home_href="../../",
