@@ -19938,6 +19938,10 @@ def build_firm_dashboard_page(
 
       <div class="dr-cpe-staff-panel">
         <h2>Progress by staff member</h2>
+        <p class="dr-cpe-gap-note">"Email reminder" below sends a real sign-in link, not a plain
+        reminder message &mdash; signing in also shows that staffer every renewal deadline we're
+        tracking for their email address, not just their CPE hours. Links expire in 15 minutes and
+        work once; your firm can send up to 50 a day.</p>
         <div id="dr-cpe-staff-body"><p class="dr-panel-empty">Loading&hellip;</p></div>
       </div>
 
