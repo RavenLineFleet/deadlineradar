@@ -2077,7 +2077,7 @@ def check_retired_claims_absent_from_guides(repo_root: Path, html_files) -> list
     return errors
 
 
-def check_stale_thresholds_unified(html_files) -> list[str]:
+def check_stale_thresholds_unified(html_files, repo_root: Path | None = None) -> list[str]:
     """The seal and the small text caveat must flip on the SAME day count.
 
     Orchestrator decision 2026-08-14, replacing an earlier 30/45 split: a record
@@ -2093,7 +2093,17 @@ def check_stale_thresholds_unified(html_files) -> list[str]:
 
     Zero false-positive risk by construction -- it compares two numbers that are
     required to be equal, rather than inferring intent from prose.
-    """
+
+    STALE-12 (AuditLab, 2026-08-29): the 2026-08-14 unification above only
+    bound the two STATIC-PAGE surfaces (the seal and the text caveat). The
+    THIRD copy -- worker/src/deadline.ts's STALENESS_THRESHOLD_DAYS, which
+    is the one that actually refuses signups with a 503 and pauses the
+    cron -- was never gated at all, linked to generate.py's _STALE_DAYS by
+    nothing but a comment, and that comment had already rotted (pointed at
+    a line number that had drifted onto unrelated CSS). Same failure shape
+    the 2026-08-14 fix addressed, one layer further out: a page can show no
+    "re-verification overdue" caveat while the server has already started
+    refusing signups underneath it, or vice versa."""
     errors = []
     seal_re = re.compile(r"SEAL_STALE_DAYS\s*=\s*(\d+)")
     badge_re = re.compile(r"RUNTIME_STALE_DAYS\s*=\s*(\d+)")
@@ -2120,6 +2130,27 @@ def check_stale_thresholds_unified(html_files) -> list[str]:
             "runtimes stopped shipping or their variable names changed -- this "
             "check is no longer measuring anything and must be repaired."
         )
+
+    if repo_root is not None:
+        deadline_ts = repo_root / "worker" / "src" / "deadline.ts"
+        generate_py = repo_root / "generate.py"
+        if deadline_ts.exists() and generate_py.exists():
+            ts_match = re.search(r"STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", deadline_ts.read_text(encoding="utf-8"))
+            py_match = re.search(r"_STALE_DAYS\s*=\s*(\d+)", generate_py.read_text(encoding="utf-8"))
+            if not ts_match or not py_match:
+                errors.append(
+                    "[STALE-12] could not find worker/src/deadline.ts's STALENESS_THRESHOLD_DAYS "
+                    "or generate.py's _STALE_DAYS -- a variable name changed and this check is no "
+                    "longer measuring the worker boundary and must be repaired."
+                )
+            elif ts_match.group(1) != py_match.group(1):
+                errors.append(
+                    f"[STALE-12] worker/src/deadline.ts's STALENESS_THRESHOLD_DAYS "
+                    f"({ts_match.group(1)}) does not match generate.py's _STALE_DAYS "
+                    f"({py_match.group(1)}) -- the server-side signup refusal/cron pause would "
+                    f"trip on a different day than the page's own seal/caveat. Keep both at the "
+                    f"same value."
+                )
     return errors
 
 
@@ -5013,7 +5044,7 @@ def main():
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
-    all_errors += check_stale_thresholds_unified(html_files)
+    all_errors += check_stale_thresholds_unified(html_files, repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
     all_errors += check_hedge_language_enforced(repo_root)
