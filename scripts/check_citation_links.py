@@ -22,10 +22,23 @@ directions:
     perfectly live in a real browser (bot defense, not a dead link).
 Proven by construction: fetching a garbage path per host and comparing
 its response to the real citation's response. This version does that
-same per-host control probe and reports a three-state verdict --
-LIVE / DEAD / UNVERIFIABLE-BY-HTTP -- instead of a boolean, so a host
-this script cannot actually evaluate is named as exactly that rather
-than silently defaulting to a wrong answer either way.
+same per-host control probe and reports a four-state verdict --
+LIVE / DEAD / UNVERIFIABLE-BY-HTTP / WRONG-PAGE -- instead of a boolean,
+so a host this script cannot actually evaluate is named as exactly that
+rather than silently defaulting to a wrong answer either way.
+
+AuditLab CITE-66 (MEDIUM, 2026-08-28): even the fixed status-based logic
+above only proves a host RESPONDED, never that it served the CITED text.
+Proven live on the exact host behind Washington's CPE figures: a
+repealed/renumbered section there silently redirects to its parent
+chapter's listing page instead of 404ing -- structurally "live," but not
+the cited rule. WRONG-PAGE asserts the record's own `citation` string
+(e.g. "WAC 4-30-134") appears in the response's <title> tag -- title, not
+the whole body, because a body-substring check does NOT catch this exact
+case (the wrong chapter-listing page is a table of contents that legally
+contains the target section number as a listed entry). See
+assert_citation_in_content()'s own comment for the full reasoning and how
+it was verified against the real page before shipping.
 
 This is a REPORT-ONLY, MANUALLY-RUN advisory -- like
 worker_deploy_staleness_check.py, it does not fail preship_gate.py and
@@ -60,17 +73,26 @@ CONTENT_SAMPLE_BYTES = 1_000_000
 
 
 def find_urls(obj, path=""):
-    """Yields (path, url) for every string value at a key ending in "_url"
-    that looks like an http(s) link. Deliberately generic (no hand-kept
-    field-name list) so a newly added *_url field is covered automatically
-    -- the same anti-drift reasoning as _mobility_covered_slugs() in
-    generate.py.
+    """Yields (path, url, citation) for every string value at a key ending
+    in "_url" that looks like an http(s) link. Deliberately generic (no
+    hand-kept field-name list) so a newly added *_url field is covered
+    automatically -- the same anti-drift reasoning as
+    _mobility_covered_slugs() in generate.py.
+
+    `citation` is the record's own sibling "citation" field (e.g. "WAC
+    4-30-134") when the URL key is exactly "citation_url" -- confirmed by a
+    one-off sweep (2026-08-28) that all 730 citation_url records across
+    every data file have one, with zero exceptions. Only "citation_url"
+    carries this pairing; other *_url fields (secondary_url,
+    status_source_url, source_url) don't have a reliably-paired citation
+    string, so they get None and skip content-assertion (AuditLab CITE-66).
     """
     if isinstance(obj, dict):
+        citation = obj.get("citation") if isinstance(obj.get("citation"), str) else None
         for k, v in obj.items():
             key_path = f"{path}.{k}" if path else k
             if isinstance(v, str) and k.lower().endswith("_url") and v.startswith("http"):
-                yield key_path, v
+                yield key_path, v, (citation if k == "citation_url" else None)
             else:
                 yield from find_urls(v, key_path)
     elif isinstance(obj, list):
@@ -145,8 +167,101 @@ def _normalize(body: bytes) -> str:
     return _ENTROPY_RE.sub("<ENTROPY>", text)
 
 
-def classify(real_status, real_body, sig_status, sig_body) -> tuple[str, str]:
-    """Returns (verdict, reason). verdict is one of LIVE / DEAD / UNVERIFIABLE."""
+# AuditLab CITE-66 (MEDIUM, 2026-08-28): everything above only asks "did
+# this host respond in a way distinguishable from a garbage path" -- never
+# "is this actually the cited section." Proven live on the exact host
+# behind Washington's CPE figures (app.leg.wa.gov): a repealed/renumbered
+# section silently redirects to its parent CHAPTER'S listing page instead
+# of 404ing. That response is large and genuinely distinguishable from the
+# garbage-path control, so the checks above call it LIVE -- the reader
+# clicking our citation lands on a page that doesn't contain the rule we
+# cite, and nothing catches it.
+#
+# I verified AuditLab's own suggested fix (assert the citation string
+# appears anywhere in the body) does NOT actually catch this exact case
+# before implementing it: fetched the real wrong-page scenario myself, and
+# the wrong (chapter-listing) page's body contains "4-30-134" three times
+# -- it's a table-of-contents style index of every section in that
+# chapter, so a bare body-substring check passes on the wrong page too.
+# The <title> tag is what actually discriminates them on this host --
+# empirically confirmed: correct page's <title> is "WAC 4-30-134:", the
+# wrong page's is "Chapter 4-30 WAC:". Using <title> as the assertion
+# target instead of the whole body, with a guard against hosts whose title
+# doesn't vary by page at all (compared against the control probe's own
+# title -- if they match, titles carry no signal here, so this backs off
+# to SKIPPED rather than risk a false WRONG-PAGE on a host this heuristic
+# doesn't fit).
+_DASH_RE = re.compile("[‐‑‒–—−]")  # hyphen/non-breaking-hyphen/figure-dash/en-dash/em-dash/minus
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+# First digit-led run of [0-9A-Za-z.-] in the citation, e.g. "WAC
+# 4-30-134" -> "4-30-134", "S.C. Code Ann. § 40-2-255(A)" -> "40-2-255"
+# (stops at the open-paren, which is exactly AuditLab's "tolerate
+# subsection depth" trap -- never captures a trailing subsection suffix).
+_CITATION_TOKEN_RE = re.compile(r"[0-9][0-9A-Za-z.-]*[0-9A-Za-z]")
+
+
+def _dash_normalize(text: str) -> str:
+    return _DASH_RE.sub("-", text)
+
+
+def _extract_title(body: bytes) -> str | None:
+    text = body.decode("utf-8", errors="replace")
+    m = _TITLE_RE.search(text)
+    if not m:
+        return None
+    title = re.sub(r"\s+", " ", m.group(1)).strip()
+    return title or None
+
+
+def _extract_citation_token(citation: str) -> str | None:
+    # A citation with a semicolon lists multiple distinct legal references
+    # (common in this data -- see e.g. the reg_change_events.json Guam/
+    # Michigan/Oregon conflict records) -- too ambiguous which one this
+    # particular citation_url is meant to confirm, so this is deliberately
+    # conservative and skips rather than guessing.
+    if ";" in citation:
+        return None
+    m = _CITATION_TOKEN_RE.search(citation)
+    return m.group(0) if m else None
+
+
+def _looks_like_pdf(body: bytes) -> bool:
+    return body[:5] == b"%PDF-"
+
+
+def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, citation: str | None) -> tuple[str, str]:
+    """Returns (verdict, reason). verdict is CONFIRMED / WRONG_PAGE / SKIPPED.
+    Only ever called once the status-level checks already consider the
+    response structurally LIVE -- this can only downgrade LIVE to
+    WRONG-PAGE, never upgrade a DEAD/UNVERIFIABLE result.
+    """
+    if real_body is None:
+        return "SKIPPED", "no body to check"
+    if not citation:
+        return "SKIPPED", "no citation string on this record (only citation_url fields carry one)"
+    if _looks_like_pdf(real_body):
+        # AuditLab's own explicit guidance: "skip the assertion rather than
+        # fake it" for PDFs -- confirming a %PDF body contains cited text
+        # needs real text extraction, which is a materially different and
+        # more failure-prone piece of machinery than a title-tag check.
+        return "SKIPPED", "PDF body -- content assertion needs text extraction, not attempted"
+    token = _extract_citation_token(citation)
+    if not token:
+        return "SKIPPED", "citation string has no extractable single section token (compound citation, or no digit-led token found)"
+    real_title = _extract_title(real_body)
+    if not real_title:
+        return "SKIPPED", "no <title> tag on this page to check the citation against"
+    if sig_body is not None:
+        sig_title = _extract_title(sig_body)
+        if sig_title and _dash_normalize(sig_title).lower() == _dash_normalize(real_title).lower():
+            return "SKIPPED", "this host's <title> doesn't vary by path (same title on the garbage-path control) -- no signal here"
+    if _dash_normalize(token).lower() in _dash_normalize(real_title).lower():
+        return "CONFIRMED", f"citation token {token!r} found in <title> {real_title!r}"
+    return "WRONG_PAGE", f"citation token {token!r} not found in <title> {real_title!r}"
+
+
+def classify(real_status, real_body, sig_status, sig_body, citation=None) -> tuple[str, str]:
+    """Returns (verdict, reason). verdict is one of LIVE / DEAD / UNVERIFIABLE / WRONG-PAGE."""
     # Bot defense: a 403 on the real citation, or on the control probe
     # itself (can't establish any baseline for this host), is not proof of
     # anything either way -- AuditLab confirmed all 26 sweep 403s were
@@ -157,6 +272,7 @@ def classify(real_status, real_body, sig_status, sig_body) -> tuple[str, str]:
         return "UNVERIFIABLE", "control probe failed at the network level; no baseline for this host"
     if real_status is None:
         return "UNVERIFIABLE", "citation URL failed at the network level (not a real HTTP status)"
+
     if sig_status == 200 and real_status == 200:
         if sig_body is not None and real_body is not None:
             if sig_body == real_body:
@@ -165,10 +281,21 @@ def classify(real_status, real_body, sig_status, sig_body) -> tuple[str, str]:
                 return "UNVERIFIABLE", f"host returns 200 content of the exact same length ({len(real_body)} bytes) for a garbage path -- likely the same page with injected entropy (e.g. a per-request nonce)"
             if _normalize(sig_body) == _normalize(real_body):
                 return "UNVERIFIABLE", "host returns 200 content for a garbage path that's identical once known entropy (UUIDs, long hex/base64/digit runs) is stripped -- likely the same page with an injected nonce"
-        return "LIVE", "200, and distinguishable from this host's garbage-path response"
-    if 200 <= real_status < 400:
-        return "LIVE", str(real_status)
-    return "DEAD", str(real_status)
+        live_reason = "200, and distinguishable from this host's garbage-path response"
+    elif 200 <= real_status < 400:
+        live_reason = str(real_status)
+    else:
+        return "DEAD", str(real_status)
+
+    # AuditLab CITE-66: everything above only confirms the host responded
+    # in a way distinguishable from garbage -- never that it served the
+    # CITED text. Layer a content assertion on top before calling anything
+    # LIVE. This can only downgrade LIVE to WRONG-PAGE; it never runs for a
+    # response already classified DEAD/UNVERIFIABLE above.
+    content_verdict, content_reason = assert_citation_in_content(real_body, sig_body, citation)
+    if content_verdict == "WRONG_PAGE":
+        return "WRONG-PAGE", f"status looked live ({live_reason}), but {content_reason}"
+    return "LIVE", live_reason
 
 
 def main() -> int:
@@ -176,13 +303,21 @@ def main() -> int:
     files = sorted(root.glob("data/*.json")) + sorted(root.glob("worker/src/*.json"))
 
     all_urls: dict[str, list[str]] = {}
+    citations: dict[str, str] = {}
     for f in files:
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        for key_path, url in find_urls(data):
+        for key_path, url, citation in find_urls(data):
             all_urls.setdefault(url, []).append(f"{f.relative_to(root)}:{key_path}")
+            # First non-None citation wins if the same URL is ever cited by
+            # more than one record -- doesn't come up today (each
+            # citation_url is per-record), but a shared URL with slightly
+            # different citation text across records would only affect
+            # which exact token gets checked, not whether the check runs.
+            if citation and url not in citations:
+                citations[url] = citation
 
     print(f"Checking {len(all_urls)} distinct citation URLs across {len(files)} data files...")
 
@@ -200,18 +335,19 @@ def main() -> int:
         sig_status, sig_body = host_signatures[host]
 
         real_status, real_body, detail = _fetch(url)
-        verdict, reason = classify(real_status, real_body, sig_status, sig_body)
+        verdict, reason = classify(real_status, real_body, sig_status, sig_body, citations.get(url))
         results[url] = (verdict, reason, locations)
         print(f"[{i}/{len(all_urls)}] {verdict} ({reason}) {url}")
 
     dead = [(u, r, l) for u, (v, r, l) in results.items() if v == "DEAD"]
+    wrong_page = [(u, r, l) for u, (v, r, l) in results.items() if v == "WRONG-PAGE"]
     unverifiable = [(u, r, l) for u, (v, r, l) in results.items() if v == "UNVERIFIABLE"]
     live_count = sum(1 for v, _, _ in results.values() if v == "LIVE")
 
     print()
     print(
-        f"{live_count} LIVE, {len(unverifiable)} UNVERIFIABLE-BY-HTTP, {len(dead)} DEAD "
-        f"of {len(all_urls)} citation URLs across {len(host_signatures)} hosts."
+        f"{live_count} LIVE, {len(unverifiable)} UNVERIFIABLE-BY-HTTP, {len(wrong_page)} WRONG-PAGE, "
+        f"{len(dead)} DEAD of {len(all_urls)} citation URLs across {len(host_signatures)} hosts."
     )
 
     if unverifiable:
@@ -221,15 +357,27 @@ def main() -> int:
             for loc in locations:
                 print(f"    cited at: {loc}")
 
-    if not dead:
-        print(f"\nPASS -- 0 confirmed-DEAD citation URLs.")
+    # WRONG-PAGE is arguably worse than DEAD: a dead link is at least
+    # visibly broken to a reader who clicks it, where a wrong page looks
+    # like a normal, working citation while silently not backing the claim
+    # -- surfaced ahead of DEAD in the printed report for that reason.
+    if wrong_page:
+        print(f"\n{len(wrong_page)} WRONG-PAGE -- responds live, but the cited section is not on this page (AuditLab CITE-66):")
+        for url, reason, locations in wrong_page:
+            print(f"\n  {reason}  {url}")
+            for loc in locations:
+                print(f"    cited at: {loc}")
+
+    if not dead and not wrong_page:
+        print(f"\nPASS -- 0 confirmed-DEAD, 0 confirmed-WRONG-PAGE citation URLs.")
         return 0
 
-    print(f"\n{len(dead)} DEAD -- VERIFY IN A BROWSER before treating any of these as confirmed dead:")
-    for url, reason, locations in dead:
-        print(f"\n  {reason}  {url}")
-        for loc in locations:
-            print(f"    cited at: {loc}")
+    if dead:
+        print(f"\n{len(dead)} DEAD -- VERIFY IN A BROWSER before treating any of these as confirmed dead:")
+        for url, reason, locations in dead:
+            print(f"\n  {reason}  {url}")
+            for loc in locations:
+                print(f"    cited at: {loc}")
     return 0  # advisory only -- never fails the build
 
 
