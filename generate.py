@@ -8888,11 +8888,21 @@ def build_rule_changes_page() -> str:
     changes = [e for e in events if e.get("kind") == "rule_change"]
     conflicts = [e for e in events if e.get("kind") == "source_conflict"]
     upcoming = [e for e in changes if _is_still_upcoming(e)]
-    # True complement of the line above, NOT `not e.get("upcoming")`: an event
-    # whose effective date has just passed stops being upcoming, and if this
-    # still filtered on the raw flag that event would fall out of BOTH lists
-    # and silently vanish from the page. It belongs in "recent" now.
-    recent = [e for e in changes if not _is_still_upcoming(e)]
+    # AuditLab RC-16 (MEDIUM, filed ~t314, re-verified 2026-08-29 with
+    # cleaner evidence than the original filing): `recent` used to be the
+    # bare complement of `upcoming` -- correct as a complement (an event
+    # whose effective date just passed falls out of `upcoming` and belongs
+    # somewhere), but that complement also swallows a record with NO
+    # effective_date at all (a still-proposed rulemaking, e.g. Idaho's
+    # 24-3001-2601). It landed under "Recently changed... the effective
+    # date has passed," which asserts a date that record doesn't have --
+    # provably wrong on its face, and it inflated the section's own count
+    # (4 rc-cards, only 3 actually carrying a date). A dateless record is
+    # neither "still upcoming" nor "date has passed"; it gets its own
+    # bucket rather than being forced into whichever complement it happens
+    # to fall out of.
+    undated = [e for e in changes if not e.get("effective_date")]
+    recent = [e for e in changes if not _is_still_upcoming(e) and e.get("effective_date")]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
     upcoming_html = (
@@ -8900,6 +8910,7 @@ def build_rule_changes_page() -> str:
         if upcoming
         else '<p class="rc-empty">No upcoming changes detected right now.</p>'
     )
+    undated_html = "\n".join(_rule_change_card_html(e) for e in undated)
     recent_html = (
         "\n".join(_rule_change_card_html(e) for e in recent)
         if recent
@@ -8985,7 +8996,12 @@ and clearly labelled where we could only confirm it against the board's own page
 <h2>Upcoming changes ({len(upcoming)})</h2>
 <p class="rc-section-note">A dated, signed change that hasn't taken effect yet.</p>
 {upcoming_html}
-
+{f'''
+<h2>Proposed, not yet dated ({len(undated)})</h2>
+<p class="rc-section-note">Formally proposed, but not yet signed into law with a scheduled effective
+date -- we move it to Upcoming the moment one is set.</p>
+{undated_html}
+''' if undated else ""}
 <h2>Recently changed, pending re-verification ({len(recent)})</h2>
 <p class="rc-section-note">The effective date has passed. We re-verify against the primary source
 before treating a post-change rule as settled &mdash; we do not assume a law took effect just
