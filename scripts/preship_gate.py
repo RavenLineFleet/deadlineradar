@@ -1270,6 +1270,65 @@ def check_annual_minimum_not_alternative_track(repo_root: Path) -> list[str]:
     return errors
 
 
+_PENALTY_CPE_RATE_RE = re.compile(
+    r"(\d+)\s*(?:CPE\s*)?hours?\s+(?:for each|per|each)\s+(?:\d+[-\s]?(?:month|year)|year)",
+    re.IGNORECASE,
+)
+
+
+def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
+    """GATE-17 (AuditLab, 2026-08-29, self-directed): penalty_cpe_basis is
+    annual_minimum_basis's direct sibling -- same "one optional flag changes
+    what the headline number MEANS" design (see
+    check_annual_minimum_not_alternative_track above and
+    _reinstatement_cpe_line_html() in generate.py) -- but had no gate at
+    all. Mississippi's penalty_cpe_hours held 120 (the 3-year CAP) with no
+    penalty_cpe_basis, so the page rendered "120 CPE hours" as a flat total
+    while the record's own notes, one sentence later, stated the real rate
+    is 40 hours per 12-month period -- a 3x overstatement of what a 1-year
+    lapse actually owes, sitting live for 8 days after the sibling bug
+    (Georgia, CITE-50) was fixed by hand.
+
+    This mirrors CITE-50's fix (set penalty_cpe_basis='per_year' so the
+    headline states the rate, not the cap) rather than a blanket structural
+    change. The check reads any record with penalty_cpe_hours and no
+    penalty_cpe_basis, extracts a per-period rate from penalty_cpe_notes
+    if the prose states one, and fails if that rate disagrees with the
+    headline number -- comparing the NUMBERS, not just matching keywords,
+    since a keyword-only version false-positives on records that use the
+    same "hours ... year" vocabulary to explicitly deny a per-period rate
+    (Louisiana: "not additive on top of the normal 80"; Maine: "the same
+    standard 40-hr/year rate as ordinary renewal, not extra") -- both
+    verified clear under this check's actual regex, not just asserted."""
+    data_path = repo_root / "data" / "reinstatement.json"
+    if not data_path.exists():
+        return []
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    errors = []
+    for r in data["records"]:
+        hours = r.get("penalty_cpe_hours")
+        basis = r.get("penalty_cpe_basis")
+        notes = r.get("penalty_cpe_notes") or ""
+        if hours is None or basis:
+            continue
+        m = _PENALTY_CPE_RATE_RE.search(notes)
+        if not m:
+            continue
+        rate = int(m.group(1))
+        if rate != hours:
+            errors.append(
+                f"[PENALTY-BASIS][reinstatement/{r['id']}] {r.get('state')} -- penalty_cpe_hours "
+                f"({hours}) has no penalty_cpe_basis, but penalty_cpe_notes states a per-period rate "
+                f"of {rate} hours that disagrees with it. The headline is likely showing a cap while "
+                f"the notes describe the real per-year/per-period rate (GATE-17's tell, e.g. "
+                f"Mississippi's CITE-67). If {hours} genuinely is the per-period rate, reword the "
+                f"notes so this pattern doesn't misparse; if it's a cap, set "
+                f"penalty_cpe_basis='per_year' (or 'increment') and move the headline number to the "
+                f"real rate, same fix as CITE-50/Georgia."
+            )
+    return errors
+
+
 def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     """MON-3 (AuditLab, 2026-08-20, orchestrator's refined ruling): 17 days
     of real staleness on /rule-changes/'s "watching ... daily" claim turned
@@ -4874,6 +4933,7 @@ def main():
     all_errors += check_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
+    all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_stale_thresholds_unified(html_files)
