@@ -7572,6 +7572,14 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             f'source conflict</span></div>'
         )
 
+    # AuditLab COPY-16 (LOW, 2026-08-28): the trust-footnote below used to say
+    # "In the remaining N" -- correct only because it happened to render
+    # directly after the "determined" stat above it. _extra_stat_items_html's
+    # own conflict-count stat (a different, mostly non-overlapping set that
+    # today also happens to total 6) can render between them, and "remaining"
+    # then reads as leftover from THAT stat instead. Named the footnote's
+    # subject explicitly so it's correct regardless of render order or which
+    # counts coincide, rather than relying on proximity.
     stats_band_html = f"""<section class="band-section band-section--alt dr-reveal">
   <div class="trust-row">
     <div class="item"><span class="n">{_cov["total"]}</span><span class="lbl">jurisdictions listed</span></div>
@@ -7579,9 +7587,10 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across all datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
-  <p class="trust-footnote">In the remaining {_cov["byod"]}, renewal turns on a personal fact
-  &mdash; your birth month, cohort or issue date &mdash; or the board publishes no verifiable date.
-  You enter the date on your license and we track it. We would rather say that than round up.</p>
+  <p class="trust-footnote">In the {_cov["byod"]} jurisdictions where we can't compute a date,
+  renewal turns on a personal fact &mdash; your birth month, cohort or issue date &mdash; or the
+  board publishes no verifiable date. You enter the date on your license and we track it. We would
+  rather say that than round up.</p>
 </section>"""
 
     # ShopLab cold-read (2026-08-20, orchestrator-approved, "same fix batch" as
