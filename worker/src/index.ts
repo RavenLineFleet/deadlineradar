@@ -5209,7 +5209,7 @@ async function handleSubscriberCpeEntryCreate(request: Request, env: Env): Promi
 
   const subscriberId = (form.subscriber_id ?? "").trim();
   if (!subscriberId) {
-    return jsonResponse(400, { error: "Missing subscriber_id." });
+    return jsonResponse(400, { error: "Please choose a staff member first." });
   }
 
   const entryDateParsed = parseStrictIsoDate(form.entry_date ?? "");
@@ -5284,7 +5284,7 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
   if (parsed instanceof Response) return parsed;
   const form = stringFieldsOf(parsed);
   const subscriberId = (form.subscriber_id ?? "").trim();
-  if (!subscriberId) return jsonResponse(400, { error: "Missing subscriber_id." });
+  if (!subscriberId) return jsonResponse(400, { error: "Please choose a staff member first." });
 
   const staffRow = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!staffRow) return jsonResponse(404, { error: "Not found." });
@@ -8013,7 +8013,7 @@ async function handleCpeEntryCreate(request: Request, env: Env): Promise<Respons
 
   const subscriberId = (form.subscriber_id ?? "").trim();
   if (!subscriberId) {
-    return jsonResponse(400, { error: "Missing subscriber_id." });
+    return jsonResponse(400, { error: "Please choose a staff member first." });
   }
 
   const entryDateParsed = parseStrictIsoDate(form.entry_date ?? "");
@@ -11807,7 +11807,7 @@ async function handleMobilityCompletionCreate(request: Request, env: Env): Promi
 
   const subscriberId = (form.subscriber_id ?? "").trim();
   if (!subscriberId) {
-    return jsonResponse(400, { error: "Missing subscriber_id." });
+    return jsonResponse(400, { error: "Please choose a staff member first." });
   }
 
   const targetStateSlug = (form.target_state_slug ?? "").trim();
