@@ -21,7 +21,12 @@
 
 import cpaData from "./cpa_deadlines.json";
 
-export const STALENESS_THRESHOLD_DAYS = 30; // generate.py:701
+// STALE-12 (AuditLab, 2026-08-29): must equal generate.py's _STALE_DAYS --
+// the prior "generate.py:701" line-number comment had already rotted (line
+// 701 is now unrelated CSS), which is exactly why this is a name reference,
+// not a line number, AND enforced by preship_gate.py's
+// check_stale_thresholds_unified() rather than left to the comment alone.
+export const STALENESS_THRESHOLD_DAYS = 30;
 
 // "Bring your own date" upper bound: ~3.5 years, comfortably covering the
 // longest real renewal cycle in this dataset (triennial, 3 years) plus
