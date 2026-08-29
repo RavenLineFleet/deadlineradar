@@ -8842,14 +8842,23 @@ def _rule_change_card_html(e: dict) -> str:
     # confidence: single_source would get the unqualified "automated source
     # monitoring" label with no caveat. All 3 current engine events are
     # dual_source (nothing live changes today), but the guard costs one line.
+    # CONF-2 (AuditLab, 2026-08-29): this used to end with a bare `else ->
+    # "dual-source legal research"`, so a missing or unrecognised confidence
+    # silently rendered as the site's STRONGEST sourcing claim -- the same
+    # fail-open shape REGEN-10 fixed for status. build_change_events.py now
+    # withholds anything off-charter before it reaches this function
+    # (VALID_CONFIDENCE_VALUES), but this renderer stays defense-in-depth
+    # against a hand-edit the same way REGEN-10's renderer-side fix does.
     if e.get("source") == "difflab_reg_change_engine":
         source_label = "automated source monitoring"
         if e.get("confidence") == "single_source":
             source_label += " (not yet independently confirmed by a second source)"
     elif e.get("confidence") == "single_source":
         source_label = "single-source legal research (not yet independently confirmed by a second source)"
-    else:
+    elif e.get("confidence") == "dual_source":
         source_label = "dual-source legal research"
+    else:
+        source_label = "sourcing basis unconfirmed"
     # Same recompute as the date line above -- a passed event must not keep
     # the gold "upcoming" badge while its own text says it took effect.
     badge_class = "rc-badge rc-badge-upcoming" if _is_still_upcoming(e) else "rc-badge"
@@ -13623,14 +13632,21 @@ function drOpenRuleChangeModal(event, triggerBtn) {
   // fix, same phrasing) -- this used to render the raw snake_case
   // confidence enum straight into a modal a firm admin opens deliberately
   // to decide whether a rule change affects their staff.
+  // CONF-2 (AuditLab, 2026-08-29): mirrors generate.py's
+  // _rule_change_card_html() fix -- an else-catches-everything default used
+  // to render a missing/unrecognised confidence as "dual-source legal
+  // research," the strongest sourcing claim, in a modal a firm admin opens
+  // specifically to judge whether a change is trustworthy.
   var drRuleChangeSourceLabel;
   if (event.source === 'difflab_reg_change_engine') {
     drRuleChangeSourceLabel = 'automated source monitoring' +
       (event.confidence === 'single_source' ? ' (not yet independently confirmed by a second source)' : '');
   } else if (event.confidence === 'single_source') {
     drRuleChangeSourceLabel = 'single-source legal research (not yet independently confirmed by a second source)';
-  } else {
+  } else if (event.confidence === 'dual_source') {
     drRuleChangeSourceLabel = 'dual-source legal research';
+  } else {
+    drRuleChangeSourceLabel = 'sourcing basis unconfirmed';
   }
   document.getElementById('dr-rule-change-modal-confidence').textContent =
     ' · ' + drRuleChangeSourceLabel;

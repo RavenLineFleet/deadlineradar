@@ -108,6 +108,17 @@ VALID_RULE_CHANGE_STATUSES = {
     "DIED_WITHDRAWN",
 }
 
+# CONF-2 (AuditLab, 2026-08-29): confidence's sibling problem to REGEN-6/
+# REGEN-10 above -- both _rule_change_card_html() (generate.py) and its JS
+# mirror end their source-label branch with `else -> "dual-source legal
+# research"`, so a missing or unrecognised confidence silently renders as
+# the site's STRONGEST sourcing claim, on a product whose core promise is
+# exactly that sourcing standard. Only matters for KIND_CHANGE events (the
+# only ones that render a confidence-based label at all -- conflict cards
+# never do), but validated the same way status is: a bad value withholds
+# the event rather than publishing an unverifiable sourcing claim.
+VALID_CONFIDENCE_VALUES = {"single_source", "dual_source"}
+
 
 # Known jurisdiction-slug aliases between ScoutLab's vocabulary and ours.
 #
@@ -301,6 +312,23 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 "next_action": "needs an explicit status field (ENACTED / ADOPTED RULE / PROPOSED / "
                                "DIED) added to this record in worker/src/mobility_rules.json, "
                                "sourced the same way DiffLab's regwatch events are",
+            })
+            continue
+        elif base.get("confidence") not in VALID_CONFIDENCE_VALUES:
+            # CONF-2: a missing/unrecognised confidence on a record that
+            # would otherwise publish as a real rule_change event -- see
+            # VALID_CONFIDENCE_VALUES's own comment for why this can't be
+            # allowed to fall through to the renderer's fail-open default.
+            withheld_ambiguous.append({
+                "jurisdiction_slug": slug,
+                "jurisdiction": r.get("state") or slug,
+                "status": "UNDETERMINED",
+                "reason": (f"confidence={r.get('confidence')!r} is not one of "
+                           f"{sorted(VALID_CONFIDENCE_VALUES)} -- withheld rather than letting the "
+                           "renderer's own fallback silently claim dual-source sourcing"),
+                "has_citation_url": bool(citation_url),
+                "confidence": r.get("confidence"),
+                "next_action": "set confidence to 'single_source' or 'dual_source' in worker/src/mobility_rules.json",
             })
             continue
         else:
