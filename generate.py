@@ -20596,25 +20596,28 @@ var DR_RULE_CHANGE_EVENTS = {json.dumps(rule_change_events_json)};
 # Chosen for real, near-term firm-registration deadlines already backed by verified
 # citation data in cpa_deadlines.json -- no new legal research needed, this just
 # reframes already-vetted facts at a different reader (whoever owns the firm's own
-# registration, not an individual CPA tracking their personal license). Ordered by
-# deadline proximity.
+# registration, not an individual CPA tracking their personal license).
 #
-# 2026-08-10: expanded from the original Wave-1 6 to all 35 states that already
-# pass _firm_relevant_record() (a firm-type or 'all'-type record with a computed
+# 2026-08-10: expanded from the original Wave-1 6 to all 35 states that then
+# passed _firm_relevant_record() (a firm-type or 'all'-type record with a computed
 # date) -- Devin's go, following AuditLab's finding that the original 6 were an
-# arbitrary subset of already-verified data, not the full set. The remaining 20
-# states with NO firm-relevant record at all are a SEPARATE, still-open question
+# arbitrary subset of already-verified data, not the full set.
+#
+# CRAWL-5 (AuditLab, 2026-08-29): that expansion was still a frozen HARDCODED list,
+# so it silently fell out of sync as more states gained a firm-relevant record --
+# Connecticut and Maryland both drifted eligible-but-unlisted within 3 weeks, with
+# nothing to announce it. Per AuditLab's own note that "the allowlist is redundant
+# with the gate it duplicates" (the build loop already calls _firm_relevant_record()
+# per state to decide what actually gets built), this is now DERIVED at build time
+# inside main() -- see firm_landing_state_slugs below -- instead of hand-maintained.
+# Order was historically "deadline proximity" but nothing downstream depends on it:
+# every reader of FIRM_LANDING_PAGES re-sorts by state_name (see build_firms_page())
+# and sitemap order is not meaningful, so the derived list sorts by slug instead.
+# States with NO firm-relevant record at all are a SEPARATE, still-open question
 # (does a distinct firm cycle exist there and we just haven't sourced it, or do
-# they genuinely bundle firm renewal into the individual license) -- not part of
-# this go, not included here, don't guess at those.
-FIRM_LANDING_STATE_SLUGS = [
-    "colorado", "idaho", "maine", "missouri", "alabama", "arkansas", "dc", "kansas",
-    "louisiana", "minnesota", "montana", "utah", "wyoming", "mississippi", "nevada",
-    "south-carolina", "delaware", "indiana", "iowa", "nebraska", "north-dakota",
-    "oklahoma", "us-virgin-islands", "virginia", "west-virginia", "north-carolina",
-    "south-dakota", "illinois", "wisconsin", "alaska", "florida", "hawaii", "oregon",
-    "georgia", "kentucky",
-]
+# they genuinely bundle firm renewal into the individual license) -- _firm_relevant_
+# record() returning None for them is the correct, deliberate exclusion, not a gap
+# in this derivation.
 
 # Populated by main() once by_slug is loaded (each entry: {"slug", "state_name"}) --
 # build_firms_page() reads this to cross-link to every firm landing page that
@@ -21152,8 +21155,7 @@ def _firm_landing_reverse_link_html(state_slug: str, state_name: str, firm_landi
     functions. AuditLab's finding was as much about these missing links as
     the missing pages themselves -- don't ship one without the other. Only
     keyed for states where a firm landing page actually got built (see
-    main()'s own FIRM_LANDING_PAGES loop -- _firm_relevant_record() can
-    still return None even for a state in FIRM_LANDING_STATE_SLUGS)."""
+    main()'s own FIRM_LANDING_PAGES loop and firm_landing_state_slugs)."""
     firm_slug = firm_landing_slugs_by_state.get(state_slug)
     if not firm_slug:
         return ""
@@ -23449,20 +23451,21 @@ def main() -> None:
         (showcase_dst_dir / showcase_file.name).write_bytes(showcase_file.read_bytes())
     print(f"wrote {SITE_DIR.name}/showcase/ ({len(list(showcase_src_dir.glob('*.jpg')))} images)")
 
+    # CRAWL-5 (AuditLab, 2026-08-29): derived from by_slug here, not
+    # hand-maintained -- see the comment above the historical
+    # FIRM_LANDING_STATE_SLUGS list this replaced. Every entry already
+    # passes _firm_relevant_record(), so the two loops below no longer
+    # need their own "is this state actually eligible" branch.
+    firm_landing_state_slugs = sorted(
+        slug for slug, recs in by_slug.items() if _firm_relevant_record(recs) is not None
+    )
+
     # Precomputed here (not read off FIRM_LANDING_PAGES, which the loop
     # further below populates AFTER this state-page loop runs) so the
-    # reverse cross-link on each state page can be built in the same pass --
-    # same _firm_relevant_record() logic that loop uses to decide what
-    # actually gets built, just evaluated early.
-    firm_landing_slugs_by_state = {}
-    for state_slug in FIRM_LANDING_STATE_SLUGS:
-        recs_for_slug = by_slug.get(state_slug)
-        if not recs_for_slug:
-            continue
-        firm_record = _firm_relevant_record(recs_for_slug)
-        if firm_record is None:
-            continue
-        firm_landing_slugs_by_state[state_slug] = f"{state_slug}-cpa-firm-renewal"
+    # reverse cross-link on each state page can be built in the same pass.
+    firm_landing_slugs_by_state = {
+        state_slug: f"{state_slug}-cpa-firm-renewal" for state_slug in firm_landing_state_slugs
+    }
 
     built = []
     for slug, recs in by_slug.items():
@@ -23480,15 +23483,8 @@ def main() -> None:
     print(f"wrote {SITE_DIR.name}/index.html  ({len(built)} states)")
 
     FIRM_LANDING_PAGES.clear()
-    for state_slug in FIRM_LANDING_STATE_SLUGS:
-        recs = by_slug.get(state_slug)
-        if not recs:
-            print(f"  SKIPPED firm landing page for {state_slug}: no records found")
-            continue
-        record = _firm_relevant_record(recs)
-        if record is None:
-            print(f"  SKIPPED firm landing page for {state_slug}: no firm-relevant record with a computed date")
-            continue
+    for state_slug in firm_landing_state_slugs:
+        record = _firm_relevant_record(by_slug[state_slug])
         slug, title, page_html = build_firm_landing_page(state_slug, record)
         page_dir = SITE_DIR / slug
         page_dir.mkdir(parents=True, exist_ok=True)
