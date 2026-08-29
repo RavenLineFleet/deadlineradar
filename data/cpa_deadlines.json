@@ -1299,13 +1299,19 @@
       "renewal_pattern": "fixed_calendar",
       "cycle_description": "Annual, unaffected by the individual-license transition described above. Firms performing peer-reviewable services file an annual firm registration no later than September 30 (IDAPA 24.30.01 § 211.01); firms that do not perform those services are exempt from peer review, not from the registration filing itself -- the firm must still renew its registration and notify the Board of the exemption in writing at that time (§ 208.01).",
       "next_deadline_computed": "2026-09-30",
+      "computation": {
+        "type": "fixed_calendar_recurring_no_anchor",
+        "fixed_date": "09-30",
+        "period_years": 1,
+        "note": "Annual, no anchor year needed (every year has an occurrence). Confirmed verbatim from IDAPA 24.30.01 § 211.01 (2026-08-29, AuditLab): 'All firms performing any of the peer reviewable services in Rule 207 annually file a firm registration no later than September 30.' This value now rolls forward automatically (same mechanism as co-firm) instead of needing a manual update every year the 09-30 date elapses."
+      },
       "source_url": "https://dopl.idaho.gov/boa/",
       "secondary_source_url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
       "last_verified": "2026-08-23",
       "wave": 6,
       "citation": "IDAPA 24.30.01 § 211.01",
       "citation_url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
-      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched the full IDAPA 24.30.01 rule PDF directly. Section 211.01 confirmed verbatim: \"All firms performing any of the peer reviewable services in Rule 207 annually file a firm registration no later than September 30.\" Section 208.01 also confirmed verbatim: \"A firm that does not perform any of the services in Rule 207 is exempt from peer review. The firm is to notify the Board of such exemption in writing at the time of renewal of its registration.\" Both clauses of this record's cycle_description match the rule text exactly. No change needed."
+      "verification_history": "2026-08-23 (spot-check, queue dry): re-fetched the full IDAPA 24.30.01 rule PDF directly. Section 211.01 confirmed verbatim: \"All firms performing any of the peer reviewable services in Rule 207 annually file a firm registration no later than September 30.\" Section 208.01 also confirmed verbatim: \"A firm that does not perform any of the services in Rule 207 is exempt from peer review. The firm is to notify the Board of such exemption in writing at the time of renewal of its registration.\" Both clauses of this record's cycle_description match the rule text exactly. No change needed.\n\n2026-08-29 (AuditLab, self-directed): re-fetched the IDAPA PDF again to independently re-confirm § 211.01 before recommending a computation block (annual, fixed-date, no anchor year needed) -- same shape as co-firm, retiring the 2026-10-01 manual-update trigger permanently rather than annually."
     },
     {
       "id": "wv-individual",
@@ -1528,13 +1534,19 @@
       "renewal_pattern": "other",
       "cycle_description": "The Board's own page states both individual CPA licenses and firm licenses renew annually on September 30, and the codified rule independently confirms all licenses expire annually with no cohort split -- but the codified rule never states the specific September 30 date itself.",
       "next_deadline_computed": "2026-09-30",
+      "computation": {
+        "type": "fixed_calendar_recurring_no_anchor",
+        "fixed_date": "09-30",
+        "period_years": 1,
+        "note": "Annual, no anchor year needed (every year has an occurrence). Confirmed 2026-08-29 (AuditLab) against Maine's own board licensing page ('Term Annual (expires September 30)') and the codified rule (which confirms annual, no cohort split, but never states the date itself -- the operational source, not the statute, carries the specific day). This value now rolls forward automatically (same mechanism as co-firm) instead of needing a manual update every year the 09-30 date elapses."
+      },
       "source_url": "https://www.maine.gov/pfr/professionallicensing/professions/accountancy/licensing/public-accountant-and-certified-public-accountant",
       "secondary_source_url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
       "last_verified": "2026-08-20",
       "wave": 7,
       "citation": "Confirmed via Maine ALMS Online license-verification portal (Board of Accountancy, board code 4110): live individual and firm license records (CP9957, FM10001345, FMF10001174, FM10001299) all show expiration 09/30/2026 -- verified 2026-07-30.",
       "citation_url": "https://www.pfr.maine.gov/almsonline/almsquery/searchindividual.aspx?board=4110",
-      "verification_history": "AssetLab self-directed re-verification (STALE-9, ahead of the 2026-08-30 signup-pause cliff): re-fetched both of the Board's own policy pages directly (not the ALMS lookup portal this record's citation used previously). Individual licensing page: 'Annual (expires September 30)' under both Expiration and Renewal Term. Separate firm/branch licensing page (maine.gov/.../accountancy-firm-and-accountancy-branch): 'Annually on September 30th.' Both confirm the September 30 date independently of the prior per-license ALMS-lookup method -- a more durable citation since it doesn't depend on 4 specific license numbers staying current.",
+      "verification_history": "AssetLab self-directed re-verification (STALE-9, ahead of the 2026-08-30 signup-pause cliff): re-fetched both of the Board's own policy pages directly (not the ALMS lookup portal this record's citation used previously). Individual licensing page: 'Annual (expires September 30)' under both Expiration and Renewal Term. Separate firm/branch licensing page (maine.gov/.../accountancy-firm-and-accountancy-branch): 'Annually on September 30th.' Both confirm the September 30 date independently of the prior per-license ALMS-lookup method -- a more durable citation since it doesn't depend on 4 specific license numbers staying current.\n\n2026-08-29 (AuditLab, self-directed): re-verified the board page again and confirmed the codified rule independently corroborates 'annual, no cohort split' (but not the specific date) before recommending a computation block -- same shape as co-firm, retiring the 2026-10-01 manual-update trigger permanently rather than annually.",
       "citation_class": "operational_record"
     },
     {
