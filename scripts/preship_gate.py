@@ -915,6 +915,117 @@ def check_deadline_currency(data_path: Path) -> list[str]:
     return errors
 
 
+def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path) -> list[str]:
+    """AuditLab DATE-5 (LOW, filed tick 331, re-verified 2026-08-28): the
+    self_rolling records check_deadline_currency() above deliberately skips
+    (computation.type == fixed_calendar_recurring_no_anchor, e.g. Colorado's
+    triennial co-firm registration) are rolled forward past an elapsed raw
+    JSON date IN MEMORY at build time by generate.py's own
+    _roll_forward_recurring_deadline() -- correctly, and deliberately never
+    written back to data/cpa_deadlines.json (see that record's own
+    computation.note). But that also means the rendered docs/ HTML is only
+    ever as current as the LAST BUILD: if no generate.py commit lands
+    between a roll-forward trigger date and whoever next notices, the
+    shipped page keeps showing the date from before the trigger, unnoticed,
+    because check_deadline_currency() is checking the wrong thing for this
+    record on purpose (the raw JSON, which legitimately still says the old
+    date) and nothing else ever reads what actually got RENDERED. AuditLab's
+    own worked example: Colorado's triennial firm cycle (2023 -> 2026 ->
+    2029) is correct on the live site right up through 2026-08-31 (renewal
+    isn't wrong on its own due date), but from 2026-09-01 onward a stale
+    build would show "August 31, 2026" -- a date three years in the past,
+    not just one day -- since the parent record's own AuditLab-confirmed
+    fix already made 2029-08-31 the correct value from that date forward.
+
+    Recomputes the CORRECT date fresh (importing generate.py's own real
+    _roll_forward_recurring_deadline(), not a re-typed copy of the date
+    math -- the same discipline AuditLab used verifying it) and compares
+    against what docs/{state_slug}/index.html actually shows today, located
+    via the record's own cycle_description text (rendered verbatim in the
+    page's <small> note next to the date, and specific enough per-record to
+    distinguish e.g. Colorado's individual-license renewal row from its
+    firm-registration row on the same page)."""
+    errors = []
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    self_rolling = [
+        r for r in data["records"]
+        if (r.get("computation") or {}).get("type") == "fixed_calendar_recurring_no_anchor"
+    ]
+    if not self_rolling:
+        return errors
+
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as generate_module
+    except ImportError:
+        return [
+            "[C][DATE-5] self-rolling records exist but generate.py could not be imported to "
+            "recompute their correct date -- this check is measuring nothing and must be repaired, "
+            "not silently skipped"
+        ]
+
+    today = date.today()
+    for r in self_rolling:
+        computed = r.get("next_deadline_computed")
+        computation = r.get("computation")
+        cycle_desc = r.get("cycle_description")
+        state_slug = r.get("state_slug")
+        record_id = r.get("id")
+        if not (computed and computation and cycle_desc and state_slug):
+            errors.append(
+                f"[C][DATE-5][{state_slug}/{record_id}] self-rolling record is missing a field this "
+                f"check needs (next_deadline_computed/computation/cycle_description/state_slug) -- "
+                f"cannot verify its rendered date"
+            )
+            continue
+        try:
+            correct_iso = generate_module._roll_forward_recurring_deadline(computed, computation, today)
+        except Exception as e:
+            errors.append(
+                f"[C][DATE-5][{state_slug}/{record_id}] _roll_forward_recurring_deadline() raised "
+                f"{type(e).__name__} recomputing today's correct date -- cannot verify"
+            )
+            continue
+        # Reuses generate.py's own fmt_date() rather than reproducing the
+        # format with strftime (whose no-leading-zero-day directive is
+        # spelled differently per platform, "%-d" vs "%#d" -- one more
+        # thing to drift from the real renderer for no reason).
+        correct_rendered = generate_module.fmt_date(date.fromisoformat(correct_iso))
+
+        page_path = repo_root / "docs" / state_slug / "index.html"
+        if not page_path.is_file():
+            errors.append(f"[C][DATE-5][{state_slug}/{record_id}] docs/{state_slug}/index.html does not exist -- cannot verify")
+            continue
+        html = page_path.read_text(encoding="utf-8")
+        # The record's own cycle_description is rendered verbatim inside the
+        # <small> note immediately after the date value -- using a distinctive
+        # prefix of it (not the whole thing; apostrophes/quotes inside it are
+        # HTML-entity-escaped on render, e.g. "'" -> "&#x27;", so a full exact
+        # match would silently break the moment the text is edited) anchors
+        # this to the SPECIFIC record's row, not just any "Next renewal date"
+        # row on a page that may show several (Colorado's page has both an
+        # individual-license and a firm-registration renewal date).
+        anchor = re.escape(cycle_desc[:40])
+        m = re.search(r'<div class="v">([A-Za-z]+ \d{1,2}, \d{4})<small>' + anchor, html)
+        if not m:
+            errors.append(
+                f"[C][DATE-5][{state_slug}/{record_id}] could not find this record's rendered date "
+                f"in docs/{state_slug}/index.html via its own cycle_description text -- either the "
+                f"markup shape changed (this check needs updating, not silent skipping) or the "
+                f"cycle_description text was edited without a rebuild"
+            )
+            continue
+        rendered = m.group(1)
+        if rendered != correct_rendered:
+            errors.append(
+                f"[C][DATE-5][{state_slug}/{record_id}] docs/{state_slug}/index.html renders "
+                f"{rendered!r} but the correct date as of today ({today.isoformat()}) is "
+                f"{correct_rendered!r} -- this page was built before a roll-forward trigger date "
+                f"passed and needs a rebuild (any generate.py commit; this value is never hand-edited)"
+            )
+    return errors
+
+
 _TABLE_ROW_RE = re.compile(r'<tr data-month="(\d+)">(.*?)</tr>')
 _TABLE_CELL_RE = re.compile(r"<td>(.*?)</td>")
 _MONTH_NAME_TO_NUM = {name: i + 1 for i, name in enumerate(MONTH_NAMES)}
@@ -4758,6 +4869,7 @@ def main():
     all_errors += check_data_manifest_consistency(data_path, docs_dir)
     all_errors += check_cpe_hours_manifest_consistency(repo_root)
     all_errors += check_deadline_currency(data_path)
+    all_errors += check_self_rolling_dates_rendered_correctly(repo_root, data_path)
     all_errors += check_birth_month_table_currency(html_files)
     all_errors += check_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
