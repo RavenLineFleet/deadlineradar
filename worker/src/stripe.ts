@@ -377,6 +377,18 @@ export function computeProratedRefundCents(amountPaidCents: number, periodStartI
   // entirely on a guarantee made in a DIFFERENT module is exactly the
   // shape that breaks the next time a second caller (a downgrade proration,
   // a partial-period credit) doesn't inherit it.
+  //
+  // AuditLab (2026-08-29, self-directed, same hardening applied to the
+  // OTHER argument): BILL-13's own reasoning above applies equally to
+  // amountPaidCents, which had no such guard -- a negative value would
+  // return a negative refund, and at the one call site `proratedCents > 0`
+  // would silently skip it as "nothing owed" rather than flag it, the same
+  // silent-skip shape BILL-15 fixed elsewhere. Unreachable today (Stripe's
+  // own amount_paid is non-negative by construction, and the caller guards
+  // `invoice.amountPaid > 0` before this call) -- guarded anyway so this
+  // function stays self-contained rather than depending on a guarantee
+  // made in a different module.
+  if (!Number.isFinite(amountPaidCents) || amountPaidCents <= 0) return 0;
   if (!Number.isFinite(totalMs) || totalMs <= 0) return 0;
   const remainingMs = Math.max(0, Math.min(periodEndMs - asOf.getTime(), totalMs));
   return Math.round((amountPaidCents * remainingMs) / totalMs);

@@ -28,6 +28,17 @@ describe("computeProratedRefundCents", () => {
     expect(computeProratedRefundCents(19900, start, end, new Date("2026-03-01T00:00:00.000Z"))).toBe(0);
   });
 
+  // AuditLab (2026-08-29, self-directed hardening, same shape as BILL-13's
+  // date-side guard above): amountPaidCents was unguarded, so a negative
+  // input returned a negative refund instead of clamping to 0.
+  it("returns 0 rather than a negative refund for a negative or zero amountPaidCents", () => {
+    const start = "2026-01-01T00:00:00.000Z";
+    const end = "2026-02-01T00:00:00.000Z";
+    expect(computeProratedRefundCents(-19900, start, end, new Date(start))).toBe(0);
+    expect(computeProratedRefundCents(0, start, end, new Date(start))).toBe(0);
+    expect(computeProratedRefundCents(Number.NaN, start, end, new Date(start))).toBe(0);
+  });
+
   it("returns 0 rather than dividing by zero for a malformed zero-length period", () => {
     const t = "2026-01-01T00:00:00.000Z";
     expect(computeProratedRefundCents(19900, t, t, new Date(t))).toBe(0);
