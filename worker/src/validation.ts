@@ -418,7 +418,12 @@ export function sanitizeFreeText(value: string | null | undefined, maxLen: numbe
   }
   let capped = out.slice(0, maxLen);
   if (CSV_FORMULA_INJECTION_PREFIXES.has(capped.charAt(0))) {
-    capped = "'" + capped;
+    // AuditLab (2026-08-29, contract nit, not a live defect): the guard used
+    // to run AFTER the length cap, so the returned string could be
+    // maxLen + 1 -- out of step with the parameter's own name. Re-slicing
+    // keeps the promise `maxLen` makes, matching sanitizeFreeText's other
+    // callers who trust the return value never exceeds it.
+    capped = ("'" + capped).slice(0, maxLen);
   }
   return capped.length > 0 ? capped : null;
 }

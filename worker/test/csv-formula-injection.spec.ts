@@ -41,6 +41,21 @@ describe("sanitizeFreeText() CSV-formula-injection guard", () => {
     expect(sanitizeFreeText("", 120)).toBeNull();
     expect(sanitizeFreeText(null, 120)).toBeNull();
   });
+
+  // AuditLab (2026-08-29, contract nit): the prefix guard used to apply
+  // AFTER the length cap, so the result could be maxLen + 1 -- out of step
+  // with the parameter's own name. These prove the return value never
+  // exceeds maxLen, prefix or not, and that the prefix (the actual
+  // security-relevant character) survives the re-slice.
+  it("never returns more than maxLen characters, even when the CSV-injection prefix is added", () => {
+    const withPrefix = sanitizeFreeText("=SUM(A1:A9)", 10)!;
+    expect(withPrefix.length).toBe(10);
+    expect(withPrefix.charAt(0)).toBe("'");
+    expect(sanitizeFreeText("+1234567890", 10)!.length).toBe(10);
+    expect(sanitizeFreeText("-hello worldXYZ", 10)!.length).toBe(10);
+    // Unaffected -- no prefix added, no re-slice needed.
+    expect(sanitizeFreeText("normal text here", 10)!.length).toBe(10);
+  });
 });
 
 describe("staff_label / office_tag guarded end-to-end through the real API", () => {
