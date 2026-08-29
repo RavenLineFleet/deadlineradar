@@ -91,6 +91,23 @@ DIFFLAB_EVENTS_DIR = pathlib.Path(
 KIND_CHANGE = "rule_change"
 KIND_CONFLICT = "source_conflict"
 
+# REGEN-6 (AuditLab, filed 2026-08-26, still open 2026-08-29): the charter's
+# 5 labels, matching generate.py's _rule_change_status_label() dict exactly
+# (that function is the sole consumer of this field on the public page --
+# these two lists must never drift apart). A missing OR off-charter status
+# (a typo, a case variant like "died_withdrawn", or a producer-internal label
+# like "candidate_unverified_needs_interpretation") used to silently become
+# "ENACTED" -- the site's strongest legal claim -- with no whitelist check at
+# all. Now anything that isn't exactly one of these 5 is rejected rather than
+# guessed, same treatment as every other required field below.
+VALID_RULE_CHANGE_STATUSES = {
+    "ENACTED",
+    "ENACTED_DATE_PENDING",
+    "ADOPTED_RULE",
+    "PROPOSED",
+    "DIED_WITHDRAWN",
+}
+
 
 # Known jurisdiction-slug aliases between ScoutLab's vocabulary and ours.
 #
@@ -359,6 +376,23 @@ def load_difflab_events(today: date) -> tuple[list[dict], list[str]]:
                 rejected.append(f"{path.name}: unparseable effective_date {effective_date!r}")
                 continue
 
+        # REGEN-6/REGEN-10 (AuditLab): a missing status used to silently
+        # become "ENACTED" -- the strongest claim the site makes -- and any
+        # OFF-CHARTER value (a case variant like "died_withdrawn", or a
+        # producer-internal label like
+        # "candidate_unverified_needs_interpretation") passed through
+        # verbatim with no check at all, where generate.py's renderer would
+        # then ALSO fail open to "Enacted" on anything it didn't recognize.
+        # Reject here, loudly, same as every other required field above --
+        # a human must supply a real charter status, never a guess.
+        status = raw.get("status")
+        if status not in VALID_RULE_CHANGE_STATUSES:
+            rejected.append(
+                f"{path.name}: status {status!r} is missing or not one of the charter's 5 labels "
+                f"({sorted(VALID_RULE_CHANGE_STATUSES)}) -- refusing to guess a legal-status claim"
+            )
+            continue
+
         events.append({
             "event_id": raw.get("event_id") or f"{slug}-regwatch-{path.stem}",
             "jurisdiction_slug": slug,
@@ -375,7 +409,7 @@ def load_difflab_events(today: date) -> tuple[list[dict], list[str]]:
             "summary_public": summary_public,
             "kind": KIND_CHANGE,
             "effective_date": parsed.isoformat() if parsed else None,
-            "status": raw.get("status") or "ENACTED",
+            "status": status,
             "status_evidence": raw.get("status_evidence"),
             "status_source_url": _http(raw.get("status_source_url")) or citation_url,
             "upcoming": bool(parsed and parsed > today),
