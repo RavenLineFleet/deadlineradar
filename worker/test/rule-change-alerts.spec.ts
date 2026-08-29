@@ -421,6 +421,30 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
     expect(built.subject).toBe("Missouri practice/license rule change -- Acme CPA");
     expect(built.subject.toLowerCase()).not.toContain("mobility");
   });
+
+  // AuditLab's cosmetic nit on ALERT-3's close (2026-08-29): an explicit ""
+  // bypasses TS's default-parameter substitution (only `undefined` triggers
+  // it), which used to produce "Idaho  rule change" -- a double space and a
+  // missing noun. Not reachable through the real /firm/rule-change/notify
+  // handler today (its own `topicRaw || undefined` already normalizes), but
+  // the builder itself should not degrade to broken wording if ever called
+  // this way directly.
+  it("an explicitly empty-string topic (not just an omitted argument) still falls back cleanly, no double space", async () => {
+    const { buildRuleChangeNotificationEmail } = await import("../src/emails");
+    const built = buildRuleChangeNotificationEmail(
+      "Acme CPA",
+      "Idaho",
+      "Idaho",
+      "A rule changed.",
+      "January 1, 2028",
+      null,
+      "https://deadline-radar.com/unsubscribe?token=x",
+      ""
+    );
+    expect(built.subject).toBe("Idaho practice/license rule change -- Acme CPA");
+    expect(built.subject).not.toContain("  ");
+    expect(built.textBody).not.toContain("upcoming  rule change");
+  });
 });
 
 describe("POST /firm/rule-change/notify forwards topic end to end", () => {
