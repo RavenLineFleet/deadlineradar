@@ -7560,8 +7560,16 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             f'<div class="item"><span class="n">{len(_live_pending_changes)}</span>'
             f'<span class="lbl">pending rule changes tracked</span></div>'
             f'<div class="item"><span class="n">{len(_live_conflicts)}</span>'
-            f'<span class="lbl">jurisdiction{"s" if len(_live_conflicts) != 1 else ""} where we withhold '
-            f'a determination</span></div>'
+            # AuditLab COPY-15 (LOW, 2026-08-28): "withhold a determination" was
+            # retired from /rule-changes/ per Devin's "be positive" direction
+            # (0f189964c), but survived here unchanged -- orphaned against a
+            # DIFFERENT six (the source-conflict jurisdictions, not the
+            # non-computable ones the footnote below actually explains), so a
+            # reader moving between this stat and the footnote could conflate
+            # two unrelated sixes. Reworded to match the same "found a
+            # conflict" framing used everywhere else now.
+            f'<span class="lbl">jurisdiction{"s" if len(_live_conflicts) != 1 else ""} with a live '
+            f'source conflict</span></div>'
         )
 
     stats_band_html = f"""<section class="band-section band-section--alt dr-reveal">
