@@ -118,34 +118,48 @@ def _public_summary(r: dict, is_conflict: bool) -> str:
     of free text is exactly the kind of check that silently misses the next
     variant. Never derive this from flux_note/notes again.
 
-    KNOWN BUG, do not re-enable blind (AuditLab REGEN-4, 2026-08-26): the
-    `basis` branch below reads `equivalence_test`, which is the record's
-    CURRENT classification, and asserts the rule "is changing to" that same
-    basis -- self-contradictory for a state whose target IS its current
-    basis (confirmed live-wrong for Indiana and Massachusetts; only reads
-    "correct" for Louisiana/Missouri by what looks like coincidence, not a
-    verified current-vs-target distinction anyone has actually confirmed).
-    Currently dead code: every mobility record that would reach this branch
-    is withheld (missing `status`, see `build()`'s elif). The MOMENT any of
-    those 9 withheld records gets an authored `status` field added back
-    (REGEN-5 follow-up), this bug republishes itself unless this function is
-    fixed first -- don't add a status field to one of them without also
-    fixing or removing this branch.
+    REMOVED, not just guarded (AuditLab REGEN-4, filed 2026-08-26, re-
+    verified 2026-08-29): this used to have a `basis` branch that read
+    `equivalence_test` -- the record's CURRENT classification -- and
+    asserted the rule "is changing to" that same basis. Self-contradictory
+    for any state whose target basis IS its current one (confirmed live-
+    wrong for Indiana and Massachusetts), and never a verified current-vs-
+    target distinction for the others either -- there is no field anywhere
+    in this data model for what a mobility rule is actually changing TO,
+    only what it currently IS, so "changing to <current basis>" could never
+    be right except by accident. It was dead code at the time (every record
+    that could reach it was withheld, missing `status`), and re-verification
+    found the count of records one `status` field away from republishing it
+    had grown 6.5x (9 -> 44) with zero gate watching for that -- a docstring
+    warning is not a control, it just delays the incident to whoever adds a
+    status field without having read this comment. Deleted the guess
+    entirely rather than gate it: the generic sentence below is honest with
+    zero fields to author, and stays honest regardless of what any current
+    or future flux record's status/equivalence_test look like. If a specific
+    "changing to X" claim is ever wanted, it needs its own explicitly-
+    authored target field (e.g. rule_changes_to) that only gets set once
+    someone has actually researched the target -- never derived from a
+    CURRENT-state field again.
     """
     state = r.get("state") or r.get("state_slug") or "This jurisdiction"
     if is_conflict:
+        # Devin, live, 2026-08-28: "We need to be positive in what we tell
+        # people and a IDK isn't something i want to publish." This sentence
+        # was the ORIGINAL source of "withhold a determination" for every
+        # conflict record -- fixed directly in data/reg_change_events.json
+        # and generate.py that day, but this function is what regenerates
+        # that file's summary_public field from scratch. Left unfixed here,
+        # the very next time this script runs (a new conflict detected, or
+        # an existing one re-synced) would have silently reintroduced the
+        # retired phrasing, undoing that fix without anyone touching the
+        # data file directly. Matches the exact reframe applied everywhere
+        # else: leads with what was actually found, not with "we don't
+        # know."
         return (
-            f"Our two primary sources for {state} currently disagree about its mobility rule. "
-            "We withhold a determination rather than pick a side until this resolves."
+            f"{state}'s own primary legal sources don't agree with each other on this rule. "
+            f"Rather than guess, we found the conflict and are showing you exactly where it is "
+            f"below — read both citations yourself, or confirm directly with the {state} board."
         )
-    basis = {
-        "individual_criteria": "individual-criteria mobility (based on the practitioner's own "
-                                "license and experience, not their home state's status)",
-        "nasba_state_level": "state-level substantial-equivalence mobility (based on the "
-                              "practitioner's home state's overall status)",
-    }.get(r.get("equivalence_test"))
-    if basis:
-        return f"{state}'s CPA mobility rule is changing to {basis}. See the citation below for the exact requirements."
     return f"{state}'s CPA mobility rule is changing. See the citation below for the exact requirements."
 
 
