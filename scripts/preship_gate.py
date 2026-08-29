@@ -2806,16 +2806,27 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     it's advertised to every visitor on /pricing/ while Stripe bills
     something else, silently.
 
-    Deliberately scoped to the two most structurally-identifiable,
-    highest-stakes surfaces rather than a blind whole-file '$NNN' sweep --
-    generate.py legitimately contains other dollar amounts that are NOT
-    DeadlineRadar's own pricing (state-board late/reinstatement fees baked
-    into the CPA-deadline dataset, a folded-away $39/year individual tier
-    mentioned only in a docstring) and a blind sweep would false-positive on
-    every one of them. Both surfaces checked here carry a `data-tier`
-    attribute that maps directly to a FIRM_TIERS entry, so there's no
-    ordering assumption to get wrong: the /pricing/ page's 4 price cards,
-    and the in-app paywall modal's upgrade buttons."""
+    Deliberately scoped to structurally-identifiable surfaces rather than a
+    blind whole-file '$NNN' sweep -- generate.py legitimately contains other
+    dollar amounts that are NOT DeadlineRadar's own pricing (state-board
+    late/reinstatement fees baked into the CPA-deadline dataset, a
+    folded-away $39/year individual tier mentioned only in a docstring) and
+    a blind sweep would false-positive on every one of them. The first two
+    surfaces below carry a `data-tier` attribute that maps directly to a
+    FIRM_TIERS entry, so there's no ordering assumption to get wrong: the
+    /pricing/ page's 4 price cards, and the in-app paywall modal's upgrade
+    buttons.
+
+    BILL-14 (AuditLab, 2026-08-29): a mutation test proved those two checks
+    alone are a trap -- fixing exactly what they name and re-running the
+    gate goes GREEN while 4 more public surfaces still advertise the old
+    price, which reads as "pricing verified against Stripe" when only 2 of
+    6 surfaces were. Extended with 3 more structurally-identifiable shapes:
+    the homepage/for-firms "bounds" prose ("from $X/year (N staff) to
+    $Y/year (M staff)"), the /for-firms/ segment-detail cards (matched by
+    their own tier label text, since they don't carry data-tier), and the
+    same bounds prose in i18n.py's Spanish copy -- the first time this
+    check has ever read i18n.py at all."""
     tiers_ts = repo_root / "worker" / "src" / "tiers.ts"
     generate_py = repo_root / "generate.py"
     if not tiers_ts.exists():
@@ -2826,10 +2837,15 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     tiers_match = re.search(r"FIRM_TIERS[^=]*=\s*\[(.*?)\n\];", ts_text, re.DOTALL)
     if not tiers_match:
         return ["[SYNC] worker/src/tiers.ts's FIRM_TIERS literal not found -- can't verify generate.py's pricing copy against it"]
-    tier_rows = re.findall(r'planTier:\s*"([a-z_]+)".*?priceUsd:\s*(\d+).*?seatCap:\s*(\d+)', tiers_match.group(1))
+    tier_rows = re.findall(
+        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?seatCap:\s*(\d+)',
+        tiers_match.group(1),
+    )
     if not tier_rows:
         return ["[SYNC] Could not parse individual tier entries out of worker/src/tiers.ts's FIRM_TIERS"]
-    by_plan_tier = {pt: {"priceUsd": int(price), "seatCap": int(cap)} for pt, price, cap in tier_rows}
+    by_plan_tier = {pt: {"label": label, "priceUsd": int(price), "seatCap": int(cap)} for pt, label, price, cap in tier_rows}
+    by_label = {v["label"]: v for v in by_plan_tier.values()}
+    lowest_tier, highest_tier = by_plan_tier[tier_rows[0][0]], by_plan_tier[tier_rows[-1][0]]
 
     py_text = generate_py.read_text(encoding="utf-8")
     errors = []
@@ -2880,6 +2896,67 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 f"${tier['priceUsd']}/year, {tier['seatCap']} seats for it -- the pricing page and the "
                 f"actual seat-cap gate/checkout would disagree."
             )
+
+    # BILL-14 (AuditLab, 2026-08-29): the two checks above only cover the
+    # /pricing/ cards and the paywall modal -- a mutation test proved a
+    # developer who fixes exactly what the gate names, then re-runs it,
+    # gets a GREEN result while 4 other public surfaces still advertise
+    # the OLD price: the homepage/for-firms "bounds" prose ("from $X/year
+    # ... to $Y/year"), the /for-firms/ segment-detail cards, and Spanish
+    # copy in i18n.py (which this check never even opened before). A gate
+    # that passes having verified only 2 of 6 surfaces is worse than an
+    # honest gap -- it actively certifies a still-wrong price as checked.
+    bounds_pat = re.compile(
+        r"\$(\d+)/year\s*\((?:up to\s+)?(\d+)\s+staff\)\s*to\s*\$(\d+)/year\s*\((?:up to\s+)?(\d+)\s+staff\)"
+    )
+    bounds_matches = list(bounds_pat.finditer(py_text))
+    for m in bounds_matches:
+        lo_price, lo_cap, hi_price, hi_cap = (int(g) for g in m.groups())
+        if (lo_price, lo_cap) != (lowest_tier["priceUsd"], lowest_tier["seatCap"]) or \
+           (hi_price, hi_cap) != (highest_tier["priceUsd"], highest_tier["seatCap"]):
+            errors.append(
+                f"[SYNC] generate.py has bounds prose reading \"${lo_price}/year ({lo_cap} staff) to "
+                f"${hi_price}/year ({hi_cap} staff)\", but worker/src/tiers.ts's FIRM_TIERS lowest/"
+                f"highest tiers are ${lowest_tier['priceUsd']}/year ({lowest_tier['seatCap']} staff) / "
+                f"${highest_tier['priceUsd']}/year ({highest_tier['seatCap']} staff)."
+            )
+
+    segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year\.</div>')
+    for label, price_str in segment_pat.findall(py_text):
+        tier = by_label.get(label)
+        if tier is None:
+            errors.append(f'[SYNC] generate.py\'s /for-firms/ segment cards show a "{label}" detail line with no matching label in worker/src/tiers.ts\'s FIRM_TIERS')
+            continue
+        if int(price_str) != tier["priceUsd"]:
+            errors.append(
+                f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${price_str}/year, but '
+                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']}/year for it."
+            )
+
+    i18n_path = repo_root / "i18n.py"
+    if i18n_path.exists():
+        i18n_text = i18n_path.read_text(encoding="utf-8")
+        i18n_bounds_pat = re.compile(
+            r"\$(\d+)/year for up to (\d+) staff, up to \$(\d+)/year for up to (\d+)\."
+        )
+        for lo_price_str, lo_cap_str, hi_price_str, hi_cap_str in i18n_bounds_pat.findall(i18n_text):
+            lo_price, lo_cap, hi_price, hi_cap = int(lo_price_str), int(lo_cap_str), int(hi_price_str), int(hi_cap_str)
+            if (lo_price, lo_cap) != (lowest_tier["priceUsd"], lowest_tier["seatCap"]) or \
+               (hi_price, hi_cap) != (highest_tier["priceUsd"], highest_tier["seatCap"]):
+                errors.append(
+                    f"[SYNC] i18n.py has pricing bounds prose reading \"${lo_price}/year for up to {lo_cap} "
+                    f"staff, up to ${hi_price}/year for up to {hi_cap}\", but worker/src/tiers.ts's "
+                    f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']}/year "
+                    f"({lowest_tier['seatCap']} staff) / ${highest_tier['priceUsd']}/year "
+                    f"({highest_tier['seatCap']} staff)."
+                )
+
+    if not bounds_matches:
+        errors.append(
+            "[SYNC] Could not find the homepage/for-firms 'bounds' pricing prose in generate.py -- "
+            "markup shape may have changed; update check_pricing_matches_tiers()'s bounds_pat"
+        )
+
     return errors
 
 
