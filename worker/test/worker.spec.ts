@@ -4545,6 +4545,20 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
   const STALE_MOCK_DATE = firstNonHolidayOnOrAfter(
     new Date(Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`) + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000)
   );
+  // Self-caught (2026-08-29, exposed by that month's routine as_of_date
+  // refresh): ERR-4's two tests below need to create a session/license
+  // BEFORE the clock jumps to STALE_MOCK_DATE (so creation isn't itself
+  // blocked by the staleness guard) but that setup can't happen at REAL
+  // wall-clock "now" either -- once as_of_date is close to today (as it now
+  // always is, right after a refresh), STALE_MOCK_DATE (as_of_date + 31
+  // days) lands more than SESSION_TTL_DAYS (30) after a session created at
+  // real "now", so the session is already expired (401) by the time the
+  // staleness-triggering request fires, masking the 503 these tests exist
+  // to prove. FRESH_MOCK_DATE sits at as_of_date + 10 days -- inside the
+  // 30-day staleness window (so setup succeeds) AND within 30 days of
+  // STALE_MOCK_DATE (so a session created here is still valid there),
+  // regardless of how close as_of_date is to the real calendar date.
+  const FRESH_MOCK_DATE = new Date(Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`) + 10 * 86_400_000);
 
   // ERR-4 (AuditLab, 2026-08-21): this response used to render err.message
   // verbatim -- internal operator diagnostic tone ("REFUSING:", "as_of_date",
@@ -4576,9 +4590,13 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
   });
 
   it("ERR-4: POST /firm/licenses (create) also returns the same plain-language 503, no operator jargon", async () => {
-    const { cookie } = await createFirmWithSession("Stale Guard Create Firm", `staleguardcreate-${Date.now()}@example.com`);
+    // Session created at FRESH_MOCK_DATE, not real "now" -- see that
+    // constant's own comment for why (session-TTL-vs-staleness-offset
+    // collision once as_of_date is close to today).
     vi.useFakeTimers();
     try {
+      vi.setSystemTime(FRESH_MOCK_DATE);
+      const { cookie } = await createFirmWithSession("Stale Guard Create Firm", `staleguardcreate-${Date.now()}@example.com`);
       vi.setSystemTime(STALE_MOCK_DATE);
       const resp = await postFirmLicense(cookie, { email: `stale-create-${Date.now()}@example.com`, state_slug: "texas", birth_month: "7" });
       expect(resp.status).toBe(503);
@@ -4591,12 +4609,17 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
   });
 
   it("ERR-4: PATCH /firm/licenses/:id also returns the same plain-language 503, no operator jargon, when the edit touches deadline fields", async () => {
-    const { cookie } = await createFirmWithSession("Stale Guard Patch Firm", `staleguardpatch-${Date.now()}@example.com`);
-    const created = await postFirmLicense(cookie, { email: `stale-patch-${Date.now()}@example.com`, state_slug: "texas", birth_month: "7" });
-    const { id } = (await created.json()) as { id: string };
-
+    // Session AND the license being patched are both created at
+    // FRESH_MOCK_DATE (not real "now", not STALE_MOCK_DATE) -- creation
+    // must happen before data is stale (so it isn't itself refused) but
+    // late enough that the session is still valid once the clock reaches
+    // STALE_MOCK_DATE for the actual request under test.
     vi.useFakeTimers();
     try {
+      vi.setSystemTime(FRESH_MOCK_DATE);
+      const { cookie } = await createFirmWithSession("Stale Guard Patch Firm", `staleguardpatch-${Date.now()}@example.com`);
+      const created = await postFirmLicense(cookie, { email: `stale-patch-${Date.now()}@example.com`, state_slug: "texas", birth_month: "7" });
+      const { id } = (await created.json()) as { id: string };
       vi.setSystemTime(STALE_MOCK_DATE);
       // Only a deadline-affecting field (state_slug/birth_month/etc.) reaches
       // the guard -- see handleFirmLicensePatch's own stateSlugProvided ||
