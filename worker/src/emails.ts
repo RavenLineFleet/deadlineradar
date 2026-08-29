@@ -1222,8 +1222,15 @@ export function buildRuleChangeNotificationEmail(
 ): BuiltEmail {
   const addr = mailingAddress();
   const safeFirmName = firmName.replace(/[\r\n]+/g, " ");
-  const isMobilityTopic = /mobility|practice privilege/i.test(topic);
-  const topicPhrase = topic.trim().toLowerCase().endsWith("change") ? topic : `${topic} rule change`;
+  // AuditLab (2026-08-29, cosmetic nit on ALERT-3's close): an explicit
+  // empty/whitespace-only topic bypasses TS's own default-parameter
+  // substitution (which only applies to `undefined`) and would otherwise
+  // produce a double space and a missing noun ("Idaho  rule change").
+  // Normalizing here covers that call shape too, not just the omitted-
+  // argument one index.ts's `topicRaw || undefined` already handles.
+  const effectiveTopic = topic.trim() || "practice/license rule change";
+  const isMobilityTopic = /mobility|practice privilege/i.test(effectiveTopic);
+  const topicPhrase = effectiveTopic.toLowerCase().endsWith("change") ? effectiveTopic : `${effectiveTopic} rule change`;
   const changeNoun = isMobilityTopic ? "mobility rule change" : topicPhrase;
   const flaggedPhrase = isMobilityTopic ? "practice-privilege rule change" : topicPhrase;
   const confirmLine = isMobilityTopic
