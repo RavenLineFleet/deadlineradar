@@ -18940,9 +18940,29 @@ var drMobStaffLicenses = [];
   var nameEl = document.getElementById('dr-firm-name-static');
   var staffSel = document.getElementById('dr-mob-staff');
   if (!nameEl && !staffSel) return;
-  fetch('{REMINDER_BACKEND_BASE_URL}/firm/licenses', {{credentials: 'include'}}).then(function (r) {{
-    return r.ok ? r.json() : null;
-  }}).then(function (data) {{
+  // UX-15-FU (AuditLab, 2026-08-29): this used to collapse a 401 straight
+  // to `null` and silently no-op, leaving this page's signed-in dashboard
+  // chrome (nav, "Log out") rendered to a signed-out direct-URL/bookmark
+  // visitor with no sign-in affordance -- see the "own auth-redirect JS"
+  // comment on build_firm_mobility_page() below, which already asserted
+  // this page has one; it just never actually redirected. Same one-retry-
+  // then-redirect shape as the dashboard's drLoadLicensesInner() (2026-08-10
+  // ValueLab finding): a fresh login's first /firm/licenses call can 401
+  // once as a transient race even with a genuinely valid session.
+  function drFirmMobLoadLicenses(isRetry) {{
+    return fetch('{REMINDER_BACKEND_BASE_URL}/firm/licenses', {{credentials: 'include'}}).then(function (r) {{
+      if (r.status === 401) {{
+        if (!isRetry) {{
+          return new Promise(function (resolve) {{ setTimeout(resolve, 300); }})
+            .then(function () {{ return drFirmMobLoadLicenses(true); }});
+        }}
+        window.location.href = '/firm-login/';
+        return null;
+      }}
+      return r.ok ? r.json() : null;
+    }});
+  }}
+  drFirmMobLoadLicenses(false).then(function (data) {{
     if (!data) return;
     if (nameEl && data.firm_name) nameEl.textContent = data.firm_name;
     // Staff dropdown, so marking an "Action required" result complete (see
