@@ -1343,7 +1343,15 @@ export function buildRuleChangeAdminAlertEmail(
   // topic is currently always that generic fallback string, which already
   // ends in "change". Same guard as generate.py's fix: only append "rule
   // change" when topic doesn't already read as one.
-  const topicPhrase = topic.trim().toLowerCase().endsWith("change") ? topic : `${topic} rule change`;
+  //
+  // AuditLab (2026-08-29): sibling of buildRuleChangeNotificationEmail()'s
+  // own fix -- an explicit "" bypasses the default parameter above (which
+  // only fires on undefined) and would otherwise produce a double space +
+  // missing noun. Latent today (ingestion always supplies a non-empty
+  // topic, confirmed against all 9 deployed events), guarded anyway since
+  // it's the same defect shape that has produced real findings here before.
+  const effectiveTopic = topic.trim() || "practice/license rule change";
+  const topicPhrase = effectiveTopic.toLowerCase().endsWith("change") ? effectiveTopic : `${effectiveTopic} rule change`;
 
   const citationLine = citationUrl ? `Source: ${citationUrl}\n\n` : "";
   const textBody =
