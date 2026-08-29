@@ -4677,7 +4677,25 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   bubble.addEventListener('click', function () { setOpen(panel.hidden); });
   if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); bubble.focus(); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !panel.hidden) { setOpen(false); bubble.focus(); }
+    if (e.key !== 'Escape' || panel.hidden) return;
+    setOpen(false);
+    bubble.focus();
+    // AuditLab A11Y-16 (LOW, 2026-08-28): this widget's script loads early
+    // in the page (page_shell's _CHAT_WIDGET_HTML), so this listener is
+    // registered BEFORE the product tour's own document-level Escape
+    // listener further down the page -- meaning it always runs first on
+    // the same keydown. Without this, one Escape dismissed both overlays
+    // when a user opened the chat mid-tour to ask something: this handler
+    // already closed the chat and set panel.hidden = true by the time the
+    // tour's own listener ran, so a same-tick "is the chat open" check in
+    // THAT listener always read false, the state this handler had just
+    // set -- a same-event-tick check can't reliably see "open before this
+    // keydown" when another listener on the same event already mutated it
+    // first. stopImmediatePropagation() sidesteps the ordering problem
+    // entirely: no other listener on this event runs at all once this one
+    // has claimed it, so the tour (or anything else layered later) simply
+    // never sees this Escape.
+    e.stopImmediatePropagation();
   });
 
   function renderMessage(text, cls) {
@@ -17483,8 +17501,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // rule-change modal, notifications, questionnaire, NPS, testimonial,
     // delete-account modal) and the chat widget shipped the same day --
     // this was the one inconsistent one.
+    //
+    // AuditLab A11Y-16 (LOW, 2026-08-28), filed against A11Y-15's own fix:
+    // both this handler and the chat widget's own document-level Escape
+    // listener fire on the SAME keydown with no topmost-wins guard, so one
+    // Escape dismissed both overlays at once -- caught live opening the
+    // chat mid-tour and pressing Escape to close just the chat, which also
+    // silently closed the tour behind it. Costly, not cosmetic, because the
+    // tour has no resume: a lost tour restarts the whole 12-step flow from
+    // step 1. The chat widget is the one the user is actively typing into
+    // when both happen to be open, so it wins -- this handler simply skips
+    // while #dr-chat-panel is open rather than adding stopPropagation()
+    // gymnastics to either listener.
     document.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Escape' && !productTourEl.hidden) drEndProductTour();
+      if (ev.key !== 'Escape' || productTourEl.hidden) return;
+      var chatPanel = document.getElementById('dr-chat-panel');
+      if (chatPanel && !chatPanel.hidden) return;
+      drEndProductTour();
     });
   }
   var reportPrintBtn = document.getElementById('dr-report-print-btn');
