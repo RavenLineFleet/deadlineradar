@@ -39,6 +39,7 @@ build. Run it deliberately, on a cadence, not on every ship.
 Usage: python scripts/check_citation_links.py [repo_root]
 """
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -114,6 +115,36 @@ def _control_url_for(url: str) -> str:
     return f"{_host_key(url)}/deadlineradar-link-check-control-{suffix}/"
 
 
+# AuditLab CITE-65 (LOW, 2026-08-28), filed against CITE-64's own fix:
+# exact byte equality missed Minnesota's Radware Bot Manager captcha
+# specifically because it injects a fresh nonce (a UUID) into every
+# response, so the control probe's body and the real citation's body --
+# same 21,621-byte captcha page in both cases -- were never byte-
+# identical, and the old check fell through to a false LIVE. Two
+# independent, cheaper-to-defeat-by-accident signals layered here per
+# AuditLab's own two candidate fixes, combined rather than choosing one:
+# normalize away injected entropy before comparing (their "preferred,
+# more precise" option -- strips UUIDs and long hex/base64/digit runs,
+# the exact pattern Minnesota's nonce matches), OR treat an identical
+# raw byte-length at the same 200 status as UNVERIFIABLE too (their
+# "cheap, errs toward can't-tell" option) -- if EITHER signal fires,
+# call it UNVERIFIABLE rather than requiring both, since a false
+# UNVERIFIABLE just means "check this one in a browser" while a false
+# LIVE means a dead citation goes unnoticed forever, and AuditLab
+# explicitly named erring toward can't-tell as the safe direction.
+_ENTROPY_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"  # UUID
+    r"|\b[0-9a-fA-F]{16,}\b"  # long hex run
+    r"|\b[A-Za-z0-9+/_-]{20,}={0,2}\b"  # long base64-ish run
+    r"|\b\d{10,}\b"  # long digit run (epoch timestamps, session ids)
+)
+
+
+def _normalize(body: bytes) -> str:
+    text = body.decode("utf-8", errors="replace")
+    return _ENTROPY_RE.sub("<ENTROPY>", text)
+
+
 def classify(real_status, real_body, sig_status, sig_body) -> tuple[str, str]:
     """Returns (verdict, reason). verdict is one of LIVE / DEAD / UNVERIFIABLE."""
     # Bot defense: a 403 on the real citation, or on the control probe
@@ -127,8 +158,13 @@ def classify(real_status, real_body, sig_status, sig_body) -> tuple[str, str]:
     if real_status is None:
         return "UNVERIFIABLE", "citation URL failed at the network level (not a real HTTP status)"
     if sig_status == 200 and real_status == 200:
-        if sig_body is not None and real_body is not None and sig_body == real_body:
-            return "UNVERIFIABLE", "host returns identical 200 content for a garbage path (SPA shell or captcha-at-200)"
+        if sig_body is not None and real_body is not None:
+            if sig_body == real_body:
+                return "UNVERIFIABLE", "host returns byte-identical 200 content for a garbage path (SPA shell or captcha-at-200)"
+            if len(sig_body) == len(real_body):
+                return "UNVERIFIABLE", f"host returns 200 content of the exact same length ({len(real_body)} bytes) for a garbage path -- likely the same page with injected entropy (e.g. a per-request nonce)"
+            if _normalize(sig_body) == _normalize(real_body):
+                return "UNVERIFIABLE", "host returns 200 content for a garbage path that's identical once known entropy (UUIDs, long hex/base64/digit runs) is stripped -- likely the same page with an injected nonce"
         return "LIVE", "200, and distinguishable from this host's garbage-path response"
     if 200 <= real_status < 400:
         return "LIVE", str(real_status)
