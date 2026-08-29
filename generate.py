@@ -8789,13 +8789,23 @@ not every commit, but every change that could affect what a visitor sees. See
 
 
 def _rule_change_status_label(status: str | None) -> str:
+    # REGEN-10 (AuditLab, 2026-08-29, HIGH): this used to default any
+    # unrecognized status -- missing, a case variant like "died_withdrawn",
+    # the ingestion-side withholding label "UNDETERMINED", or a producer-
+    # internal label -- to "Enacted", the site's single strongest legal
+    # claim. That is downstream of everything (mobility path, the DiffLab
+    # engine, any hand-edit to reg_change_events.json) and defeats
+    # build_change_events.py's own status whitelist (REGEN-6): a status the
+    # ingestion side correctly refused to guess must not become a confident
+    # claim here either. The default is now the same non-committal label
+    # ingestion already uses for "we could not establish this."
     return {
         "ENACTED": "Enacted",
         "ENACTED_DATE_PENDING": "Enacted, date pending",
         "ADOPTED_RULE": "Adopted rule",
         "PROPOSED": "Proposed",
         "DIED_WITHDRAWN": "Died / withdrawn",
-    }.get(status or "", "Enacted")
+    }.get(status or "", "Status undetermined")
 
 
 def _rule_change_card_html(e: dict) -> str:
