@@ -13008,11 +13008,32 @@ function drRenderProductTourStep() {
     if (scrollTargetEl) scrollTargetEl.scrollIntoView({block: 'center', behavior: 'auto'});
   }
   drPositionProductTour();
+  // AuditLab A11Y-15: must run AFTER drSwitchView above, not before --
+  // drSwitchView moves focus to the newly active view panel itself (see
+  // its own tabindex="-1"/.focus() call), which would immediately steal
+  // focus back out of the dialog if this ran first. Next/Done is the
+  // primary action on every step, so keeping focus there (not just on
+  // first open) matches expected wizard-dialog behavior for a keyboard/
+  // screen-reader user advancing through it.
+  nextBtn.focus();
 }
 
-function drStartProductTour() {
+// AuditLab A11Y-15 (LOW, 2026-08-28): this dialog took no focus when it
+// opened and ignored Escape -- the chat widget shipped the same day does
+// both correctly (see its own Escape listener), so this brings the tour
+// in line with the pattern this dashboard already uses everywhere else
+// (drOpenEditModal/drCloseEditModal's own triggerBtn comment is the
+// original of this pattern). drProductTourTriggerBtn is null for the
+// auto-open case (product_tour_pending on load -- nothing a user clicked,
+// so there's nothing to return focus to on close, same as it would be for
+// any other auto-opening dialog) and the replay button for a manual
+// re-open, mirroring drEditModalTriggerBtn exactly.
+var drProductTourTriggerBtn = null;
+
+function drStartProductTour(triggerBtn) {
   drProductTourActive = true;
   drProductTourStepIndex = 0;
+  drProductTourTriggerBtn = triggerBtn || null;
   var el = document.getElementById('dr-product-tour');
   if (el) el.hidden = false;
   drRenderProductTourStep();
@@ -13035,6 +13056,28 @@ function drEndProductTour() {
   var el = document.getElementById('dr-product-tour');
   if (el) el.hidden = true;
   drSetProductTourTarget(null);
+  // AuditLab A11Y-15: same triggerBtn-restore pattern as
+  // drCloseEditModal, with one difference this dialog specifically needs:
+  // unlike the edit modal (whose trigger lives in the same view the whole
+  // time it's open), the tour SWITCHES views as steps advance, so its
+  // trigger (the replay button, in the Account tab) can easily end up
+  // inside a now-hidden `.dr-view` by the time the tour closes -- an
+  // element in a display:none/[hidden] ancestor has no offsetParent and
+  // silently refuses .focus() (verified live: this actually happened
+  // stepping through the tour and pressing Escape, not a hypothetical).
+  // Falls back to the CURRENTLY active view panel -- already a real,
+  // deliberate focus target elsewhere on this dashboard (see drSwitchView's
+  // own tabindex="-1"/.focus() -- A11Y-2/TAB-1) -- rather than leaving
+  // focus dangling on the element that was just hidden.
+  var triggerVisible = drProductTourTriggerBtn && document.body.contains(drProductTourTriggerBtn)
+    && drProductTourTriggerBtn.offsetParent !== null;
+  if (triggerVisible) {
+    drProductTourTriggerBtn.focus();
+  } else {
+    var activeView = document.querySelector('.dr-view:not([hidden])');
+    if (activeView) activeView.focus();
+  }
+  drProductTourTriggerBtn = null;
   fetch('/api/firm/product-tour/dismiss', {method: 'POST', credentials: 'include'}).catch(function() {});
 }
 
@@ -17424,7 +17467,26 @@ document.addEventListener('DOMContentLoaded', function() {
   var productTourSkipBtn = document.getElementById('dr-product-tour-skip-btn');
   if (productTourSkipBtn) productTourSkipBtn.addEventListener('click', drEndProductTour);
   var productTourReplayBtn = document.getElementById('dr-product-tour-replay-btn');
-  if (productTourReplayBtn) productTourReplayBtn.addEventListener('click', drStartProductTour);
+  if (productTourReplayBtn) {
+    // Not a direct function reference (drStartProductTour now takes a
+    // triggerBtn argument for A11Y-15's focus-restore -- a bare listener
+    // reference here would pass the click Event itself as that argument
+    // instead of the button, silently breaking the restore).
+    productTourReplayBtn.addEventListener('click', function() {
+      drStartProductTour(productTourReplayBtn);
+    });
+  }
+  var productTourEl = document.getElementById('dr-product-tour');
+  if (productTourEl) {
+    // AuditLab A11Y-15: same "Escape closes" pattern as every other
+    // role="dialog" on this dashboard (edit modal, documents modal,
+    // rule-change modal, notifications, questionnaire, NPS, testimonial,
+    // delete-account modal) and the chat widget shipped the same day --
+    // this was the one inconsistent one.
+    document.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Escape' && !productTourEl.hidden) drEndProductTour();
+    });
+  }
   var reportPrintBtn = document.getElementById('dr-report-print-btn');
   if (reportPrintBtn) reportPrintBtn.addEventListener('click', function() { window.print(); });
   var rosterPrintBtn = document.getElementById('dr-roster-print-btn');
