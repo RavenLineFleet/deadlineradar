@@ -6,7 +6,7 @@
  * "POST /firm/rule-change/notify" conventions.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
 import { runRuleChangeAlertPass } from "../src/scheduler";
 
@@ -358,6 +358,114 @@ describe("isEmailableRuleChangeEvent() -- AuditLab ALERT-1", () => {
     expect(
       isEmailableRuleChangeEvent(baseEvent({ effective_date: "2027-01-01", upcoming: false }), new Date("2026-08-27T00:00:00Z"))
     ).toBe(false);
+  });
+});
+
+describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", () => {
+  // Filed 2026-08-26, re-verified live 2026-08-29: this builder hardcoded
+  // "mobility"/"practice-privilege" wording from when the rule-change feed
+  // was mobility-only. Today every emailable event is a DiffLab regwatch
+  // event -- AuditLab's live production example was Oklahoma's licensure-
+  // pathway change (topic "CPA regulatory/statutory change") going out
+  // headed "Oklahoma mobility rule change".
+  it("a non-mobility topic gets generic wording -- no 'mobility' or 'practice-privilege' claim, no Practice Privilege Check CTA", async () => {
+    const { buildRuleChangeNotificationEmail } = await import("../src/emails");
+    const built = buildRuleChangeNotificationEmail(
+      "Acme CPA",
+      "Oklahoma",
+      "Oklahoma",
+      "HB4317 adds a bachelor's-degree-plus-experience pathway to CPA licensure.",
+      "November 1, 2026",
+      "https://example.gov/hb4317",
+      "https://deadline-radar.com/unsubscribe?token=x",
+      "CPA regulatory/statutory change"
+    );
+    expect(built.subject).toBe("Oklahoma CPA regulatory/statutory change -- Acme CPA");
+    expect(built.subject.toLowerCase()).not.toContain("mobility");
+    expect(built.textBody.toLowerCase()).not.toContain("mobility");
+    expect(built.textBody.toLowerCase()).not.toContain("practice-privilege");
+    expect(built.textBody).not.toContain("Practice Privilege Check");
+    expect(built.textBody).toContain("confirm directly with the Oklahoma board of accountancy");
+    expect(built.htmlBody.toLowerCase()).not.toContain("mobility");
+    expect(built.htmlBody).not.toContain("Practice Privilege Check");
+  });
+
+  it("a genuinely mobility/practice-privilege topic keeps the existing wording and CTA -- no regression", async () => {
+    const { buildRuleChangeNotificationEmail } = await import("../src/emails");
+    const built = buildRuleChangeNotificationEmail(
+      "Acme CPA",
+      "Illinois",
+      "Illinois",
+      "Illinois adopts substantial equivalency for practice privilege.",
+      "January 1, 2027",
+      null,
+      "https://deadline-radar.com/unsubscribe?token=x",
+      "practice privilege (mobility)"
+    );
+    expect(built.subject).toBe("Illinois mobility rule change -- Acme CPA");
+    expect(built.textBody).toContain("practice-privilege rule change");
+    expect(built.textBody).toContain("check Practice Privilege Check or confirm directly with the Illinois board of accountancy");
+  });
+
+  it("a missing/empty topic (older cached page) falls back to generic wording, not mobility -- fails safe, not to the old wrong default", async () => {
+    const { buildRuleChangeNotificationEmail } = await import("../src/emails");
+    const built = buildRuleChangeNotificationEmail(
+      "Acme CPA",
+      "Missouri",
+      "Missouri",
+      "A rule changed.",
+      "August 28, 2026",
+      null,
+      "https://deadline-radar.com/unsubscribe?token=x"
+    );
+    expect(built.subject).toBe("Missouri practice/license rule change -- Acme CPA");
+    expect(built.subject.toLowerCase()).not.toContain("mobility");
+  });
+});
+
+describe("POST /firm/rule-change/notify forwards topic end to end", () => {
+  const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+
+  it("a non-mobility topic in the request body reaches the actual sent email, not the old hardcoded mobility wording", async () => {
+    const { firmId, memberId } = await newFirmWithRosterLicense("alert3-e2e", "oklahoma");
+    const cookie = await sessionCookieFor(firmId, memberId);
+
+    const captured: Array<{ subject: string }> = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === SENDGRID_URL) {
+        const body = JSON.parse(String(init?.body)) as { subject: string };
+        captured.push({ subject: body.subject });
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch in ALERT-3 e2e test: ${url}`);
+    });
+    try {
+      const resp = await workerFetch(
+        new Request(`${BASE}/firm/rule-change/notify`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie, Origin: BASE, "cf-connecting-ip": "203.0.113.90" },
+          body: JSON.stringify({
+            state_slug: "oklahoma",
+            jurisdiction: "Oklahoma",
+            summary: "HB4317 adds a bachelor's-degree-plus-experience pathway to CPA licensure.",
+            effective_date_label: "November 1, 2026",
+            citation_url: "",
+            topic: "CPA regulatory/statutory change",
+          }),
+        }),
+        { SENDGRID_API_KEY: "test-key-not-real" }
+      );
+      expect(resp.status).toBe(200);
+      const respBody = (await resp.json()) as { sent: number };
+      expect(respBody.sent).toBe(1);
+      expect(captured).toHaveLength(1);
+      const sentSubject = captured[0]?.subject ?? "";
+      expect(sentSubject).toBe("Oklahoma CPA regulatory/statutory change -- alert3-e2e LLP");
+      expect(sentSubject.toLowerCase()).not.toContain("mobility");
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });
 

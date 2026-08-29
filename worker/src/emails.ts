@@ -1203,11 +1203,33 @@ export function buildRuleChangeNotificationEmail(
   summary: string,
   effectiveDateLabel: string,
   citationUrl: string | null,
-  unsubscribeUrl: string
+  unsubscribeUrl: string,
+  // ALERT-3 staff half (AuditLab, 2026-08-26, filed; 2026-08-29 re-verified
+  // live and corrected -- see the notify handler's own comment for the
+  // mechanism). This builder hardcoded "mobility"/"practice-privilege"
+  // wording from when the rule-change feed was mobility-only; today 100% of
+  // notifiable events are DiffLab regwatch events with unrelated topics
+  // (e.g. Oklahoma's licensure-pathway change went out headed "Oklahoma
+  // mobility rule change"). Same optional-topic-with-fallback shape as
+  // buildRuleChangeAdminAlertEmail() below, and the same mobility-detection
+  // test generate.py's drRuleChangeShortTopic() already established
+  // (topic containing "mobility" or "practice privilege") -- kept the
+  // existing mobility wording (including the Practice Privilege Check CTA,
+  // the correct tool for that class) ONLY when the topic actually is
+  // mobility; anything else gets generic wording and points at the board
+  // directly rather than a tool meant for a different kind of question.
+  topic: string = "practice/license rule change"
 ): BuiltEmail {
   const addr = mailingAddress();
   const safeFirmName = firmName.replace(/[\r\n]+/g, " ");
-  const subject = `${jurisdiction} mobility rule change -- ${safeFirmName}`;
+  const isMobilityTopic = /mobility|practice privilege/i.test(topic);
+  const topicPhrase = topic.trim().toLowerCase().endsWith("change") ? topic : `${topic} rule change`;
+  const changeNoun = isMobilityTopic ? "mobility rule change" : topicPhrase;
+  const flaggedPhrase = isMobilityTopic ? "practice-privilege rule change" : topicPhrase;
+  const confirmLine = isMobilityTopic
+    ? `check Practice Privilege Check or confirm directly with the ${stateName} board of accountancy`
+    : `confirm directly with the ${stateName} board of accountancy`;
+  const subject = `${jurisdiction} ${changeNoun} -- ${safeFirmName}`;
   // UX-11 (2026-08-21): was `subject` verbatim -- effectiveDateLabel and
   // summary are both already in scope and carry the actual content of the
   // change, which the subject only gestures at.
@@ -1217,12 +1239,11 @@ export function buildRuleChangeNotificationEmail(
     ? `Source: ${citationUrl}\n\n`
     : "";
   const textBody =
-    `${safeFirmName} flagged an upcoming practice-privilege rule change in ${jurisdiction} that may ` +
+    `${safeFirmName} flagged an upcoming ${flaggedPhrase} in ${jurisdiction} that may ` +
     `affect you.\n\n` +
     `Effective ${effectiveDateLabel}:\n${summary}\n\n` +
     citationLine +
-    `This is informational only, not a determination about your own situation -- check Practice ` +
-    `Privilege Check or confirm directly with the ${stateName} board of accountancy.\n\n` +
+    `This is informational only, not a determination about your own situation -- ${confirmLine}.\n\n` +
     `If this doesn't apply to you, you can safely ignore this email.\n\n` +
     `Unsubscribe from these and other Deadline-Radar emails, one click, no sign-in: ${unsubscribeUrl}\n\n` +
     `---\n${SENDER_LINE}\n${addr}`;
@@ -1230,9 +1251,9 @@ export function buildRuleChangeNotificationEmail(
   const htmlBody = htmlShell(
     preheader,
     `<h1 class="dr-fg" style="margin:0 0 16px;font-size:19px;font-weight:700;color:${LIGHT.fg};">` +
-      `${esc(jurisdiction)} mobility rule change</h1>` +
+      `${esc(jurisdiction)} ${esc(changeNoun)}</h1>` +
       p(
-        `${esc(safeFirmName)} flagged an upcoming practice-privilege rule change in ` +
+        `${esc(safeFirmName)} flagged an upcoming ${esc(flaggedPhrase)} in ` +
           `${esc(jurisdiction)} that may affect you.`
       ) +
       p(`<strong>Effective ${esc(effectiveDateLabel)}:</strong> ${esc(summary)}`) +
@@ -1240,8 +1261,7 @@ export function buildRuleChangeNotificationEmail(
         ? `<p style="margin:0 0 20px;">${button(citationUrl, "See the source")}</p>`
         : "") +
       p(
-        `This is informational only, not a determination about your own situation -- check Practice ` +
-          `Privilege Check or confirm directly with the ${esc(stateName)} board of accountancy.`,
+        `This is informational only, not a determination about your own situation -- ${esc(confirmLine)}.`,
         13,
         LIGHT.muted
       ) +
