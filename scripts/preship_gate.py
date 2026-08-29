@@ -996,17 +996,26 @@ def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path
         if not page_path.is_file():
             errors.append(f"[C][DATE-5][{state_slug}/{record_id}] docs/{state_slug}/index.html does not exist -- cannot verify")
             continue
-        html = page_path.read_text(encoding="utf-8")
+        page_html = page_path.read_text(encoding="utf-8")
         # The record's own cycle_description is rendered verbatim inside the
         # <small> note immediately after the date value -- using a distinctive
-        # prefix of it (not the whole thing; apostrophes/quotes inside it are
-        # HTML-entity-escaped on render, e.g. "'" -> "&#x27;", so a full exact
-        # match would silently break the moment the text is edited) anchors
-        # this to the SPECIFIC record's row, not just any "Next renewal date"
-        # row on a page that may show several (Colorado's page has both an
-        # individual-license and a firm-registration renewal date).
-        anchor = re.escape(cycle_desc[:40])
-        m = re.search(r'<div class="v">([A-Za-z]+ \d{1,2}, \d{4})<small>' + anchor, html)
+        # prefix of it (not the whole thing) anchors this to the SPECIFIC
+        # record's row, not just any "Next renewal date" row on a page that
+        # may show several (Colorado's page has both an individual-license
+        # and a firm-registration renewal date).
+        #
+        # Self-caught bug (2026-08-29): apostrophes/quotes inside the prefix
+        # ARE HTML-entity-escaped on render (generate.py's esc() ==
+        # html.escape(quote=True), e.g. "'" -> "&#x27;") -- the comment above
+        # already knew this, but the code still escaped the RAW text for
+        # regex only, never applying esc()'s own entity substitution first.
+        # Worked by coincidence for co-firm (no apostrophe/quote in its first
+        # 40 chars) and broke the moment me-all's "The Board's own page..."
+        # became a second self-rolling record. Apply the same html.escape()
+        # the real renderer uses before regex-escaping, so the anchor
+        # matches what's actually on the page.
+        anchor = re.escape(html.escape(cycle_desc[:40], quote=True))
+        m = re.search(r'<div class="v">([A-Za-z]+ \d{1,2}, \d{4})<small>' + anchor, page_html)
         if not m:
             errors.append(
                 f"[C][DATE-5][{state_slug}/{record_id}] could not find this record's rendered date "
@@ -4666,6 +4675,30 @@ def print_silent_drop_advisory(repo_root: Path) -> None:
             print(f"  (skipping silent-drop advisory -- {exc.code})")
 
 
+def print_rule_change_ingestion_lag_advisory(repo_root: Path) -> None:
+    """REGEN-11 (AuditLab, 2026-08-29): the same "derive it, don't trust
+    someone remembered" pattern CRAWL-5 and STALE-12 landed, one stage
+    upstream of MON-3 -- nothing measured the gap between what DiffLab's
+    producer directory has validated and what /rule-changes/ actually
+    publishes, so 4 of 9 validated events sat unpublished with nothing
+    surfacing it. Advisory only (unlike MON-3): some lag here is NORMAL,
+    build_change_events.py is human-run by design, so hard-gating any
+    nonzero gap would flag routine, harmless lag as a shipped defect.
+    Degrades to a skip when the producer dir isn't present, same posture
+    as check_competitor_price_currency()'s docs/compare/ auto-skip."""
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import rule_change_ingestion_lag_check as rcilc
+    except ImportError:
+        print("  (skipping rule-change-ingestion-lag advisory -- rule_change_ingestion_lag_check.py not importable)")
+        return
+    print("\n--- rule-change-ingestion-lag advisory (does not affect gate exit code) ---")
+    try:
+        rcilc.main()
+    except SystemExit:
+        pass
+
+
 def print_dual_credential_citation_advisory(repo_root: Path) -> None:
     """AuditLab DATA-3 (MEDIUM, 2026-08-04): dc-all's citation covered the firm-permit
     half of an "individual CPA license and firm permit" claim, not the individual half
@@ -5093,6 +5126,7 @@ def main():
         print_renewal_fee_staleness_advisory(repo_root)
         print_rule_change_monitoring_staleness_advisory(repo_root)
         print_deployed_rule_change_staleness_advisory(repo_root)
+        print_rule_change_ingestion_lag_advisory(repo_root)
         print_guide_review_staleness_advisory(repo_root)
         print_changelog_staleness_advisory(repo_root)
         print_dual_credential_citation_advisory(repo_root)
@@ -5110,6 +5144,7 @@ def main():
     print_renewal_fee_staleness_advisory(repo_root)
     print_rule_change_monitoring_staleness_advisory(repo_root)
     print_deployed_rule_change_staleness_advisory(repo_root)
+    print_rule_change_ingestion_lag_advisory(repo_root)
     print_guide_review_staleness_advisory(repo_root)
     print_changelog_staleness_advisory(repo_root)
     print_dual_credential_citation_advisory(repo_root)
