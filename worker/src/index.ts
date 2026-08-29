@@ -5477,6 +5477,13 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   const summary = (form.summary ?? "").trim();
   const effectiveDateLabel = (form.effective_date_label ?? "").trim();
   const citationUrlRaw = (form.citation_url ?? "").trim();
+  // ALERT-3 staff half (AuditLab, 2026-08-26/2026-08-29): forwarded now so
+  // the email can say what actually changed instead of always assuming
+  // mobility -- same already-public-client-data posture as every other
+  // field here, optional so an older cached page (no topic in its inlined
+  // event data) still degrades to buildRuleChangeNotificationEmail()'s own
+  // generic fallback rather than 400ing.
+  const topicRaw = (form.topic ?? "").trim();
 
   if (!stateSlug || !jurisdiction || !summary || !effectiveDateLabel) {
     return jsonResponse(400, { error: "Missing rule-change details." });
@@ -5487,6 +5494,7 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
     [summary, MAX_RULE_CHANGE_FIELD_LEN],
     [effectiveDateLabel, MAX_RULE_CHANGE_SHORT_FIELD_LEN],
     [citationUrlRaw, MAX_RULE_CHANGE_FIELD_LEN],
+    [topicRaw, MAX_RULE_CHANGE_SHORT_FIELD_LEN],
   ] as const) {
     if (hasControlChars(value) || value.length > maxLen) {
       return jsonResponse(400, { error: "Invalid rule-change details." });
@@ -5527,6 +5535,10 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
       // because the one-click List-Unsubscribe target is each subscriber's
       // OWN unsubscribe_token -- the same token their renewal reminders use.
       const unsubscribeUrl = `${actionBaseUrl(env)}/unsubscribe?token=${encodeURIComponent(target.unsubscribe_token)}`;
+      // topicRaw || undefined -- an empty string must fall through to
+      // buildRuleChangeNotificationEmail()'s own default parameter (a bare
+      // "" would NOT trigger TS's default-parameter substitution, which
+      // only applies to undefined).
       const built = buildRuleChangeNotificationEmail(
         session.firm.name ?? "Your firm",
         jurisdiction,
@@ -5534,7 +5546,8 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
         summary,
         effectiveDateLabel,
         citationUrl,
-        unsubscribeUrl
+        unsubscribeUrl,
+        topicRaw || undefined
       );
       const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, target.email, built, env.EMAIL_ALLOWLIST);
       if (ok) sent++;

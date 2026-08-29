@@ -13674,7 +13674,13 @@ function drNotifyRuleChangeStaff() {
       jurisdiction: event.jurisdiction,
       summary: event.summary,
       effective_date_label: drFormatDeadline(event.effective_date),
-      citation_url: event.citation_url || ''
+      citation_url: event.citation_url || '',
+      // ALERT-3 staff half (AuditLab, 2026-08-26/2026-08-29): the modal's
+      // own event object already carries topic (DR_RULE_CHANGE_EVENTS,
+      // above) -- it just wasn't forwarded, so the email always assumed
+      // mobility. Same already-public-client-data posture as every other
+      // field here.
+      topic: event.topic || ''
     })
   }).then(function(res) {
     if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
