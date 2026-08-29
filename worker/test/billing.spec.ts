@@ -529,6 +529,68 @@ describe("POST /stripe/webhook", () => {
     expect(firm?.plan_tier).toBe("firm_standard");
   });
 
+  // BILL-15 (AuditLab, 2026-08-29): recordWebhookEventIfNew() used to swallow
+  // EVERY error as "already processed" -- a transient D1 failure was
+  // indistinguishable from a real duplicate, the caller skipped processing,
+  // and still returned 200 so Stripe never retried. These two tests prove
+  // the fix distinguishes them: a genuine PK conflict still returns false
+  // (against the REAL D1 error text, not a guessed one), and anything else
+  // re-throws so the outer /stripe/webhook handler's catch (index.ts) turns
+  // it into a non-2xx Stripe will retry.
+  it("recordWebhookEventIfNew returns false on a REAL duplicate-id PK conflict (matches D1's actual error text)", async () => {
+    const eventId = `evt_pk_conflict_${Date.now()}`;
+    const first = await store.recordWebhookEventIfNew(env.DB, eventId, "checkout.session.completed", null);
+    expect(first).toBe(true);
+    const second = await store.recordWebhookEventIfNew(env.DB, eventId, "checkout.session.completed", null);
+    expect(second).toBe(false);
+  });
+
+  it("recordWebhookEventIfNew re-throws a non-constraint D1 failure instead of treating it as a duplicate", async () => {
+    const failingDb = {
+      prepare: () => ({
+        bind: () => ({
+          run: () => {
+            throw new Error("D1_ERROR: storage caused object to be reset because its code was updated.");
+          },
+        }),
+      }),
+    } as unknown as D1Database;
+
+    await expect(
+      store.recordWebhookEventIfNew(failingDb, `evt_transient_${Date.now()}`, "checkout.session.completed", null)
+    ).rejects.toThrow(/storage caused object to be reset/);
+  });
+
+  it("a transient (non-constraint) D1 failure during webhook processing surfaces as a non-2xx, not a silently-dropped 200", async () => {
+    const { firmId } = await createFirmWithSession("Webhook Firm E", `webhooke-${Date.now()}@example.com`);
+    const eventId = `evt_transient_http_${firmId}`;
+    const payload = JSON.stringify({
+      id: eventId,
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          customer: "cus_test_transient",
+          subscription: "sub_test_transient",
+          metadata: { firm_id: firmId, target_plan_tier: "firm_standard" },
+        },
+      },
+    });
+    const t = Math.floor(Date.now() / 1000);
+    const sig = await signPayload(SECRET, t, payload);
+
+    const spy = vi.spyOn(store, "recordWebhookEventIfNew").mockRejectedValueOnce(new Error("D1_ERROR: network error"));
+    try {
+      const resp = await postWebhook(payload, sig, { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: SECRET });
+      expect(resp.status).not.toBe(200);
+      // Not just "not 200" -- the firm must genuinely be unmodified, not
+      // silently marked processed while the plan change never applied.
+      const firm = await store.getFirmById(env.DB, firmId);
+      expect(firm?.plan_tier).not.toBe("firm_standard");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("customer.subscription.deleted reverts the firm to the free tier and clears the subscription id", async () => {
     const { firmId } = await createFirmWithSession("Webhook Firm C", `webhookc-${Date.now()}@example.com`);
     await env.DB.prepare("UPDATE firms SET plan_tier = 'firm_starter', stripe_customer_id = 'cus_test_3', stripe_subscription_id = 'sub_test_3' WHERE id = ?1")

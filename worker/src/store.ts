@@ -3255,6 +3255,18 @@ export async function countRewardedReferrals(db: D1Database, referrerFirmId: str
  * being the PRIMARY KEY -- same "let a DB unique constraint be the race
  * guard" idiom handleFirmSignup() already uses, so two concurrent
  * deliveries of the same event can't both win.
+ *
+ * BILL-15 (AuditLab, 2026-08-29): a bare catch-all here used to swallow
+ * EVERY error, not just the intended PK conflict -- so a transient D1 write
+ * failure was indistinguishable from "already processed," the caller
+ * skipped applying the plan change, and still returned 200 (all four call
+ * sites return 200 regardless of `isNew`), so Stripe never retries. That is
+ * the exact outcome this file's own BILL-2 comment calls unacceptable:
+ * money taken, plan_tier never updated, nothing on our side reports it.
+ * Same fix idiom as updateFirmAdminEmail() above: match on the confirmed
+ * real error text for THIS table's PK conflict and re-throw anything else,
+ * so a genuine transient failure surfaces as a 500 (Stripe retries) instead
+ * of a silently-dropped event.
  */
 export async function recordWebhookEventIfNew(
   db: D1Database,
@@ -3268,10 +3280,13 @@ export async function recordWebhookEventIfNew(
       .bind(eventId, eventType, firmId, nowIso())
       .run();
     return true;
-  } catch {
-    // UNIQUE constraint violation on `id` -- already recorded, so already
-    // processed (or concurrently being processed). Either way, not new.
-    return false;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("stripe_webhook_events.id")) {
+      // Real PK conflict -- already recorded, so already processed (or
+      // concurrently being processed). Either way, not new.
+      return false;
+    }
+    throw err;
   }
 }
 
