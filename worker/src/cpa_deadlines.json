@@ -1,6 +1,6 @@
 {
   "schema_note": "Flat array of renewal records. One state can have multiple records (different license_type, cohort, or renewal group). generate.py groups records by state_slug to build one page per state. next_deadline_computed is the actual next upcoming deadline computed from as_of_date forward -- it is NOT a static fact, it must be recomputed if this file is regenerated on a later date. null means the record's pattern is not resolvable to a single date from state-level facts alone (birth-month rules with no personalization, or a firm-cycle anchor year not present in verified source data) -- in those cases see computation/cohort_groups/data_gap_note for how the page should handle it instead of asserting a fake date.",
-  "as_of_date": "2026-08-13",
+  "as_of_date": "2026-08-29",
   "spike_source": "b3_saas/day0_spike_results.md -- 10-state Day-0/7 spike, 2026-07-03. CPA-only scope; contractor licensing dropped as structurally fragmented (no single state-level license in 6/10 sampled states).",
   "records": [
     {
