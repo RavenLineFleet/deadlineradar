@@ -4542,23 +4542,42 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
     }
     return candidate;
   }
-  const STALE_MOCK_DATE = firstNonHolidayOnOrAfter(
-    new Date(Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`) + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000)
+  // AuditLab STALE-13 (LOW, 2026-08-29): the first version of this anchor
+  // was derived from as_of_date ALONE, but the real guard
+  // (deadline.ts's combinedAgeDays()) anchors on
+  // max(ageDaysFromAsOf, worstRecordAgeDays) -- the OLDEST record's
+  // last_verified, not as_of_date. A one-line monthly as_of_date bump
+  // re-verifies nothing, so the gap between as_of_date and the oldest
+  // last_verified only WIDENS every refresh (it does not reset), and an
+  // anchor keyed to as_of_date alone would silently drift away from what
+  // the guard actually uses -- the exact "test anchored on a constant the
+  // code under test doesn't use" shape this file's own STALE_MOCK_DATE
+  // comment already exists to avoid for as_of_date vs. real "now". Anchor
+  // on whichever side of the max() is actually binding today instead, so
+  // this tracks the guard permanently, not just for this month's data.
+  const OLDEST_LAST_VERIFIED_MS = Math.min(
+    ...cpaDeadlinesData.records.map((r) => Date.parse(`${r.last_verified}T00:00:00Z`)).filter((ms) => !Number.isNaN(ms))
   );
+  // The EARLIER of the two dates is the one that produces the LARGER age
+  // (age = realToday - date), and combinedAgeDays() takes the max of the
+  // two ages -- so the binding anchor is whichever date is SMALLER
+  // (Math.min on the dates), not the later one.
+  const GUARD_ANCHOR_MS = Math.min(Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`), OLDEST_LAST_VERIFIED_MS);
+  const STALE_MOCK_DATE = firstNonHolidayOnOrAfter(new Date(GUARD_ANCHOR_MS + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000));
   // Self-caught (2026-08-29, exposed by that month's routine as_of_date
   // refresh): ERR-4's two tests below need to create a session/license
   // BEFORE the clock jumps to STALE_MOCK_DATE (so creation isn't itself
   // blocked by the staleness guard) but that setup can't happen at REAL
-  // wall-clock "now" either -- once as_of_date is close to today (as it now
-  // always is, right after a refresh), STALE_MOCK_DATE (as_of_date + 31
-  // days) lands more than SESSION_TTL_DAYS (30) after a session created at
-  // real "now", so the session is already expired (401) by the time the
-  // staleness-triggering request fires, masking the 503 these tests exist
-  // to prove. FRESH_MOCK_DATE sits at as_of_date + 10 days -- inside the
-  // 30-day staleness window (so setup succeeds) AND within 30 days of
-  // STALE_MOCK_DATE (so a session created here is still valid there),
-  // regardless of how close as_of_date is to the real calendar date.
-  const FRESH_MOCK_DATE = new Date(Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`) + 10 * 86_400_000);
+  // wall-clock "now" either -- once the guard anchor is close to today,
+  // STALE_MOCK_DATE (anchor + 31 days) can land more than SESSION_TTL_DAYS
+  // (30) after a session created at real "now", so the session is already
+  // expired (401) by the time the staleness-triggering request fires,
+  // masking the 503 these tests exist to prove. FRESH_MOCK_DATE sits at
+  // anchor + 10 days -- inside the 30-day staleness window (so setup
+  // succeeds) AND within 30 days of STALE_MOCK_DATE (so a session created
+  // here is still valid there), regardless of how close the anchor is to
+  // the real calendar date.
+  const FRESH_MOCK_DATE = new Date(GUARD_ANCHOR_MS + 10 * 86_400_000);
 
   // ERR-4 (AuditLab, 2026-08-21): this response used to render err.message
   // verbatim -- internal operator diagnostic tone ("REFUSING:", "as_of_date",
