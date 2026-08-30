@@ -5814,7 +5814,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // back onto one 5/hour bucket -- exactly the bug believed fixed. `ip` is
   // already the real header value via clientIp() above (falls back to
   // "0.0.0.0" only if Cloudflare's edge somehow didn't set it).
-  const attempt1 = await callAssistantDroplet(message, sessionId, ip);
+  const attempt1 = await callAssistantDroplet(message, sessionId, ip, env);
   if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
     return jsonResponse(200, { reply: attempt1.reply });
   }
@@ -5832,7 +5832,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     return jsonResponse(429, { error: attempt1.error });
   }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
-  const attempt2 = await callAssistantDroplet(message, sessionId, ip);
+  const attempt2 = await callAssistantDroplet(message, sessionId, ip, env);
   // Whatever attempt 2 actually returned ships, success or not -- never
   // silently prefer attempt 1's result once a retry has run, and never
   // synthesize anything neither attempt actually said. attempt2 CAN itself
@@ -5858,7 +5858,7 @@ const ASSISTANT_CHAT_GENERIC_RATE_LIMITED =
  * optional and forwarded as-is when present -- the droplet's own /chat
  * keys its in-memory conversation map on it; omitting it just means this
  * one call gets no continuity, the same behavior this route always had. */
-async function callAssistantDroplet(message: string, sessionId: string | undefined, ip: string): Promise<AssistantDropletResult> {
+async function callAssistantDroplet(message: string, sessionId: string | undefined, ip: string, env: Env): Promise<AssistantDropletResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_CHAT_TIMEOUT_MS);
   try {
@@ -5869,9 +5869,20 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
     // still sent rather than omitted -- an omitted header would make Caddy
     // fall back to seeing this Worker's own shared egress IP again, the
     // exact bug this exists to fix.
+    //
+    // SecurityLab (2026-08-29): CF-Connecting-IP above is only a trustworthy
+    // rate-limit key once the droplet can tell THIS Worker's call apart from
+    // a direct, forged one -- it currently cannot, since the droplet is
+    // reachable off-Cloudflare with no shared secret. This header is that
+    // secret's Worker-side half; it is inert (the droplet ignores an unknown
+    // header) until the droplet side is configured to require it.
+    const headers: Record<string, string> = { "Content-Type": "application/json", "CF-Connecting-IP": ip };
+    if (env.ASSISTANT_DROPLET_SHARED_SECRET) {
+      headers["X-Assistant-Shared-Secret"] = env.ASSISTANT_DROPLET_SHARED_SECRET;
+    }
     const resp = await fetch(ASSISTANT_CHAT_DROPLET_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "CF-Connecting-IP": ip },
+      headers,
       body: JSON.stringify(sessionId ? { message, session_id: sessionId } : { message }),
       signal: controller.signal,
     });
