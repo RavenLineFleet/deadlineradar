@@ -6,11 +6,15 @@ real question with a 502 until someone notices. That is exactly what happened th
 secret was rotated: both sides set a value, neither compared notes, and the widget was down
 site-wide until the values were resynced.
 
-This script closes that gap for every FUTURE rotation: it sets the wrangler secret and, in the same
-breath (before the plaintext value leaves memory), curls the droplet DIRECTLY with that exact value
-to confirm it matches what's configured there. It cannot verify a value already deployed (wrangler
-secrets aren't readable back once set -- by design, and this script doesn't try to work around
-that) -- it only prevents a NEW mismatch from shipping silently.
+This script closes that gap for every FUTURE rotation: it curls the droplet DIRECTLY with the
+candidate value FIRST, and only sets the wrangler secret if that confirms a match. It cannot verify
+a value already deployed (wrangler secrets aren't readable back once set -- by design, and this
+script doesn't try to work around that) -- it only prevents a NEW mismatch from shipping silently.
+
+AuditLab (2026-08-30): verify-before-set, not set-then-verify -- the point of this tool is "don't let
+a secret change break the widget," so it must not itself be able to break a currently-working widget
+on a typo'd candidate. Verifying first makes that failure mode "nothing changed" instead of "widget
+now broken, only found out after."
 
 Verification is free: POST /chat with an empty body and the secret gets validated before any LLM
 call. A matching secret returns 400 "empty message" (reached app validation). A wrong or missing
@@ -73,6 +77,18 @@ def main() -> int:
         print("ERROR: no secret provided on stdin. Usage: echo -n '<value>' | python3 scripts/set_and_verify_assistant_secret.py", file=sys.stderr)
         return 1
 
+    print("Verifying the candidate against the droplet directly, BEFORE touching the Worker's secret (0 LLM cost)...")
+    ok, detail = verify_against_droplet(secret)
+    if not ok:
+        print(f"MISMATCH OR ERROR: {detail}", file=sys.stderr)
+        print(
+            "The candidate does NOT match what the droplet currently requires. Nothing was changed on "
+            "the Worker side -- if the widget was working before this run, it still is.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"MATCH CONFIRMED: {detail}")
+
     print("Setting wrangler secret ASSISTANT_DROPLET_SHARED_SECRET...")
     proc = subprocess.run(
         [exe("npx"), "wrangler", "secret", "put", "ASSISTANT_DROPLET_SHARED_SECRET"],
@@ -83,25 +99,14 @@ def main() -> int:
         encoding="utf-8",
     )
     if proc.returncode != 0:
-        print("ERROR: wrangler secret put failed:", file=sys.stderr)
+        print("ERROR: the candidate matches the droplet, but wrangler secret put FAILED:", file=sys.stderr)
         print(proc.stdout, file=sys.stderr)
         print(proc.stderr, file=sys.stderr)
+        print("The Worker's secret was NOT updated -- rerun once wrangler is working.", file=sys.stderr)
         return 1
-    print("Wrangler secret set. Verifying it matches the droplet directly (0 LLM cost)...")
 
-    ok, detail = verify_against_droplet(secret)
-    if ok:
-        print(f"MATCH CONFIRMED: {detail}")
-        print("Safe to consider this rotation complete. A real question through the live widget is still worth one manual check.")
-        return 0
-    else:
-        print(f"MISMATCH OR ERROR: {detail}", file=sys.stderr)
-        print(
-            "The Worker secret was set, but it does NOT match what the droplet currently requires. "
-            "The widget will keep 502ing until this is resolved -- do not report this rotation as done.",
-            file=sys.stderr,
-        )
-        return 1
+    print("Wrangler secret set. Rotation complete -- one real question through the live widget is still worth a manual check.")
+    return 0
 
 
 if __name__ == "__main__":
