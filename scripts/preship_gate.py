@@ -2086,6 +2086,52 @@ def check_retired_claims_absent_from_guides(repo_root: Path, html_files) -> list
     return errors
 
 
+def check_sitewide_freshness_stat_uses_wall_clock(repo_root: Path) -> list[str]:
+    """FRESH-2 (AuditLab, 2026-08-29, HIGH): _sitewide_freshness_stat(real_today)
+    computes the homepage/pricing/for-firms/deadline-calculator trust stat
+    ("N of 246 dated records ... re-checked in the last 30 days"). Four of
+    its five call sites passed `as_of` (the dataset's manually-bumped stamp)
+    instead of the wall clock -- so a rebuild on a LATER date recomputed the
+    exact same frozen number instead of the true, decaying one, and the
+    stat could read "246 of 246" while the site's own staleness guard was
+    simultaneously refusing signups because the data was stale.
+    build_methodology_page() already called it correctly the whole time
+    (the fifth call site), so the two only ever visibly agreed while
+    as_of == real_today by coincidence.
+
+    Cheap, targeted version of the general "parameter name declares a
+    clock kind, every call site must match" AST detector AuditLab
+    suggested: this function's own parameter is already named
+    `real_today`, so the fix is enforceable by asserting every call site
+    passes that exact identifier -- narrower than the general detector,
+    but directly closes the one function that actually broke, at zero
+    false-positive risk (a byte-for-byte source match, not a heuristic)."""
+    path = repo_root / "generate.py"
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    # Excludes the function's own `def _sitewide_freshness_stat(real_today:
+    # date)` line -- that's a parameter declaration, not a call, and would
+    # otherwise false-positive on its type annotation.
+    calls = re.findall(r"(?<!def )_sitewide_freshness_stat\(([^)]*)\)", text)
+    if not calls:
+        return [
+            "[FRESH-2] found ZERO calls to _sitewide_freshness_stat() in generate.py -- the "
+            "function was renamed/removed or this check's regex no longer matches, and it is "
+            "measuring nothing and must be repaired."
+        ]
+    errors = []
+    for i, arg in enumerate(calls):
+        if arg.strip() != "real_today":
+            errors.append(
+                f"[FRESH-2] _sitewide_freshness_stat() call #{i + 1} in generate.py passes "
+                f"{arg.strip()!r}, not real_today -- this is the exact FRESH-2 defect (a "
+                f"trust stat frozen at the dataset's as_of_date stamp instead of tracking the "
+                f"wall clock). Pass real_today (computed once in main() from date.today())."
+            )
+    return errors
+
+
 def check_stale_thresholds_unified(html_files, repo_root: Path | None = None) -> list[str]:
     """The seal and the small text caveat must flip on the SAME day count.
 
@@ -5077,6 +5123,7 @@ def main():
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
+    all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_stale_thresholds_unified(html_files, repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
