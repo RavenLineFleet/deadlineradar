@@ -4494,7 +4494,16 @@ _STALE_BADGE_RUNTIME_JS = """<script>
     if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(iso)) return;
     var then = new Date(iso + 'T00:00:00Z');
     if (isNaN(then.getTime())) return;
-    var ageDays = (now - then) / 86400000;
+    // STALE-14 (AuditLab, 2026-08-29): was a raw, unrounded float, so this
+    // flipped at any age > 30.0 -- the seal (below) parsed the SAME iso
+    // string as LOCAL time and floored, flipping only at age >= 31.0. Both
+    // scripts act on the same DOM element on 56 pages, so for roughly a
+    // day each month the badge said "overdue" while the seal's own class
+    // and aria-label still said "Verified" -- a self-contradiction on one
+    // element. Math.round matches the server guard's own rounding mode
+    // (worker/src/deadline.ts), so all three now flip at the same instant
+    // (age >= 30.5), not just read the same _STALE_DAYS constant.
+    var ageDays = Math.round((now - then) / 86400000);
     if (ageDays <= RUNTIME_STALE_DAYS) return;
     var note = document.createElement('span');
     note.className = 'verified-stale-note';
@@ -5260,9 +5269,18 @@ _SEAL_RUNTIME_JS = """<script>
       var el = seals[i];
       var iso = el.getAttribute('data-verified');
       if (!iso) continue;
-      var then = new Date(iso + 'T00:00:00');
+      // STALE-14 (AuditLab, 2026-08-29): was parsed as LOCAL time (no "Z")
+      // and floored, flipping at age >= 31.0 -- the runtime badge above
+      // parses the same iso string as UTC with no rounding at all,
+      // flipping at any age > 30.0. Both act on the same .dr-seal
+      // [data-verified] element on 56 pages, so a visitor could see the
+      // badge's "overdue" note appended to a seal whose own class/
+      // aria-label still read "Verified" for up to a day. UTC parsing +
+      // Math.round matches both the badge above and the server guard's
+      // own rounding mode -- all three now flip at the same instant.
+      var then = new Date(iso + 'T00:00:00Z');
       if (isNaN(then.getTime())) continue;
-      var days = Math.floor((Date.now() - then.getTime()) / 86400000);
+      var days = Math.round((Date.now() - then.getTime()) / 86400000);
       var stale = days > SEAL_STALE_DAYS;
       if (stale !== el.classList.contains('is-stale')) {
         el.classList.toggle('is-stale', stale);
@@ -7347,7 +7365,7 @@ def _rule_change_monitoring_fresh() -> bool:
         return False
 
 
-def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[dict]]) -> str:
+def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[dict]], real_today: date) -> str:
     # Roadmap #326 (2026-08-11, ValueLab design-pattern-mining #1): pulled
     # live at build time from the SAME data /rule-changes/ itself renders
     # (build_rule_changes_page()'s own `conflicts` list) -- never a
@@ -7445,7 +7463,16 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # shows -- same slot, same hero footprint, a stronger and more specific
     # claim (Canopy repeats one proof token across every page; this is our
     # equivalent, verifiable and recomputed at every build, never hardcoded).
-    _verified_recent, _total_citations = _sitewide_freshness_stat(as_of)
+    #
+    # FRESH-2 (AuditLab, 2026-08-29): this used to pass `as_of` -- the
+    # dataset's manually-bumped stamp -- instead of the wall clock, so the
+    # claim ("re-checked in the last 30 days") only stayed true while
+    # as_of happened to equal real_today, and a routine rebuild on a LATER
+    # date recomputed the exact same frozen number instead of the true,
+    # decaying one. build_methodology_page() already had this right
+    # (takes real_today, not as_of) -- same fix, same parameter name AST-
+    # matched against it.
+    _verified_recent, _total_citations = _sitewide_freshness_stat(real_today)
 
     all_fresh = _select_hero_rotation_pool(by_slug)
     rotation_pool = all_fresh[:_HERO_ROTATION_MAX]
@@ -7957,7 +7984,7 @@ def _paid_tier_includes_html(lang: str = "en") -> str:
     </ul>"""
 
 
-def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, lang: str = "en", publish_es: bool = True) -> str:
+def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: date, lang: str = "en", publish_es: bool = True) -> str:
     """Task #8 (2026-08-06): a dedicated /pricing/ page. Devin's rationale (the
     task's own record): an individual visitor may never click into
     /for-firms/, so today they never see ANY pricing. This is the one
@@ -7978,7 +8005,10 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, lang: str = 
     entitlements.ts's own solo-free exception. The card below reflects
     that: free, a real signup link, no mailto dead end.
     """
-    _verified_recent, _total_citations = _sitewide_freshness_stat(as_of)
+    # FRESH-2 (AuditLab, 2026-08-29): was as_of (a manually-bumped stamp),
+    # not the wall clock -- see build_index_page()'s own comment on this
+    # exact fix for the full rationale.
+    _verified_recent, _total_citations = _sitewide_freshness_stat(real_today)
     methodology_link = f'<a href="/methodology/">{esc(_t("pricing.methodology_link_text", lang))}</a>'
     signup_link = f'<a href="/#remind">{esc(_t("pricing.signup_free_link_text", lang))}</a>'
     contact_link = f'<a href="mailto:{esc(CONTACT_EMAIL)}">{esc(_t("pricing.contact_us_link_text", lang))}</a>'
@@ -9364,7 +9394,7 @@ def _firm_faq_html(lang: str = "en") -> str:
 </div>"""
 
 
-def build_firms_page(by_slug: dict[str, list[dict]], as_of: date) -> str:
+def build_firms_page(by_slug: dict[str, list[dict]], as_of: date, real_today: date) -> str:
     """B2B firm-tier landing page (rewritten 2026-07-28: the real buyer is the
     small-firm admin managing multiple staff CPAs across states, not a
     concierge-pilot where our team manually checks every staff license --
@@ -9385,7 +9415,9 @@ def build_firms_page(by_slug: dict[str, list[dict]], as_of: date) -> str:
     distinction (sourced vs. self-reported, not built vs. unbuilt) is the
     entire brand and must not blur on the paid tier."""
     firm_lead_action = f"{esc(REMINDER_BACKEND_BASE_URL)}/firm/lead"
-    _verified_recent, _total_citations = _sitewide_freshness_stat(as_of)
+    # FRESH-2 (AuditLab, 2026-08-29): was as_of, not the wall clock -- see
+    # build_index_page()'s own comment on this exact fix.
+    _verified_recent, _total_citations = _sitewide_freshness_stat(real_today)
     body = f"""<h1>CPA License Tracking for Your Whole Firm</h1>
 <p class="intro">Every accounting firm has someone who has to make sure every partner's and staff CPA's
 license stays current &mdash; across however many states they're licensed in. One missed renewal slows
@@ -19469,7 +19501,7 @@ var DR_CALC_AS_OF = {json.dumps(as_of.isoformat())};
 
 
 def build_deadline_calculator_page(
-    by_slug: dict[str, list[dict]], as_of: date, lang: str = "en", publish_es: bool = True
+    by_slug: dict[str, list[dict]], as_of: date, real_today: date, lang: str = "en", publish_es: bool = True
 ) -> str:
     """Roadmap #125 ("free public tools -- no-signup deadline calculator").
     Same "dedicated, SEO-targeted landing page pointing at an existing free
@@ -19495,7 +19527,9 @@ def build_deadline_calculator_page(
     variety of cycle shapes this "calculator" handles -- still zero new data,
     zero fabrication, just more of what already exists made visible here."""
     cov = _coverage_counts(by_slug)
-    verified_recent, total_citations = _sitewide_freshness_stat(as_of)
+    # FRESH-2 (AuditLab, 2026-08-29): was as_of, not the wall clock -- see
+    # build_index_page()'s own comment on this exact fix.
+    verified_recent, total_citations = _sitewide_freshness_stat(real_today)
 
     # Four real records, chosen to span the actual shapes this tool resolves
     # (fixed calendar date, birth-month personal cycle, rotating cohort, and
@@ -23521,7 +23555,7 @@ def main() -> None:
         built.append(state_meta[slug])
         print(f"wrote {SITE_DIR.name}/{slug}/index.html  ({title})")
 
-    (SITE_DIR / "index.html").write_text(build_index_page(built, as_of, by_slug), encoding="utf-8")
+    (SITE_DIR / "index.html").write_text(build_index_page(built, as_of, by_slug, real_today), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/index.html  ({len(built)} states)")
 
     FIRM_LANDING_PAGES.clear()
@@ -23606,13 +23640,13 @@ def main() -> None:
     # check/etc. below: render both languages first, publish the ES file
     # (and advertise it via hreflang) only if it's genuinely different from
     # English, and remove any stale /es/pricing/ output otherwise.
-    _pricing_es_check = build_pricing_page(by_slug, as_of, lang="es")
-    es_ready["pricing"] = _es_page_has_real_translation(build_pricing_page(by_slug, as_of), _pricing_es_check)
+    _pricing_es_check = build_pricing_page(by_slug, as_of, real_today, lang="es")
+    es_ready["pricing"] = _es_page_has_real_translation(build_pricing_page(by_slug, as_of, real_today), _pricing_es_check)
 
     pricing_dir = SITE_DIR / "pricing"
     pricing_dir.mkdir(parents=True, exist_ok=True)
     (pricing_dir / "index.html").write_text(
-        build_pricing_page(by_slug, as_of, publish_es=es_ready["pricing"]), encoding="utf-8"
+        build_pricing_page(by_slug, as_of, real_today, publish_es=es_ready["pricing"]), encoding="utf-8"
     )
     print(f"wrote {SITE_DIR.name}/pricing/index.html")
 
@@ -23673,15 +23707,15 @@ def main() -> None:
         print(f"removed {SITE_DIR.name}/es/multi-state-firms/ (ES-2: no real translation yet)")
 
     # ES-2 (AuditLab, 2026-08-19): see the practice-privilege-check block above.
-    _calc_es_check = build_deadline_calculator_page(by_slug, as_of, lang="es")
+    _calc_es_check = build_deadline_calculator_page(by_slug, as_of, real_today, lang="es")
     es_ready["deadline-calculator"] = _es_page_has_real_translation(
-        build_deadline_calculator_page(by_slug, as_of), _calc_es_check
+        build_deadline_calculator_page(by_slug, as_of, real_today), _calc_es_check
     )
 
     deadline_calc_dir = SITE_DIR / "deadline-calculator"
     deadline_calc_dir.mkdir(parents=True, exist_ok=True)
     (deadline_calc_dir / "index.html").write_text(
-        build_deadline_calculator_page(by_slug, as_of, publish_es=es_ready["deadline-calculator"]),
+        build_deadline_calculator_page(by_slug, as_of, real_today, publish_es=es_ready["deadline-calculator"]),
         encoding="utf-8",
     )
     print(f"wrote {SITE_DIR.name}/deadline-calculator/index.html")
@@ -23765,7 +23799,7 @@ def main() -> None:
 
     firms_dir = SITE_DIR / "for-firms"
     firms_dir.mkdir(parents=True, exist_ok=True)
-    (firms_dir / "index.html").write_text(build_firms_page(by_slug, as_of), encoding="utf-8")
+    (firms_dir / "index.html").write_text(build_firms_page(by_slug, as_of, real_today), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/for-firms/index.html")
 
     firm_login_dir = SITE_DIR / "firm-login"
