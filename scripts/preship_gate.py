@@ -950,8 +950,14 @@ def check_clock_kind_consistency(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import clock_kind_consistency_check as ckc
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip -- a
+        # renamed/broken helper module made this gate measure nothing with
+        # no signal at all. Widened from `except ImportError` to `except
+        # Exception` too, so a SyntaxError or a broken top-level import in
+        # the helper reports here rather than propagating as an unrelated
+        # crash.
+        return [f"[GATE-20] scripts/clock_kind_consistency_check.py could not be imported ({type(e).__name__}: {e}); check_clock_kind_consistency() is measuring nothing and must be repaired."]
     return ckc.check_clock_kind_consistency(repo_root)
 
 
@@ -1240,8 +1246,9 @@ def check_cpe_hours_currency(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import cpe_hours_staleness_check as chsc
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] scripts/cpe_hours_staleness_check.py could not be imported ({type(e).__name__}: {e}); check_cpe_hours_currency() is measuring nothing and must be repaired."]
     data_path = repo_root / "data" / "cpe_hours.json"
     if not data_path.exists():
         # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip -- this
@@ -1401,8 +1408,9 @@ def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import rule_change_monitoring_staleness_check as rcmsc
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] scripts/rule_change_monitoring_staleness_check.py could not be imported ({type(e).__name__}: {e}); check_rule_change_monitoring_currency() is measuring nothing and must be repaired."]
     result = rcmsc.collect_staleness(repo_root)
     status = result["status"]
     if status == "ok":
@@ -1469,8 +1477,9 @@ def check_renewal_fee_currency(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import renewal_fee_staleness_check as rfsc
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] scripts/renewal_fee_staleness_check.py could not be imported ({type(e).__name__}: {e}); check_renewal_fee_currency() is measuring nothing and must be repaired."]
     data_path = repo_root / "data" / "renewal_fees.json"
     if not data_path.exists():
         # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
@@ -1799,8 +1808,9 @@ def check_block_claims_corroborated(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import source_check
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] scripts/source_check.py could not be imported ({type(e).__name__}: {e}); check_block_claims_corroborated() is measuring nothing and must be repaired."]
     errors = []
     for fname, fields in source_check.GAP_NOTE_FIELDS:
         path = repo_root / "data" / fname
@@ -2324,8 +2334,9 @@ def check_reinstatement_currency(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import reinstatement_staleness_check as rsc
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] scripts/reinstatement_staleness_check.py could not be imported ({type(e).__name__}: {e}); check_reinstatement_currency() is measuring nothing and must be repaired."]
     data_path = repo_root / "data" / "reinstatement.json"
     if not data_path.exists():
         # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
@@ -4154,8 +4165,9 @@ def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     sys.path.insert(0, str(repo_root))
     try:
         import i18n
-    except ImportError:
-        return []
+    except Exception as e:
+        # GATE-20 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-20] i18n.py could not be imported ({type(e).__name__}: {e}); check_i18n_reviewed_entries_not_stale() is measuring nothing and must be repaired."]
     errors = []
     for key, entry in i18n.ES.items():
         if key not in i18n.EN:
