@@ -915,6 +915,35 @@ def check_deadline_currency(data_path: Path) -> list[str]:
     return errors
 
 
+def check_clock_kind_consistency(repo_root: Path) -> list[str]:
+    """GATE-18 (AuditLab, 2026-08-29): the general version of
+    check_sitewide_freshness_stat_uses_wall_clock() below. That check only
+    watches _sitewide_freshness_stat()'s own call sites -- but the FRESH-2
+    FIX itself created a new, ungated reintroduction path: the four
+    builders now take BOTH as_of and real_today, so the bug is
+    reintroducible one level up (misrouting the argument in main()) while
+    the inner call stays correct and the narrow gate stays green. AuditLab
+    proved this with a mutation their own AST sweep caught and the narrow
+    gate didn't.
+
+    See scripts/clock_kind_consistency_check.py's own docstring for the
+    full algorithm (parse the AST, classify every real_today/today/now vs
+    as_of/as_of_date-named parameter, assert every call site's argument
+    matches by name). Kept as a separate importable script (same pattern as
+    cpa_deadlines_staleness_check.py and friends) so it can also be run
+    standalone; wired here as a hard gate because AuditLab's own bar
+    applies (MON-3's precedent: fixable from inside this repo in minutes,
+    not dependent on another team's infrastructure). The narrow
+    _sitewide_freshness_stat gate stays too -- it asserts a distinct
+    "found zero calls" empty-set failure this general version doesn't."""
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import clock_kind_consistency_check as ckc
+    except ImportError:
+        return []
+    return ckc.check_clock_kind_consistency(repo_root)
+
+
 def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path) -> list[str]:
     """AuditLab DATE-5 (LOW, filed tick 331, re-verified 2026-08-28): the
     self_rolling records check_deadline_currency() above deliberately skips
@@ -3017,6 +3046,25 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
             errors.append(
                 f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${price_str}/year, but '
                 f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']}/year for it."
+            )
+
+    # BILL-16 (AuditLab, 2026-08-29): the segment card's OWN "up to N staff"
+    # line (dr-segment-name, e.g. "Small firm, up to 5 staff") sits right
+    # above the detail line segment_pat above already checks, but was never
+    # itself compared to the same tier's seatCap -- confirmed unguarded by
+    # mutation (a "5" changed to "6" here passed clean) before adding this.
+    segment_seatcap_pat = re.compile(
+        r'<div class="dr-segment-name">[^<]*?up to (\d+) staff</div>\s*'
+        r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year\.</div>'
+    )
+    for seat_cap_str, label, price_str in segment_seatcap_pat.findall(py_text):
+        tier = by_label.get(label)
+        if tier is None:
+            continue  # already reported by segment_pat above
+        if int(seat_cap_str) != tier["seatCap"]:
+            errors.append(
+                f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" says "up to {seat_cap_str} '
+                f"staff\", but worker/src/tiers.ts's FIRM_TIERS says {tier['seatCap']} seats for it."
             )
 
     i18n_path = repo_root / "i18n.py"
@@ -5124,6 +5172,7 @@ def main():
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
+    all_errors += check_clock_kind_consistency(repo_root)
     all_errors += check_stale_thresholds_unified(html_files, repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
