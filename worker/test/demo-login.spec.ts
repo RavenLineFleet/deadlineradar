@@ -96,6 +96,16 @@ describe("GET /firm/demo-login -- render", () => {
     expect(page.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
     expect(page.headers.get("Cache-Control")).toContain("no-store");
   });
+
+  it("SEC-5 (AuditLab, 2026-08-29): the token-bearing confirm page keeps the wrapper's content policy, not just its framing directive", async () => {
+    await makeDemoFirm("csp-content");
+    const { page } = await renderDemoLogin("203.0.113.202");
+    const csp = page.headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).toContain("form-action 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+  });
 });
 
 describe("POST /firm/demo-login -- redeem", () => {
