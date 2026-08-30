@@ -511,6 +511,29 @@ describe("POST /assistant/chat -- real visitor IP forwarded to the droplet (Shop
     }
   });
 
+  it("SecurityLab (2026-08-29): the shared secret is sent to the droplet when configured, absent when not", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    try {
+      await workerFetch(
+        new Request(`${BASE}/api/assistant/chat`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.60", Origin: "https://deadline-radar.com" },
+          body: JSON.stringify({ message: "hello" }),
+        }),
+        { ASSISTANT_DROPLET_SHARED_SECRET: "test-secret-value" }
+      );
+      const [, initWith] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(new Headers(initWith.headers).get("X-Assistant-Shared-Secret")).toBe("test-secret-value");
+
+      fetchSpy.mockClear();
+      await postChat({ message: "hello" });
+      const [, initWithout] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(new Headers(initWithout.headers).has("X-Assistant-Shared-Secret")).toBe(false);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("the forwarded IP is the SAME on a retry attempt, not dropped or altered", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
