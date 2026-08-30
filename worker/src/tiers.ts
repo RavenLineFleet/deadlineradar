@@ -19,7 +19,14 @@ import { isPreCutoverSignup } from "./entitlements";
  * up AFTER the value-line cutover -- SELF_SERVE_SEAT_CAP (25) stays the cap
  * for every firm that signed up BEFORE it (isPreCutoverSignup() in
  * seatCapForFirmTier() below), same grandfather mechanism as the other
- * four #151 gates. */
+ * four #151 gates.
+ *
+ * BILL-16 (AuditLab, 2026-08-29): unlike the paid FIRM_TIERS seat caps
+ * below, generate.py's "free, up to 3 staff" marketing copy (3 sites,
+ * varied phrasing) is NOT gated against this constant -- deliberate scope
+ * call, not an oversight, since a robust regex across the varied phrasing
+ * wasn't worth building for a claim with zero billing impact. If this
+ * number ever changes, grep generate.py for "up to 3 staff" by hand. */
 export const NEW_SIGNUP_FREE_SEAT_CAP = 3;
 
 export interface FirmTierDef {
