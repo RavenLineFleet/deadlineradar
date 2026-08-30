@@ -693,7 +693,13 @@ async function actionConfirmPage(pathname: string, token: string, env: Env): Pro
   //   * no-referrer, so the token in the URL is not leaked to anything the
   //     page links to.
   headers["X-Frame-Options"] = "DENY";
-  headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+  // SEC-5 (AuditLab, 2026-08-29): withSecurityHeaders() only sets a header
+  // if it's absent, so setting CSP here for the framing axis alone was
+  // silently discarding the wrapper's content policy on the one page class
+  // that carries a live token -- carry the full policy plus this route's
+  // own frame-ancestors directive, not just the latter.
+  headers["Content-Security-Policy"] =
+    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
   headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private";
   headers["Referrer-Policy"] = "no-referrer";
   return new Response(htmlPage(meta.heading, body), { status: 200, headers });
