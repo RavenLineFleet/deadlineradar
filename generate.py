@@ -7206,7 +7206,16 @@ def _select_hero_rotation_pool(by_slug: dict[str, list[dict]]) -> list[dict]:
     per state (prefers the individual-license record over firm, since it's the more
     universally relatable deadline), sorted alphabetically for a stable rotation order.
     Anchored on real wall-clock time -- same STALENESS_THRESHOLD_DAYS the build-time staleness
-    guard uses, not the data file's own as_of_date, so this can't silently go stale itself."""
+    guard uses, not the data file's own as_of_date, so this can't silently go stale itself.
+
+    Deliberately LOCAL time, unlike main()'s real_today (DATE-6, AuditLab
+    2026-08-29, UTC -- must match worker/src/deadline.ts's own roll-forward
+    anchor exactly). This binding never crosses that boundary -- it only
+    picks which fresh-enough record enters the hero rotation, cosmetic by
+    a day either way, not a stated fact -- so there is no cross-engine
+    agreement to protect here. Noted explicitly so two same-shaped
+    date.today() bindings differing in timezone basis doesn't read as an
+    oversight later."""
     real_today = date.today()
     window_start = real_today - timedelta(days=STALENESS_THRESHOLD_DAYS)
     by_state: dict[str, dict] = {}

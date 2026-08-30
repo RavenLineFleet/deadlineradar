@@ -572,6 +572,9 @@ _WORKER_ERROR_API_LEAK_RE = re.compile(r"\b(?:GET|POST|PUT|PATCH|DELETE)\s+/\S*|
 def check_worker_error_strings_no_api_internals(repo_root: Path) -> list[str]:
     path = repo_root / "worker" / "src" / "index.ts"
     if not path.exists():
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip, unlike
+        # every sibling worker/-tree check -- announced now, matching them.
+        print("  (skipping worker-error-strings check -- worker/ tree not present in this checkout)")
         return []
     source = path.read_text(encoding="utf-8")
     errors = []
@@ -813,8 +816,16 @@ def check_cpe_hours_manifest_consistency(repo_root: Path) -> list[str]:
     to answer "how many CPE hours does this state require.\""""
     data_path = repo_root / "data" / "cpe_hours.json"
     docs_dir = repo_root / "docs"
-    if not data_path.exists() or not docs_dir.exists():
-        return []
+    # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip. Unlike
+    # worker/ (legitimately absent in a docs-only checkout), this data
+    # file and the built docs/ tree should ALWAYS exist by the time
+    # preship_gate.py runs -- a missing one is a repo problem, not a
+    # checkout shape, so it fails loud rather than silently measuring
+    # nothing.
+    if not data_path.exists():
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_cpe_hours_manifest_consistency() is measuring nothing without it"]
+    if not docs_dir.exists():
+        return [f"[GATE-19] {docs_dir} not found -- did generate.py run before this gate?"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     records = data["records"] if isinstance(data, dict) else data
 
@@ -1233,7 +1244,10 @@ def check_cpe_hours_currency(repo_root: Path) -> list[str]:
         return []
     data_path = repo_root / "data" / "cpe_hours.json"
     if not data_path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip -- this
+        # data file should always exist, unlike worker/ in a docs-only
+        # checkout.
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_cpe_hours_currency() is measuring nothing without it"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     _fresh, stale, unparseable, missing = chsc.collect_stale(data["records"])
     errors = []
@@ -1272,7 +1286,8 @@ def check_annual_minimum_not_alternative_track(repo_root: Path) -> list[str]:
     shape CITE-52 fixed once already."""
     data_path = repo_root / "data" / "cpe_hours.json"
     if not data_path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_annual_minimum_not_alternative_track() is measuring nothing without it"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     errors = []
     for r in data["records"]:
@@ -1340,7 +1355,8 @@ def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
     verified clear under this check's actual regex, not just asserted."""
     data_path = repo_root / "data" / "reinstatement.json"
     if not data_path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_penalty_cpe_basis_matches_notes() is measuring nothing without it"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     errors = []
     for r in data["records"]:
@@ -1423,7 +1439,8 @@ def check_fee_basis_supported(repo_root: Path) -> list[str]:
     errors = []
     path = repo_root / "data" / "renewal_fees.json"
     if not path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-19] {path} not found -- this data file should always exist; check_fee_basis_supported() is measuring nothing without it"]
     data = json.loads(path.read_text(encoding="utf-8"))
     for r in data["records"]:
         basis = r.get("fee_basis")
@@ -1456,7 +1473,8 @@ def check_renewal_fee_currency(repo_root: Path) -> list[str]:
         return []
     data_path = repo_root / "data" / "renewal_fees.json"
     if not data_path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_renewal_fee_currency() is measuring nothing without it"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     _fresh, stale, unparseable, missing = rfsc.collect_stale(data["records"])
     errors = []
@@ -2137,7 +2155,10 @@ def check_sitewide_freshness_stat_uses_wall_clock(repo_root: Path) -> list[str]:
     false-positive risk (a byte-for-byte source match, not a heuristic)."""
     path = repo_root / "generate.py"
     if not path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip -- generate.py
+        # itself should always exist; if it's missing, this whole gate run
+        # already has bigger problems than this one check.
+        return [f"[GATE-19] {path} not found -- generate.py should always exist; check_sitewide_freshness_stat_uses_wall_clock() is measuring nothing without it"]
     text = path.read_text(encoding="utf-8")
     # Excludes the function's own `def _sitewide_freshness_stat(real_today:
     # date)` line -- that's a parameter declaration, not a call, and would
@@ -2243,8 +2264,12 @@ def check_derived_fee_consistency(repo_root: Path) -> list[str]:
     no longer matches that fee. See the registry comment above."""
     fees_path = repo_root / "data" / "renewal_fees.json"
     reinst_path = repo_root / "data" / "reinstatement.json"
-    if not fees_path.exists() or not reinst_path.exists():
-        return []
+    # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip -- both files
+    # should always exist.
+    if not fees_path.exists():
+        return [f"[GATE-19] {fees_path} not found -- this data file should always exist; check_derived_fee_consistency() is measuring nothing without it"]
+    if not reinst_path.exists():
+        return [f"[GATE-19] {reinst_path} not found -- this data file should always exist; check_derived_fee_consistency() is measuring nothing without it"]
     fees = {r.get("state_slug"): r for r in json.loads(fees_path.read_text(encoding="utf-8"))["records"]}
     reinst = {r.get("state_slug"): r for r in json.loads(reinst_path.read_text(encoding="utf-8"))["records"]}
 
@@ -2303,7 +2328,8 @@ def check_reinstatement_currency(repo_root: Path) -> list[str]:
         return []
     data_path = repo_root / "data" / "reinstatement.json"
     if not data_path.exists():
-        return []
+        # GATE-19 (AuditLab, 2026-08-29): was a truly silent skip.
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_reinstatement_currency() is measuring nothing without it"]
     data = json.loads(data_path.read_text(encoding="utf-8"))
     records = data["records"] if isinstance(data, dict) else data
     _fresh, stale, unparseable, missing = rsc.collect_stale(records)
@@ -2340,10 +2366,18 @@ def check_competitor_price_currency(repo_root: Path) -> list[str]:
     directly rather than a separate staleness-check module, matching
     check_deadline_currency()'s own simpler shape rather than the bigger
     datasets' import-a-script indirection (those also serve a standalone
-    advisory script; this one doesn't need one yet)."""
+    advisory script; this one doesn't need one yet).
+
+    GATE-19 (AuditLab, 2026-08-29): the docs/compare/ skip below stays a
+    genuinely silent no-print return -- unlike worker/ in a docs-only
+    checkout, /compare/ being absent is the CURRENT, EXPECTED, indefinite
+    state (deliberately removed, not a checkout shape), so printing a skip
+    line on every single run forever would be pure noise, not signal.
+    data_path missing is different: that data file should always exist
+    regardless of whether /compare/ is currently built, so it errors."""
     data_path = repo_root / "data" / "competitor_prices.json"
     if not data_path.exists():
-        return []
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist (independent of whether /compare/ is currently built); check_competitor_price_currency() is measuring nothing without it"]
     if not (repo_root / "docs" / "compare").exists():
         return []
     data = json.loads(data_path.read_text(encoding="utf-8"))
