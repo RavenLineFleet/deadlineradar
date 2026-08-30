@@ -4429,8 +4429,6 @@ _SCROLL_REVEAL_BODY_JS = """<script>
 
 _TABLE_SCROLL_HINT_JS = """<script>
 (function () {
-  var wraps = document.querySelectorAll('.table-wrap');
-  if (!wraps.length) return;
   function atEnd(wrap) { return wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1; }
   // Some .table-wrap variants (e.g. .dr-roster-panel's mobile card layout)
   // deliberately set overflow-x:hidden once their own reset makes content
@@ -4442,19 +4440,26 @@ _TABLE_SCROLL_HINT_JS = """<script>
     var overflowX = window.getComputedStyle(wrap).overflowX;
     return overflowX === 'auto' || overflowX === 'scroll';
   }
+  // MOB-9 (AuditLab, 2026-08-29): re-query on every call instead of a
+  // one-time snapshot, so a .table-wrap injected later via innerHTML (the
+  // CSV preview / mobility roster tables, built after a fetch resolves)
+  // gets the same scroll cue as one present at page load, not just the
+  // overflow-x:auto that makes it reachable-but-unadvertised.
   function update() {
-    wraps.forEach(function (wrap) {
+    document.querySelectorAll('.table-wrap').forEach(function (wrap) {
       var hasOverflow = canScroll(wrap) && wrap.scrollWidth > wrap.clientWidth + 1;
       wrap.classList.toggle('dr-scrollable', hasOverflow && !atEnd(wrap));
+      if (!wrap.dataset.drScrollHintBound) {
+        wrap.dataset.drScrollHintBound = '1';
+        wrap.addEventListener('scroll', function () {
+          wrap.classList.toggle('dr-scrollable', !atEnd(wrap));
+        });
+      }
     });
   }
   update();
   window.addEventListener('resize', update);
-  wraps.forEach(function (wrap) {
-    wrap.addEventListener('scroll', function () {
-      wrap.classList.toggle('dr-scrollable', !atEnd(wrap));
-    });
-  });
+  window.drRefreshTableScrollHints = update;
 })();
 </script>"""
 
@@ -12474,9 +12479,10 @@ function drRenderCsvPreview() {
       drEscapeHtml(r.fields.email || '') + '</td><td>' + drEscapeHtml(r.fields.state_slug || '') + '</td>' +
       '<td class="' + statusClass + '">' + drEscapeHtml(statusText) + '</td></tr>';
   }).join('');
-  el.innerHTML = '<table class="dr-csv-preview-table"><thead><tr><th scope="col">Name</th>' +
+  el.innerHTML = '<div class="table-wrap"><table class="dr-csv-preview-table"><thead><tr><th scope="col">Name</th>' +
     '<th scope="col">Email</th><th scope="col">State</th><th scope="col">Status</th></tr></thead>' +
-    '<tbody>' + rowsHtml + '</tbody></table>';
+    '<tbody>' + rowsHtml + '</tbody></table></div>';
+  if (window.drRefreshTableScrollHints) window.drRefreshTableScrollHints();
   if (importBtn) importBtn.hidden = validCount === 0;
   // Roadmap #17 bug fix (caught live-testing this same ship): drImportCsvRows()
   // also calls this function on every row (to refresh the per-row Added/
@@ -18337,11 +18343,12 @@ _MOBILITY_JS_HTML = """<script>
           lastRosterCheck = {data: data, sorted: sorted};
           if (rosterResultEl) {
             rosterResultEl.innerHTML = '<h2>' + esc(data.target_state) + ' &mdash; whole roster</h2>' +
-              '<table class="dr-mob-roster-table"><thead><tr><th>Staff</th><th>Home state</th><th>Overall</th><th></th></tr></thead>' +
-              '<tbody>' + rowsHtml + '</tbody></table>' + assumptionNote +
+              '<div class="table-wrap"><table class="dr-mob-roster-table"><thead><tr><th>Staff</th><th>Home state</th><th>Overall</th><th></th></tr></thead>' +
+              '<tbody>' + rowsHtml + '</tbody></table></div>' + assumptionNote +
               '<p class="dr-verdict-disclaimer">' + esc(data.disclaimer) + '</p>' +
               '<button type="button" class="dr-btn-edit" id="dr-mob-roster-csv-btn">Download compliance record (CSV)</button>';
             rosterResultEl.hidden = false;
+            if (window.drRefreshTableScrollHints) window.drRefreshTableScrollHints();
           }
         });
       }).catch(function () {
@@ -19591,12 +19598,14 @@ def build_deadline_calculator_page(
 
 <h2>{_t("calc.h2_what_calculated_looks_like", lang)}</h2>
 <p>{_t("calc.what_calculated_intro", lang)}</p>
+<div class="table-wrap">
 <table class="calc-example-table">
 <thead><tr><th>{_t("calc.table_th_state", lang)}</th><th>{_t("calc.table_th_cycle_type", lang)}</th><th>{_t("calc.table_th_returns", lang)}</th></tr></thead>
 <tbody>
 {chr(10).join(example_rows)}
 </tbody>
 </table>
+</div>
 
 <h2>{_t("calc.h2_how_it_works", lang)}</h2>
 <p>{_t("calc.how_it_works_body", lang)}</p>
