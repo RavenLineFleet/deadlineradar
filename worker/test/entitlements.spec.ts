@@ -1,5 +1,34 @@
 import { describe, it, expect } from "vitest";
-import { checkPaidFeatureAccess, paidFeatureDenialMessage } from "../src/entitlements";
+import { checkPaidFeatureAccess, isPreCutoverSignup, paidFeatureDenialMessage, VALUE_LINE_CUTOVER_DATE } from "../src/entitlements";
+
+// AuditLab TIER-1 (LOW, 2026-08-29): isPreCutoverSignup() used to compare
+// createdAt against VALUE_LINE_CUTOVER_DATE as STRINGS. The constant has no
+// milliseconds; every real created_at (from store.ts's nowIso()) always
+// does, and "." sorts before "Z" -- so a firm created anywhere in the one
+// second 03:05:00.000Z-03:05:00.999Z on the cutover date compared as
+// lexicographically before the cutover even though it happened at or after
+// it, silently grandfathering a post-cutover signup. Reproduces AuditLab's
+// exact table against the real function.
+describe("isPreCutoverSignup() -- AuditLab TIER-1", () => {
+  it("a whole second before the cutover is pre-cutover, with or without milliseconds", () => {
+    expect(isPreCutoverSignup("2026-08-10T03:04:59Z")).toBe(true);
+    expect(isPreCutoverSignup("2026-08-10T03:04:59.999Z")).toBe(true);
+  });
+
+  it("exactly the cutover instant (bare or with .000 milliseconds) is NOT pre-cutover", () => {
+    expect(isPreCutoverSignup(VALUE_LINE_CUTOVER_DATE)).toBe(false);
+    expect(isPreCutoverSignup("2026-08-10T03:05:00.000Z")).toBe(false);
+  });
+
+  it("any millisecond value during the cutover second is NOT pre-cutover -- the exact TIER-1 bug", () => {
+    expect(isPreCutoverSignup("2026-08-10T03:05:00.123Z")).toBe(false);
+    expect(isPreCutoverSignup("2026-08-10T03:05:00.999Z")).toBe(false);
+  });
+
+  it("a whole second after the cutover is not pre-cutover", () => {
+    expect(isPreCutoverSignup("2026-08-10T03:05:01Z")).toBe(false);
+  });
+});
 
 function firm(over: Partial<{ plan_tier: string; status: string }> = {}) {
   return {

@@ -143,8 +143,20 @@ export function paidFeatureDenialMessage(reason: PaidFeatureDenialReason): strin
  */
 export const VALUE_LINE_CUTOVER_DATE = "2026-08-10T03:05:00Z";
 
+// AuditLab TIER-1 (LOW, 2026-08-29): this used to be a STRING comparison
+// (`createdAt < VALUE_LINE_CUTOVER_DATE`) with mismatched precision on the
+// two sides -- the hand-written constant above has no milliseconds, but
+// every stored created_at comes from nowIso() (store.ts), which always
+// emits them. "." (0x2E) sorts before "Z" (0x5A), so any firm created
+// during the single second 03:05:00.000Z-03:05:00.999Z on 2026-08-10
+// compared as lexicographically LESS than the cutover even though it was
+// semantically at or after it -- silently grandfathering a firm that
+// signed up after the cutover into the pre-cutover seat cap. Parsing both
+// sides to instants first is immune to precision drift permanently (the
+// generalizable risk AuditLab named: a hand-written date literal meeting a
+// machine-generated one), not just for this one date.
 export function isPreCutoverSignup(createdAt: string): boolean {
-  return createdAt < VALUE_LINE_CUTOVER_DATE;
+  return Date.parse(createdAt) < Date.parse(VALUE_LINE_CUTOVER_DATE);
 }
 
 /** The shared OR every one of #151's five gates uses -- a real paid tier, OR
