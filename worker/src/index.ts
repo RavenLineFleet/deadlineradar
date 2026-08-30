@@ -1744,8 +1744,17 @@ const SSO_FAILED_MESSAGE = "We couldn't complete that sign-in. Please try again.
 // mid-signup. Same class as ERR-1, one shared plain-language string instead
 // of three independently-drifting ones. err.message stays exactly as-is on
 // the operator paths -- only the customer-facing response changes.
+// UX-16 (AuditLab, 2026-08-29): "check back in a few hours" is a specific
+// temporal promise nothing in the system can keep -- recovery is 100%
+// manual (a human re-verifying the flagged citation), zero automated
+// writers of last_verified exist anywhere in the codebase, and the
+// monthly as_of_date bump does not touch it either. Shown at the exact
+// moment a prospective customer is turned away, this could be told to
+// "check back in a few hours" for 14+ days straight. Dropped the interval
+// rather than replace it with a different guess -- errorPage() already
+// links every 503 to /contact/ for anyone who wants a real answer.
 const STALE_DATA_CUSTOMER_MESSAGE =
-  "Signups and account changes are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back in a few hours.";
+  "Signups and account changes are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back soon.";
 
 const SSO_UNVERIFIED_EMAIL_MESSAGE =
   "Your provider didn't confirm that email address is verified, so we can't connect it to a Deadline-Radar account. Please verify the address with your provider and try again.";
