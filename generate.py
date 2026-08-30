@@ -23417,7 +23417,17 @@ def main() -> None:
         data = json.load(f)
 
     as_of = date.fromisoformat(data["as_of_date"])
-    real_today = date.today()
+    # DATE-6 (AuditLab, 2026-08-29): was date.today() -- the build MACHINE's
+    # local calendar date. worker/src/deadline.ts's rollForwardRecurringDeadline()
+    # anchors on Date.UTC(...) instead, so the two engines (algorithm
+    # verified identical, 126/126 differential cases) could still silently
+    # disagree by one calendar day whenever a build ran during the window
+    # between UTC midnight and the build machine's local midnight -- a
+    # self-rolling record (co-firm/id-firm/me-all) would then roll forward
+    # a full period late on the static page while the worker had already
+    # rolled it, recurring at every cycle boundary. UTC everywhere the two
+    # engines must agree, matching deadline.ts's own anchor exactly.
+    real_today = datetime.now(timezone.utc).date()
     records = data["records"]
     JURISDICTION_COUNT = len({r["state_slug"] for r in records})
 
