@@ -4649,6 +4649,45 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   var STORAGE_SESSION_KEY = 'dr_chat_session_id';
   var STORAGE_HISTORY_KEY = 'dr_chat_history';
   var STORAGE_OPEN_KEY = 'dr_chat_open';
+  var STORAGE_LAST_ACTIVITY_KEY = 'dr_chat_last_activity';
+
+  // Devin, 2026-08-31: "reset the chat every once in a while... maintaining
+  // its memory and site history" -- idle-timeout, not a fixed calendar
+  // reset, so an active conversation is never interrupted mid-stream (the
+  // clock only runs while nothing is happening). "Site history" (the
+  // underlying deadline data) was never touched by chat state to begin
+  // with; "what's been asked" is already durably logged server-side
+  // (questions.jsonl, unaffected by any of this) -- what resets here is
+  // just this ONE visitor's own conversation continuity. 24h chosen as a
+  // reasonable "gone, come back later" boundary for a site people check
+  // occasionally, not continuously -- easy to retune, it's one constant.
+  var IDLE_RESET_MS = 24 * 60 * 60 * 1000;
+
+  function isIdleExpired() {
+    try {
+      var last = parseInt(localStorage.getItem(STORAGE_LAST_ACTIVITY_KEY), 10);
+      if (!last || isNaN(last)) return false; // no recorded activity yet -- nothing to reset
+      return (Date.now() - last) > IDLE_RESET_MS;
+    } catch (e) { return false; }
+  }
+
+  function touchActivity() {
+    try { localStorage.setItem(STORAGE_LAST_ACTIVITY_KEY, String(Date.now())); } catch (e) {}
+  }
+
+  // Runs BEFORE getSessionId()/loadHistory() below read anything, so a
+  // stale conversation's session_id and transcript are gone by the time
+  // either function looks -- getSessionId() mints a genuinely fresh id
+  // (the droplet-side old (session_id -> cli_session_id) mapping just goes
+  // stale in its in-memory dict, harmless, per main.current.py's own
+  // "fine to lose" comment), and loadHistory() falls through to the
+  // greeting branch exactly as it does for a real first-ever visitor.
+  if (isIdleExpired()) {
+    try {
+      localStorage.removeItem(STORAGE_HISTORY_KEY);
+      localStorage.removeItem(STORAGE_SESSION_KEY);
+    } catch (e) {}
+  }
 
   function getSessionId() {
     try {
@@ -4758,6 +4797,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     if (cls !== 'pending') {
       history.push({ text: text, cls: cls });
       saveHistory(history);
+      touchActivity(); // real interaction (user question or assistant reply) resets the idle clock
     }
     scrollToBottom();
     return el;
