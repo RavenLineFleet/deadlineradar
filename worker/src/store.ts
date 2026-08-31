@@ -3980,6 +3980,275 @@ export async function removeDocument(db: D1Database, firmId: string, id: string)
 }
 
 // ---------------------------------------------------------------------------
+// Renewal document checklist (2026-08-31, roadmap #303, migration 0072).
+// Firm-customizable per-license checklist, Suralink-style upload slots +
+// status per requirement. See that migration's own docstring for why this
+// isn't a hand-authored per-state requirement catalog. Same
+// one-to-many-per-subscriber shape and firm_id-bound-in-every-query
+// convention as documents just above.
+// ---------------------------------------------------------------------------
+
+export type ChecklistItemStatus = "pending" | "complete" | "not_applicable";
+export const CHECKLIST_ITEM_STATUSES: ChecklistItemStatus[] = ["pending", "complete", "not_applicable"];
+
+export const CHECKLIST_ITEM_MAX_LABEL_LEN = 200;
+// Generous headroom over any realistic renewal checklist (documents.ts's
+// DOCUMENT_MAX_FIRM_TOTAL_BYTES-style "real ceiling, not no ceiling" -- a
+// runaway client loop hitting POST in tandem with the rate limit is the
+// actual threat this caps, not a legitimate firm's real usage).
+export const CHECKLIST_MAX_ITEMS_PER_LICENSE = 30;
+
+// A small generic starting point a firm can apply to a license with one
+// click, then customize freely -- NOT a per-state verified requirement
+// list (see migration 0072's own docstring for why this repo doesn't ship
+// one yet). Purely a client-supplied convenience: the server never treats
+// these strings as anything but ordinary user-supplied checklist labels.
+export const CHECKLIST_DEFAULT_TEMPLATE = [
+  "CPE certificate(s) for this renewal period",
+  "Renewal application / form",
+  "Fee payment confirmation",
+  "Peer review report (if applicable)",
+];
+
+export interface ChecklistItemRow {
+  id: string;
+  firm_id: string;
+  subscriber_id: string;
+  label: string;
+  status: ChecklistItemStatus;
+  document_id: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export async function countChecklistItems(db: D1Database, firmId: string, subscriberId: string): Promise<number> {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM checklist_items WHERE firm_id = ?1 AND subscriber_id = ?2 AND deleted_at IS NULL`)
+    .bind(firmId, subscriberId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Ownership-checks the subscriber belongs to firmId before inserting --
+ * same guard createDocument()/addCpeEntry() already use. Returns null
+ * (never throws) on a failed ownership check, matching their contract. Does
+ * NOT enforce CHECKLIST_MAX_ITEMS_PER_LICENSE itself -- checked by the
+ * caller (handleChecklistItemCreate) first, same split createDocument()
+ * uses for its own quota check. */
+export async function createChecklistItem(
+  db: D1Database,
+  input: { firmId: string; subscriberId: string; label: string; sortOrder: number }
+): Promise<ChecklistItemRow | null> {
+  const owns = await db
+    .prepare(`SELECT id FROM subscribers WHERE id = ?1 AND firm_id = ?2`)
+    .bind(input.subscriberId, input.firmId)
+    .first<{ id: string }>();
+  if (!owns) return null;
+
+  const id = newToken();
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO checklist_items (id, firm_id, subscriber_id, label, status, document_id, sort_order, created_at, updated_at)
+       VALUES (?1,?2,?3,?4,'pending',NULL,?5,?6,?6)`
+    )
+    .bind(id, input.firmId, input.subscriberId, input.label, input.sortOrder, now)
+    .run();
+
+  return {
+    id,
+    firm_id: input.firmId,
+    subscriber_id: input.subscriberId,
+    label: input.label,
+    status: "pending",
+    document_id: null,
+    sort_order: input.sortOrder,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+  };
+}
+
+export async function listChecklistItemsForSubscriber(db: D1Database, firmId: string, subscriberId: string): Promise<ChecklistItemRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM checklist_items WHERE firm_id = ?1 AND subscriber_id = ?2 AND deleted_at IS NULL ORDER BY sort_order ASC, created_at ASC`
+    )
+    .bind(firmId, subscriberId)
+    .all<ChecklistItemRow>();
+  return results;
+}
+
+/** firm_id-bound -- an item id alone is never enough to read or mutate it,
+ * same defense-in-depth every other per-firm lookup in this file uses. */
+export async function getChecklistItemForFirm(db: D1Database, firmId: string, id: string): Promise<ChecklistItemRow | null> {
+  return db
+    .prepare(`SELECT * FROM checklist_items WHERE id = ?1 AND firm_id = ?2 AND deleted_at IS NULL`)
+    .bind(id, firmId)
+    .first<ChecklistItemRow>();
+}
+
+/** Patches status and/or the linked document. When documentId is provided
+ * (non-null), it is re-validated against getDocumentForFirm() scoped to
+ * THIS item's own subscriber_id, not just firm_id -- linking a real
+ * document from a different staff member's license to this checklist item
+ * would be a cross-license data-association bug, not merely a cosmetic
+ * one, so it's rejected (returns null) rather than silently allowed.
+ * Passing documentId: null clears the link without touching status. */
+export async function updateChecklistItem(
+  db: D1Database,
+  firmId: string,
+  id: string,
+  patch: { status?: ChecklistItemStatus; documentId?: string | null; label?: string }
+): Promise<ChecklistItemRow | null> {
+  const existing = await getChecklistItemForFirm(db, firmId, id);
+  if (!existing) return null;
+
+  if (patch.documentId) {
+    const doc = await getDocumentForFirm(db, firmId, patch.documentId);
+    if (!doc || doc.subscriber_id !== existing.subscriber_id) return null;
+  }
+
+  const nextStatus = patch.status ?? existing.status;
+  const nextDocumentId = patch.documentId === undefined ? existing.document_id : patch.documentId;
+  const nextLabel = patch.label ?? existing.label;
+  const now = nowIso();
+
+  await db
+    .prepare(`UPDATE checklist_items SET status = ?1, document_id = ?2, label = ?3, updated_at = ?4 WHERE id = ?5 AND firm_id = ?6`)
+    .bind(nextStatus, nextDocumentId, nextLabel, now, id, firmId)
+    .run();
+
+  return { ...existing, status: nextStatus, document_id: nextDocumentId, label: nextLabel, updated_at: now };
+}
+
+/** Soft-delete only, same convention as removeDocument()/removeCpeEntry(). */
+export async function removeChecklistItem(db: D1Database, firmId: string, id: string): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE checklist_items SET deleted_at = ?1 WHERE id = ?2 AND firm_id = ?3 AND deleted_at IS NULL`)
+    .bind(nowIso(), id, firmId)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Compliance sign-off audit trail + lightweight e-signature (2026-08-31,
+// roadmap #304 + #306, migration 0073). See that migration's own docstring
+// -- especially its SECURITY NOTE -- before touching anything here.
+// ---------------------------------------------------------------------------
+
+export const ATTESTATION_STATEMENT =
+  "I attest that I have reviewed this license's current compliance status and renewal-tracking " +
+  "information, and confirm it is accurate to the best of my knowledge as of this date.";
+
+export const ATTESTATION_SIGNATURE_MIN_LEN = 2;
+export const ATTESTATION_SIGNATURE_MAX_LEN = 200;
+
+export interface ComplianceAttestationRow {
+  id: string;
+  firm_id: string;
+  subscriber_id: string;
+  staff_label: string | null;
+  staff_email: string | null;
+  attested_by_member_id: string | null;
+  attested_by_name: string;
+  attested_by_email: string;
+  signature_text: string;
+  statement: string;
+  status_snapshot: string;
+  created_at: string;
+}
+
+/** Ownership-checks the subscriber belongs to firmId, same guard every
+ * other per-subscriber create in this file uses. Takes the license row
+ * directly (rather than re-fetching it) so the caller's own
+ * requireFirmRole + getFirmLicense lookup is the single source of the
+ * status_snapshot -- no risk of a second, later read racing the first. */
+export async function createComplianceAttestation(
+  db: D1Database,
+  input: {
+    firmId: string;
+    subscriber: SubscriberRow;
+    attestedByMemberId: string;
+    attestedByName: string;
+    attestedByEmail: string;
+    signatureText: string;
+  }
+): Promise<ComplianceAttestationRow> {
+  const id = newToken();
+  const now = nowIso();
+  const statusSnapshot = JSON.stringify({
+    state_slug: input.subscriber.state_slug,
+    status: input.subscriber.status,
+    deadline_source: input.subscriber.deadline_source,
+    user_deadline: input.subscriber.user_deadline,
+  });
+
+  await db
+    .prepare(
+      `INSERT INTO compliance_attestations
+         (id, firm_id, subscriber_id, staff_label, staff_email, attested_by_member_id, attested_by_name,
+          attested_by_email, signature_text, statement, status_snapshot, created_at)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)`
+    )
+    .bind(
+      id,
+      input.firmId,
+      input.subscriber.id,
+      input.subscriber.staff_label,
+      input.subscriber.email,
+      input.attestedByMemberId,
+      input.attestedByName,
+      input.attestedByEmail,
+      input.signatureText,
+      ATTESTATION_STATEMENT,
+      statusSnapshot,
+      now
+    )
+    .run();
+
+  return {
+    id,
+    firm_id: input.firmId,
+    subscriber_id: input.subscriber.id,
+    staff_label: input.subscriber.staff_label,
+    staff_email: input.subscriber.email,
+    attested_by_member_id: input.attestedByMemberId,
+    attested_by_name: input.attestedByName,
+    attested_by_email: input.attestedByEmail,
+    signature_text: input.signatureText,
+    statement: ATTESTATION_STATEMENT,
+    status_snapshot: statusSnapshot,
+    created_at: now,
+  };
+}
+
+export async function listComplianceAttestationsForSubscriber(
+  db: D1Database,
+  firmId: string,
+  subscriberId: string
+): Promise<ComplianceAttestationRow[]> {
+  const { results } = await db
+    .prepare(`SELECT * FROM compliance_attestations WHERE firm_id = ?1 AND subscriber_id = ?2 ORDER BY created_at DESC`)
+    .bind(firmId, subscriberId)
+    .all<ComplianceAttestationRow>();
+  return results;
+}
+
+/** Firm-wide, oldest-first -- the audit-trail EXPORT shape (same
+ * chronological-record posture as listActivityLogForFirm()/
+ * listReminderLogForFirm()), not the small per-license panel above. */
+export async function listComplianceAttestationsForFirm(db: D1Database, firmId: string): Promise<ComplianceAttestationRow[]> {
+  const { results } = await db
+    .prepare(`SELECT * FROM compliance_attestations WHERE firm_id = ?1 ORDER BY created_at ASC`)
+    .bind(firmId)
+    .all<ComplianceAttestationRow>();
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Practice-privilege completion tracking (2026-08-04, migration 0016). See
 // that migration's own comment for the full rationale -- this records ONLY
 // that a firm marked a person/state/service-type combination complete and
