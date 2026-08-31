@@ -3609,6 +3609,16 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
         "handleFirmLogout": "session lifecycle, not a roster/permission change -- deletes the caller's OWN session by its own random token, same posture as any sign-out",
         "handleFirmSessionRevoke": "session lifecycle -- revokes one of the CALLER's own other sessions (store.ts scopes the delete to session.firmId), never another member's",
         "handleFirmPasswordLogin": "session lifecycle (mints a session, does not require one) -- demo_locked is a property of an EXISTING firm session and doesn't gate signing in to begin with",
+        # Forms & Documents cluster (roadmap #303/#304/#306, 2026-08-31).
+        # handleAttestationCreate is deliberately NOT here -- it takes
+        # DEMO-3's OTHER treatment (a real if(session.firm.demo_locked)
+        # no-op inside the handler, same as handleFirmQuestionnaireSubmit)
+        # rather than this allowlist, because an attestation is a
+        # compliance sign-off / diligence artifact, not a data-playground
+        # row -- see that handler's own comment.
+        "handleChecklistItemCreate": "demo data-playground mutation (DEMO-3), same category as handleCpeEntryCreate -- a firm's renewal checklist is exactly the kind of thing a demo visitor should be able to try",
+        "handleChecklistItemUpdate": "demo data-playground mutation (DEMO-3), same category as handleFirmLicenseRenew -- marking a checklist item complete/linking a document doesn't alter the roster or its permissions",
+        "handleChecklistItemDelete": "demo data-playground mutation (DEMO-3), same category as handleDocumentDelete -- deleting a demo checklist item doesn't alter who can sign in or what they can do",
     }
 
     index_src = index_ts.read_text(encoding="utf-8")

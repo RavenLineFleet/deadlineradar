@@ -47,6 +47,7 @@
  * resend and a no-op look identical from the outside.
  */
 
+import { zipSync } from "fflate";
 import type { Env } from "./env";
 import {
   HONEYPOT_FIELD_NAME,
@@ -90,6 +91,7 @@ import {
   RATE_LIMIT_FIRM_DOCUMENT_UPLOAD,
   RATE_LIMIT_FIRM_CHECKLIST_WRITE,
   RATE_LIMIT_FIRM_ATTESTATION_CREATE,
+  RATE_LIMIT_FIRM_PACKET_EXPORT,
   RATE_LIMIT_FIRM_PEER_REVIEW_SET,
   RATE_LIMIT_FIRM_REPLY_TO_SET,
   RATE_LIMIT_FIRM_REMINDER_CADENCE_SET,
@@ -8500,7 +8502,16 @@ async function handleChecklistItemCreate(request: Request, env: Env, subscriberI
       label: labels[i] as string,
       sortOrder: currentCount + i,
     });
-    if (!item) return jsonResponse(404, { error: "Not found." });
+    // Ownership was already confirmed above (the getFirmLicense lookup) --
+    // a null here means store.createChecklistItem's own atomic cap guard
+    // fired (a concurrent request landed between this handler's own
+    // precheck above and this exact insert), not a missing subscriber.
+    // Any items already created in this same request stay created; the
+    // precheck above already made the common (non-racing) case correct,
+    // this is only reached in the genuine race window.
+    if (!item) {
+      return jsonResponse(400, { error: `A license can have at most ${store.CHECKLIST_MAX_ITEMS_PER_LICENSE} checklist items.` });
+    }
     created.push(item);
   }
 
@@ -8544,7 +8555,7 @@ async function handleChecklistItemUpdate(request: Request, env: Env, id: string)
     patch.status = b.status as store.ChecklistItemStatus;
   }
   if (b.document_id !== undefined) {
-    if (b.document_id !== null && typeof b.document_id !== "string") {
+    if (b.document_id !== null && (typeof b.document_id !== "string" || b.document_id.trim() === "")) {
       return jsonResponse(400, { error: "Invalid document_id." });
     }
     patch.documentId = b.document_id as string | null;
@@ -8645,6 +8656,32 @@ async function handleAttestationCreate(request: Request, env: Env, subscriberId:
   const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
   if (!member) return jsonResponse(404, { error: "Not found." });
 
+  // Same "no-op with a real-shaped success response" posture DEMO-3
+  // established for handleFirmQuestionnaireSubmit -- deliberately NOT the
+  // "genuinely persist" treatment documents/CPE entries get on the shared
+  // demo account. Unlike a stray CPE entry, an attestation is a compliance
+  // sign-off / diligence artifact by design; letting it accumulate real
+  // rows from anonymous demo visitors forever would degrade every future
+  // visitor's tour with fake "signed" records in what's supposed to read
+  // as a real audit trail. 201, not 403: the visitor's own signing flow
+  // still completes normally for their visit -- the write just never
+  // lands, and no other visitor is affected.
+  if (session.firm.demo_locked) {
+    const now = new Date().toISOString();
+    return jsonResponse(201, {
+      attestation: {
+        id: store.newToken(),
+        subscriber_id: license.id,
+        staff_label: license.staff_label,
+        attested_by_name: member.name || member.email,
+        attested_by_email: member.email,
+        signature_text: signatureText,
+        statement: store.ATTESTATION_STATEMENT,
+        created_at: now,
+      },
+    });
+  }
+
   const attestation = await store.createComplianceAttestation(env.DB, {
     firmId: session.firmId,
     subscriber: license,
@@ -8655,6 +8692,105 @@ async function handleAttestationCreate(request: Request, env: Env, subscriberId:
   });
 
   return jsonResponse(201, { attestation: toAttestationJson(attestation) });
+}
+
+/** GET /firm/licenses/:id/packet-export -- roadmap #305. Bundles every
+ * non-deleted document for one license into a single .zip (application/zip),
+ * plus a manifest.txt cover sheet (firm/staff/state, the document list, the
+ * checklist status, and the attestation history) for board submission or
+ * internal audit. Deliberately a ZIP of the ORIGINAL files rather than a
+ * merged single PDF -- re-encoding a JPG/PNG certificate into a PDF risks a
+ * quality/fidelity change to a document a board may scrutinize; a zip of
+ * exactly what was uploaded, plus a plain-text manifest, is the safer
+ * "assembled packet" for this use case. Any role may read (matches
+ * handleDocumentDownload's own "Staff can read, not just Partner/Office
+ * Manager" convention -- this is a bundle of things Staff can already
+ * download individually, not a new grant of access). */
+async function handleFirmPacketExport(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmSessionWithFirm(request, env);
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_packet_export", RATE_LIMIT_FIRM_PACKET_EXPORT);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  const license = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!license) return jsonResponse(404, { error: "Not found." });
+
+  const [documents, checklistItems, attestations] = await Promise.all([
+    store.listDocumentsForSubscriber(env.DB, session.firmId, subscriberId),
+    store.listChecklistItemsForSubscriber(env.DB, session.firmId, subscriberId),
+    store.listComplianceAttestationsForSubscriber(env.DB, session.firmId, subscriberId),
+  ]);
+
+  const files: Record<string, Uint8Array> = {};
+  let included = 0;
+  for (let i = 0; i < documents.length; i++) {
+    const doc = documents[i] as store.DocumentRow;
+    const object = await env.DOCUMENTS.get(doc.r2_key);
+    if (!object) continue; // orphaned r2_key -- skip rather than fail the whole export
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    // sanitizeDocumentFilename() already stripped path separators from
+    // doc.filename at upload time; the numeric prefix here is purely for
+    // uniqueness (two documents can share a filename) and readable
+    // ordering, not a security requirement of its own.
+    files[`documents/${i + 1}-${doc.filename}`] = bytes;
+    included++;
+  }
+
+  const deadlineFields = (() => {
+    try {
+      return JSON.parse(license.deadline_fields || "{}") as { license_type_id?: string };
+    } catch {
+      return {};
+    }
+  })();
+
+  const checklistLines = checklistItems.map((item) => {
+    const mark = item.status === "complete" ? "[x]" : item.status === "not_applicable" ? "[-]" : "[ ]";
+    const linked = item.document_id ? documents.find((d) => d.id === item.document_id)?.filename : null;
+    return `  ${mark} ${item.label}${linked ? ` (linked: ${linked})` : ""}`;
+  });
+
+  const attestationLines = attestations.map(
+    (a) => `  ${a.created_at} -- signed by ${a.attested_by_name} (${a.attested_by_email}): "${a.signature_text}"\n      ${a.statement}`
+  );
+
+  const manifest = [
+    "DeadlineRadar Renewal Packet Export",
+    `Firm: ${session.firm.name}`,
+    `Staff member: ${license.staff_label || license.email}`,
+    `State: ${stateNameForSlug(license.state_slug) || license.state_slug}`,
+    `License type: ${deadlineFields.license_type_id || "(not set)"}`,
+    `Exported: ${new Date().toISOString()}`,
+    "",
+    `Documents included (${included} of ${documents.length}):`,
+    documents.length > 0
+      ? documents.map((d, i) => `  ${i + 1}. ${d.filename} (${d.kind}, uploaded ${d.uploaded_at}, ${d.size_bytes} bytes)`).join("\n")
+      : "  (none)",
+    "",
+    `Checklist status (${checklistItems.length} items):`,
+    checklistLines.length > 0 ? checklistLines.join("\n") : "  (no checklist items)",
+    "",
+    `Compliance attestations (${attestations.length}):`,
+    attestationLines.length > 0 ? attestationLines.join("\n") : "  (none)",
+    "",
+  ].join("\n");
+
+  files["manifest.txt"] = new TextEncoder().encode(manifest);
+
+  const zipBytes = zipSync(files, { level: 6 });
+  const zipFilename = sanitizeDocumentFilename(`${license.staff_label || license.email}-renewal-packet.zip`);
+
+  const headers = new Headers();
+  headers.set("Content-Type", "application/zip");
+  headers.set("Content-Disposition", `attachment; filename="${zipFilename.replace(/"/g, "'")}"`);
+  headers.set("X-Content-Type-Options", "nosniff");
+  return new Response(zipBytes, { status: 200, headers });
 }
 
 async function handleConfirm(env: Env, token: string | null): Promise<Response> {
@@ -9112,6 +9248,9 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     // /firm/licenses/:id/attestations -- roadmap #304/#306 (2026-08-31).
     const subscriberAttestationsMatch = /^\/firm\/licenses\/([^/]+)\/attestations$/.exec(url.pathname);
 
+    // /firm/licenses/:id/packet-export -- roadmap #305 (2026-08-31).
+    const subscriberPacketExportMatch = /^\/firm\/licenses\/([^/]+)\/packet-export$/.exec(url.pathname);
+
     // /firm/sessions/:id -- roadmap #52 (2026-08-07), same up-front parsing pattern.
     const firmSessionIdMatch = /^\/firm\/sessions\/([^/]+)$/.exec(url.pathname);
 
@@ -9287,6 +9426,13 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (subscriberAttestationsMatch) {
         try {
           return await handleAttestationList(request, env, subscriberAttestationsMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+      if (subscriberPacketExportMatch) {
+        try {
+          return await handleFirmPacketExport(request, env, subscriberPacketExportMatch[1] as string);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
