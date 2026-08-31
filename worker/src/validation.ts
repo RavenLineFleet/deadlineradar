@@ -597,6 +597,20 @@ export const RATE_LIMIT_FIRM_DOCUMENT_UPLOAD: RateLimit = { max: 60, windowSecon
 // setters on this list (not a mail primitive, not a bulk-write path).
 export const RATE_LIMIT_FIRM_PEER_REVIEW_SET: RateLimit = { max: 30, windowSeconds: 86400 };
 
+// POST/PATCH/DELETE /firm/licenses/:id/checklist and /firm/checklist/:id
+// (roadmap #303, 2026-08-31) -- keyed on firm id, same shape/reasoning as
+// RATE_LIMIT_FIRM_LICENSE_PATCH: small per-item D1 writes, generous enough
+// for a firm building out a full checklist across its roster in one
+// sitting, still a real bound on a runaway client loop.
+export const RATE_LIMIT_FIRM_CHECKLIST_WRITE: RateLimit = { max: 100, windowSeconds: 86400 };
+
+// POST /firm/licenses/:id/attestations (roadmap #304/#306, 2026-08-31) --
+// keyed on firm id. Deliberately tighter than the checklist-write limit
+// above: a real compliance sign-off is a meaningful, occasional action (at
+// most a handful per license per renewal cycle), not a bulk-edit primitive
+// -- a high cap here would blunt this as any kind of rate signal.
+export const RATE_LIMIT_FIRM_ATTESTATION_CREATE: RateLimit = { max: 30, windowSeconds: 86400 };
+
 // PATCH /firm/reply-to (roadmap #19, 2026-08-07) -- same shape and same
 // modest cap as RATE_LIMIT_FIRM_PEER_REVIEW_SET above.
 export const RATE_LIMIT_FIRM_REPLY_TO_SET: RateLimit = { max: 30, windowSeconds: 86400 };

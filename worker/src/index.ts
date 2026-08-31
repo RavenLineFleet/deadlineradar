@@ -88,6 +88,8 @@ import {
   RATE_LIMIT_OAUTH_START,
   RATE_LIMIT_CPE_ENTRY_CREATE,
   RATE_LIMIT_FIRM_DOCUMENT_UPLOAD,
+  RATE_LIMIT_FIRM_CHECKLIST_WRITE,
+  RATE_LIMIT_FIRM_ATTESTATION_CREATE,
   RATE_LIMIT_FIRM_PEER_REVIEW_SET,
   RATE_LIMIT_FIRM_REPLY_TO_SET,
   RATE_LIMIT_FIRM_REMINDER_CADENCE_SET,
@@ -6412,10 +6414,14 @@ async function handleAuditTrail(request: Request, env: Env): Promise<Response> {
   const session = await requireFirmRole(request, env, "partner", "office_manager");
   if (session instanceof Response) return session;
 
-  const [activity, reminders, licenses] = await Promise.all([
+  const [activity, reminders, licenses, attestations] = await Promise.all([
     store.listActivityLogForFirm(env.DB, session.firmId),
     store.listReminderLogForFirm(env.DB, session.firmId),
     store.listFirmLicenses(env.DB, session.firmId),
+    // Roadmap #304 (2026-08-31): the "who reviewed/attested a license's
+    // status" third leg of this export, distinct from activity (roster
+    // events) and reminders (send dates) above.
+    store.listComplianceAttestationsForFirm(env.DB, session.firmId),
   ]);
 
   const staffById = new Map(licenses.map((l) => [l.id, l.staff_label || l.email]));
@@ -6437,6 +6443,16 @@ async function handleAuditTrail(request: Request, env: Env): Promise<Response> {
       staff_label: staffById.get(r.subscriber_id) || "Removed staff member",
       threshold_days: r.threshold_days,
       sent_at: r.sent_at,
+    })),
+    attestations: attestations.map((a) => ({
+      id: a.id,
+      subscriber_id: a.subscriber_id,
+      staff_label: a.staff_label || staffById.get(a.subscriber_id) || "Removed staff member",
+      attested_by_name: a.attested_by_name,
+      attested_by_email: a.attested_by_email,
+      signature_text: a.signature_text,
+      statement: a.statement,
+      created_at: a.created_at,
     })),
   });
 }
@@ -8383,6 +8399,264 @@ async function handleDocumentDelete(request: Request, env: Env, id: string): Pro
   return jsonResponse(200, { id, status: "removed" });
 }
 
+function toChecklistItemJson(row: store.ChecklistItemRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    subscriber_id: row.subscriber_id,
+    label: row.label,
+    status: row.status,
+    document_id: row.document_id,
+    sort_order: row.sort_order,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function toAttestationJson(row: store.ComplianceAttestationRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    subscriber_id: row.subscriber_id,
+    staff_label: row.staff_label,
+    attested_by_name: row.attested_by_name,
+    attested_by_email: row.attested_by_email,
+    signature_text: row.signature_text,
+    statement: row.statement,
+    created_at: row.created_at,
+  };
+}
+
+/** GET /firm/licenses/:id/checklist -- roadmap #303. Any role may read
+ * (matches every other per-license read in this dashboard); the writes
+ * below are role-gated. */
+async function handleChecklistList(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmSessionWithFirm(request, env);
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  const items = await store.listChecklistItemsForSubscriber(env.DB, session.firmId, subscriberId);
+  return jsonResponse(200, { items: items.map(toChecklistItemJson) });
+}
+
+/** POST /firm/licenses/:id/checklist -- roadmap #303. Body: either
+ * {label} for a single custom item, or {template: true} to seed
+ * store.CHECKLIST_DEFAULT_TEMPLATE in one call (a firm's usual first
+ * action on a fresh checklist -- see that constant's own comment for why
+ * it's a generic starting point, not a per-state requirement claim). */
+async function handleChecklistItemCreate(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse(400, { error: "Invalid request body." });
+  }
+  const b = body as { label?: unknown; template?: unknown };
+
+  const currentCount = await store.countChecklistItems(env.DB, session.firmId, subscriberId);
+
+  const labels: string[] = [];
+  if (b.template === true) {
+    labels.push(...store.CHECKLIST_DEFAULT_TEMPLATE);
+  } else {
+    if (typeof b.label !== "string" || !b.label.trim()) {
+      return jsonResponse(400, { error: "Missing checklist item label." });
+    }
+    const label = sanitizeFreeText(b.label, store.CHECKLIST_ITEM_MAX_LABEL_LEN);
+    if (!label) return jsonResponse(400, { error: "Missing checklist item label." });
+    labels.push(label);
+  }
+
+  if (currentCount + labels.length > store.CHECKLIST_MAX_ITEMS_PER_LICENSE) {
+    return jsonResponse(400, { error: `A license can have at most ${store.CHECKLIST_MAX_ITEMS_PER_LICENSE} checklist items.` });
+  }
+
+  const created: store.ChecklistItemRow[] = [];
+  for (let i = 0; i < labels.length; i++) {
+    const item = await store.createChecklistItem(env.DB, {
+      firmId: session.firmId,
+      subscriberId,
+      label: labels[i] as string,
+      sortOrder: currentCount + i,
+    });
+    if (!item) return jsonResponse(404, { error: "Not found." });
+    created.push(item);
+  }
+
+  return jsonResponse(201, { items: created.map(toChecklistItemJson) });
+}
+
+/** PATCH /firm/checklist/:id -- roadmap #303. Body: any of {status,
+ * document_id, label}. document_id is re-validated server-side against the
+ * item's own subscriber_id -- see store.updateChecklistItem()'s own
+ * comment for why a mismatched link is rejected outright. */
+async function handleChecklistItemUpdate(request: Request, env: Env, id: string): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse(400, { error: "Invalid request body." });
+  }
+  const b = body as { status?: unknown; document_id?: unknown; label?: unknown };
+
+  const patch: { status?: store.ChecklistItemStatus; documentId?: string | null; label?: string } = {};
+
+  if (b.status !== undefined) {
+    if (typeof b.status !== "string" || !(store.CHECKLIST_ITEM_STATUSES as string[]).includes(b.status)) {
+      return jsonResponse(400, { error: "Invalid status." });
+    }
+    patch.status = b.status as store.ChecklistItemStatus;
+  }
+  if (b.document_id !== undefined) {
+    if (b.document_id !== null && typeof b.document_id !== "string") {
+      return jsonResponse(400, { error: "Invalid document_id." });
+    }
+    patch.documentId = b.document_id as string | null;
+  }
+  if (b.label !== undefined) {
+    if (typeof b.label !== "string" || !b.label.trim()) {
+      return jsonResponse(400, { error: "Invalid label." });
+    }
+    const label = sanitizeFreeText(b.label, store.CHECKLIST_ITEM_MAX_LABEL_LEN);
+    if (!label) return jsonResponse(400, { error: "Invalid label." });
+    patch.label = label;
+  }
+
+  const updated = await store.updateChecklistItem(env.DB, session.firmId, id, patch);
+  if (!updated) return jsonResponse(404, { error: "Not found." });
+
+  return jsonResponse(200, { item: toChecklistItemJson(updated) });
+}
+
+/** DELETE /firm/checklist/:id -- roadmap #303. */
+async function handleChecklistItemDelete(request: Request, env: Env, id: string): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  const removed = await store.removeChecklistItem(env.DB, session.firmId, id);
+  if (!removed) return jsonResponse(404, { error: "Not found." });
+
+  return jsonResponse(200, { id, status: "removed" });
+}
+
+/** GET /firm/licenses/:id/attestations -- roadmap #304/#306. */
+async function handleAttestationList(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmSessionWithFirm(request, env);
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  const rows = await store.listComplianceAttestationsForSubscriber(env.DB, session.firmId, subscriberId);
+  return jsonResponse(200, { attestations: rows.map(toAttestationJson) });
+}
+
+/** POST /firm/licenses/:id/attestations -- roadmap #304/#306. Body:
+ * {signature_text}. The typed signature is a ceremony device, not the
+ * security boundary -- see migration 0073's own SECURITY NOTE.
+ * Partner/office_manager only, same "Staff stays read-only" convention as
+ * every other write in this dashboard; a compliance sign-off is exactly
+ * the kind of consequential action that convention exists for. */
+async function handleAttestationCreate(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_attestation_create", RATE_LIMIT_FIRM_ATTESTATION_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  const license = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!license) return jsonResponse(404, { error: "Not found." });
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse(400, { error: "Invalid request body." });
+  }
+  const b = body as { signature_text?: unknown };
+  if (typeof b.signature_text !== "string") {
+    return jsonResponse(400, { error: "Missing signature." });
+  }
+  const signatureText = sanitizeFreeText(b.signature_text, store.ATTESTATION_SIGNATURE_MAX_LEN);
+  if (!signatureText || signatureText.length < store.ATTESTATION_SIGNATURE_MIN_LEN) {
+    return jsonResponse(400, { error: "Please type your full name to sign." });
+  }
+
+  const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
+  if (!member) return jsonResponse(404, { error: "Not found." });
+
+  const attestation = await store.createComplianceAttestation(env.DB, {
+    firmId: session.firmId,
+    subscriber: license,
+    attestedByMemberId: member.id,
+    attestedByName: member.name || member.email,
+    attestedByEmail: member.email,
+    signatureText,
+  });
+
+  return jsonResponse(201, { attestation: toAttestationJson(attestation) });
+}
+
 async function handleConfirm(env: Env, token: string | null): Promise<Response> {
   if (!token) return errorPage(400, "Missing confirmation link.");
   const result = await store.confirmIfPending(env.DB, token);
@@ -8829,6 +9103,15 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     const documentDownloadMatch = /^\/firm\/documents\/([^/]+)\/download$/.exec(url.pathname);
     const documentIdMatch = /^\/firm\/documents\/([^/]+)$/.exec(url.pathname);
 
+    // /firm/licenses/:id/checklist and /firm/checklist/:id -- roadmap #303
+    // (2026-08-31), same up-front parsing pattern as the documents routes
+    // just above.
+    const subscriberChecklistMatch = /^\/firm\/licenses\/([^/]+)\/checklist$/.exec(url.pathname);
+    const checklistItemIdMatch = /^\/firm\/checklist\/([^/]+)$/.exec(url.pathname);
+
+    // /firm/licenses/:id/attestations -- roadmap #304/#306 (2026-08-31).
+    const subscriberAttestationsMatch = /^\/firm\/licenses\/([^/]+)\/attestations$/.exec(url.pathname);
+
     // /firm/sessions/:id -- roadmap #52 (2026-08-07), same up-front parsing pattern.
     const firmSessionIdMatch = /^\/firm\/sessions\/([^/]+)$/.exec(url.pathname);
 
@@ -8994,6 +9277,20 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
       }
+      if (subscriberChecklistMatch) {
+        try {
+          return await handleChecklistList(request, env, subscriberChecklistMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+      if (subscriberAttestationsMatch) {
+        try {
+          return await handleAttestationList(request, env, subscriberAttestationsMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
       // SSO (2026-07-30). The provider id is constrained by the pattern
       // itself, and getConfiguredProvider() 404s anything unknown or
       // unconfigured -- so an unregistered provider cannot be reached by
@@ -9053,6 +9350,13 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (firmLicenseIdMatch) {
         try {
           return await handleFirmLicensePatch(request, env, firmLicenseIdMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+      if (checklistItemIdMatch) {
+        try {
+          return await handleChecklistItemUpdate(request, env, checklistItemIdMatch[1] as string);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
@@ -9145,6 +9449,13 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
       }
+      if (checklistItemIdMatch) {
+        try {
+          return await handleChecklistItemDelete(request, env, checklistItemIdMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
       if (mobilityCompletionIdMatch) {
         try {
           return await handleMobilityCompletionDelete(request, env, mobilityCompletionIdMatch[1] as string);
@@ -9233,6 +9544,22 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (subscriberDocumentsMatch) {
         try {
           return await handleDocumentUpload(request, env, subscriberDocumentsMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (subscriberChecklistMatch) {
+        try {
+          return await handleChecklistItemCreate(request, env, subscriberChecklistMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (subscriberAttestationsMatch) {
+        try {
+          return await handleAttestationCreate(request, env, subscriberAttestationsMatch[1] as string);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
