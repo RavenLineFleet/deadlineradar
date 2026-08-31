@@ -5822,10 +5822,14 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // fetch(). Logged at every return point below (fire-and-forget, never
   // blocks or fails the response -- logAssistantChatLatency swallows its
   // own errors).
+  // AuditLab MON-4 (2026-08-31): status is logged alongside elapsed time so
+  // the alert pass can compute p95/max over real successful answers only --
+  // the droplet's own ~0.4s 429 fast-reject would otherwise dilute the
+  // stat under exactly the load a real degradation would also cause.
   const chatStartedAt = Date.now();
   const attempt1 = await callAssistantDroplet(message, sessionId, ip, env);
   if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
-    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
+    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "success");
     return jsonResponse(200, { reply: attempt1.reply });
   }
   // AuditLab ASSIST-1 root cause (2026-08-28): the droplet has its OWN rate
@@ -5839,7 +5843,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // successes, each ~0.2s-fail + the 2.5s delay + 0.2s-fail). Return
   // immediately with whatever the droplet itself said, honestly labeled.
   if (!attempt1.ok && attempt1.rateLimited) {
-    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
+    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "rate_limited");
     return jsonResponse(429, { error: attempt1.error });
   }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
@@ -5850,7 +5854,8 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // be a 429 (e.g. attempt1 failed some other way, and the budget ran out
   // in between) -- surfaced honestly either way, no special-casing needed
   // since we're not retrying again regardless of what attempt2 says.
-  await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
+  const attempt2Status = attempt2.ok ? "success" : attempt2.rateLimited ? "rate_limited" : "error";
+  await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), attempt2Status);
   return attempt2.ok
     ? jsonResponse(200, { reply: attempt2.reply })
     : jsonResponse(attempt2.status, { error: attempt2.error });
