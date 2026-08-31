@@ -210,6 +210,7 @@ import {
   runSmsAlertPass,
   runComplianceNewsletterPass,
   runMobilityStalenessAlertPass,
+  runAssistantLatencyAlertPass,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -5814,8 +5815,17 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // back onto one 5/hour bucket -- exactly the bug believed fixed. `ip` is
   // already the real header value via clientIp() above (falls back to
   // "0.0.0.0" only if Cloudflare's edge somehow didn't set it).
+  // AuditLab (2026-08-31, latency-monitoring directive): measures the same
+  // thing AuditLab's own curl sweeps measure -- customer-experienced time
+  // from "we have a valid question" to "we have an answer to send back",
+  // including a retry's delay if one happens, not just one internal
+  // fetch(). Logged at every return point below (fire-and-forget, never
+  // blocks or fails the response -- logAssistantChatLatency swallows its
+  // own errors).
+  const chatStartedAt = Date.now();
   const attempt1 = await callAssistantDroplet(message, sessionId, ip, env);
   if (attempt1.ok && !attempt1.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE)) {
+    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
     return jsonResponse(200, { reply: attempt1.reply });
   }
   // AuditLab ASSIST-1 root cause (2026-08-28): the droplet has its OWN rate
@@ -5829,6 +5839,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // successes, each ~0.2s-fail + the 2.5s delay + 0.2s-fail). Return
   // immediately with whatever the droplet itself said, honestly labeled.
   if (!attempt1.ok && attempt1.rateLimited) {
+    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
     return jsonResponse(429, { error: attempt1.error });
   }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
@@ -5839,6 +5850,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // be a 429 (e.g. attempt1 failed some other way, and the budget ran out
   // in between) -- surfaced honestly either way, no special-casing needed
   // since we're not retrying again regardless of what attempt2 says.
+  await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000));
   return attempt2.ok
     ? jsonResponse(200, { reply: attempt2.reply })
     : jsonResponse(attempt2.status, { error: attempt2.error });
@@ -12193,6 +12205,21 @@ export default {
           await runMobilityStalenessAlertPass(env);
         } catch (err) {
           console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // AuditLab (2026-08-31, Devin's "get to 100%" latency-monitoring
+    // directive): see runAssistantLatencyAlertPass()'s own docstring.
+    // Independent pass, no checkDataFreshness() dependency, gated behind
+    // requireSendApproval() per the standing consent-gate directive since
+    // this is a NEW pass added after that directive existed.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runAssistantLatencyAlertPass(env);
+        } catch (err) {
+          console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
         }
       })()
     );

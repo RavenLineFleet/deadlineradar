@@ -20,6 +20,7 @@
  */
 import { env } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
+import * as store from "../src/store";
 
 const BASE = "https://deadline-radar.com";
 
@@ -82,6 +83,22 @@ describe("POST /assistant/chat -- success path", () => {
       await postChat({ message: "  hello  " });
       const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(JSON.parse(init.body as string)).toEqual({ message: "hello" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("AuditLab (2026-08-31, latency-monitoring directive): a real request actually logs its elapsed time -- confirms the wiring, not just the store function in isolation", async () => {
+    await env.DB.prepare("DELETE FROM assistant_chat_latency_log").run();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("A real answer."));
+    try {
+      const before = Math.floor(Date.now() / 1000);
+      const resp = await postChat({ message: "Does this get logged?" });
+      expect(resp.status).toBe(200);
+      const stats = await store.recentAssistantChatLatencyStats(env.DB, before + 5, 3600);
+      expect(stats.n).toBe(1);
+      expect(stats.maxMs).toBeGreaterThanOrEqual(0);
+      expect(stats.maxMs).toBeLessThan(5000); // a mocked instant droplet reply, not the real 15-18s
     } finally {
       fetchSpy.mockRestore();
     }
