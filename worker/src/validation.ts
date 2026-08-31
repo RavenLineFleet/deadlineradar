@@ -611,6 +611,14 @@ export const RATE_LIMIT_FIRM_CHECKLIST_WRITE: RateLimit = { max: 100, windowSeco
 // -- a high cap here would blunt this as any kind of rate signal.
 export const RATE_LIMIT_FIRM_ATTESTATION_CREATE: RateLimit = { max: 30, windowSeconds: 86400 };
 
+// GET /firm/licenses/:id/packet-export (roadmap #305, 2026-08-31) -- keyed
+// on firm id. Tighter than a plain metadata read (RATE_LIMIT_FIRM_LICENSE_
+// PATCH-style caps): each call fans out into one R2 GET per document plus
+// an in-memory zip build, real work per request, not a cheap D1 read --
+// same "bigger write, tighter cap" reasoning RATE_LIMIT_FIRM_DOCUMENT_
+// UPLOAD already uses for the upload half of this same document surface.
+export const RATE_LIMIT_FIRM_PACKET_EXPORT: RateLimit = { max: 30, windowSeconds: 86400 };
+
 // PATCH /firm/reply-to (roadmap #19, 2026-08-07) -- same shape and same
 // modest cap as RATE_LIMIT_FIRM_PEER_REVIEW_SET above.
 export const RATE_LIMIT_FIRM_REPLY_TO_SET: RateLimit = { max: 30, windowSeconds: 86400 };

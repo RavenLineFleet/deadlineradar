@@ -403,6 +403,60 @@ describe("store.hardDeleteExpiredFirms", () => {
     }
   });
 
+  // RETAIN-3 (opus adversarial review, 2026-08-31, HIGH): checklist_items
+  // and compliance_attestations (migrations 0072/0073) shipped without
+  // being added to FIRM_SCOPED_TABLES -- same class of omission as
+  // RETAIN-1 above, except this one didn't just leak PII forever, it broke
+  // hard-deletion OUTRIGHT: checklist_items has a real `subscriber_id
+  // REFERENCES subscribers(id)` FK, so hardDeleteExpiredFirms() threw
+  // SQLITE_CONSTRAINT_FOREIGNKEY on the subscribers DELETE and left the
+  // firm half-deleted (every other FIRM_SCOPED_TABLES row + R2 objects
+  // gone, but the firms/subscribers rows still there) -- and because the
+  // whole sweep runs one `for (const firmId of ids)` loop with no
+  // per-firm try/catch, that thrown error would have silently stopped
+  // every OTHER firm queued behind this one in the same daily cron pass.
+  it("RETAIN-3: hard-deletes checklist_items and compliance_attestations, and does not throw on the subscriber_id FK", async () => {
+    const firmId = await deletedFirm(31);
+    const { id: staffId } = await store.addPending(env.DB, {
+      email: `retain3-staff-${Date.now()}@example.com`,
+      stateSlug: "georgia",
+      deadlineFields: {},
+      firstName: null,
+      deadlineSource: store.DEADLINE_SOURCE_USER,
+      userDeadline: "2027-01-01",
+      firmId,
+      staffLabel: "Retain3 Staffer",
+      skipConfirmation: true,
+    });
+
+    const item = await store.createChecklistItem(env.DB, { firmId, subscriberId: staffId, label: "CPE certificate", sortOrder: 0 });
+    expect(item).not.toBeNull();
+    const licenseRow = await store.getFirmLicense(env.DB, firmId, staffId);
+    await store.createComplianceAttestation(env.DB, {
+      firmId,
+      subscriber: licenseRow!,
+      attestedByMemberId: "retain3-member",
+      attestedByName: "Retain3 Signer",
+      attestedByEmail: "retain3-signer@example.com",
+      signatureText: "Retain3 Signer",
+    });
+
+    expect(await env.DB.prepare("SELECT 1 FROM checklist_items WHERE firm_id = ?1").bind(firmId).first()).not.toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM compliance_attestations WHERE firm_id = ?1").bind(firmId).first()).not.toBeNull();
+
+    // The real regression: this used to THROW (FK violation on
+    // checklist_items.subscriber_id when the subscribers DELETE ran) and
+    // leave the firm half-deleted. A clean, non-throwing return that
+    // includes this firm id is the actual proof, not just the two
+    // row-count checks below.
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    expect(deleted).toContain(firmId);
+    expect(await store.getFirmById(env.DB, firmId)).toBeNull();
+
+    expect(await env.DB.prepare("SELECT 1 FROM checklist_items WHERE firm_id = ?1").bind(firmId).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM compliance_attestations WHERE firm_id = ?1").bind(firmId).first()).toBeNull();
+  });
+
   // RETAIN-2 (AuditLab, 2026-08-21, orchestrator-approved, HIGH): 4 tables
   // that dedup a per-subscriber notification threshold (Slack/Teams/SMS/
   // admin-digest) reference subscribers(id) with no firm_id of their own,

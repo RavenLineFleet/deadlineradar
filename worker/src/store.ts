@@ -2232,11 +2232,19 @@ export async function recordFirmDeletionRefund(db: D1Database, firmId: string, r
 /**
  * The other half of Task #3 -- the daily cron sweep (index.ts's own
  * scheduled() handler) that actually erases a firm's data once its 30-day
- * grace period has elapsed. No ON DELETE CASCADE exists on any firm_id
- * REFERENCES in this schema (see migration 0026's own comment for why:
- * D1/SQLite here doesn't enforce or cascade FKs, this codebase never
- * assumed it would), so every firm-scoped table is deleted explicitly,
- * children before the firms row itself. stripe_webhook_events is
+ * grace period has elapsed. CORRECTION (2026-08-31, opus adversarial
+ * review): the comment that used to sit here claimed "D1/SQLite here
+ * doesn't enforce or cascade FKs" -- that first half is false and was
+ * never actually tested until checklist_items (migration 0072) shipped a
+ * `subscriber_id TEXT NOT NULL REFERENCES subscribers(id)` column that
+ * WASN'T in FIRM_SCOPED_TABLES: hard-deleting a firm with a checklist item
+ * threw a real `SQLITE_CONSTRAINT_FOREIGNKEY` and left the firm
+ * half-deleted. D1/SQLite DOES enforce declared FK constraints; what it
+ * does NOT do is CASCADE them. So every firm-scoped table still must be
+ * deleted explicitly, in an order that respects those real constraints
+ * (children before the firms row itself, and before whatever they
+ * reference is deleted out from under them) -- not because FKs are inert
+ * here, but because they very much are not. stripe_webhook_events is
  * DELIBERATELY left alone -- it's a raw idempotency/audit log of Stripe
  * events, not the firm's own data, and erasing it could let a
  * late-redelivered webhook for this firm_id be reprocessed as if new.
@@ -2291,6 +2299,17 @@ export const FIRM_SCOPED_TABLES = [
   // below), so it rides this loop's flat `WHERE firm_id = ?1` like every
   // other durable audit table above rather than needing special handling.
   "admin_digest_send_log",
+  // migrations 0072/0073 (roadmap #303/#304/#306, 2026-08-31): both have
+  // their own firm_id column directly. checklist_items ALSO has a
+  // subscriber_id REFERENCES subscribers(id) FK -- caught live by an opus
+  // adversarial review (2026-08-31) that this loop runs BEFORE the
+  // subscribers DELETE below, so listing it here (rather than needing
+  // SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES's subquery treatment) is already
+  // correct: no special-case needed, just don't repeat the omission these
+  // two tables shipped with for a few hours -- see that review's own
+  // finding for the FK-constraint-failure repro this omission caused.
+  "checklist_items",
+  "compliance_attestations",
 ] as const;
 
 /**
@@ -4032,11 +4051,21 @@ export async function countChecklistItems(db: D1Database, firmId: string, subscr
 }
 
 /** Ownership-checks the subscriber belongs to firmId before inserting --
- * same guard createDocument()/addCpeEntry() already use. Returns null
- * (never throws) on a failed ownership check, matching their contract. Does
- * NOT enforce CHECKLIST_MAX_ITEMS_PER_LICENSE itself -- checked by the
- * caller (handleChecklistItemCreate) first, same split createDocument()
- * uses for its own quota check. */
+ * same guard createDocument()/addCpeEntry() already use. Returns null on a
+ * failed ownership check (matching their contract) OR when the insert
+ * would push this license over CHECKLIST_MAX_ITEMS_PER_LICENSE.
+ *
+ * The cap enforcement is a single `INSERT ... SELECT ... WHERE (COUNT) <
+ * cap` statement, not a separate SELECT-then-INSERT pair -- an opus
+ * adversarial review (2026-08-31) found the earlier count-then-insert
+ * split (count checked once in the handler, before a multi-row `template:
+ * true` insert loop) had a real TOCTOU window: N concurrent requests could
+ * each read the same under-cap count and all insert, overshooting the cap.
+ * A single statement's SELECT subquery and INSERT execute atomically
+ * against D1/SQLite (no other statement can interleave inside one
+ * `.run()` call), so this closes the race per-row rather than merely
+ * narrowing it. `result.meta.changes === 0` means the guard fired -- the
+ * cap was already reached by the time this exact row was about to land. */
 export async function createChecklistItem(
   db: D1Database,
   input: { firmId: string; subscriberId: string; label: string; sortOrder: number }
@@ -4049,13 +4078,15 @@ export async function createChecklistItem(
 
   const id = newToken();
   const now = nowIso();
-  await db
+  const result = await db
     .prepare(
       `INSERT INTO checklist_items (id, firm_id, subscriber_id, label, status, document_id, sort_order, created_at, updated_at)
-       VALUES (?1,?2,?3,?4,'pending',NULL,?5,?6,?6)`
+       SELECT ?1,?2,?3,?4,'pending',NULL,?5,?6,?6
+       WHERE (SELECT COUNT(*) FROM checklist_items WHERE firm_id = ?2 AND subscriber_id = ?3 AND deleted_at IS NULL) < ?7`
     )
-    .bind(id, input.firmId, input.subscriberId, input.label, input.sortOrder, now)
+    .bind(id, input.firmId, input.subscriberId, input.label, input.sortOrder, now, CHECKLIST_MAX_ITEMS_PER_LICENSE)
     .run();
+  if ((result.meta.changes ?? 0) === 0) return null;
 
   return {
     id,
@@ -4106,7 +4137,15 @@ export async function updateChecklistItem(
   const existing = await getChecklistItemForFirm(db, firmId, id);
   if (!existing) return null;
 
-  if (patch.documentId) {
+  // AuditLab-style opus review (2026-08-31): this MUST be a presence check
+  // (undefined/null), not a truthiness check -- `if (patch.documentId)`
+  // let a falsy-but-present value like `""` skip the ownership lookup
+  // entirely and get written straight into the column, neither a real
+  // document id nor cleanly null. `null` clears the link (skips this
+  // branch, falls through to nextDocumentId below); any other non-null
+  // value, including `""`, is validated and 404s if it doesn't resolve to
+  // a real document owned by this item's own subscriber.
+  if (patch.documentId !== undefined && patch.documentId !== null) {
     const doc = await getDocumentForFirm(db, firmId, patch.documentId);
     if (!doc || doc.subscriber_id !== existing.subscriber_id) return null;
   }
