@@ -4686,6 +4686,14 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     try {
       localStorage.removeItem(STORAGE_HISTORY_KEY);
       localStorage.removeItem(STORAGE_SESSION_KEY);
+      // AuditLab (2026-08-31): without this, isIdleExpired() stays true
+      // across every subsequent page load until the visitor's first
+      // post-reset message -- a returning idle visitor browsing several
+      // pages before asking anything would silently mint a new session
+      // and re-see the greeting on EACH page load, not just once for the
+      // idle period. touchActivity() here marks the reset itself as the
+      // new "last activity," so the idle window restarts cleanly.
+      touchActivity();
     } catch (e) {}
   }
 
