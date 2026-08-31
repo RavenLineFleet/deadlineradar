@@ -2222,6 +2222,57 @@ export function buildMobilityStalenessAlertEmail(
 }
 
 /**
+ * AuditLab (2026-08-31, Devin's "get to 100%" latency-monitoring directive).
+ * Confirmed the assistant chat endpoint sits in a ~15-18s steady state for a
+ * normal question -- LLM-inherent, expected, not itself worth alerting on.
+ * This fires only when that steady state has clearly moved: p95 over the
+ * lookback window exceeds ASSISTANT_LATENCY_ALERT_P95_MS, or any single
+ * request exceeded ASSISTANT_LATENCY_ALERT_MAX_MS (AuditLab's own
+ * recommended thresholds -- 25s / 30s -- chosen so the known 15-18s
+ * baseline never trips it, but a real stall or creeping degradation does).
+ * Same internal-only INTERNAL_NOTIFY_EMAIL convention as
+ * buildStaleDataAlertEmail() above; same day-keyed "at most once" framing.
+ */
+export function buildAssistantLatencyAlertEmail(stats: {
+  n: number;
+  p95Ms: number;
+  maxMs: number;
+  p95ThresholdMs: number;
+  maxThresholdMs: number;
+  lookbackHours: number;
+}): BuiltEmail {
+  const p95Sec = (stats.p95Ms / 1000).toFixed(1);
+  const maxSec = (stats.maxMs / 1000).toFixed(1);
+  const which = stats.p95Ms > stats.p95ThresholdMs && stats.maxMs > stats.maxThresholdMs ? "both p95 and a single request" : stats.p95Ms > stats.p95ThresholdMs ? "p95" : "a single request";
+  const subject = `Deadline-Radar: assistant chat latency degraded (${which} over threshold)`;
+  const textBody =
+    `Over the last ${stats.lookbackHours} hours (${stats.n} sample${stats.n === 1 ? "" : "s"}), the assistant ` +
+    `chat endpoint's latency crossed the alert threshold:\n\n` +
+    `  p95: ${p95Sec}s (threshold ${(stats.p95ThresholdMs / 1000).toFixed(0)}s)\n` +
+    `  max: ${maxSec}s (threshold ${(stats.maxThresholdMs / 1000).toFixed(0)}s)\n\n` +
+    `The endpoint's known steady state is ~15-18s for a normal question (LLM-inherent, not itself a ` +
+    `problem) -- these thresholds are set well above that baseline specifically so they only fire on a ` +
+    `real stall or creeping degradation, not routine variance. Worth checking: the droplet's own health ` +
+    `(is the claude CLI subprocess hanging, is the concurrency semaphore backed up), and whether this ` +
+    `coincides with a traffic spike or a recent droplet-side change.\n\n` +
+    `This email fires at most once per UTC day no matter how many cron ticks still see the breach.`;
+  const htmlBody =
+    `<p>Over the last ${stats.lookbackHours} hours (${stats.n} sample${stats.n === 1 ? "" : "s"}), the ` +
+    `assistant chat endpoint's latency crossed the alert threshold:</p>` +
+    `<ul>` +
+    `<li>p95: ${esc(p95Sec)}s (threshold ${(stats.p95ThresholdMs / 1000).toFixed(0)}s)</li>` +
+    `<li>max: ${esc(maxSec)}s (threshold ${(stats.maxThresholdMs / 1000).toFixed(0)}s)</li>` +
+    `</ul>` +
+    `<p>The endpoint's known steady state is ~15-18s for a normal question (LLM-inherent, not itself a ` +
+    `problem) &mdash; these thresholds are set well above that baseline specifically so they only fire ` +
+    `on a real stall or creeping degradation, not routine variance. Worth checking: the droplet's own ` +
+    `health (is the <code>claude</code> CLI subprocess hanging, is the concurrency semaphore backed up), ` +
+    `and whether this coincides with a traffic spike or a recent droplet-side change.</p>` +
+    `<p>This email fires at most once per UTC day no matter how many cron ticks still see the breach.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * Task #3 (2026-08-06): internal notification on a firm self-deleting its
  * account -- same "so Devin can actually see the feedback" reasoning as
  * sendSignupNotification() above, reused for the opposite event. The

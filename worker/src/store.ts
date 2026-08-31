@@ -6064,3 +6064,69 @@ export async function recordNewsletterDigestSent(db: D1Database, includedEventId
     .bind(nowIso(), JSON.stringify(includedEventIds))
     .run();
 }
+
+/** AuditLab (2026-08-31, migration 0070): one row per real assistant/chat
+ * request. Fire-and-forget from callAssistantDroplet -- errors here must
+ * never surface to the caller, so this function itself never throws
+ * outward; a failed insert just means one missing sample, not a broken
+ * response. `nowSeconds` is passed in (not computed here) so a test can
+ * control it without mocking Date. */
+export async function logAssistantChatLatency(db: D1Database, elapsedMs: number, nowSeconds: number): Promise<void> {
+  try {
+    await db.prepare(`INSERT INTO assistant_chat_latency_log (ts, elapsed_ms) VALUES (?1, ?2)`).bind(nowSeconds, elapsedMs).run();
+  } catch {
+    // Logging failure is never the caller's problem -- see docstring above.
+  }
+}
+
+export interface AssistantChatLatencyStats {
+  n: number;
+  p95Ms: number | null;
+  maxMs: number | null;
+}
+
+/** Reads every sample within `sinceSeconds` of `nowSeconds` and, in the
+ * same call, opportunistically deletes rows older than that window -- same
+ * self-trimming shape as checkRateLimit()'s own rate_limit_hits cleanup
+ * (0002), so this table never needs a separate pruning job. p95 uses the
+ * standard nearest-rank method (ceil(0.95 * n), 1-indexed) on samples
+ * sorted ascending; both stats are null when n === 0 so the caller can't
+ * mistake "no data" for "0ms". */
+export async function recentAssistantChatLatencyStats(
+  db: D1Database,
+  nowSeconds: number,
+  sinceSeconds: number
+): Promise<AssistantChatLatencyStats> {
+  const cutoff = nowSeconds - sinceSeconds;
+  await db.prepare(`DELETE FROM assistant_chat_latency_log WHERE ts < ?1`).bind(cutoff).run();
+  const { results } = await db
+    .prepare(`SELECT elapsed_ms FROM assistant_chat_latency_log WHERE ts >= ?1 ORDER BY elapsed_ms ASC`)
+    .bind(cutoff)
+    .all<{ elapsed_ms: number }>();
+  const n = results.length;
+  if (n === 0) return { n: 0, p95Ms: null, maxMs: null };
+  const p95Index = Math.min(n - 1, Math.ceil(0.95 * n) - 1);
+  const p95Row = results[p95Index];
+  const maxRow = results[n - 1];
+  if (!p95Row || !maxRow) return { n: 0, p95Ms: null, maxMs: null }; // unreachable given n > 0, satisfies noUncheckedIndexedAccess
+  return { n, p95Ms: p95Row.elapsed_ms, maxMs: maxRow.elapsed_ms };
+}
+
+/** Same day-keyed claim/unclaim shape as claimStaleDataAlertForToday() --
+ * at most one assistant-latency-degradation email per UTC day regardless
+ * of how many cron ticks still see the breach. Returns true = "you own
+ * today's alert, send it." */
+export async function claimAssistantLatencyAlertForToday(db: D1Database, dayUtc: string): Promise<boolean> {
+  const result = await db
+    .prepare(`INSERT INTO assistant_latency_alert_log (day, sent_at) VALUES (?1, ?2) ON CONFLICT(day) DO NOTHING`)
+    .bind(dayUtc, nowIso())
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+/** Same DROP-3-shaped "claim burned even when the alert never actually
+ * sent" fix as unclaimStaleDataAlertForToday() -- called on every failure
+ * branch so a later tick the same day gets a real retry. */
+export async function unclaimAssistantLatencyAlertForToday(db: D1Database, dayUtc: string): Promise<void> {
+  await db.prepare(`DELETE FROM assistant_latency_alert_log WHERE day = ?1`).bind(dayUtc).run();
+}

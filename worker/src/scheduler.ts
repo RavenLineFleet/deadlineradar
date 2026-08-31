@@ -52,6 +52,7 @@ import {
   buildNewsletterDigestEmail,
   type NewsletterDigestItem,
   buildMobilityStalenessAlertEmail,
+  buildAssistantLatencyAlertEmail,
 } from "./emails";
 import {
   DEFAULT_DAILY_SEND_CAP,
@@ -2414,6 +2415,59 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
   } catch (err) {
     await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AuditLab (2026-08-31, Devin's "get to 100%" latency-monitoring directive).
+// Confirmed the assistant chat endpoint sits in a ~15-18s steady state
+// (recurring, not a one-off, across independent samples). AuditLab's own
+// charter is read-only measurement -- this is the persistent-in-prod half
+// they can't build themselves: read what handleAssistantChat has been
+// logging (index.ts's logAssistantChatLatency call), and alert only on a
+// real departure from that known baseline.
+// ---------------------------------------------------------------------------
+
+/** AuditLab's own recommended thresholds (2026-08-31): set well above the
+ * known ~15-18s steady state specifically so routine variance never trips
+ * them, but a real stall or creeping p95 does. 30s max = halfway to the
+ * 60s client-side / 120s droplet subprocess timeout -- the shape of a real
+ * hang, not a slow-but-real answer. */
+const ASSISTANT_LATENCY_ALERT_P95_MS = 25_000;
+const ASSISTANT_LATENCY_ALERT_MAX_MS = 30_000;
+
+/** How far back to look for samples on each daily check. 24h (not "since
+ * last run") so a single day's cron tick sees a full day of traffic
+ * regardless of exactly when in the day it fires. */
+const ASSISTANT_LATENCY_LOOKBACK_HOURS = 24;
+
+export async function runAssistantLatencyAlertPass(env: Env): Promise<void> {
+  if (!requireSendApproval(env, "assistantLatencyAlert")) return;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const stats = await store.recentAssistantChatLatencyStats(env.DB, nowSeconds, ASSISTANT_LATENCY_LOOKBACK_HOURS * 3600);
+  if (stats.n === 0 || stats.p95Ms === null || stats.maxMs === null) return;
+  const breached = stats.p95Ms > ASSISTANT_LATENCY_ALERT_P95_MS || stats.maxMs > ASSISTANT_LATENCY_ALERT_MAX_MS;
+  if (!breached) return;
+  if (!env.SENDGRID_API_KEY) return;
+  const dayUtc = new Date().toISOString().slice(0, 10);
+  const claimed = await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc);
+  if (!claimed) return;
+  try {
+    const built = buildAssistantLatencyAlertEmail({
+      n: stats.n,
+      p95Ms: stats.p95Ms,
+      maxMs: stats.maxMs,
+      p95ThresholdMs: ASSISTANT_LATENCY_ALERT_P95_MS,
+      maxThresholdMs: ASSISTANT_LATENCY_ALERT_MAX_MS,
+      lookbackHours: ASSISTANT_LATENCY_LOOKBACK_HOURS,
+    });
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    if (!ok) {
+      await store.unclaimAssistantLatencyAlertForToday(env.DB, dayUtc);
+    }
+  } catch (err) {
+    await store.unclaimAssistantLatencyAlertForToday(env.DB, dayUtc);
+    console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
   }
 }
 
