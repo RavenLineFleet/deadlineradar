@@ -6065,15 +6065,27 @@ export async function recordNewsletterDigestSent(db: D1Database, includedEventId
     .run();
 }
 
-/** AuditLab (2026-08-31, migration 0070): one row per real assistant/chat
- * request. Fire-and-forget from callAssistantDroplet -- errors here must
- * never surface to the caller, so this function itself never throws
+export type AssistantChatLatencyStatus = "success" | "rate_limited" | "error";
+
+/** AuditLab (2026-08-31, migration 0070/0071): one row per real assistant/
+ * chat request. Fire-and-forget from callAssistantDroplet -- errors here
+ * must never surface to the caller, so this function itself never throws
  * outward; a failed insert just means one missing sample, not a broken
  * response. `nowSeconds` is passed in (not computed here) so a test can
- * control it without mocking Date. */
-export async function logAssistantChatLatency(db: D1Database, elapsedMs: number, nowSeconds: number): Promise<void> {
+ * control it without mocking Date. `status` mirrors AssistantDropletResult
+ * (index.ts) -- see recentAssistantChatLatencyStats()'s own docstring for
+ * why only 'success' rows feed p95/max (MON-4). */
+export async function logAssistantChatLatency(
+  db: D1Database,
+  elapsedMs: number,
+  nowSeconds: number,
+  status: AssistantChatLatencyStatus
+): Promise<void> {
   try {
-    await db.prepare(`INSERT INTO assistant_chat_latency_log (ts, elapsed_ms) VALUES (?1, ?2)`).bind(nowSeconds, elapsedMs).run();
+    await db
+      .prepare(`INSERT INTO assistant_chat_latency_log (ts, elapsed_ms, status) VALUES (?1, ?2, ?3)`)
+      .bind(nowSeconds, elapsedMs, status)
+      .run();
   } catch {
     // Logging failure is never the caller's problem -- see docstring above.
   }
@@ -6083,15 +6095,27 @@ export interface AssistantChatLatencyStats {
   n: number;
   p95Ms: number | null;
   maxMs: number | null;
+  totalN: number;
 }
 
-/** Reads every sample within `sinceSeconds` of `nowSeconds` and, in the
+/** AuditLab MON-4 (2026-08-31): p95/max are computed over 'success' rows
+ * ONLY -- the droplet's own ~0.4s 429 fast-reject writes into the same
+ * table, and a 429-heavy spike (exactly the load shape a real degradation
+ * would also produce) dilutes an all-rows p95 low enough to mask a genuine
+ * 25-30s stall (AuditLab's own simulation: 950 429-rows + 50 real 26s
+ * responses -> all-rows p95 = 400ms, breach=false; success-only p95 = 26s,
+ * breach=true -- the whole point of the fix). `totalN` counts every row in
+ * the window regardless of status, so a 429 storm is still visible as a
+ * volume signal even though it doesn't move p95/max.
+ *
+ * Reads every sample within `sinceSeconds` of `nowSeconds` and, in the
  * same call, opportunistically deletes rows older than that window -- same
  * self-trimming shape as checkRateLimit()'s own rate_limit_hits cleanup
  * (0002), so this table never needs a separate pruning job. p95 uses the
  * standard nearest-rank method (ceil(0.95 * n), 1-indexed) on samples
- * sorted ascending; both stats are null when n === 0 so the caller can't
- * mistake "no data" for "0ms". */
+ * sorted ascending; p95Ms/maxMs are null when there are zero SUCCESS
+ * samples (even if totalN > 0, e.g. an all-429 window) so the caller can't
+ * mistake "no successful data" for "0ms" or silently alert on nothing. */
 export async function recentAssistantChatLatencyStats(
   db: D1Database,
   nowSeconds: number,
@@ -6099,17 +6123,22 @@ export async function recentAssistantChatLatencyStats(
 ): Promise<AssistantChatLatencyStats> {
   const cutoff = nowSeconds - sinceSeconds;
   await db.prepare(`DELETE FROM assistant_chat_latency_log WHERE ts < ?1`).bind(cutoff).run();
+  const totalRow = await db
+    .prepare(`SELECT COUNT(*) as cnt FROM assistant_chat_latency_log WHERE ts >= ?1`)
+    .bind(cutoff)
+    .first<{ cnt: number }>();
+  const totalN = totalRow?.cnt ?? 0;
   const { results } = await db
-    .prepare(`SELECT elapsed_ms FROM assistant_chat_latency_log WHERE ts >= ?1 ORDER BY elapsed_ms ASC`)
+    .prepare(`SELECT elapsed_ms FROM assistant_chat_latency_log WHERE ts >= ?1 AND status = 'success' ORDER BY elapsed_ms ASC`)
     .bind(cutoff)
     .all<{ elapsed_ms: number }>();
   const n = results.length;
-  if (n === 0) return { n: 0, p95Ms: null, maxMs: null };
+  if (n === 0) return { n: 0, p95Ms: null, maxMs: null, totalN };
   const p95Index = Math.min(n - 1, Math.ceil(0.95 * n) - 1);
   const p95Row = results[p95Index];
   const maxRow = results[n - 1];
-  if (!p95Row || !maxRow) return { n: 0, p95Ms: null, maxMs: null }; // unreachable given n > 0, satisfies noUncheckedIndexedAccess
-  return { n, p95Ms: p95Row.elapsed_ms, maxMs: maxRow.elapsed_ms };
+  if (!p95Row || !maxRow) return { n: 0, p95Ms: null, maxMs: null, totalN }; // unreachable given n > 0, satisfies noUncheckedIndexedAccess
+  return { n, p95Ms: p95Row.elapsed_ms, maxMs: maxRow.elapsed_ms, totalN };
 }
 
 /** Same day-keyed claim/unclaim shape as claimStaleDataAlertForToday() --

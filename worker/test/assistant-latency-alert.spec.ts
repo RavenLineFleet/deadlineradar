@@ -15,9 +15,13 @@ import * as store from "../src/store";
 
 const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
 
-async function seedSamples(nowSeconds: number, elapsedMsValues: number[]): Promise<void> {
+async function seedSamples(
+  nowSeconds: number,
+  elapsedMsValues: number[],
+  status: store.AssistantChatLatencyStatus = "success"
+): Promise<void> {
   for (const ms of elapsedMsValues) {
-    await store.logAssistantChatLatency(env.DB, ms, nowSeconds);
+    await store.logAssistantChatLatency(env.DB, ms, nowSeconds, status);
   }
 }
 
@@ -25,7 +29,7 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
   it("returns null stats (not 0) when there are no samples in the window", async () => {
     const now = 5_000_000;
     const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 86400);
-    expect(stats).toEqual({ n: 0, p95Ms: null, maxMs: null });
+    expect(stats).toEqual({ n: 0, p95Ms: null, maxMs: null, totalN: 0 });
   });
 
   it("computes p95 via nearest-rank on a known 20-sample set", async () => {
@@ -44,13 +48,13 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
     const now = 5_200_000;
     await seedSamples(now, [7777]);
     const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
-    expect(stats).toEqual({ n: 1, p95Ms: 7777, maxMs: 7777 });
+    expect(stats).toEqual({ n: 1, p95Ms: 7777, maxMs: 7777, totalN: 1 });
   });
 
   it("excludes samples outside the lookback window", async () => {
     const now = 5_300_000;
-    await store.logAssistantChatLatency(env.DB, 15000, now - 3601); // just outside a 1h window
-    await store.logAssistantChatLatency(env.DB, 16000, now - 100); // inside
+    await store.logAssistantChatLatency(env.DB, 15000, now - 3601, "success"); // just outside a 1h window
+    await store.logAssistantChatLatency(env.DB, 16000, now - 100, "success"); // inside
     const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
     expect(stats.n).toBe(1);
     expect(stats.p95Ms).toBe(16000);
@@ -58,8 +62,8 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
 
   it("self-trims: a query for a window PRUNES rows older than that window, even for a later query with a wider window", async () => {
     const now = 5_400_000;
-    await store.logAssistantChatLatency(env.DB, 99999, now - 7200); // 2h old
-    await store.logAssistantChatLatency(env.DB, 15000, now - 100);
+    await store.logAssistantChatLatency(env.DB, 99999, now - 7200, "success"); // 2h old
+    await store.logAssistantChatLatency(env.DB, 15000, now - 100, "success");
     // First query with a 1h window deletes the 2h-old row (cutoff = now - 3600).
     const narrow = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
     expect(narrow.n).toBe(1);
@@ -73,7 +77,36 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
 
   it("logAssistantChatLatency never throws, even against a nonsense db handle", async () => {
     const brokenDb = { prepare: () => { throw new Error("simulated D1 outage"); } } as unknown as D1Database;
-    await expect(store.logAssistantChatLatency(brokenDb, 5000, 123)).resolves.toBeUndefined();
+    await expect(store.logAssistantChatLatency(brokenDb, 5000, 123, "success")).resolves.toBeUndefined();
+  });
+
+  it("MON-4 (AuditLab, 2026-08-31): 429 fast-rejects never dilute p95/max -- success-only stats, totalN counts everything", async () => {
+    const now = 5_500_000;
+    // AuditLab's own simulation shape: a rate-limit storm alongside a few
+    // genuinely slow real answers. All-rows p95 would read near-instant
+    // (masking the real 26s degradation); success-only p95 must not.
+    await seedSamples(now, Array.from({ length: 950 }, () => 400), "rate_limited");
+    await seedSamples(now, Array.from({ length: 50 }, () => 26000), "success");
+    const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
+    expect(stats.n).toBe(50); // only the success rows feed p95/max
+    expect(stats.p95Ms).toBe(26000);
+    expect(stats.maxMs).toBe(26000);
+    expect(stats.totalN).toBe(1000); // but the 429 volume is still visible
+  });
+
+  it("MON-4: an all-429 window (zero successes) reports null p95/max, not 0 -- never mistaken for 'fast and healthy'", async () => {
+    const now = 5_600_000;
+    await seedSamples(now, [400, 400, 400], "rate_limited");
+    const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
+    expect(stats).toEqual({ n: 0, p95Ms: null, maxMs: null, totalN: 3 });
+  });
+
+  it("MON-4: 'error' status is also excluded from p95/max, same as 'rate_limited'", async () => {
+    const now = 5_700_000;
+    await seedSamples(now, [500, 600], "error");
+    await seedSamples(now, [18000], "success");
+    const stats = await store.recentAssistantChatLatencyStats(env.DB, now, 3600);
+    expect(stats).toEqual({ n: 1, p95Ms: 18000, maxMs: 18000, totalN: 3 });
   });
 });
 
@@ -118,7 +151,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
   it("does nothing (no fetch call at all) when SEND_APPROVED_PASSES doesn't include this pass -- fails closed by default", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     try {
-      await store.logAssistantChatLatency(env.DB, 40000, Math.floor(Date.now() / 1000));
+      await store.logAssistantChatLatency(env.DB, 40000, Math.floor(Date.now() / 1000), "success");
       await freshRun({ SEND_APPROVED_PASSES: undefined, SENDGRID_API_KEY: "test-key" });
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
@@ -158,6 +191,30 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       expect(captured[0]?.subject).toContain("assistant chat latency degraded");
       expect(captured[0]?.text).toContain("35.0s");
       expect(captured[0]?.text).toContain("~15-18s"); // documents the known baseline, doesn't just say "slow"
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("MON-4 end-to-end: a 429 storm alongside a real breach still fires -- proves the dilution bug is actually fixed at the pass level, not just in the store function", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === SENDGRID_URL) {
+        const body = JSON.parse(String(init?.body)) as { subject: string };
+        captured.push(body.subject);
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      // AuditLab's exact simulation shape: a rate-limit storm would drag an
+      // all-rows p95 down to ~0.4s (breach=false) if MON-4 weren't fixed.
+      await seedSamples(now, Array.from({ length: 950 }, () => 400), "rate_limited");
+      await seedSamples(now, Array.from({ length: 50 }, () => 26000), "success");
+      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" });
+      expect(captured).toHaveLength(1);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -205,7 +262,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
         return runAssistantLatencyAlertPass({ ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never);
       };
       await runOnce();
-      await store.logAssistantChatLatency(env.DB, 41000, now); // still breaching on a later tick
+      await store.logAssistantChatLatency(env.DB, 41000, now, "success"); // still breaching on a later tick
       await runOnce();
       expect(sendCount).toBe(1);
     } finally {
