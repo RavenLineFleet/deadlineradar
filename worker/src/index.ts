@@ -12631,8 +12631,8 @@ export default {
     // was an upper bound presented as a count. Devin independently confirmed
     // the true figure via SendGrid's own Email Logs (ground truth, not
     // inferred from D1): exactly 4 emails sent, 1+1+1+3 = 6 threshold items
-    // across those 4 sends, ALL to foothillraven@gmail.com via "Moose &
-    // Raven LLC" -- Devin's own dogfood/test firm. Zero real customers or
+    // across those 4 sends, ALL to Devin's own dogfood/test firm address --
+    // "Moose & Raven LLC," Devin's own dogfood/test firm. Zero real customers or
     // external firm admins were affected. This does not make the underlying
     // gap less real -- copy Devin never signed off on still went out
     // unsupervised, a live violation of this project's own "code shipped,
