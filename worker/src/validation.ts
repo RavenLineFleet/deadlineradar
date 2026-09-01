@@ -726,6 +726,11 @@ export const RATE_LIMIT_SUBSCRIBER_REMINDER_CADENCE: RateLimit = { max: 30, wind
 // PATCH /subscriber/notification-mode (roadmap #24) -- same shape again.
 export const RATE_LIMIT_SUBSCRIBER_NOTIFICATION_MODE: RateLimit = { max: 30, windowSeconds: 86400 };
 
+// PATCH /subscriber/ptin (2026-09-01, federal PTIN tracking) -- same shape
+// again: a single-field, per-person self-service setter, no reason for a
+// different cap than the other settings toggles on this list.
+export const RATE_LIMIT_SUBSCRIBER_PTIN_SET: RateLimit = { max: 30, windowSeconds: 86400 };
+
 // POST /firm/staff-cpe-reminder (2026-08-05) -- an admin-triggered nudge
 // email to one staff member. Keyed on firm_id like RATE_LIMIT_FIRM_LICENSE_CREATE,
 // bounding a compromised/careless firm session from mail-bombing its own

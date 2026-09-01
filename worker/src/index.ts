@@ -109,6 +109,7 @@ import {
   RATE_LIMIT_SUBSCRIBER_PROFILE_UPDATE,
   RATE_LIMIT_SUBSCRIBER_REMINDER_CADENCE,
   RATE_LIMIT_SUBSCRIBER_NOTIFICATION_MODE,
+  RATE_LIMIT_SUBSCRIBER_PTIN_SET,
   RATE_LIMIT_FIRM_STAFF_CPE_REMINDER,
   RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY,
   RATE_LIMIT_ROADMAP_VOTE,
@@ -160,6 +161,7 @@ import {
   computeSubscriberDeadline,
   dataFreshnessInfo,
   isStateComputable,
+  nextAnnualMonthEnd,
   stateNameForSlug,
   SUPPORTED_STATE_SLUGS,
   USER_DEADLINE_MAX_DAYS,
@@ -4681,6 +4683,46 @@ async function handleSubscriberNotificationModeSet(request: Request, env: Env): 
   return jsonResponse(200, { notification_mode: body.mode });
 }
 
+/** PATCH /subscriber/ptin -- 2026-09-01, federal PTIN reminder opt-in. Body:
+ * {enabled: boolean}. Same shape as handleSubscriberNotificationModeSet
+ * just above -- a single cross-row-write-by-email preference, no
+ * subscriber_id needed since PTIN is a per-PERSON fact, not a per-license
+ * one. 404 (via the store call's own changes-count) if this email has no
+ * subscriber rows at all to write to -- same "nothing to act on" posture
+ * every other cross-row setter here uses. */
+async function handleSubscriberPtinSet(request: Request, env: Env): Promise<Response> {
+  const session = await requireSubscriberSession(request, env);
+  if (session instanceof Response) return session;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_ptin_set", RATE_LIMIT_SUBSCRIBER_PTIN_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    const raw = await request.text();
+    if (raw.length > MAX_BODY_BYTES) return jsonResponse(400, { error: "Request too large." });
+    body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+
+  if (typeof body.enabled !== "boolean") {
+    return jsonResponse(400, { error: "Please provide a valid enabled value." });
+  }
+
+  const changed = await store.setSubscriberPtinTracking(env.DB, session.emailNormalized, body.enabled);
+  if (changed === 0) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+  return jsonResponse(200, { ptin_tracking_enabled: body.enabled, ptin_next_deadline: nextAnnualMonthEnd(new Date(), 12).toISOString().slice(0, 10) });
+}
+
 // ---------------------------------------------------------------------------
 // SMS reminders (2026-08-09, roadmap #22). Double opt-in, same rigor
 // email's own confirm_token flow already has -- see migration 0054's own
@@ -5158,6 +5200,12 @@ async function handleSubscriberLicensesList(request: Request, env: Env): Promise
     // the sensitive value" posture as Slack/Teams' own webhook URLs.
     phone_last4: maskPhoneLast4(rows[0]?.phone_number ?? null),
     sms_opted_in: (rows[0]?.sms_opted_in ?? 0) !== 0,
+    // 2026-09-01: same person-level, read-from-the-first-row posture as
+    // notification_mode/phone_last4 above. Always returned regardless of
+    // opt-in state so the /my/ page can show "next PTIN deadline: <date>"
+    // right next to the toggle even before someone turns it on.
+    ptin_tracking_enabled: (rows[0]?.ptin_tracking_enabled ?? 0) !== 0,
+    ptin_next_deadline: nextAnnualMonthEnd(asOf, 12).toISOString().slice(0, 10),
     // SMS-5: names, not just flags -- the connected-state panel's caveat
     // reads directly off this rather than re-deriving state names from
     // per-license sms_unavailable itself.
@@ -9566,6 +9614,13 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/subscriber/notification-mode") {
         try {
           return await handleSubscriberNotificationModeSet(request, env);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+      if (url.pathname === "/subscriber/ptin") {
+        try {
+          return await handleSubscriberPtinSet(request, env);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }

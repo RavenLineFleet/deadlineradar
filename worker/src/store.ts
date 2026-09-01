@@ -173,6 +173,12 @@ export interface SubscriberRow {
   // Kept even after opt-out, same audit-trail reasoning as sms_opted_in_at.
   sms_consent_version: string | null;
   sms_consent_ip: string | null;
+  // migration 0074 (2026-09-01): federal PTIN reminder opt-in. Same cross-
+  // row-write-by-email convention as notification_mode above -- a per-
+  // PERSON preference, not a per-license one. The deadline itself (always
+  // the next December 31) is never stored here; see
+  // deadline.ts's nextAnnualMonthEnd(asOf, 12).
+  ptin_tracking_enabled: number;
 }
 
 function nowIso(): string {
@@ -505,6 +511,10 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
     sms_opted_in_at: null,
     sms_consent_version: null,
     sms_consent_ip: null,
+    // migration 0074: a brand-new record always starts opted out, same as
+    // every other person-level preference above -- not part of the INSERT
+    // column list either (matches the column's own DB default).
+    ptin_tracking_enabled: 0,
   };
   await db
     .prepare(
@@ -5391,6 +5401,20 @@ export async function setSubscriberNotificationMode(db: D1Database, emailNormali
   const result = await db
     .prepare(`UPDATE subscribers SET notification_mode = ?1 WHERE LOWER(TRIM(email)) = ?2`)
     .bind(mode, emailNormalized)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+/** Migration 0074 (2026-09-01): federal PTIN reminder opt-in. Same cross-
+ * row-write-by-email reach as setSubscriberNotificationMode() above --
+ * PTIN is a per-PERSON fact, independent of which state license(s) this
+ * email tracks. Returns the number of rows touched so the caller can 404
+ * if this email has no subscriber rows at all (same "changes === 0 means
+ * nothing to act on" convention as every other cross-row-write here). */
+export async function setSubscriberPtinTracking(db: D1Database, emailNormalized: string, enabled: boolean): Promise<number> {
+  const result = await db
+    .prepare(`UPDATE subscribers SET ptin_tracking_enabled = ?1 WHERE LOWER(TRIM(email)) = ?2`)
+    .bind(enabled ? 1 : 0, emailNormalized)
     .run();
   return result.meta.changes ?? 0;
 }

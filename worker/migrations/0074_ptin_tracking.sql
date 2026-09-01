@@ -1,0 +1,20 @@
+-- PTIN tracking (2026-09-01, orchestrator directive, Devin-approved): closes
+-- PRO_TIER_SPEC.md's own deferred gap ("federal PTIN Dec 31 (no data yet)")
+-- now that the underlying rule is sourced (see data/ptin_federal.json).
+--
+-- Per-PERSON opt-in, same cross-row-write convention as notification_mode
+-- (migration 0051) / reminder_thresholds / phone_number -- PTIN is
+-- independent of which state(s) a person is licensed in, so it's written
+-- across every subscribers row sharing an email, not scoped to any single
+-- state-license row. A brand-new row simply starts at the column default
+-- (0/off), same as every other person-level preference here -- no
+-- inheritance-on-insert logic, matching this codebase's existing posture
+-- that the NEXT explicit self-service change (not row creation) is what
+-- brings a new row in sync with the person's other rows.
+--
+-- No separate table: the deadline itself is never stored (it's always
+-- computed -- next December 31, worker/src/deadline.ts's
+-- nextAnnualMonthEnd(asOf, 12) -- same "don't persist what you can always
+-- recompute correctly" posture as every other derived deadline in this
+-- schema), so the only durable fact needed is the opt-in flag itself.
+ALTER TABLE subscribers ADD COLUMN ptin_tracking_enabled INTEGER NOT NULL DEFAULT 0;
