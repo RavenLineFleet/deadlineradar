@@ -54,7 +54,7 @@ from reminders import sender as sender_module  # noqa: E402
 KEY_PATH = REPO_ROOT.parent.parent / ".sendgrid_key"
 FROM_EMAIL = "noreply@deadline-radar.com"
 FROM_NAME = "DeadlineRadar"
-WHITELISTED_RECIPIENT = "foothillraven@gmail.com"
+WHITELISTED_RECIPIENT = "support@deadline-radar.com"
 
 TAG = uuid.uuid4().hex[:8]
 SCRATCH_DIR = Path(__file__).resolve().parent
