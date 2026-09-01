@@ -10922,6 +10922,28 @@ _MY_DASHBOARD_JS_HTML = """<script>
       }
       modeForm.dataset.drFilled = '1';
     }
+    // 2026-09-01: federal PTIN tracking. ptin_next_deadline is always
+    // returned (computed server-side, next Dec 31) regardless of opt-in
+    // state, so the date shows even before someone turns tracking on --
+    // same "always-present person-level fact" posture as notification_mode
+    // above, just re-rendered every time (not drFilled-guarded) since the
+    // date itself needs to stay live if this page is left open across a
+    // year boundary.
+    var ptinDateEl = document.getElementById('dr-my-ptin-date');
+    if (ptinDateEl && data.ptin_next_deadline) {
+      var ptinDateParts = String(data.ptin_next_deadline).split('-');
+      var ptinMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      var ptinMonthIdx = Number(ptinDateParts[1]) - 1;
+      if (ptinMonthNames[ptinMonthIdx]) {
+        ptinDateEl.textContent = ptinMonthNames[ptinMonthIdx] + ' ' + Number(ptinDateParts[2]) + ', ' + ptinDateParts[0];
+      }
+    }
+    var ptinForm = document.getElementById('dr-my-ptin-form');
+    if (ptinForm && !ptinForm.dataset.drFilled) {
+      var ptinCheckbox = document.getElementById('dr-my-ptin-checkbox');
+      if (ptinCheckbox) ptinCheckbox.checked = Boolean(data.ptin_tracking_enabled);
+      ptinForm.dataset.drFilled = '1';
+    }
     // Roadmap #22: three-state panel (not opted in / awaiting a code /
     // opted in), so this always reflects the server's own state on every
     // render -- no drFilled guard, since "awaiting a code" is a transient
@@ -11295,6 +11317,35 @@ _MY_DASHBOARD_JS_HTML = """<script>
     });
   }
 
+  var ptinFormEl = document.getElementById('dr-my-ptin-form');
+  if (ptinFormEl) {
+    ptinFormEl.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var okEl = document.getElementById('dr-my-ptin-ok');
+      var errEl = document.getElementById('dr-my-ptin-error');
+      if (okEl) { okEl.hidden = true; okEl.textContent = ''; }
+      if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+      var checkbox = document.getElementById('dr-my-ptin-checkbox');
+      var enabled = checkbox ? checkbox.checked : false;
+      fetch('/api/subscriber/ptin', {
+        method: 'PATCH', credentials: 'include',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({enabled: enabled}),
+      }).then(function (res) {
+        if (res.status === 401) { window.location.href = '/signin/'; return null; }
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (!res.ok) {
+            if (errEl) { errEl.textContent = (data && data.error) ? data.error : 'Something went wrong, please try again.'; errEl.hidden = false; }
+            return;
+          }
+          if (okEl) { okEl.textContent = enabled ? 'PTIN reminder tracking on.' : 'PTIN reminder tracking off.'; okEl.hidden = false; }
+        });
+      }).catch(function () {
+        if (errEl) { errEl.textContent = 'Something went wrong, please try again.'; errEl.hidden = false; }
+      });
+    });
+  }
+
   var smsStartFormEl = document.getElementById('dr-sms-start-form');
   if (smsStartFormEl) {
     smsStartFormEl.addEventListener('submit', function (e) {
@@ -11436,6 +11487,20 @@ def build_my_page(cpe_hours_by_slug: dict[str, dict]) -> str:
     </form>
     <p id="dr-my-notification-mode-ok" class="dr-account-ok" hidden></p>
     <p id="dr-my-notification-mode-error" role="alert" class="dr-account-err" hidden></p>
+  </div>
+
+  <div class="dr-account-panel" id="dr-my-ptin">
+    <h2>Federal PTIN reminder</h2>
+    <p class="signup-microcopy">Every paid tax preparer needs a valid IRS Preparer Tax Identification
+    Number (PTIN), renewed annually by December 31 -- a separate federal requirement from any state
+    CPA license renewal tracked above, and required whether or not you hold a state license at all.
+    Track it here too and we'll remind you the same way we remind you about your state deadlines.</p>
+    <form id="dr-my-ptin-form">
+      <label><input type="checkbox" id="dr-my-ptin-checkbox"> Track my PTIN renewal (next due <span id="dr-my-ptin-date">December 31</span>)</label>
+      <button type="submit">Save</button>
+    </form>
+    <p id="dr-my-ptin-ok" class="dr-account-ok" hidden></p>
+    <p id="dr-my-ptin-error" role="alert" class="dr-account-err" hidden></p>
   </div>
 
   <div class="dr-account-panel" id="dr-my-sms">

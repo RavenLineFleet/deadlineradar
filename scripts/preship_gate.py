@@ -773,7 +773,25 @@ def check_data_manifest_consistency(data_path: Path, docs_dir: Path) -> list[str
         text = page.read_text(encoding="utf-8")
         for r in records:
             ndc = r.get("next_deadline_computed")
-            if ndc:
+            # 2026-09-01: same self-rolling exclusion check_deadline_currency()
+            # (DATE-2) and check_self_rolling_dates_rendered_correctly()
+            # (DATE-5) already carry, applied here too. A
+            # fixed_calendar_recurring_no_anchor record is deliberately
+            # rolled forward past this raw JSON value AT BUILD TIME
+            # in-memory (generate.py's _roll_forward_recurring_deadline()),
+            # never written back here -- so once it elapses, the raw
+            # manifest value and the correctly-rendered page legitimately
+            # disagree BY DESIGN. Without this exclusion this check would
+            # flag every self-rolling record the moment its stored value
+            # elapses, even on a same-day-fresh rebuild that rendered the
+            # rolled-forward date correctly (caught live: Colorado's
+            # co-firm registration, 2026-09-01, the day after its own
+            # elapse). check_self_rolling_dates_rendered_correctly() is the
+            # check that actually verifies the ROLLED-FORWARD date renders
+            # correctly for these records -- this one just needs to stay
+            # out of its way.
+            self_rolling = (r.get("computation") or {}).get("type") == "fixed_calendar_recurring_no_anchor"
+            if ndc and not self_rolling:
                 expected = fmt_date(ndc)
                 if expected not in text:
                     errors.append(

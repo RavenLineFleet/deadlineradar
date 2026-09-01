@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "status": "LIVE -- 1 record, federal only, sourced 2026-09-01",
+    "purpose": "Roadmap PTIN directive (orchestrator, 2026-09-01, Devin-approved): a separate, standalone dataset for the federal PTIN (Preparer Tax Identification Number) renewal requirement -- deliberately NOT merged into cpa_deadlines.json's 55-jurisdiction state records. PTIN is a single federal requirement with zero state variation; folding it into cpa_deadlines.json would silently inflate every 'all 55 jurisdictions' count and stat cited across the site (mobility coverage, verification methodology, renewal_fees.json, etc.) to 56, corrupting claims that are already load-bearing trust copy. Same 2-source verification standard as every other dataset in this repo.",
+    "created": "2026-09-01",
+    "no_state_variation": true,
+    "distinct_from_cpa_deadlines": "PTIN is a per-PERSON federal requirement, independent of which state(s) a preparer is licensed in. A CPA who prepares returns needs BOTH their state license renewal (cpa_deadlines.json) AND a valid PTIN (this file) -- two separate, independently-tracked requirements, not a substitute for one another."
+  },
+  "records": [
+    {
+      "id": "ptin-federal",
+      "jurisdiction": "Federal (IRS)",
+      "requirement_type": "PTIN (Preparer Tax Identification Number)",
+      "cycle_description": "Annual, nationwide, no state variation. A valid PTIN is required by federal regulation for anyone who prepares or assists in preparing federal tax returns or claims for refund for compensation (26 CFR 1.6109-2). The IRS administers PTIN renewal on a calendar-year cycle: each PTIN expires December 31, and must be renewed by that date to remain valid for the following filing season. The specific December 31 date is set by IRS administrative procedure under the regulation's own delegation to the IRS ('the Internal Revenue Service may designate an expiration date... and may further prescribe the time and manner for renewing'), not written directly into the regulation's own text -- cited accordingly below, not misattributed to the CFR itself.",
+      "next_deadline_computed": "2026-12-31",
+      "computation": {
+        "type": "fixed_calendar_recurring_no_anchor",
+        "fixed_date": "12-31",
+        "period_years": 1,
+        "note": "Every PTIN expires Dec 31 annually and must be renewed by that date to stay valid for the following calendar year -- confirmed directly from IRS.gov (2026-09-01): 'PTINs will expire on December 31, 2025' and 'Tax professionals have until Dec. 31 to renew their Preparer Tax Identification Number.' Rolls forward automatically once elapsed, same mechanism as every other fixed_calendar_recurring_no_anchor record in this dataset family (e.g. cpa_deadlines.json's id-firm/sd-all)."
+      },
+      "who_must_track": "Anyone who prepares or assists in preparing federal tax returns or claims for refund for compensation -- including CPAs who prepare returns. This is IN ADDITION TO, not instead of, any state CPA license renewal already tracked for that person.",
+      "source_url": "https://www.irs.gov/newsroom/tax-professionals-have-until-dec-31-to-renew-their-preparer-tax-identification-number",
+      "secondary_source_url": "https://www.law.cornell.edu/cfr/text/26/1.6109-2",
+      "last_verified": "2026-09-01",
+      "citation": "26 CFR 1.6109-2 (establishes the PTIN requirement and IRS's authority to set an expiration/renewal schedule); IRS.gov administrative guidance (the specific annual Dec 31 renewal date, an IRS practice under that regulation, not text within the regulation itself)",
+      "citation_url": "https://www.law.cornell.edu/cfr/text/26/1.6109-2",
+      "verification_history": "2026-09-01: Sourced directly from IRS.gov ('Tax professionals have until Dec. 31 to renew their Preparer Tax Identification Number', irs.gov/newsroom) confirming the annual Dec 31 expiration/renewal cycle for the current (2026) renewal period. Corroborated by a second independent source (Intuit Tax Pro Center, accountants.intuit.com/taxprocenter) describing the identical annual Dec-31 cycle structure in a prior renewal year. Cross-checked against the underlying federal regulation (26 CFR 1.6109-2, via Cornell Law School's Legal Information Institute) to confirm precisely what the regulation itself does and does not establish: it authorizes the IRS to set an expiration date and renewal procedure, but the specific Dec 31 date is IRS administrative practice communicated via forms/instructions/guidance, not language written into the CFR text -- cited accordingly (citation field distinguishes the two) rather than over-attributing the specific date to the regulation. No state-level variation exists anywhere: PTIN is a purely federal requirement administered solely by the IRS, confirmed across all sources checked."
+    }
+  ]
+}
