@@ -94,3 +94,11 @@ firms_register.md
 docs_preview/
 worker/.wrangler/
 .wrangler/
+
+# Session scratch (raw D1 query dumps with internal row ids, dry-run
+# screenshot output, ad-hoc probe scripts) -- found sitting untracked next to
+# a real change during the 2026-09-02 showcase re-capture review, one
+# `git add -A` away from a public repo. The one deliberately tracked helper
+# stays un-ignored; anything new that belongs in git needs `git add -f`.
+scratchpad/*
+!scratchpad/citation_liveness.py
