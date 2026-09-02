@@ -122,6 +122,7 @@ import {
   RATE_LIMIT_MOBILITY_CHECK_ROSTER,
   RATE_LIMIT_ASSISTANT_API,
   RATE_LIMIT_ASSISTANT_CHAT,
+  RATE_LIMIT_ASSISTANT_TICKET,
   RATE_LIMIT_FIRM_LICENSE_CREATE,
   RATE_LIMIT_FIRM_LICENSE_PATCH,
   RATE_LIMIT_FIRM_LICENSE_DELETE,
@@ -190,6 +191,7 @@ import {
   buildFirmStaffAddedEmail,
   buildStopConfirmationEmail,
   buildSignupNotificationEmail,
+  buildAssistantTicketEmail,
   buildAccountDeletionNotificationEmail,
   buildStaleDataAlertEmail,
   buildNewsletterConfirmationEmail,
@@ -5107,6 +5109,40 @@ export async function requireSubscriberSession(
   return result;
 }
 
+/** Opportunistic session check -- unlike requireSubscriberSession()/
+ * requireFirmSession() above, NEVER returns a 401: a missing or invalid
+ * cookie just means null, since the assistant ticket route (the one
+ * caller of this) is public/no-session by design and must keep working
+ * for a signed-out visitor. Checks the subscriber cookie first, then the
+ * firm-dashboard one (a firm member's email isn't on the session row
+ * itself, so a real lookup is needed) -- either resolving is enough to
+ * skip asking the visitor to type their email again.
+ *
+ * The shared demo firm (demo_locked) deliberately resolves to null: its
+ * session is public and credential-less (handleDemoLogin), so its member
+ * row's email is a placeholder that belongs to nobody -- a visitor
+ * exploring the demo who asks for a human is a real anonymous visitor,
+ * and must be asked for a real reply-to address like any other. */
+async function optionalVisitorEmail(request: Request, env: Env): Promise<string | null> {
+  const subRaw = getCookie(request, SUBSCRIBER_SESSION_COOKIE_NAME);
+  if (subRaw) {
+    const subResult = await store.verifySubscriberSession(env.DB, subRaw);
+    if (subResult) return subResult.emailNormalized;
+  }
+  const firmRaw = getCookie(request, FIRM_SESSION_COOKIE_NAME);
+  if (firmRaw) {
+    const firmResult = await store.verifySession(env.DB, firmRaw);
+    if (firmResult) {
+      const firm = await store.getFirmById(env.DB, firmResult.firmId);
+      if (firm && !firm.demo_locked) {
+        const member = await store.getFirmMemberById(env.DB, firmResult.firmId, firmResult.memberId);
+        if (member) return member.email;
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * GET /subscriber/licenses -- every deadline tracked for the signed-in
  * email.
@@ -5818,9 +5854,20 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     return jsonResponse(400, { error: "That request couldn't be completed. Please ask from the Deadline-Radar site." });
   }
 
+  // `escalate: true` on every "you didn't get an answer" response below
+  // (2026-09-01, the support-ticket walkthrough): the widget offers to
+  // hand the question to a human on this flag alone, never by sniffing
+  // reply text for apology phrases client-side -- that judgment stays
+  // here, next to ASSISTANT_CHAT_FAILURE_SIGNATURE, the one place that
+  // already knows what a non-answer looks like. This proxy's OWN
+  // rate-limit 429 counts too: from the visitor's side it is the same
+  // outcome as the droplet's (no answer, come back later), and the ticket
+  // route has its own separate bucket, so offering a human here doesn't
+  // hand an abuser anything the ticket route's own limits don't already
+  // gate.
   const allowed = await checkRateLimit(env.DB, ip, "assistant_chat", RATE_LIMIT_ASSISTANT_CHAT);
   if (!allowed) {
-    return jsonResponse(429, { error: "Too many questions from this address. Please try again later." });
+    return jsonResponse(429, { error: "Too many questions from this address. Please try again later.", escalate: true });
   }
 
   let raw: string;
@@ -5896,7 +5943,7 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // immediately with whatever the droplet itself said, honestly labeled.
   if (!attempt1.ok && attempt1.rateLimited) {
     await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "rate_limited");
-    return jsonResponse(429, { error: attempt1.error });
+    return jsonResponse(429, { error: attempt1.error, escalate: true });
   }
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
   const attempt2 = await callAssistantDroplet(message, sessionId, ip, env);
@@ -5908,9 +5955,15 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // since we're not retrying again regardless of what attempt2 says.
   const attempt2Status = attempt2.ok ? "success" : attempt2.rateLimited ? "rate_limited" : "error";
   await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), attempt2Status);
-  return attempt2.ok
-    ? jsonResponse(200, { reply: attempt2.reply })
-    : jsonResponse(attempt2.status, { error: attempt2.error });
+  if (!attempt2.ok) {
+    return jsonResponse(attempt2.status, { error: attempt2.error, escalate: true });
+  }
+  // A retry that came back HTTP 200 but STILL carrying the droplet's own
+  // apology text is an honest non-answer, shipped verbatim as always --
+  // just flagged, so the widget can offer a human alongside it instead of
+  // leaving the visitor with "something went wrong" and no next step.
+  const stillFailed = attempt2.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE);
+  return jsonResponse(200, stillFailed ? { reply: attempt2.reply, escalate: true } : { reply: attempt2.reply });
 }
 
 type AssistantDropletResult =
@@ -6003,6 +6056,116 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+const ASSISTANT_TICKET_MAX_DESCRIPTION_CHARS = 2000;
+
+/**
+ * POST /assistant/ticket (2026-09-01, Devin: "Lets scope it. I like the
+ * walk the customer through a ticket. Just send it to Support@ and it
+ * should go to Raven@."). Chat-native escalation to a human -- the widget
+ * offers this both automatically (ASSISTANT_CHAT_FAILURE_SIGNATURE or a
+ * 429 from handleAssistantChat) and on-demand ("Talk to a human instead",
+ * always available -- the honest way to cover a real-but-undetectable "the
+ * model answered but it wasn't actually useful" case, which lives entirely
+ * on the droplet side and this repo has no way to see into).
+ *
+ * Public, no session required -- same posture as handleAssistantChat()
+ * above, this is the same public/no-session widget. If a session cookie
+ * IS present (subscriber or firm), optionalVisitorEmail() resolves it and
+ * the visitor is never asked to type their email; otherwise it's required
+ * in the body, since there is no other way to follow up.
+ *
+ * No new ticket-tracking table -- per Devin's own direction, the email
+ * itself IS the ticket. Sent via the SAME best-effort/circuit-breaker
+ * pattern as sendSignupNotification() above (checkAndCountActionSend(),
+ * the shared action-email daily cap): this is exactly that shape of thing,
+ * an internal notification triggered by a public, unauthenticated action,
+ * not a customer-facing send with its own independent budget.
+ */
+async function handleAssistantTicket(request: Request, env: Env, ip: string): Promise<Response> {
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please ask from the Deadline-Radar site." });
+  }
+
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  if (raw.length === 0 || raw.length > MAX_BODY_BYTES) {
+    return jsonResponse(400, { error: "Request too large or empty." });
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  if (!description || description.length > ASSISTANT_TICKET_MAX_DESCRIPTION_CHARS) {
+    return jsonResponse(400, { error: "Please describe what you need help with." });
+  }
+
+  // Never trust a client-supplied "I'm signed in" claim -- resolved from a
+  // real session cookie, same posture as every identity resolution in this
+  // file (e.g. handleAttestationCreate's own attested_by_name/email).
+  // Falls back to the body's email ONLY when no session resolves.
+  //
+  // Resolved BEFORE the rate-limit check, deliberately: the widget can't
+  // see the HttpOnly session cookies (same reason the nav's own Sign In/
+  // Dashboard swap has to ask the API), so its walkthrough sends the
+  // description first and only asks for an email when THIS route says one
+  // is needed (`code: "email_required"`). That first, email-less attempt
+  // from a signed-out visitor is a normal step of the flow, not a send --
+  // it must not cost them one of their 5/hour. Cheap to allow: with no
+  // cookie present optionalVisitorEmail() touches no DB at all, and with
+  // one present it costs exactly what any authenticated route's own
+  // session check already costs before ITS rate limit.
+  let visitorEmail = await optionalVisitorEmail(request, env);
+  if (!visitorEmail) {
+    const bodyEmail = typeof body.email === "string" ? body.email.trim() : "";
+    if (!bodyEmail) {
+      return jsonResponse(400, { error: "Please provide an email so we can follow up.", code: "email_required" });
+    }
+    if (!isValidEmail(bodyEmail)) {
+      return jsonResponse(400, { error: "That doesn't look like a valid email address.", code: "email_invalid" });
+    }
+    visitorEmail = bodyEmail;
+  }
+
+  // Counts real send attempts only (everything above is validation that
+  // either touched no DB or was the same session check every signed-in
+  // route makes), so the bucket means "tickets filed from this address."
+  const allowed = await checkRateLimit(env.DB, ip, "assistant_ticket", RATE_LIMIT_ASSISTANT_TICKET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests from this address. Please try again later." });
+  }
+
+  const sessionId =
+    typeof body.session_id === "string" && body.session_id.length > 0 && body.session_id.length <= 200
+      ? body.session_id
+      : null;
+  const autoTriggered = body.auto_triggered === true;
+
+  if (!env.SENDGRID_API_KEY) {
+    return jsonResponse(503, { error: "We can't send that right now -- please email support@deadline-radar.com directly." });
+  }
+  const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+  if (!underCap) {
+    return jsonResponse(503, { error: "We can't send that right now -- please email support@deadline-radar.com directly." });
+  }
+  const built = buildAssistantTicketEmail({ visitorEmail, description, sessionId, autoTriggered });
+  const sent = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, visitorEmail);
+  if (!sent) {
+    return jsonResponse(503, { error: "We couldn't send that right now -- please email support@deadline-radar.com directly." });
+  }
+  return jsonResponse(200, { sent: true });
 }
 
 /** GET /roadmap-data -- public, no session. Returns every active idea with
@@ -10117,6 +10280,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/assistant/chat") {
         try {
           return await handleAssistantChat(request, env, ip);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (url.pathname === "/assistant/ticket") {
+        try {
+          return await handleAssistantTicket(request, env, ip);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }

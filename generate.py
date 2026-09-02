@@ -1020,6 +1020,28 @@ PAGE_CSS = """
   }
   .dr-chat-input-row button:disabled { opacity: 0.55; cursor: default; }
   .dr-chat-disclaimer { font-size: 0.68rem; color: var(--muted); padding: 0 1rem 0.7rem; margin: 0; flex: none; }
+  /* Support-ticket walkthrough (2026-09-01, Devin: "walk the customer
+     through a ticket... send it to Support@"). Everything below is
+     chat-native -- an inline card in the message stream, same bubble
+     tokens as an assistant reply, never a page navigation or a modal. */
+  .dr-chat-human-row { font-size: 0.74rem; padding: 0.15rem 1rem 0.3rem; margin: 0; flex: none; }
+  .dr-chat-offer, .dr-chat-ticket { max-width: 100%; white-space: normal; }
+  .dr-chat-actions { display: flex; gap: 0.45rem; margin-top: 0.55rem; flex-wrap: wrap; }
+  .dr-chat-action-btn {
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); border-radius: 8px;
+    padding: 0.38rem 0.75rem; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.8rem;
+  }
+  .dr-chat-action-btn--quiet { background: transparent; color: var(--accent); border-color: var(--border-strong); }
+  .dr-chat-action-btn:disabled { opacity: 0.55; cursor: default; }
+  .dr-chat-messages .dr-chat-followup { align-self: flex-start; font-size: 0.74rem; color: var(--muted); }
+  .dr-chat-ticket-intro { margin: 0; }
+  .dr-chat-ticket label { display: block; font-size: 0.78rem; font-weight: 600; margin: 0.6rem 0 0.25rem; }
+  .dr-chat-ticket textarea, .dr-chat-ticket input {
+    width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.84rem; padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg); resize: vertical;
+  }
+  .dr-chat-ticket-error { color: #c33737; font-size: 0.78rem; margin: 0.4rem 0 0; }
+  .dr-chat-ticket-error[hidden], .dr-chat-ticket-email[hidden] { display: none; }
   @media (max-width: 480px) {
     .dr-chat-widget { right: 12px; bottom: 12px; }
   }
@@ -4620,6 +4642,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
         <button type="submit" id="dr-chat-send-btn">Send</button>
       </div>
     </form>
+    <p class="dr-chat-human-row"><button type="button" class="dr-link-btn" id="dr-chat-human-btn">Talk to a human instead</button></p>
     <p class="dr-chat-disclaimer">General orientation, not legal/tax/professional advice. Always
     confirm with your state board before relying on an answer.</p>
   </div>
@@ -4820,10 +4843,183 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     }
   });
 
+  // ---- Support-ticket walkthrough (2026-09-01) -------------------------
+  // Devin: "walk the customer through a ticket. Just send it to Support@
+  // and it should go to Raven@." Three ways in, one form: (1) auto-offered
+  // when the proxy says the answer failed (its `escalate` flag -- a
+  // server-side judgment, this script never sniffs reply text for apology
+  // phrases), (2) a low-key "Didn't get what you needed?" link after every
+  // real answer (the honest cover for a real-but-undetectable "the model
+  // answered, it just wasn't useful" case), (3) the standing "Talk to a
+  // human instead" link under the input, always available. Offer, link and
+  // card are all EPHEMERAL -- never written to `history` -- so a restore on
+  // the next page load rebuilds only real conversation turns; the standing
+  // link is the always-there way back in.
+  var humanBtn = document.getElementById('dr-chat-human-btn');
+  var ticketCard = null; // at most one open walkthrough at a time
+  var TICKET_SEND_FAILED = "We couldn't send that right now \\u2014 please email support@deadline-radar.com directly.";
+
+  function lastUserText() {
+    for (var i = history.length - 1; i >= 0; i--) {
+      if (history[i].cls === 'user') return history[i].text;
+    }
+    return '';
+  }
+
+  function makeEl(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function makeBtn(cls, text) {
+    var btn = makeEl('button', cls, text);
+    btn.type = 'button';
+    return btn;
+  }
+
+  function removeEphemeral() {
+    var els = messages.querySelectorAll('.dr-chat-offer, .dr-chat-followup');
+    for (var i = 0; i < els.length; i++) els[i].remove();
+  }
+
+  function offerHuman(seedText) {
+    removeEphemeral();
+    var box = makeEl('div', 'dr-chat-msg dr-chat-msg--assistant dr-chat-offer');
+    box.appendChild(makeEl('div', null, "I couldn't get you an answer just now. Want someone on our team to take a look? They'll follow up by email."));
+    var actions = makeEl('div', 'dr-chat-actions');
+    var yes = makeBtn('dr-chat-action-btn', 'Send to a human');
+    var no = makeBtn('dr-chat-action-btn dr-chat-action-btn--quiet', 'No thanks');
+    yes.addEventListener('click', function () { openTicket(seedText, true); });
+    no.addEventListener('click', function () { box.remove(); input.focus(); });
+    actions.appendChild(yes);
+    actions.appendChild(no);
+    box.appendChild(actions);
+    messages.appendChild(box);
+    scrollToBottom();
+  }
+
+  function showFollowup(seedText) {
+    removeEphemeral();
+    var link = makeBtn('dr-link-btn dr-chat-followup', "Didn't get what you needed? Talk to a human");
+    link.addEventListener('click', function () { openTicket(seedText, false); });
+    messages.appendChild(link);
+    scrollToBottom();
+  }
+
+  // Description first, email only if the server says it has no address for
+  // this visitor (`code: "email_required"`). The session cookies are
+  // HttpOnly, so this script cannot know whether someone is signed in --
+  // the route does, and resolves a signed-in subscriber's or firm member's
+  // email itself, never re-asking them. A signed-out visitor sees the email
+  // step as the natural second question, with everything they typed kept.
+  function openTicket(seedText, autoTriggered) {
+    if (ticketCard) ticketCard.remove();
+    removeEphemeral();
+    var card = makeEl('div', 'dr-chat-msg dr-chat-msg--assistant dr-chat-ticket');
+    ticketCard = card;
+    card.appendChild(makeEl('p', 'dr-chat-ticket-intro', "Tell us what you need help with and someone on our team will follow up by email."));
+
+    var descLabel = makeEl('label', null, 'What can we help with?');
+    descLabel.htmlFor = 'dr-chat-ticket-desc';
+    var desc = document.createElement('textarea');
+    desc.id = 'dr-chat-ticket-desc';
+    desc.rows = 4;
+    desc.maxLength = 2000;
+    desc.placeholder = 'Describe your question or the problem you hit';
+    desc.value = seedText || '';
+
+    var emailWrap = makeEl('div', 'dr-chat-ticket-email');
+    emailWrap.hidden = true;
+    var emailLabel = makeEl('label', null, 'Where should we reply?');
+    emailLabel.htmlFor = 'dr-chat-ticket-email-input';
+    var email = document.createElement('input');
+    email.type = 'email';
+    email.id = 'dr-chat-ticket-email-input';
+    email.autocomplete = 'email';
+    email.maxLength = 254;
+    email.placeholder = 'you@example.com';
+    emailWrap.appendChild(emailLabel);
+    emailWrap.appendChild(email);
+
+    var err = makeEl('p', 'dr-chat-ticket-error');
+    err.hidden = true;
+
+    var actions = makeEl('div', 'dr-chat-actions');
+    var send = makeBtn('dr-chat-action-btn', 'Send to support');
+    var cancel = makeBtn('dr-chat-action-btn dr-chat-action-btn--quiet', 'Cancel');
+    actions.appendChild(send);
+    actions.appendChild(cancel);
+
+    card.appendChild(descLabel);
+    card.appendChild(desc);
+    card.appendChild(emailWrap);
+    card.appendChild(err);
+    card.appendChild(actions);
+    messages.appendChild(card);
+    scrollToBottom();
+    desc.focus();
+
+    function fail(text) { err.textContent = text; err.hidden = false; scrollToBottom(); }
+    function closeCard() { card.remove(); if (ticketCard === card) ticketCard = null; }
+    function finish(text, cls) { closeCard(); addMessage(text, cls); }
+
+    cancel.addEventListener('click', function () { closeCard(); input.focus(); });
+    send.addEventListener('click', function () {
+      var description = desc.value.trim();
+      if (!description) { fail('Please describe what you need help with.'); desc.focus(); return; }
+      var payload = { description: description, session_id: sessionId, auto_triggered: !!autoTriggered };
+      if (!emailWrap.hidden) {
+        var addr = email.value.trim();
+        if (!addr) { fail('Please enter an email so we can follow up.'); email.focus(); return; }
+        payload.email = addr;
+      }
+      err.hidden = true;
+      send.disabled = true;
+      cancel.disabled = true;
+      fetch('/api/assistant/ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).then(function (resp) {
+        return resp.json().then(function (data) { return { ok: resp.ok, status: resp.status, data: data }; });
+      }).then(function (result) {
+        var data = result.data || {};
+        if (result.ok && data.sent) {
+          // No response-time promise, deliberately -- "we'll follow up" is
+          // true regardless of how fast that actually happens.
+          finish("Thanks \\u2014 we'll follow up by email.", 'assistant');
+          return;
+        }
+        if (data.code === 'email_required') {
+          emailWrap.hidden = false;
+          email.focus();
+          scrollToBottom();
+          return;
+        }
+        if (data.code === 'email_invalid') { fail(data.error); email.focus(); return; }
+        if (result.status === 400) { fail(data.error || 'Please check what you entered and try again.'); return; }
+        // 429 / 503: the server's own copy already points at support@ directly.
+        finish(data.error || TICKET_SEND_FAILED, 'error');
+      }).catch(function () {
+        finish(TICKET_SEND_FAILED, 'error');
+      }).finally(function () {
+        send.disabled = false;
+        cancel.disabled = false;
+      });
+    });
+  }
+
+  if (humanBtn) {
+    humanBtn.addEventListener('click', function () { openTicket(lastUserText(), false); });
+  }
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var text = input.value.trim();
     if (!text) return;
+    removeEphemeral();
     addMessage(text, 'user');
     input.value = '';
     sendBtn.disabled = true;
@@ -4836,10 +5032,13 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
       return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
     }).then(function (result) {
       pending.remove();
-      if (result.ok && result.data && typeof result.data.reply === 'string') {
-        addMessage(result.data.reply, 'assistant');
+      var data = result.data || {};
+      if (result.ok && typeof data.reply === 'string') {
+        addMessage(data.reply, 'assistant');
+        if (data.escalate) offerHuman(text); else showFollowup(text);
       } else {
-        addMessage((result.data && result.data.error) || 'Something went wrong. Please try again.', 'error');
+        addMessage(data.error || 'Something went wrong. Please try again.', 'error');
+        if (data.escalate) offerHuman(text);
       }
     }).catch(function () {
       pending.remove();

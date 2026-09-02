@@ -287,6 +287,25 @@
   }
   .dr-chat-input-row button:disabled { opacity: 0.55; cursor: default; }
   .dr-chat-disclaimer { font-size: 0.68rem; color: var(--muted); padding: 0 1rem 0.7rem; margin: 0; flex: none; }
+  
+  .dr-chat-human-row { font-size: 0.74rem; padding: 0.15rem 1rem 0.3rem; margin: 0; flex: none; }
+  .dr-chat-offer, .dr-chat-ticket { max-width: 100%; white-space: normal; }
+  .dr-chat-actions { display: flex; gap: 0.45rem; margin-top: 0.55rem; flex-wrap: wrap; }
+  .dr-chat-action-btn {
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); border-radius: 8px;
+    padding: 0.38rem 0.75rem; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.8rem;
+  }
+  .dr-chat-action-btn--quiet { background: transparent; color: var(--accent); border-color: var(--border-strong); }
+  .dr-chat-action-btn:disabled { opacity: 0.55; cursor: default; }
+  .dr-chat-messages .dr-chat-followup { align-self: flex-start; font-size: 0.74rem; color: var(--muted); }
+  .dr-chat-ticket-intro { margin: 0; }
+  .dr-chat-ticket label { display: block; font-size: 0.78rem; font-weight: 600; margin: 0.6rem 0 0.25rem; }
+  .dr-chat-ticket textarea, .dr-chat-ticket input {
+    width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.84rem; padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg); resize: vertical;
+  }
+  .dr-chat-ticket-error { color: #c33737; font-size: 0.78rem; margin: 0.4rem 0 0; }
+  .dr-chat-ticket-error[hidden], .dr-chat-ticket-email[hidden] { display: none; }
   @media (max-width: 480px) {
     .dr-chat-widget { right: 12px; bottom: 12px; }
   }
