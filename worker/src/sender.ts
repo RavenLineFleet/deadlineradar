@@ -365,8 +365,28 @@ export async function sendViaSendGrid(
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    return resp.status >= 200 && resp.status < 300;
-  } catch {
+    if (resp.status >= 200 && resp.status < 300) return true;
+    // MON-5 (2026-09-02): a non-2xx used to `return false` with the response
+    // body never read -- so a SendGrid REJECTION (e.g. the assistant-latency
+    // alert's 4xx on 2026-09-02, which then silently deleted the day's only
+    // alert row) vanished with zero trace; the caller saw only `false`. Log
+    // the status + a bounded body snippet so the rejection REASON is
+    // recoverable from Worker logs. The body is safe to log: SendGrid error
+    // bodies carry validation/quota messages, never the API key (that lives
+    // only in the request Authorization header, never echoed back).
+    let bodySnippet: string;
+    try {
+      bodySnippet = (await resp.text()).slice(0, 500);
+    } catch {
+      bodySnippet = "<body unreadable>";
+    }
+    console.log(`[sendgrid-fail] status=${resp.status} body=${JSON.stringify(bodySnippet)}`);
+    return false;
+  } catch (err) {
+    // MON-5: was a bare `return false` -- a network failure or the
+    // SEND_TIMEOUT_MS abort also vanished silently. Name it (still returns
+    // false; the caller's own failure handling is unchanged).
+    console.log(`[sendgrid-error] ${String(err)}`);
     return false;
   } finally {
     clearTimeout(timeoutId);

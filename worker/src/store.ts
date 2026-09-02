@@ -6491,3 +6491,28 @@ export async function claimAssistantLatencyAlertForToday(db: D1Database, dayUtc:
 export async function unclaimAssistantLatencyAlertForToday(db: D1Database, dayUtc: string): Promise<void> {
   await db.prepare(`DELETE FROM assistant_latency_alert_log WHERE day = ?1`).bind(dayUtc).run();
 }
+
+/** MON-5 (2026-09-02): unconditional cron-liveness heartbeat. Upserts the
+ * single scheduler_heartbeat row (id=1) at the top of every scheduled()
+ * tick, BEFORE any gate. `last_run_at` becomes a hard "the nightly tick
+ * fired at T" fact -- the thing whose absence made the 2026-09-02 latency
+ * alert failure undiagnosable (every other pass's trace is conditional). */
+export async function recordCronHeartbeat(db: D1Database): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO scheduler_heartbeat (id, last_run_at, run_count) VALUES (1, ?1, 1)
+       ON CONFLICT(id) DO UPDATE SET last_run_at = ?1, run_count = run_count + 1`
+    )
+    .bind(nowIso())
+    .run();
+}
+
+/** Reads the cron heartbeat, or null if the tick has never run (fresh DB). */
+export async function getCronHeartbeat(
+  db: D1Database
+): Promise<{ last_run_at: string; run_count: number } | null> {
+  const row = await db
+    .prepare(`SELECT last_run_at, run_count FROM scheduler_heartbeat WHERE id = 1`)
+    .first<{ last_run_at: string; run_count: number }>();
+  return row ?? null;
+}

@@ -2441,7 +2441,35 @@ const ASSISTANT_LATENCY_ALERT_MAX_MS = 30_000;
  * regardless of exactly when in the day it fires. */
 const ASSISTANT_LATENCY_LOOKBACK_HOURS = 24;
 
-export async function runAssistantLatencyAlertPass(env: Env): Promise<void> {
+/** MON-5 (2026-09-02): the send is retried with backoff. On 2026-09-02 a
+ * SINGLE transient SendGrid 4xx dropped the whole day's only alert -- and
+ * because the payload is fixed and always valid, a failure is far more
+ * likely transient (a momentary rate-limit/5xx-shaped rejection) than a
+ * permanent client error, so bounded retries are worth it. Double-send
+ * risk is bounded and accepted: a RECEIVED non-2xx delivered nothing, so
+ * retrying it cannot duplicate; only the 10s-timeout / network-drop path
+ * (POST possibly transmitted, no response seen) can produce a duplicate --
+ * and this is an INTERNAL alert to support@, where a duplicate beats the
+ * silent drop it replaces. Backoff is BACKOFF_MS * attempt (2s, then 4s)
+ * -- ~6s worst case, trivial inside a once-daily cron's waitUntil. */
+const ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS = 3;
+const ASSISTANT_LATENCY_ALERT_SEND_BACKOFF_MS = 2_000;
+
+/** Test seam (same injection shape as RunSmsAlertOptions): `send` overrides
+ * the real SendGrid call, `sleep` the backoff wait, so retry behaviour is
+ * exercised deterministically without real timers or fetch. Kept as a named
+ * type (not inlined in the signature) so preship_gate.py's CONSENT-GATE
+ * parser, which reads the pass body from `export async function X(...)`, still
+ * finds the requireSendApproval() call below. */
+export interface RunAssistantLatencyAlertOptions {
+  send?: (built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => Promise<boolean>;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+export async function runAssistantLatencyAlertPass(
+  env: Env,
+  opts: RunAssistantLatencyAlertOptions = {}
+): Promise<void> {
   if (!requireSendApproval(env, "assistantLatencyAlert")) return;
   const nowSeconds = Math.floor(Date.now() / 1000);
   const stats = await store.recentAssistantChatLatencyStats(env.DB, nowSeconds, ASSISTANT_LATENCY_LOOKBACK_HOURS * 3600);
@@ -2449,6 +2477,10 @@ export async function runAssistantLatencyAlertPass(env: Env): Promise<void> {
   const breached = stats.p95Ms > ASSISTANT_LATENCY_ALERT_P95_MS || stats.maxMs > ASSISTANT_LATENCY_ALERT_MAX_MS;
   if (!breached) return;
   if (!env.SENDGRID_API_KEY) return;
+  const apiKey = env.SENDGRID_API_KEY;
+  const send =
+    opts.send ?? ((built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => sendViaSendGrid(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST));
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const dayUtc = new Date().toISOString().slice(0, 10);
   const claimed = await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc);
   if (!claimed) return;
@@ -2461,8 +2493,26 @@ export async function runAssistantLatencyAlertPass(env: Env): Promise<void> {
       maxThresholdMs: ASSISTANT_LATENCY_ALERT_MAX_MS,
       lookbackHours: ASSISTANT_LATENCY_LOOKBACK_HOURS,
     });
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    let ok = false;
+    for (let attempt = 1; attempt <= ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS; attempt++) {
+      ok = await send(built);
+      if (ok) break;
+      // MON-5: was a SILENT single failure. Name each failed attempt (the
+      // status+body are in sendViaSendGrid's own [sendgrid-fail] line).
+      console.log(
+        `[assistant-latency-alert-cron] send attempt ${attempt}/${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} failed`
+      );
+      if (attempt < ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS) {
+        await sleep(ASSISTANT_LATENCY_ALERT_SEND_BACKOFF_MS * attempt);
+      }
+    }
     if (!ok) {
+      // MON-5: was a bare unclaim with no log at all -- the day's only alert
+      // vanished silently. Name the exhausted-retries failure before
+      // releasing the day claim (so a later tick the same day could retry).
+      console.log(
+        `[assistant-latency-alert-cron] all ${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} send attempts failed for ${dayUtc}; releasing day claim`
+      );
       await store.unclaimAssistantLatencyAlertForToday(env.DB, dayUtc);
     }
   } catch (err) {

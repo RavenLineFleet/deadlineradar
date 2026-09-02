@@ -12669,6 +12669,20 @@ export default {
    * fail-safe (a wrong-date reminder is worse than none).
    */
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // MON-5 (2026-09-02, Devin-approved): unconditional cron-liveness
+    // heartbeat, written FIRST and outside every gate below, so "did the
+    // nightly scheduled() tick fire, and when" is a hard D1 fact rather than
+    // an inference from whether some conditional pass happened to leave a
+    // trace. Its absence is exactly what made the 2026-09-02 latency-alert
+    // send failure undiagnosable. Awaited (not waitUntil'd) so it lands
+    // before the passes run, and wrapped so a heartbeat write failure can
+    // never abort the cron.
+    try {
+      await store.recordCronHeartbeat(env.DB);
+    } catch (err) {
+      console.log(`[cron-heartbeat] error: ${String(err)}`);
+    }
+
     // STANDING CONSENT-GATE DIRECTIVE (Devin, 2026-08-21): "NOTHING is sent
     // without my consent." Filed after the 2026-08-18 admin-digest incident
     // -- a "HELD pending review" COMMENT with zero code enforcement, which
