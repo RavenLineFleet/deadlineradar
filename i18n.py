@@ -292,7 +292,7 @@ EN: dict[str, str] = {
         "it takes, no card, no paid plan required. {pricing_link}."
     ),
     "ppc.free_tier_link_text": "The firm-level check and the multistate coverage map are part of a paid plan",
-    "ppc.run_check": "Run a free check now →",
+    "ppc.run_check": "Create a free account and run a check →",
     "ppc.tracking_bold": "Tracking a whole firm's roster, not just one lookup?",
     "ppc.tracking_rest": (
         "See the {overview_link} — Roster, Calendar, CPE tracking, and individual Practice "
@@ -1212,8 +1212,8 @@ ES: dict[str, dict] = {
         "reviewed": False,
     },
     'ppc.run_check': {
-        "text": 'Ejecute una verificación gratuita ahora →',
-        "en_hash": '7f8c29ac81913ae1',
+        "text": 'Cree una cuenta gratuita y ejecute una verificación →',
+        "en_hash": 'ba920255af861584',
         "reviewed": False,
     },
     'ppc.subhead': {

@@ -517,7 +517,9 @@ JURISDICTION_COUNT = 51  # overwritten in main() from the real record count once
 # TERMS_LAST_CHANGED -- enforced by preship_gate.py's
 # check_terms_version_sync().
 TERMS_LAST_CHANGED = date(2026, 8, 5)
-PRIVACY_LAST_CHANGED = date(2026, 8, 28)  # ASSIST-3 (AuditLab, same day): the chat-assistant bullet
+PRIVACY_LAST_CHANGED = date(2026, 9, 2)  # 2026-09-02: GitHub (Microsoft) added to the provider list -- the
+# public static pages are GitHub Pages behind Cloudflare, not Cloudflare Pages; the omission was a real gap.
+# Prior: 2026-08-28, ASSIST-3 (AuditLab, same day): the chat-assistant bullet
 # added earlier today said "never your IP address ... or session identity" -- true when written, made
 # false ~2 hours later by 452860fd9's real fix for the assistant's per-visitor rate limiter (which has
 # to forward the visitor's IP to work at all) and the session_id continuity feature. Corrected to
@@ -4392,7 +4394,38 @@ def _strip_shipped_comments(page_html: str) -> str:
     page_html = _SCRIPT_BLOCK_RE.sub(
         lambda m: "<script>" + _strip_js_comments(m.group(1)) + "</script>", page_html
     )
-    return page_html
+    return _strip_html_comments(page_html)
+
+
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_PROTECTED_BLOCK_RE = re.compile(r"<script\b.*?</script>|<style\b.*?</style>", re.DOTALL)
+
+
+def _strip_html_comments(page_html: str) -> str:
+    """Oct-1 launch-readiness sweep (2026-09-02): 265 `<!-- -->` comments were
+    shipping in the public docs/ tree -- provenance notes written for the
+    people editing this file (audit finding ids, roadmap numbers, the names
+    of the fleet's own agents, and in /firm-dashboard/ a full write-up of a
+    CLOSED account-deletion weakness). None leaked a secret or a path, but a
+    prospect's IT reviewer reading view-source gets our internal history for
+    free. Same posture as the JS/CSS strippers above: the comments stay in
+    generate.py for the humans who need them and never reach a visitor.
+    Class fix at the one choke point, plus preship_gate.py refuses any
+    `<!--` that survives in docs/ so a future bypass of page_shell() can't
+    quietly re-open this.
+
+    Only touches markup OUTSIDE <script>/<style> blocks: a JS string could
+    legitimately contain "<!--" (none does today, but a stripper that eats
+    from inside a script literal to the next "-->" would be a much worse
+    bug than the one it fixes)."""
+    out: list[str] = []
+    pos = 0
+    for m in _PROTECTED_BLOCK_RE.finditer(page_html):
+        out.append(_HTML_COMMENT_RE.sub("", page_html[pos:m.start()]))
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(_HTML_COMMENT_RE.sub("", page_html[pos:]))
+    return "".join(out)
 
 
 def _json_ld_html(schemas: list[dict] | None) -> str:
@@ -8677,7 +8710,11 @@ restricted to the service itself.</p>
 <p>We do <strong>not</strong> sell, rent, or trade your information to anyone. We rely on a small number
 of service providers strictly to run the service:</p>
 <ul>
-  <li><strong>Cloudflare</strong> &mdash; hosting, our database, and bot/abuse protection.</li>
+  <li><strong>Cloudflare</strong> &mdash; hosting for the dynamic service, our database, and bot/abuse
+  protection.</li>
+  <li><strong>GitHub</strong> (Microsoft) &mdash; hosts the public, static pages of this site behind
+  Cloudflare's network. No account data is stored there; like any web host it sees the standard request
+  logs (such as IP address) for those page loads.</li>
   <li><strong>Our email delivery provider</strong> &mdash; to send confirmation, reminder, and account
   emails to your inbox.</li>
   <li><strong>Stripe</strong> &mdash; to process payment for paid firm plans. Stripe receives your card
@@ -8851,12 +8888,14 @@ fake "all systems operational" badge would be a claim we can't actually back wit
 data. Here's what's true instead.</p>
 
 <h2>What this runs on</h2>
-<p>{esc(SITE_NAME)} is served entirely on Cloudflare's own infrastructure -- Cloudflare Workers for
-the dynamic site (firm dashboard, sign-in, reminders) and Cloudflare Pages for every public page,
-including this one. That means the platform-level uptime that actually matters here is Cloudflare's,
-not a smaller vendor's -- check <a href="https://www.cloudflarestatus.com/" rel="noopener">Cloudflare's
-own public status page</a> directly for real-time platform incidents, rather than trust a summary of
-it from us.</p>
+<p>{esc(SITE_NAME)} runs on two platforms, both large enough to publish their own real-time status.
+The dynamic side (firm dashboard, sign-in, reminders, the API) runs on Cloudflare Workers with its
+database on Cloudflare D1. The public pages, including this one, are static files hosted on GitHub
+Pages and served through Cloudflare's network. So the platform-level uptime that actually matters here
+is theirs, not a smaller vendor's -- check <a href="https://www.cloudflarestatus.com/"
+rel="noopener">Cloudflare's own public status page</a> and <a href="https://www.githubstatus.com/"
+rel="noopener">GitHub's own status page</a> directly for real-time platform incidents, rather than
+trust a summary of either from us.</p>
 
 <h2>If something on our side breaks</h2>
 <p>A code-level bug or a misconfiguration on our side (not Cloudflare's own platform) is possible like
@@ -9859,7 +9898,7 @@ to create an account yet? <a href="#firm-lead">Leave your email instead</a> and 
     <input type="email" id="firm-lead-email" name="email" required placeholder="you@example.com">
     <label for="firm-lead-staff-count">Approx. staff count (optional)</label>
     <input type="text" id="firm-lead-staff-count" name="staff_count_hint" maxlength="20" placeholder="e.g. 8">
-    <button type="submit">Reserve early access &rarr;</button>
+    <button type="submit">Keep me posted &rarr;</button>
   </form>
 </div>
 
@@ -11149,7 +11188,8 @@ _MY_DASHBOARD_JS_HTML = """<script>
     // client-only state that a background poll/re-render should not
     // clobber once the person has actually submitted a phone number, but
     // a genuine server-confirmed opted-in status should always win.
-    drRenderSmsPanel(Boolean(data.sms_opted_in), data.phone_last4 || null, data.sms_unavailable_state_names || []);
+    drRenderSmsPanel(Boolean(data.sms_opted_in), data.phone_last4 || null, data.sms_unavailable_state_names || [],
+      data.sms_available);
   }
 
   // Roadmap #22 (2026-08-09): SMS opt-in, double opt-in flow (send a code,
@@ -11157,13 +11197,27 @@ _MY_DASHBOARD_JS_HTML = """<script>
   // a new channel with real TCPA consent requirements. Three UI states:
   // not opted in (phone input), awaiting a code (code input), opted in
   // (status + opt-out button).
-  function drRenderSmsPanel(optedIn, phoneLast4, unavailableStateNames) {
+  // Oct-1 readiness sweep (2026-09-02): fourth arg is the server's
+  // sms_available flag (false while Twilio is not configured in prod). Only
+  // a literal false switches the panel to the honest "not yet" note -- the
+  // opt-in/opt-out callers below don't pass it, and undefined must keep the
+  // pre-existing behaviour so a just-confirmed number still renders.
+  function drRenderSmsPanel(optedIn, phoneLast4, unavailableStateNames, smsAvailable) {
     var disconnectedEl = document.getElementById('dr-sms-disconnected');
     var awaitingEl = document.getElementById('dr-sms-awaiting-code');
     var connectedEl = document.getElementById('dr-sms-connected');
     var statusEl = document.getElementById('dr-sms-status-text');
     var noteEl = document.getElementById('dr-sms-unavailable-note');
+    var notYetEl = document.getElementById('dr-sms-not-yet');
     if (!disconnectedEl || !awaitingEl || !connectedEl) return;
+    if (notYetEl) notYetEl.hidden = true;
+    if (!optedIn && smsAvailable === false && !awaitingEl.dataset.drAwaitingCode) {
+      connectedEl.hidden = true;
+      disconnectedEl.hidden = true;
+      awaitingEl.hidden = true;
+      if (notYetEl) notYetEl.hidden = false;
+      return;
+    }
     if (optedIn) {
       if (statusEl) statusEl.textContent = 'Texts enabled for the number ending in ' + (phoneLast4 || '????') + '.';
       // SMS-5: a mixed-state subscriber opts in successfully but one of
@@ -11693,7 +11747,8 @@ def build_my_page(cpe_hours_by_slug: dict[str, dict]) -> str:
     <p class="signup-microcopy">Every paid tax preparer needs a valid IRS Preparer Tax Identification
     Number (PTIN), renewed annually by December 31 -- a separate federal requirement from any state
     CPA license renewal tracked above, and required whether or not you hold a state license at all.
-    Track it here too and we'll remind you the same way we remind you about your state deadlines.</p>
+    Track it here too and it shows on this page next to your state deadlines. PTIN reminder emails
+    are not sending yet -- when they do, they'll follow the same schedule as your state reminders.</p>
     <form id="dr-my-ptin-form">
       <label><input type="checkbox" id="dr-my-ptin-checkbox"> Track my PTIN renewal (next due <span id="dr-my-ptin-date">December 31</span>)</label>
       <button type="submit">Save</button>
@@ -11706,6 +11761,8 @@ def build_my_page(cpe_hours_by_slug: dict[str, dict]) -> str:
     <h2>Text reminders</h2>
     <p class="signup-microcopy">Get a text at the same reminder points as your email, on top of it
     -- not instead of it. Message and data rates may apply. Reply STOP at any time to opt out.</p>
+    <p id="dr-sms-not-yet" class="field-hint" hidden>Text reminders aren't available yet. You'll keep
+    getting email reminders, and this panel will open up as soon as texting is switched on.</p>
     <div id="dr-sms-disconnected">
       <form id="dr-sms-start-form">
         <label for="dr-sms-phone-input">Your phone number</label>
@@ -18351,7 +18408,7 @@ _MOBILITY_JS_HTML = """<script>
     var summaryText = f.summary || '';
     if (reqs && reqs.indexOf('rule changed on') !== -1) {
       summaryText = summaryText.replace(
-        /\s*\(This state.s rule changed on \d\d\d\d-\d\d-\d\d\.\)\s*$/, '');
+        /\\s*\\(This state.s rule changed on \\d\\d\\d\\d-\\d\\d-\\d\\d\\.\\)\\s*$/, '');
     }
     return '<div class="dr-verdict"><h3>' + esc(title) + '</h3>' + badge(f.verdict) +
       '<p>' + esc(summaryText) + '</p>' + reqs + cite +
@@ -18757,7 +18814,7 @@ _FIRM_MOBILITY_JS_HTML = """<script>
         var summaryText = data.summary || '';
         if (reqs && reqs.indexOf('rule changed on') !== -1) {
           summaryText = summaryText.replace(
-            /\s*\(This state.s rule changed on \d\d\d\d-\d\d-\d\d\.\)\s*$/, '');
+            /\\s*\\(This state.s rule changed on \\d\\d\\d\\d-\\d\\d-\\d\\d\\.\\)\\s*$/, '');
         }
         var html = '<h3>' + esc(data.firm_home_state) + ' &rarr; ' + esc(data.target_state) + '</h3>' +
           '<div class="dr-verdict">' + badge(data.verdict) + '<p>' + esc(summaryText) + '</p>' +
@@ -19442,7 +19499,7 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
 <p>{_t("ppc.coverage_body", lang)}</p>
 <p>{_t("ppc.free_tier_body", lang, pricing_link=pricing_link)}</p>
 
-<p><a class="cta-button" href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login">{_t("ppc.run_check", lang)}</a></p>
+<p><a class="cta-button" href="/for-firms/#firm-signup">{_t("ppc.run_check", lang)}</a></p>
 
 <p><strong>{_t("ppc.tracking_bold", lang)}</strong> {_t("ppc.tracking_rest", lang, overview_link=overview_link, pricing_link2=pricing_link2)}</p>
 

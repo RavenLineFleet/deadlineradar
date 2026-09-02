@@ -180,14 +180,107 @@ describe("POST /assistant/chat -- droplet failure modes", () => {
     }
   });
 
-  it("504s when the droplet fetch throws (network failure / timeout)", async () => {
+  // Oct-1 readiness sweep (2026-09-02): a droplet that is DOWN and a droplet
+  // that is SLOW are different failures with different honest copy. Before
+  // this, both landed on 504 "took too long -- try again", which for a
+  // connection-refused droplet is wrong on both counts.
+  it("502s + 'temporarily unavailable' when the droplet fetch throws a plain network error", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     try {
       const resp = await postChat({ message: "hello" });
-      expect(resp.status).toBe(504);
+      expect(resp.status).toBe(502);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.error).toContain("temporarily unavailable");
+      expect(body.error).not.toContain("took too long");
+      expect(body.escalate).toBe(true);
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  it("504s + 'took too long' ONLY when the fetch aborts (the 40s AbortController firing)", async () => {
+    const abortErr = new Error("The operation was aborted");
+    abortErr.name = "AbortError";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(abortErr);
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(504);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.error).toContain("took too long");
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
+
+describe("POST /assistant/chat -- ASSISTANT_CHAT_DISABLED kill switch (Oct-1 readiness sweep, 2026-09-02)", () => {
+  it("any non-empty value: 503 + escalate:true in-process, ZERO droplet fetches", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("should never be reached"));
+    try {
+      const resp = await workerFetch(
+        new Request(`${BASE}/api/assistant/chat`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "cf-connecting-ip": "203.0.113.77",
+            Origin: "https://deadline-radar.com",
+          },
+          body: JSON.stringify({ message: "hello" }),
+        }),
+        { ASSISTANT_CHAT_DISABLED: "1" }
+      );
+      expect(resp.status).toBe(503);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.escalate).toBe(true);
+      expect(body.error).toContain("offline");
+      expect(body.error).toContain("person");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the switch is checked BEFORE the rate limiter -- a disabled assistant does not burn the visitor's chat budget", async () => {
+    const ip = "203.0.113.78";
+    for (let i = 0; i < 3; i++) {
+      const resp = await workerFetch(
+        new Request(`${BASE}/api/assistant/chat`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "cf-connecting-ip": ip, Origin: "https://deadline-radar.com" },
+          body: JSON.stringify({ message: "hello" }),
+        }),
+        { ASSISTANT_CHAT_DISABLED: "1" }
+      );
+      expect(resp.status).toBe(503);
+    }
+    const rows = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE bucket = 'assistant_chat' AND ip = ?1")
+      .bind(ip)
+      .all<{ n: number }>();
+    expect(rows.results[0]?.n ?? 0).toBe(0);
+  });
+
+  it("unset (the normal state) -- the request reaches the droplet exactly as before", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("real answer"));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the ticket route is NOT gated by the switch (that is the whole point: humans stay reachable)", async () => {
+    const resp = await workerFetch(
+      new Request(`${BASE}/api/assistant/ticket`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.79", Origin: "https://deadline-radar.com" },
+        body: JSON.stringify({}),
+      }),
+      { ASSISTANT_CHAT_DISABLED: "1" }
+    );
+    expect(resp.status).not.toBe(503);
   });
 });
 
@@ -327,11 +420,11 @@ describe("POST /assistant/chat -- ASSIST-1 retry (droplet's own canned-apology t
     }
   });
 
-  it("network failure on both attempts -- 504, exactly two fetch calls", async () => {
+  it("network failure on both attempts -- 502 (not the timeout's 504), exactly two fetch calls", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     try {
       const resp = await postChat({ message: "hello" });
-      expect(resp.status).toBe(504);
+      expect(resp.status).toBe(502);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     } finally {
       fetchSpy.mockRestore();
@@ -656,11 +749,11 @@ describe("POST /assistant/chat -- `escalate` flag drives the widget's talk-to-a-
     }
   });
 
-  it("a network failure on both attempts (504) carries escalate: true", async () => {
+  it("a network failure on both attempts (502 since the 2026-09-02 down/slow split) carries escalate: true", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     try {
       const resp = await postChat({ message: "hello" });
-      expect(resp.status).toBe(504);
+      expect(resp.status).toBe(502);
       const body = (await resp.json()) as { error: string; escalate?: boolean };
       expect(body.escalate).toBe(true);
     } finally {

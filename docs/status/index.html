@@ -64,12 +64,14 @@ fake "all systems operational" badge would be a claim we can't actually back wit
 data. Here's what's true instead.</p>
 
 <h2>What this runs on</h2>
-<p>Deadline-Radar is served entirely on Cloudflare's own infrastructure -- Cloudflare Workers for
-the dynamic site (firm dashboard, sign-in, reminders) and Cloudflare Pages for every public page,
-including this one. That means the platform-level uptime that actually matters here is Cloudflare's,
-not a smaller vendor's -- check <a href="https://www.cloudflarestatus.com/" rel="noopener">Cloudflare's
-own public status page</a> directly for real-time platform incidents, rather than trust a summary of
-it from us.</p>
+<p>Deadline-Radar runs on two platforms, both large enough to publish their own real-time status.
+The dynamic side (firm dashboard, sign-in, reminders, the API) runs on Cloudflare Workers with its
+database on Cloudflare D1. The public pages, including this one, are static files hosted on GitHub
+Pages and served through Cloudflare's network. So the platform-level uptime that actually matters here
+is theirs, not a smaller vendor's -- check <a href="https://www.cloudflarestatus.com/"
+rel="noopener">Cloudflare's own public status page</a> and <a href="https://www.githubstatus.com/"
+rel="noopener">GitHub's own status page</a> directly for real-time platform incidents, rather than
+trust a summary of either from us.</p>
 
 <h2>If something on our side breaks</h2>
 <p>A code-level bug or a misconfiguration on our side (not Cloudflare's own platform) is possible like
@@ -98,12 +100,7 @@ incidents) are tracked on our <a href="/changelog/">changelog</a>.</p>
       <span class="wordmark">Deadline-Radar</span>
     </div>
   </div>
-  <!-- Roadmap #332 (2026-08-11, ValueLab report section 10): same 17 links
-       as before, grouped under 3 real category headings instead of one flat
-       list -- no new links, no new pages, no new categories beyond these 3.
-       Deliberately not a large multi-category mega-footer (categories like
-       Careers, Press Room, Partner Hub would point at programs that don't
-       exist for us). -->
+  
   <div class="foot-columns">
     <div class="foot-col">
       <h3>Data &amp; Method</h3>
