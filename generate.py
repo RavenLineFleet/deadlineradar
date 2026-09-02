@@ -23357,6 +23357,104 @@ specifically, the current, cited figures are on our
 <a href="../../washington-cpa-cpe-requirements/">Washington CPE requirements page</a>.</p>
 """,
     },
+    {
+        # 2026-09-01: standing weekly post, orchestrator-directed topic (ValueLab
+        # research handoff, orchestrator_20260901_colorado_guide_research.md).
+        # Repackages co-individual/co-firm (data/cpa_deadlines.json), co-cpe
+        # (data/cpe_hours.json) and colorado-reinstatement (data/reinstatement.json);
+        # the ethics/CR&R clause and the rule-renumbering section were read
+        # directly in both editions of 3 CCR 705-1 on 2026-09-01 (see co-cpe's
+        # verification_history for the same day). Two-party approved round 1
+        # (orchestrator 18:26, AuditLab 18:28 MDT), no changes required.
+        "slug": "colorado-cpa-license-renewal-guide",
+        "published": "2026-09-01",  # first-introduction commit date, from git history
+        "title": "Colorado CPA License Renewal: Two Different Clocks for Individuals and Firms",
+        "seo_title": "Colorado CPA License Renewal: Two Clocks",
+        "meta_description": (
+            "Colorado CPA renewal: November 30 of odd years for individuals, a separate "
+            "triennial August 31 firm cycle, 80 CPE hours (4 ethics), and a 60-day grace period."
+        ),
+        "body_html": """
+<p class="intro">Colorado runs individual CPA certificates and firm registrations on genuinely
+different clocks &mdash; not just a different date, but a different cycle length. Here's exactly how
+both renewal tracks work, sourced to the Colorado Board of Accountancy's own records and the state's
+codified rules.</p>
+
+<h2>Individuals: November 30, every odd-numbered year</h2>
+<p>Every individual CPA certificate in Colorado expires November 30 of odd-numbered years &mdash; one
+statewide date, not birth-month or cohort-based. It applies uniformly regardless of when your
+certificate was first issued: sampling active licenses issued anywhere from 1977 to 2026 in the
+state's own open-data register, every one shows the same 11/30/2027 expiration. The one exception is
+for brand-new certificates &mdash; if yours is issued within 120 days of an upcoming November 30, the
+Board bumps you to the following cycle rather than making you renew almost immediately.
+<a href="../../colorado/">Confirm your own next Colorado CPA renewal deadline here</a>.</p>
+
+<h2>Firms run on a separate, longer cycle: August 31, every three years</h2>
+<p>Public accounting firm registrations are a different clock entirely. They expire August 31, once
+every three years, board-wide &mdash; a fixed date shared by every registered firm, not each firm's
+own anniversary of registering. The cycle runs 2023 &rarr; 2026 &rarr; 2029, so with the August 31,
+2026 deadline now behind us, the next firm-registration deadline for every Colorado firm is
+<strong>August 31, 2029</strong>. One detail worth knowing if you're ever reconciling a firm's record:
+what places a firm in a given three-year cohort is the date it most recently renewed, not the year it
+first registered &mdash; a firm registered in 1985 and one registered last year can sit in the same
+cohort. <a href="../../colorado-cpa-firm-renewal/">The firm-registration page has the full sourcing
+for that</a>.</p>
+
+<h2>CPE: 80 hours per two-year period, accrued by the quarter</h2>
+<p>Colorado's CPE reporting period runs from January 1 of an even-numbered year through December 31 of
+the following odd-numbered year. The rule doesn't actually say "80 hours" &mdash; it says a certificate
+holder must complete ten hours of CPE for each full quarter of active licensure during the period (3
+CCR 705-1, Rule 1.9(G)(2)), which works out to 80 for anyone active the whole two years, and
+proportionally less for a certificate that was active for only part of it. There's no separate
+single-year minimum the way several other states impose one; the requirement simply accrues quarter by
+quarter.</p>
+
+<p>The part that trips people up: that CPE reporting deadline &mdash; December 31 &mdash; lands a month
+<em>after</em> your actual certificate renewal date of November 30 in the same year. Your license comes
+up for renewal before the CPE window for that same cycle formally closes, and renewal requires
+attesting that you've complied with the CPE rule (Rule 1.9(G)(3)). Don't assume the two dates are the
+same one.</p>
+
+<h2>Inside the 80: four hours of ethics, and a Colorado-specific piece of it</h2>
+<p>Of the 80 hours, four must be in ethics &mdash; and up to two of those four may be satisfied with a
+Colorado Rules and Regulations (CR&amp;R) course specifically (Rule 1.9(G)(2)(b)). CR&amp;R has a
+precise definition in the rules: CPE covering Colorado's own accountancy statute (C.R.S. &sect;
+12-100-101 through &sect; 12-100-130 and &sect; 13-90-107(1)(f)) and the Board's own rules and
+policies, following a content outline the Board publishes (Rule 1.1(B); Rule 1.10(H)). This is a
+Colorado-specific carve-out, not something every state builds into its ethics hours &mdash; worth
+flagging for anyone who has renewed in another state and assumes "four hours of ethics" means any
+ethics course qualifies for all of it.</p>
+
+<h2>A discrepancy worth knowing: which rule number is the CPE rule?</h2>
+<p>If you look this up yourself you'll find the same requirement cited three different ways &mdash;
+"Rule 1.6," "Rule 1.9," "Rule 1.10" &mdash; and they aren't all wrong, just from different years.
+Colorado re-adopted and renumbered the entire 3 CCR 705-1 effective June 30, 2022. The clause that
+used to sit at Rule 1.6(G)(2) is now Rule 1.9(G)(2); the CPE rule proper moved from 1.7 to 1.10; and
+the old 1.9 (professional conduct) is now 1.12. The wrinkle is that the Secretary of State's site still
+serves the pre-2022 edition under its old document ID, so a citation to "1.6(G)(2)" resolves to a
+real page and reads word-for-word correct &mdash; it's just superseded numbering. We publish the
+current edition's numbering above, and we caught our own citation pointing at the old one while
+checking this guide.</p>
+
+<h2>If you miss November 30</h2>
+<p>There is a sixty-day grace period from the expiration date within which the certificate can still
+be renewed by paying the renewal fee plus a late fee, and the Board won't discipline you for holding
+out or practicing during those sixty days (Rule 1.9(J)(1)). After the grace period, an expired
+certificate holder can't hold out or perform any service that requires an active certificate. And the
+rules are explicit that not receiving a renewal notice doesn't relieve you of the obligation to renew
+(Rule 1.9(B)(2)(c)) &mdash; the notice is a courtesy, not the deadline. The dollar amount of the late
+fee isn't set in the rules themselves (it's on the licensing portal's fee schedule), so we don't
+publish a figure for it.</p>
+
+<p><strong>Bottom line</strong>: if you're an individual Colorado CPA, mark <strong>November 30 of
+every odd-numbered year</strong>. If your firm holds its own registration, that's a <strong>separate
+August 31 date on a three-year cycle</strong> &mdash; next up, 2029 &mdash; and it doesn't track your
+personal renewal. Either way, budget 80 CPE hours per two-year period with four in ethics (up to two
+of them Colorado-specific CR&amp;R), and remember your CPE window runs a month past your license
+date, not alongside it. <a href="../../colorado/">Set a reminder for your Colorado deadline here</a>
+so both clocks work for you instead of quietly running past you.</p>
+""",
+    },
 ]
 
 
