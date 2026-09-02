@@ -568,3 +568,110 @@ describe("POST /assistant/chat -- real visitor IP forwarded to the droplet (Shop
     }
   });
 });
+
+// 2026-09-01 (support-ticket walkthrough): the widget offers "send this to a
+// human" on the `escalate` flag ALONE, never by sniffing reply text -- so
+// every non-answer shape this route can produce must carry it, and no real
+// answer may.
+describe("POST /assistant/chat -- `escalate` flag drives the widget's talk-to-a-human offer", () => {
+  it("a genuine answer carries NO escalate flag", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("Texas renews annually on your birth month."));
+    try {
+      const resp = await postChat({ message: "When does Texas renew?" });
+      const body = (await resp.json()) as { reply: string; escalate?: boolean };
+      expect(body.escalate).toBeUndefined();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the droplet's apology text on both attempts -- HTTP 200, reply verbatim, escalate: true", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => droplet("Something went wrong answering that just now."));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(200);
+      const body = (await resp.json()) as { reply: string; escalate?: boolean };
+      expect(body.reply).toBe("Something went wrong answering that just now.");
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("apology on attempt 1 but a real answer on attempt 2 -- the real answer ships WITHOUT the flag", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(droplet("Something went wrong answering that just now."))
+      .mockResolvedValueOnce(droplet("Florida requires 80 CPE hours per 2-year period."));
+    try {
+      const resp = await postChat({ message: "Florida CPE hours?" });
+      const body = (await resp.json()) as { reply: string; escalate?: boolean };
+      expect(body.escalate).toBeUndefined();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the droplet's own 429 carries escalate: true", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ reply: "You've hit the limit. It resets in about 50 minutes." }), { status: 429 }));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("this proxy's OWN exhausted rate-limit bucket carries escalate: true too", async () => {
+    const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    const now = Math.floor(Date.now() / 1000);
+    const inserts = Array.from({ length: 100 }, (_, i) =>
+      env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_chat", now - i)
+    );
+    await env.DB.batch(inserts);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const resp = await postChat({ message: "hello" }, { ip });
+      expect(resp.status).toBe(429);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a non-2xx on both attempts (502) carries escalate: true", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("error", { status: 500 }));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(502);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a network failure on both attempts (504) carries escalate: true", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(504);
+      const body = (await resp.json()) as { error: string; escalate?: boolean };
+      expect(body.escalate).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a validation 400 (the visitor's own input, not a failed answer) carries NO escalate flag", async () => {
+    const resp = await postChat({ message: "" });
+    expect(resp.status).toBe(400);
+    const body = (await resp.json()) as { error: string; escalate?: boolean };
+    expect(body.escalate).toBeUndefined();
+  });
+});

@@ -2133,6 +2133,55 @@ export function buildSignupNotificationEmail(
 }
 
 /**
+ * Internal-only notification (2026-09-01, Devin: "Lets scope it. I like the
+ * walk the customer through a ticket. Just send it to Support@ and it
+ * should go to Raven@."). Sent to INTERNAL_NOTIFY_EMAIL, never to the
+ * visitor -- same "not a customer-facing email" posture as
+ * buildSignupNotificationEmail() above, so it likewise skips the full
+ * CAN-SPAM/unsubscribe apparatus. The caller passes visitorEmail as
+ * sendViaSendGrid()'s separate replyTo parameter (not baked in here) so a
+ * human at Raven@ can just hit Reply and reach the visitor directly.
+ */
+export function buildAssistantTicketEmail(details: {
+  visitorEmail: string;
+  description: string;
+  sessionId: string | null;
+  autoTriggered: boolean;
+}): BuiltEmail {
+  // Same CRLF-stripping as buildSignupNotificationEmail()'s safeEmail --
+  // this value reaches a subject line, and neither the assistant widget's
+  // own message cap nor an optional signed-in session's email is a
+  // guaranteed control-char gate on its own (EMAIL-1's "don't rely
+  // entirely on an upstream gate" lesson, applied here too).
+  const safeEmail = details.visitorEmail.replace(/[\r\n]+/g, " ");
+  const subject = `Assistant chat needs a human: ${safeEmail}`;
+
+  const trigger = details.autoTriggered
+    ? "Auto-offered after the assistant couldn't answer (a failure reply or a rate limit)."
+    : "Visitor asked for a human directly (“Talk to a human instead”), not necessarily after a failure.";
+
+  const textBody =
+    `From: ${details.visitorEmail}\n` +
+    (details.sessionId ? `Chat session_id: ${details.sessionId}\n` : "") +
+    `\n${trigger}\n\n` +
+    `Their message:\n${details.description}\n\n` +
+    `Reply to this email to reach them directly.`;
+
+  const htmlBody =
+    `<p>Assistant chat escalated to a human:</p>` +
+    `<ul>` +
+    `<li>From: ${esc(details.visitorEmail)}</li>` +
+    (details.sessionId ? `<li>Chat session_id: ${esc(details.sessionId)}</li>` : "") +
+    `</ul>` +
+    `<p>${esc(trigger)}</p>` +
+    `<p><strong>Their message:</strong></p>` +
+    `<p style="white-space:pre-wrap;">${esc(details.description)}</p>` +
+    `<p>Reply to this email to reach them directly.</p>`;
+
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * AuditLab STALE-3 (MEDIUM, 2026-08-09/2026-08-13): the operator alert that
  * used to be a console.log nobody watches. Fires (via
  * store.claimStaleDataAlertForToday(), which caps this to once per UTC day

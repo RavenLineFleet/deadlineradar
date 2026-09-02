@@ -1031,6 +1031,16 @@ export const RATE_LIMIT_ASSISTANT_API: RateLimit = { max: 600, windowSeconds: 36
  * before this route existed to enforce it. */
 export const RATE_LIMIT_ASSISTANT_CHAT: RateLimit = { max: 100, windowSeconds: 3600 };
 
+/** POST /assistant/ticket (2026-09-01, Devin: "walk the customer through a
+ * ticket... send it to Support@"). Deliberately its OWN bucket, not reused
+ * from RATE_LIMIT_ASSISTANT_CHAT -- a different action even on the same
+ * widget (this one sends a real email to a human, not a droplet lookup),
+ * and much tighter: a real support request is a rare, deliberate action,
+ * not a per-message ceiling. 5/hour/IP is generous for a genuinely
+ * frustrated visitor retrying, tight enough that this can never become a
+ * way to spam a human inbox at raven@. */
+export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3600 };
+
 /** Returns true if this request is ALLOWED, false if it should be blocked. */
 export async function checkRateLimit(
   db: D1Database,
