@@ -55,13 +55,16 @@ const CHROME_CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].filter(Boolean);
 
-// The sticky site header is ~60 CSS px tall (nav.mainnav in generate.py);
-// anything scrolled to sit above HEADER_CLEAR slides under it.
+// /firm-mobility/'s site header is sticky and ~60 CSS px tall (nav.mainnav
+// in generate.py); anything scrolled to sit above HEADER_CLEAR slides under
+// it. The dashboard renders the same nav static (sticky_top_nav=False), so
+// there a scrolled frame simply starts wherever it is scrolled to.
 const HEADER_CLEAR = 68;
 
 // Dashboard views, in sidebar order; `view` is the sidebar tab's data-view.
 // `waitFor` is content that must have rendered before the shot; `anchor` is
-// scrolled to just below the sticky header (default: top of page).
+// scrolled to `anchorTop` CSS px from the top of the frame (default: the
+// top of the page).
 const DASHBOARD_SHOTS = [
   { file: "roster.jpg", view: "roster", waitFor: "#dr-stat-row .dr-stat-card" },
   { file: "calendar.jpg", view: "calendar" },
@@ -74,7 +77,7 @@ const DASHBOARD_SHOTS = [
   {
     file: "reports.jpg", view: "reports",
     waitFor: "#dr-audit-trail-body tbody tr",
-    anchor: "#dr-view-reports .dr-report-toolbar", anchorOffset: 20,
+    anchor: "#dr-view-reports .dr-report-toolbar", anchorTop: 24,
   },
 ];
 // Both attestation boxes ticked, as the original was: they are the firm's
@@ -161,13 +164,13 @@ async function demoLogin(page) {
   );
 }
 
-async function scrollAnchorBelowHeader(page, selector, offset = 0) {
-  await page.evaluate((sel, clear, off) => {
+async function scrollAnchorTo(page, selector, anchorTop) {
+  await page.evaluate((sel, at) => {
     const el = document.querySelector(sel);
     if (!el) throw new Error(`anchor not found: ${sel}`);
     const top = el.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo(0, Math.max(0, top - clear - off));
-  }, selector, HEADER_CLEAR, offset);
+    window.scrollTo(0, Math.max(0, top - at));
+  }, selector, anchorTop);
   await new Promise((r) => setTimeout(r, 250));
 }
 
@@ -180,7 +183,7 @@ async function captureDashboard(page, outDir) {
     if (shot.waitFor) await page.waitForSelector(shot.waitFor, { timeout: 20_000 });
     await settle(page);
     await dismissPrompts(page);
-    if (shot.anchor) await scrollAnchorBelowHeader(page, shot.anchor, shot.anchorOffset);
+    if (shot.anchor) await scrollAnchorTo(page, shot.anchor, shot.anchorTop);
     else await page.evaluate(() => window.scrollTo(0, 0));
     await shoot(page, path.join(outDir, shot.file));
   }
@@ -210,7 +213,7 @@ async function captureMobility(page, outDir) {
   // thing under the sticky header (the attestation lines above it fully
   // hidden behind it, not sliced by its edge), with the "California ->
   // Texas" heading and the three result cards below.
-  await scrollAnchorBelowHeader(page, '#dr-mobility-form button[type="submit"]');
+  await scrollAnchorTo(page, '#dr-mobility-form button[type="submit"]', HEADER_CLEAR);
   await shoot(page, path.join(outDir, MOBILITY_SHOT.file));
 }
 
