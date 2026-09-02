@@ -5503,7 +5503,7 @@ def _seal_svg(kind: str, date_text: str, uid: str) -> str:
         f'<text x="50" y="{date_y}" font-size="5.4" font-weight="650" letter-spacing="0.6" fill="{color}" '
         f'text-anchor="middle" font-variant-numeric="tabular-nums" class="dr-seal-date">{esc(date_text)}</text>'
         f'<text font-size="4.6" font-weight="650" letter-spacing="0.4" fill="var(--faint)">'
-        f'<textPath href="#sB{uid}{kind}" startOffset="51.5%" text-anchor="middle">DEADLINERADAR</textPath></text>'
+        f'<textPath href="#sB{uid}{kind}" startOffset="51.5%" text-anchor="middle">DEADLINE-RADAR</textPath></text>'
         f'<g stroke="{color}" stroke-width="1" opacity="0.6">{ticks}</g>'
         f'</svg>'
     )
@@ -9486,15 +9486,26 @@ license. {len(FIRM_LANDING_PAGES)} states where we've published the firm-specifi
 # Roadmap #323 (2026-08-10, ValueLab design-pattern-mining #3, TOP PRIORITY):
 # six-tab product showcase on /for-firms/, replacing the single static
 # roster-only mockup above with REAL screenshots across every dashboard view
-# plus Practice Privilege Check. NOT mockups (see _firm_dashboard_mockup_html
-# above for that, still used on the homepage's own lighter teaser) -- these
-# are actual screenshots of the shared live demo account (the same one
-# /firm/demo-login signs a visitor into), captured 2026-08-10, saved to
-# assets/showcase/*.jpg and copied verbatim into the built site (see the
-# asset-copy loop in main()). Same "real data, shared account, not a private
-# one" disclosure the demo-login banner itself already carries -- these
-# screenshots show exactly what a fresh visitor sees clicking "Live Demo",
-# nothing staged beyond picking which of the 6 nav views to capture.
+# plus Practice Privilege Check. NOT mockups (the hand-built
+# _firm_dashboard_mockup_html the homepage teaser used to render is gone;
+# the teaser embeds roster.jpg from this same set) -- these are actual
+# screenshots of the shared live demo account (the same one
+# /firm/demo-login signs a visitor into), saved to assets/showcase/*.jpg
+# and copied verbatim into the built site (see the asset-copy loop in
+# main()). First captured by hand 2026-08-10; re-captured 2026-09-02 with
+# scripts/make_showcase_screenshots.mjs (headless Chrome against the live
+# site, one real demo login) after the demo firm's rename, so the shots
+# match the wordmark and firm name a visitor actually sees -- re-run that
+# script whenever the dashboard chrome changes. Same "real data, shared
+# account, not a private one" disclosure the demo-login banner itself
+# already carries -- these screenshots show what a fresh visitor sees
+# clicking "Live Demo" once they've clicked away the four one-click prompts
+# that greet them (cookie notice, product tour, "Getting started"
+# checklist, NPS ask -- all dismissed through their own buttons, which are
+# server-side no-ops for the demo firm), scrolled so each view's own
+# content fills the frame. Nothing else is staged beyond picking which of
+# the 6 nav views to capture and ticking the mobility check's two
+# attestation boxes (the firm's own inputs).
 _PRODUCT_SHOWCASE_TABS = [
     # P6 (ValueLab pricing addendum, ruled 2026-08-20): this caption used
     # to read as free-tier content -- the coverage %, status breakdown,
