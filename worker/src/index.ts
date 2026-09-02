@@ -5807,7 +5807,21 @@ const ASSISTANT_CHAT_DROPLET_URL = "https://deadlineradar-assistant.143-198-52-1
 // converted today's real successes into false 504 timeouts on this side.
 // 25s keeps a real conversational reply generous without leaving a browser
 // tab hanging indefinitely if the droplet is genuinely unreachable.
-const ASSISTANT_CHAT_TIMEOUT_MS = 25000;
+//
+// 2026-09-01 update (AuditLab latency watch + ShopLab droplet measurement):
+// two nights running, the first cold spawn during another tenant's
+// 02:00-04:00 UTC batch window on the shared droplet took 24-33s
+// droplet-side. Under the 25s budget that first attempt was ABORTED here
+// (while still running on the box), and the visitor only got an answer via
+// the single retry below -- the logged 35.0s / 37.1s rows are exactly
+// 25,000 + 2,500 + a 7.5-9.6s warm retry, one more slow retry away from a
+// user-facing 504. 40s lets a slow-but-live cold reply land on attempt 1
+// instead of double-spawning; the >30s latency alert in scheduler.ts is
+// deliberately NOT relaxed, so those contended nights stay visible. Worst
+// case for a droplet that accepts the connection and then hangs is now
+// 40 + 2.5 + 40 = 82.5s before the 504 (was 52.5s); a droplet that is
+// actually down still fails fast on connect.
+const ASSISTANT_CHAT_TIMEOUT_MS = 40000;
 const ASSISTANT_CHAT_MAX_MESSAGE_CHARS = 2000;
 // AuditLab ASSIST-1 (HIGH, 2026-08-28): live-measured 1 full success out of
 // 10 real questions through this route in the first hour after launch. The
