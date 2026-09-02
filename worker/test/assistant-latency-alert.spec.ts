@@ -285,9 +285,13 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
   });
 
   it("a SendGrid failure (non-202) unclaims the day, so a later tick can retry rather than losing the alert silently", async () => {
+    let calls = 0;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) return new Response("simulated failure", { status: 500 });
+      if (url === SENDGRID_URL) {
+        calls++;
+        return new Response("simulated failure", { status: 500 });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
@@ -295,12 +299,93 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       await seedSamples(now, [45000]);
       const dayUtc = new Date().toISOString().slice(0, 10);
       const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
-      await runAssistantLatencyAlertPass({ ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never);
+      // MON-5: inject a no-op sleep so the retry backoff doesn't add real
+      // seconds to the suite; the real fetch mock still exercises
+      // sendViaSendGrid's [sendgrid-fail] status+body logging path 3x.
+      await runAssistantLatencyAlertPass(
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        { sleep: async () => {} }
+      );
+      // MON-5: the send is retried to exhaustion before giving up (was 1 call).
+      expect(calls).toBe(3);
       // The failed send must NOT have burned today's claim -- a fresh claim
       // attempt should still succeed (DROP-3-shaped unclaim-on-failure).
       expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(true);
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  // MON-5 (2026-09-02): retry/backoff -- a single transient SendGrid 4xx used
+  // to drop the whole day's only alert. These use the pass's `send`/`sleep`
+  // injection seam so they're deterministic and don't burn real backoff time.
+  it("MON-5: retries and SUCCEEDS on a later attempt -- a transient failure does not lose the alert, and the day stays claimed", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch"); // must never hit the network -- send is injected
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      await seedSamples(now, [45000]);
+      const dayUtc = new Date().toISOString().slice(0, 10);
+      let attempts = 0;
+      const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
+      await runAssistantLatencyAlertPass(
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        {
+          send: async () => {
+            attempts++;
+            return attempts >= 3; // fail, fail, then succeed
+          },
+          sleep: async () => {},
+        }
+      );
+      expect(attempts).toBe(3);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      // A success on the 3rd attempt KEEPS the day claim -> a re-claim fails.
+      expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(false);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("MON-5: all attempts fail -- send is tried exactly ATTEMPTS times, then the day is unclaimed for a later retry (no throw)", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    await seedSamples(now, [45000]);
+    const dayUtc = new Date().toISOString().slice(0, 10);
+    let attempts = 0;
+    const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
+    await expect(
+      runAssistantLatencyAlertPass(
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        { send: async () => { attempts++; return false; }, sleep: async () => {} }
+      )
+    ).resolves.toBeUndefined();
+    expect(attempts).toBe(3);
+    expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(true); // released
+  });
+
+  it("MON-5: a first-attempt success does NOT retry and does NOT back off", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    await seedSamples(now, [45000]);
+    let attempts = 0;
+    const sleeps: number[] = [];
+    const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
+    await runAssistantLatencyAlertPass(
+      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+      { send: async () => { attempts++; return true; }, sleep: async (ms) => { sleeps.push(ms); } }
+    );
+    expect(attempts).toBe(1);
+    expect(sleeps).toEqual([]);
+  });
+
+  it("MON-5: backoff grows between attempts (2s then 4s) and there are exactly ATTEMPTS-1 waits", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    await seedSamples(now, [45000]);
+    const sleeps: number[] = [];
+    const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
+    await runAssistantLatencyAlertPass(
+      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+      { send: async () => false, sleep: async (ms) => { sleeps.push(ms); } }
+    );
+    // 3 attempts -> 2 backoffs, increasing: BACKOFF_MS*1, BACKOFF_MS*2.
+    expect(sleeps).toEqual([2000, 4000]);
   });
 });
