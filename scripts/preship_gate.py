@@ -386,6 +386,38 @@ _CALC_DATA_NOTE_VALUE_RE = re.compile(r'note:"((?:[^"\\]|\\.)*)"')
 _CALC_DATA_NOTE_MAX_CHARS = 600
 
 
+# Oct-1 readiness sweep (2026-09-02): generate.py's page_shell() now strips
+# every `<!-- -->` from the markup it emits (_strip_html_comments) -- these
+# were internal provenance notes (audit ids, roadmap numbers, agent names, a
+# closed-vuln write-up) shipping to view-source. Hard gate: NO HTML comment
+# may reach docs/. Anything routed around page_shell(), or a future edit
+# that drops the stripper, fails here instead of shipping quietly. Script
+# and style bodies are excluded the same way the stripper excludes them.
+_SHIPPED_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_SHIPPED_PROTECTED_BLOCK_RE = re.compile(r"<script\b.*?</script>|<style\b.*?</style>", re.DOTALL)
+
+
+def _html_comments_outside_scripts(html_text: str) -> list[str]:
+    found: list[str] = []
+    pos = 0
+    for m in _SHIPPED_PROTECTED_BLOCK_RE.finditer(html_text):
+        found += _SHIPPED_HTML_COMMENT_RE.findall(html_text[pos:m.start()])
+        pos = m.end()
+    found += _SHIPPED_HTML_COMMENT_RE.findall(html_text[pos:])
+    return found
+
+
+def check_no_shipped_html_comments(html_files: list[Path]) -> list[str]:
+    if not html_files:
+        return ["[COMMENT] no HTML files handed to check_no_shipped_html_comments() -- a zero here would be a silent pass"]
+    errors: list[str] = []
+    for f in html_files:
+        for c in _html_comments_outside_scripts(f.read_text(encoding="utf-8")):
+            snippet = " ".join(c.split())[:140]
+            errors.append(f"[COMMENT][{f}] HTML comment shipped to the public tree: {snippet} (page_shell() strips these; this page bypassed it or the stripper regressed)")
+    return errors
+
+
 def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> list[str]:
     calc_files = [f for f in html_files if f.name == "index.html" and f.parent.name == "deadline-calculator"]
     if not calc_files:
@@ -5228,6 +5260,7 @@ def main():
     all_errors += check_copy_hygiene(html_files)
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
+    all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)

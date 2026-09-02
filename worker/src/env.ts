@@ -140,6 +140,19 @@ export interface Env {
    * convention as TURNSTILE_SECRET_KEY/SENDGRID_API_KEY.
    */
   ASSISTANT_DROPLET_SHARED_SECRET?: string;
+  /**
+   * Oct-1 readiness sweep (2026-09-02): kill switch for the chat assistant.
+   * Any non-empty value (`wrangler secret put ASSISTANT_CHAT_DISABLED`,
+   * value "1") makes POST /assistant/chat answer 503 + escalate:true in
+   * milliseconds -- the widget shows the message and offers the human
+   * ticket path -- without a rebuild, a docs/ push, or a Worker deploy.
+   * Before this, hiding a droplet outage from visitors meant one of those,
+   * each minutes-to-tens-of-minutes under pressure, while every visitor
+   * saw a bubble hang for up to 82.5s. `wrangler secret delete
+   * ASSISTANT_CHAT_DISABLED` turns it back on. The ticket route is NOT
+   * gated by this -- that is the whole point of the switch.
+   */
+  ASSISTANT_CHAT_DISABLED?: string;
   REMINDERS_DAILY_SEND_CAP?: string;
   ACTION_DAILY_SEND_CAP?: string;
   DRIP_COURSE_DAILY_SEND_CAP?: string;

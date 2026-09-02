@@ -5236,6 +5236,14 @@ async function handleSubscriberLicensesList(request: Request, env: Env): Promise
     // the sensitive value" posture as Slack/Teams' own webhook URLs.
     phone_last4: maskPhoneLast4(rows[0]?.phone_number ?? null),
     sms_opted_in: (rows[0]?.sms_opted_in ?? 0) !== 0,
+    // Oct-1 readiness sweep (2026-09-02): the /my/ page rendered the
+    // phone-number form unconditionally while Twilio has never been
+    // configured in prod (roadmap #22 is flagged+held: account-creating +
+    // money-touching), so every opt-in attempt ended at the start route's
+    // honest 503 -- a dead-end form. Tell the page up front so it can show
+    // "not available yet" instead of collecting a number it can't verify.
+    // Mirrors exactly the guard handleSubscriberPhoneStartVerification uses.
+    sms_available: Boolean(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER),
     // 2026-09-01: same person-level, read-from-the-first-row posture as
     // notification_mode/phone_last4 above. Always returned regardless of
     // opt-in state so the /my/ page can show "next PTIN deadline: <date>"
@@ -5879,6 +5887,12 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // route has its own separate bucket, so offering a human here doesn't
   // hand an abuser anything the ticket route's own limits don't already
   // gate.
+  // Kill switch (see env.ts ASSISTANT_CHAT_DISABLED). Checked BEFORE the
+  // rate limiter so a visitor who hits a disabled assistant doesn't also
+  // burn their chat budget on the way to the ticket form.
+  if (env.ASSISTANT_CHAT_DISABLED) {
+    return jsonResponse(503, { error: ASSISTANT_CHAT_DISABLED_MESSAGE, escalate: true });
+  }
   const allowed = await checkRateLimit(env.DB, ip, "assistant_chat", RATE_LIMIT_ASSISTANT_CHAT);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many questions from this address. Please try again later.", escalate: true });
@@ -5985,6 +5999,9 @@ type AssistantDropletResult =
   | { ok: false; status: number; error: string; rateLimited: boolean };
 
 const ASSISTANT_CHAT_GENERIC_UNAVAILABLE = "The assistant is temporarily unavailable. Please try again shortly.";
+const ASSISTANT_CHAT_DISABLED_MESSAGE =
+  "The assistant is offline right now. You can still send your question to a person below and we'll reply by email.";
+const ASSISTANT_CHAT_TIMED_OUT_MESSAGE = "The assistant took too long to respond. Please try again.";
 const ASSISTANT_CHAT_GENERIC_RATE_LIMITED =
   "The assistant is getting a lot of questions right now. Please try again in a little while.";
 
@@ -6064,9 +6081,21 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
       return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
     }
     return { ok: true, reply: data.reply };
-  } catch {
-    // Covers both a network failure and the AbortController firing.
-    return { ok: false, status: 504, error: "The assistant took too long to respond. Please try again.", rateLimited: false };
+  } catch (err) {
+    // Oct-1 readiness sweep (2026-09-02): a droplet that is DOWN (connection
+    // refused, DNS failure) used to be reported with the timeout's own copy,
+    // telling the visitor to "try again" for something that fails in
+    // milliseconds and will fail the same way next time. Only the
+    // AbortController firing is a timeout; everything else is "unavailable",
+    // which is what it is. Both paths still retry once and both end with
+    // escalate:true from the caller, so the human route is offered either way.
+    const timedOut = err instanceof Error && err.name === "AbortError";
+    return {
+      ok: false,
+      status: timedOut ? 504 : 502,
+      error: timedOut ? ASSISTANT_CHAT_TIMED_OUT_MESSAGE : ASSISTANT_CHAT_GENERIC_UNAVAILABLE,
+      rateLimited: false,
+    };
   } finally {
     clearTimeout(timeoutId);
   }

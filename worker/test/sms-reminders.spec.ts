@@ -706,3 +706,43 @@ describe("runSmsAlertPass -- roadmap #151 value-line gate", () => {
     expect(summary.sent).toBe(1);
   });
 });
+
+// Oct-1 readiness sweep (2026-09-02): the /my/ page rendered the phone form
+// unconditionally while Twilio has never been configured in prod, so every
+// opt-in attempt dead-ended at the start route's 503. GET /subscriber/licenses
+// now carries `sms_available` so the page can say "not yet" instead. The
+// flag mirrors the exact guard handleSubscriberPhoneStartVerification uses.
+describe("GET /subscriber/licenses -- sms_available flag", () => {
+  async function fetchMe(email: string, envOverrides: Record<string, unknown>) {
+    const worker = (await import("../src/index")).default;
+    const resp = await worker.fetch(
+      new Request(`${BASE}/subscriber/licenses`, { headers: { Cookie: await subscriberCookie(email) } }),
+      { ...env, ...envOverrides } as never,
+      { waitUntil() {}, passThroughOnException() {}, props: {} } as unknown as ExecutionContext
+    );
+    expect(resp.status).toBe(200);
+    return (await resp.json()) as { sms_available: boolean; sms_opted_in: boolean };
+  }
+
+  it("false when Twilio is not configured (prod today)", async () => {
+    const email = `smsavail-unset-${Date.now()}@example.com`;
+    await seedConfirmedSubscriber("ohio", "2027-01-01", email);
+    const body = await fetchMe(email, { TWILIO_ACCOUNT_SID: undefined, TWILIO_AUTH_TOKEN: undefined, TWILIO_FROM_NUMBER: undefined });
+    expect(body.sms_available).toBe(false);
+    expect(body.sms_opted_in).toBe(false);
+  });
+
+  it("false when only SOME of the three Twilio vars are set (the start route would still 503)", async () => {
+    const email = `smsavail-partial-${Date.now()}@example.com`;
+    await seedConfirmedSubscriber("ohio", "2027-01-01", email);
+    const body = await fetchMe(email, { TWILIO_ACCOUNT_SID: "AC_fake", TWILIO_AUTH_TOKEN: FAKE_AUTH_TOKEN, TWILIO_FROM_NUMBER: undefined });
+    expect(body.sms_available).toBe(false);
+  });
+
+  it("true once all three are configured", async () => {
+    const email = `smsavail-set-${Date.now()}@example.com`;
+    await seedConfirmedSubscriber("ohio", "2027-01-01", email);
+    const body = await fetchMe(email, { TWILIO_ACCOUNT_SID: "AC_fake", TWILIO_AUTH_TOKEN: FAKE_AUTH_TOKEN, TWILIO_FROM_NUMBER: "+15559999999" });
+    expect(body.sms_available).toBe(true);
+  });
+});
