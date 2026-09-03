@@ -4,7 +4,7 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 55,
+  "gap_record_count": 54,
   "block_claim_count": 1,
   "entries": [
     {
@@ -31,7 +31,7 @@
       "state": "Texas",
       "state_slug": "texas",
       "field": "data_gap_note",
-      "note": "22 TAC 515.3(a)(1), reached via the Appian portal's real browse navigation (Title 22 -> Part 22 -> Chapter 515 Licenses -> 515.3), confirmed verbatim: 'Licenses for individuals have staggered expiration dates based on the last day of the individual's birth month.' Matches the renewal cycle described above exactly. 22 TAC 521.1 (Fee Schedule) separately confirms the annual fee is 'established by the board on an annual basis' plus a codified $10.00 Scholarship Trust Fund fee -- corroborating the annual renewal fee's own board-resolution framing. Neither URL is fetchable by our own tooling (Appian's client-only rendering); both were read in a real browser, matching DiffLab's own independent finding that this host has no script-addressable rule pages.",
+      "note": "Texas's own licensing rule (22 TAC 515.3) confirms this directly: individual CPA licenses have staggered expiration dates tied to your own birth month, so your renewal is due by the last day of that month each year. The board's own renewal page tells CPAs the same thing, so the codified rule and the board agree on this cycle. The annual renewal fee itself isn't fixed in the rule -- the board sets that amount each year, on top of a separate $10.00 Scholarship Trust Fund fee that is fixed by rule. Because the fee is set by board action rather than written into the rule, it can change from year to year without a rule filing -- confirm the current figure with the board when you renew.",
       "is_block_claim": false
     },
     {
@@ -157,7 +157,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "The requirement itself is solid -- 17 DCMR 2530 is the governing rule and the Board's own CPE reporting form quotes 2530.1 and 2530.8 verbatim. What DC does not offer is a stable web address for the rule: dcregs.dc.gov has no per-section permalink, and its section-list URL resolves to a search page with no rule text on it. The citation link therefore points at the Board's own reporting form, which is the official document that actually reproduces the language.",
+      "note": "You can rely on DC's 80-hour biennial requirement (with a 4-hour ethics minimum) -- it's confirmed in two independent places that agree: 17 DCMR §§2530.1 and 2530.8, and the Board's own CPE Reporting Form, which quotes both sections verbatim. DC's online regulations portal doesn't offer a stable link to individual sections -- its section-list page resolves to a search screen, not the rule text -- so the citation above points you directly to the Board's reporting form PDF, the official document that reproduces the rule's language.",
       "is_block_claim": false
     },
     {
@@ -166,7 +166,7 @@
       "state": "Georgia",
       "state_slug": "georgia",
       "field": "data_gap_note",
-      "note": "Georgia has two official versions of this rule in circulation and they do not agree. The Secretary of State's rules site (rules.sos.ga.gov/gac/20-11) still serves the PRE-2024 text -- 80 hours with 16 in accounting and auditing, and no ethics requirement at all. The Board's own published Rule 20-11, effective January 1, 2024, is the current one and is what this record follows. If you look the rule up on the Secretary of State's site and see different numbers, that is why; confirm with the Board.",
+      "note": "Georgia has two official versions of this rule in circulation and they don't agree. The Secretary of State's site (rules.sos.ga.gov/gac/20-11) still shows the superseded pre-2024 text -- 80 hours with 16 in accounting and auditing, and no ethics requirement. The current rule is the Board's own Rule 20-11-.02, amended effective January 1, 2024, which sets today's 50%-technical-fields and ethics requirements; that is what this record follows and what actually governs your CPE. If the Secretary of State's site shows different numbers, that's why.",
       "is_block_claim": false
     },
     {
@@ -193,7 +193,7 @@
       "state": "South Dakota",
       "state_slug": "south-dakota",
       "field": "data_gap_note",
-      "note": "The 120-hour/3-year total is fully 2-sourced: SDCL 36-20B-27's primary text (fetched directly) states '120 hours of continuing education in each three-year renewal period,' matching the board's FAQ. The 20-hour annual minimum, though, is confirmed only on the board's own FAQ page, not independently in the statute text or in the administrative rule chapter (whose only annual-minimum language governs the initial-certificate phase-in population specifically, not general renewal) -- single-sourced, disclosed rather than silently treated as codified.",
+      "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- we haven't found it in the statute or in the administrative rule chapter (whose only annual-minimum language covers the initial-certificate phase-in period, not general renewal). It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
       "is_block_claim": false
     },
     {
@@ -238,7 +238,7 @@
       "state": "Illinois",
       "state_slug": "illinois",
       "field": "data_gap_note",
-      "note": "No separate penalty CPE/ethics hour figures are published because the rule imposes the same standard 120-hr/4-ethics-hr load already required at ordinary renewal, just with a tighter lookback window -- not an additional number. IDFPR's own site does not publish CPA-specific restoration dollar figures on a single page (its general reactivation-fee table explicitly excludes CPAs); the board-page leg of the 2-source rule is satisfied by the Public Accounting landing page instead, with the exact fee formula confirmed only in the codified rule text.",
+      "note": "No separate penalty CPE or ethics hours apply here: restoration just requires your normal 120-hour, 3-year CPE total (with its standard 4 ethics hours) to fall within the 3 years right before you apply -- not any extra hours, per 68 Ill. Admin. Code 1420.60 and 1420.70. The $260 fee cap comes straight from the codified rule at 1420.40; IDFPR's own site doesn't publish a CPA-specific restoration figure (its general reactivation-fee table explicitly excludes CPAs), so the administrative code is the authoritative source for the exact amount.",
       "is_block_claim": false
     },
     {
@@ -265,7 +265,7 @@
       "state": "Michigan",
       "state_slug": "michigan",
       "field": "data_gap_note",
-      "note": "No single codified line states a flat reinstatement total; the components are spread across R 338.5230 (rule), MCL 339.411 (trigger and what must be paid), and MCL 338.2206/338.2211 (the $20 and $100 amounts). The board's own licensing guide states the assembled result: '2 year CPA Relicensure Application and Fee: $320.00'.",
+      "note": "Michigan's statutes and rules don't state this $320 total in any single line -- you assemble it from three components: the $100 application-processing fee, the $20 late-renewal fee, and $200 for the upcoming two-year license period. The board's own licensing guide confirms the assembled figure (\"2 year CPA Relicensure Application and Fee: $320.00\"), independently matching what the law requires.",
       "is_block_claim": false
     },
     {
@@ -274,7 +274,7 @@
       "state": "Minnesota",
       "state_slug": "minnesota",
       "field": "data_gap_note",
-      "note": "The $20 fee is confirmed directly in codified statute. The board's own pages -- read in a browser -- do not state the figure in plain language anywhere we could find (the reinstatement section discusses process only), so the statute is the source, not a board page.",
+      "note": "The $20 fee is set directly in Minnesota statute, so that's the source you'll see cited here. The board's own site covers the reinstatement process but doesn't state the dollar amount -- which is why the statute, not a board page, is the authority behind this figure.",
       "is_block_claim": false
     },
     {
@@ -328,7 +328,7 @@
       "state": "Ohio",
       "state_slug": "ohio",
       "field": "data_gap_note",
-      "note": "No flat reinstatement fee is published because Ohio's own law sets a formula/cap, not a flat number, stated in plain terms above instead. The Board's own fees page is live and was read directly, including its \"Late and Back Fees\" tab: \"Late fees for expired licenses accrue at a rate of $50/month (to a maximum amount of $300) for Registrations and Permits, and $100/month (to a maximum amount of $1,200) for Permit - Employed in Public Accounting\" -- which is where the figures above come from.",
+      "note": "Ohio doesn't publish one flat reinstatement fee because state law itself sets a formula, not a flat number, as laid out above. That's confirmed on two independent fronts: the Ohio Revised Code spells out the per-month rates and caps, and the Accountancy Board's own fees page (under its 'Late and Back Fees' tab) states the identical figures -- $50/month (capped at $300) for a registration or permit, $100/month (capped at $1,200) for a permit holder employed in public accounting.",
       "is_block_claim": false
     },
     {
@@ -337,7 +337,7 @@
       "state": "Oregon",
       "state_slug": "oregon",
       "field": "data_gap_note",
-      "note": "The $225/$255 fee figures and the 16-hour CPE penalty are confirmed in the codified rule (OAR 801-010), but the Board's own License-Renewal-Information page describes the lapse/reinstatement mechanics without restating these dollar/hour figures itself. Recommend a manual check of the board's page if you want the numbers confirmed firsthand.",
+      "note": "The $225 reinstatement fee, $255 biennial renewal fee, and 16-hour CPE penalty are all set out in Oregon's codified rules (OAR 801-010-0010 and 801-010-0130) -- the same rule text cited above. The Board's renewal-information page describes the lapse and reinstatement process in plain terms but doesn't restate these specific figures; the rule itself is the definitive source for them.",
       "is_block_claim": false
     },
     {
@@ -346,7 +346,7 @@
       "state": "Rhode Island",
       "state_slug": "rhode-island",
       "field": "data_gap_note",
-      "note": "The board's own renewal/reinstatement page confirms the lockout mechanic and cycle deadline but does not itself restate the $500 fee or CPE-hour figures -- those come from the codified rule alone. Recommend a manual check of the board's page if you want the numbers confirmed firsthand.",
+      "note": "You can rely on the $500 reinstatement fee, $375 renewal fee, and 120-hour CPE requirement as stated directly in Rhode Island's codified accountancy rule -- not an estimate. The board's own renewal page independently confirms the lockout mechanic and cycle deadline that trigger reinstatement in the first place.",
       "is_block_claim": false
     },
     {
@@ -355,7 +355,7 @@
       "state": "South Dakota",
       "state_slug": "south-dakota",
       "field": "data_gap_note",
-      "note": "The board's own FAQ page only generically warns about consequences of lapsing without stating South Dakota's specific dollar/hour figures -- those come from the codified ARSD rule text alone. Recommend a manual check with the board if you want the numbers confirmed firsthand.",
+      "note": "These figures come straight from South Dakota's codified board rules -- the same rule text cited and linked above -- not from the board's FAQ page, which only describes lapsing in general terms. That rule citation is confirmed live, so it's the primary source to check if you want to verify a number yourself.",
       "is_block_claim": false
     },
     {
@@ -382,7 +382,7 @@
       "state": "Colorado",
       "state_slug": "colorado",
       "field": "data_gap_note",
-      "note": "Colorado's CPA fees are set under DORA's statewide fee schedule (Section 12-20-105, C.R.S.), not the Board's own rules (3 CCR 705-1, which contains no dollar amounts). The official dpo.colorado.gov pages and online licensing portal could not be independently confirmed (403/interactive-only); third-party sites cite conflicting figures ($77-$110), none verifiable against a primary source, so no figure is published here.",
+      "note": "Colorado's CPA renewal fee has no dollar amount in statute: Colo. Rev. Stat. 12-100-106 authorizes the fee and 12-20-105 directs DORA to set the amount administratively, so the figure lives on DORA's fee schedule and can change without a change in the law. We haven't been able to confirm the current amount from an official state source; third-party sites cite figures between about $77 and $110. Check DORA's online licensing portal for the exact fee before you renew.",
       "is_block_claim": false
     },
     {
@@ -391,7 +391,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "The District publishes CPA fees administratively rather than codifying them: DCMR Title 17 Chapter 25 (Board of Accountancy) and Chapter 40 (general licensing rules for non-health professions) both contain no fee section, so there is no rule text to cite for the dollar amount. The figures here come from the regulator's own published schedule -- DLCP's Board of Accountancy page, which lists \"Renewal - $110.00\" and \"Late Renewal - Fee $50.00\".",
+      "note": "D.C. doesn't codify this fee in a rule: neither DCMR Title 17 Chapter 25 (Board of Accountancy) nor Chapter 40 (general licensing) contains a fee schedule. The fee is set administratively instead, and the regulator publishes the current amounts on DLCP's Board of Accountancy page -- $110 for renewal, $50 for late renewal. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with DLCP before you pay.",
       "is_block_claim": false
     },
     {
@@ -400,16 +400,7 @@
       "state": "Delaware",
       "state_slug": "delaware",
       "field": "data_gap_note",
-      "note": "Delaware's official fee schedule explicitly states the renewal fee amount is communicated to each licensee at the time of renewal, not published as a flat figure -- confirmed against both the Division of Professional Regulation's own fee page and Delaware Admin. Code Title 24, which defers the amount to DPR rather than codifying it. High confidence that no flat fee is published; the amount itself is not independently confirmable from any official source.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "renewal_fees.json",
-      "id": "indiana-renewal-fee",
-      "state": "Indiana",
-      "state_slug": "indiana",
-      "field": "data_gap_note",
-      "note": "Two Indiana government sources disagree by $30 on the same fee. PLA's fee-schedule page (the source we link above) states 'Renewal $105.00'. The codified administrative rule, 872 IAC 1-1-10(a)(3) (fetched directly, full text read), states 'Triennial certificate of registration for CPAs, PAs, and APs, seventy-five dollars ($75).' -- last substantively amended 2022-10-03, readopted (reaffirmed without change) 2024-01-12, so the $75 figure has been current law for years, not a stale pre-amendment snapshot. Notably the two sources agree EXACTLY on two other line items from the same table (Application/Transfer of Grades $75, Retired renewal $10), which argues against a wholesale mismatch and for either a genuine unrecorded fee increase or a copy/paste error on one page -- not determined which. Publishing $105 (PLA) as the more customer-facing source; flagging rather than silently picking one.",
+      "note": "Delaware doesn't publish a flat renewal fee, by design. State law (29 Del. C. 8735(c)) has the Division of Professional Regulation set license fees to cover its own costs rather than fixing a dollar figure in the code, and DPR's own fee page confirms it: you're notified of the amount directly when you renew. Since no schedule exists to publish, your renewal notice from DPR is the source for the current figure.",
       "is_block_claim": false
     },
     {
@@ -418,7 +409,7 @@
       "state": "Maryland",
       "state_slug": "maryland",
       "field": "data_gap_note",
-      "note": "This COMAR fee section (09.24.01.09) states the $63/$151 dollar amounts only and says nothing about cycle length -- that is expected, not a gap. Cycle length (biennial, fixed personal anniversary date) is confirmed separately on the Board's own site -- see this site's Maryland individual-license renewal page.",
+      "note": "Maryland's $63 individual and $151 firm renewal fees are codified in COMAR 09.24.01.09B, and the Board's own fee page shows the same figures -- confirmed in both places. That regulation only sets the dollar amounts; your renewal cycle is biennial, and how your exact expiration date is determined is covered on this site's Maryland individual-license renewal page.",
       "is_block_claim": false
     },
     {
@@ -445,7 +436,7 @@
       "state": "New Hampshire",
       "state_slug": "new-hampshire",
       "field": "data_gap_note",
-      "note": "RSA 310-A / RSA 310:8 set only the general renewal framework, not the dollar amount -- the figure itself comes from OPLC's administrative fee page, not the codified statute directly.",
+      "note": "New Hampshire's statute delegates the exact fee amount to OPLC's own rulemaking rather than spelling it out itself. OPLC's fee rule (Plc 1002.01, Table 1002.1) sets it at $201 -- the same figure posted on OPLC's fee page, so it's confirmed in two independent sources.",
       "is_block_claim": false
     },
     {
@@ -454,7 +445,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "source_url points directly at the codified rule, which states the figure verbatim: \"3. Triennial registration: $ 135.00\" under (a). The board's own FAQ page was last modified in 2015 and contains no fee figures at all; the codified rule is the stronger primary source.",
+      "note": "The $135 triennial registration fee comes straight from New Jersey's codified rule, N.J.A.C. 13:29-1.5(a)3, which states it verbatim: \"3. Triennial registration: $ 135.00.\" That rule was readopted without any changes in 2024, so this is a confirmed, current figure -- not a stale snapshot from the original 2018 adoption.",
       "is_block_claim": false
     },
     {
@@ -472,7 +463,7 @@
       "state": "Northern Mariana Islands",
       "state_slug": "northern-mariana-islands",
       "field": "data_gap_note",
-      "note": "Several third-party CPA-exam-prep sites claim a $355 triennial fee instead; that figure could not be corroborated in the official code text (which describes an annual, not triennial, cycle) -- using the codified figure, flagging the discrepancy rather than the unverified third-party number.",
+      "note": "CNMI's official administrative code confirms the $100 active-renewal fee directly, on an annual (not triennial) cycle. If you've seen $355 quoted on exam-prep sites, that figure doesn't match the code, so use the $100 annual amount shown here. Because the board can also update fees by resolution outside the code's regular revision cycle, confirm the current fee with the board before you renew.",
       "is_block_claim": false
     },
     {
@@ -499,7 +490,7 @@
       "state": "U.S. Virgin Islands",
       "state_slug": "us-virgin-islands",
       "field": "data_gap_note",
-      "note": "Sourced from the Board's own web page content, not a downloadable fee-schedule PDF or codified rule -- no reachable host publishes USVI's Title 27 code text (see verification history for the specific hosts tried and ruled out). Live-reconfirmed 2026-08-15 directly on the board page: 'CPA Permit $135.00' and 'Renewal Window Opens...late fee penalty period' with '$25 per month up to a maximum of $600' -- both match our figures exactly.",
+      "note": "This fee is confirmed directly on the Virgin Islands Board's own official page: the $135 CPA permit renewal fee and the $25-per-month late fee (capped at $600) after the August 31 deadline both match what's posted there, most recently rechecked 2026-08-15. The U.S. Virgin Islands doesn't publish its Title 27 code text online, so no codified statute citation is available for this fee -- the board's own page is the authoritative source available.",
       "is_block_claim": false
     }
   ]

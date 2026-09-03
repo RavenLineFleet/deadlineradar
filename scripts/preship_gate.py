@@ -92,7 +92,17 @@ LEAK_PATTERNS = [
     # fields), which is a bigger, separate judgment call.
     r"\bcorrectness catch\b",
     r"\bduring research\b",
-    r"\bfetched (?:that|this|it) [a-z ]{0,20}directly\b",
+    r"\bfetched\b.{0,30}?\bdirectly\b",
+    # Orchestrator (2026-09-03, live copy caught by Devin on the Colorado
+    # renewal-fee page): "403/interactive-only" -- a bare HTTP-status-code
+    # digraph slammed against a tooling-access word, the shape a
+    # data_gap_note leaks when a fetch failed but a human/browser check
+    # didn't. The line above already catches a status code followed by its
+    # named HTTP reason phrase ("403 Forbidden"); this catches the other
+    # shape research notes actually use. Scoped to number+slash+word (not a
+    # bare \b[45]\d{2}\b) so it can't false-positive on a dollar figure like
+    # a $500 reinstatement fee.
+    r"\b\d{3}/(?:interactive|js|script|spa|api|fetch)[a-z-]*\b",
 ]
 LEAK_RE = re.compile("|".join(LEAK_PATTERNS), re.IGNORECASE)
 
