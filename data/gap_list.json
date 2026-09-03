@@ -4,7 +4,7 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 51,
+  "gap_record_count": 49,
   "block_claim_count": 0,
   "entries": [
     {
@@ -85,7 +85,7 @@
       "state": "Tennessee",
       "state_slug": "tennessee",
       "field": "data_gap_note",
-      "note": "Tennessee assigns each licensee and firm to one of the two biennial years individually, so no single public date applies to everyone. Confirm your exact renewal date with the Tennessee Board of Accountancy or on your license.",
+      "note": "Tennessee assigns each licensee and firm to one of two biennial renewal cohorts by license number (odd or even), so no single public date applies to everyone. The cohort assignment comes from the Board's current guidance rather than the codified rule. Confirm your exact renewal date with the Tennessee Board of Accountancy or on your license.",
       "is_block_claim": false
     },
     {
@@ -103,7 +103,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "The 17 DCMR 2547 citation above confirms the FIRM permit's December 31/even-year expiration (issued under 2542, a firm-specific term distinct from an individual 'license'), but does not cover the individual license. We have not found a codified provision that independently confirms the individual license's own term/renewal date. Confirm directly with the DC Board of Accountancy.",
+      "note": "December 31 of every even-numbered year is the DC Board of Accountancy's renewal date for both the individual CPA license and the firm permit. Only the firm permit's date is codified: 17 DCMR § 2547.1 sets it for permits issued under § 2542, a firm-specific term distinct from an individual license. The DCMR's accountancy chapter (17-25) contains no section setting the individual license's own term, and the DC Code's general renewal statute (§ 47-2853.13) delegates term length to law or regulation without stating it. The individual license's date comes from the Board's published guidance rather than a codified rule.",
       "is_block_claim": false
     },
     {
@@ -130,7 +130,7 @@
       "state": "Vermont",
       "state_slug": "vermont",
       "field": "data_gap_note",
-      "note": "The 2-year renewal cycle for firm registrations is confirmed by statute and rule, but the specific July 31 date is not codified for firms -- only individual licenses get that date in the rule's own text (Rule 8.1(b) uses the narrower word 'Licenses'). Vermont's Office of Professional Regulation does list firm registrations sharing the July 31 date on its own fee/date table, but that's a single, non-codified operational webpage, not codified law. Confirm your exact renewal date with the Vermont Office of Professional Regulation or on your registration. Neither the codified rule text nor Vermont's most recent omnibus professions act extends the July 31 wording beyond individual licenses -- the gap is in the law's own text.",
+      "note": "Your Vermont firm registration renews every two years -- confirmed by both the statute (26 V.S.A. § 75(a)) and Board Rule 6.1(d). The specific July 31/odd-year date, though, is written into the codified rule (Rule 8.1(b)) for \"Licenses\" only; that text is never extended to firm registrations. Vermont's Office of Professional Regulation applies the same July 31/odd-year date to firms in practice, listing it for every Accountancy license and firm type on its own official fee and renewal-date table. So the two-year cycle is codified law, and the July 31 date for firms comes from the regulator's own published table rather than from the statute or rule text itself.",
       "is_block_claim": false
     },
     {
@@ -139,7 +139,7 @@
       "state": "Rhode Island",
       "state_slug": "rhode-island",
       "field": "data_gap_note",
-      "note": "Your exact renewal date depends on which of Rhode Island's three rotating 3-year cohorts your permit is in -- we cannot determine that from state-level data alone. Confirm your renewal date with the Rhode Island Board of Accountancy or on your permit.",
+      "note": "Rhode Island assigns each permit to one of three rotating three-year cohorts through board discretion, not a public formula -- the three cohorts trace to a one-time 2008 transitional provision that let the board assign 1-, 2-, or 3-year transitional permits at its discretion, and every permit since simply keeps the expiration year it was first given. No public input (license number, birth month, year first licensed, etc.) determines your cohort. Check your permit or contact the Rhode Island Board of Accountancy to confirm which year yours expires.",
       "is_block_claim": false
     },
     {
@@ -175,7 +175,7 @@
       "state": "Nebraska",
       "state_slug": "nebraska",
       "field": "data_gap_note",
-      "note": "The 80-hour figure is the Board's own current published guidance (nbpa.nebraska.gov); the codified statutory basis (1-136.01) states the requirement in 'days' rather than hours. The 4-ethics-hour figure IS codified: 288 Neb. Admin. Code ch. 8, § 004.01 states it directly.",
+      "note": "Nebraska's 80-hour CPE figure is confirmed by two sources: the statute (Neb. Rev. Stat. § 1-136.01) sets the requirement in days, converted using the standard 8-hours-per-day basis every CPE-day-based state statute uses, and the Nebraska Board of Public Accountancy's current published guidance states the resulting 80 hours directly. The 4-hour ethics requirement is directly codified at 288 Neb. Admin. Code ch. 8, § 004.01.",
       "is_block_claim": false
     },
     {
@@ -211,7 +211,7 @@
       "state": "Hawaii",
       "state_slug": "hawaii",
       "field": "data_gap_note",
-      "note": "The $204/$360/$128 fee figures are confirmed only on the Board's own page -- HAR Chapter 71 defers the actual renewal/restoration fee amounts to a separate fee-schedule chapter (16-53) that could not be located at a working URL. Treat the dollar figures as board-confirmed but not yet codified-rule-confirmed until that chapter is located and cited directly.",
+      "note": "The $204 individual license restoration fee and the $360 (entity) / $128 (sole proprietor) firm-permit restoration fees are published on the Hawaii Board of Public Accountancy's own current fee page, reconfirmed live on 2026-09-03. That page is the state's official source for these amounts; the cited HAR Chapter 71 rule text covers the renewal cycle and CPE deficiency/carryover requirements and does not itself restate the fee schedule.",
       "is_block_claim": false
     },
     {
@@ -284,15 +284,6 @@
       "state_slug": "new-mexico",
       "field": "data_gap_note",
       "note": "The $175 fee and the '90 days to cancellation' trigger are confirmed only on the board's own pages, not independently in the codified NMAC text (the rule authorizes fees without stating the dollar amount, and doesn't state the 90-day figure in the sections checked). The 40-hour/year (max 200) penalty CPE figure IS directly confirmed in the codified rule. Recommend a manual check with the board for the fee/90-day figures.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
-      "id": "north-carolina-reinstatement",
-      "state": "North Carolina",
-      "state_slug": "north-carolina",
-      "field": "data_gap_note",
-      "note": "The reinstatement rule (21 NCAC 08J .0106(b)(3)) cross-references .0105(c)(2) for the 40-hour/2,000-minute CPE total, of which 21 NCAC 08F .0504 requires 400 minutes (8 hours) on NC accountancy statutes and rules -- a real, separate requirement, but not ethics. Ordinary annual renewal separately requires 50 minutes (1 hour) of ethics under .0401(e), a different section the reinstatement rule (.0106) does not itself cross-reference -- so whether reinstatement also independently requires that 1-hour ethics component isn't confirmed from the text checked. Recommend a manual check with the Board if you need the ethics-specific reinstatement figure confirmed.",
       "is_block_claim": false
     },
     {
@@ -423,15 +414,6 @@
     },
     {
       "dataset": "renewal_fees.json",
-      "id": "new-york-renewal-fee",
-      "state": "New York",
-      "state_slug": "new-york",
-      "field": "data_gap_note",
-      "note": "The official fee chart PDF is dated as a 2021 revision -- the figure should be spot-checked against a more recent revision if one exists.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "renewal_fees.json",
       "id": "northern-mariana-islands-renewal-fee",
       "state": "Northern Mariana Islands",
       "state_slug": "northern-mariana-islands",
@@ -445,7 +427,7 @@
       "state": "Puerto Rico",
       "state_slug": "puerto-rico",
       "field": "data_gap_note",
-      "note": "Not a .gov page -- the codified 1945 statute (20 L.P.R.A. § 779) separately cites an outdated $50 figure that appears superseded by NASBA's current processing fee; neither source is a current, official Puerto Rico government fee schedule.",
+      "note": "Puerto Rico's own Dept. of State designates NASBA as the official administrator of CPA licensing and renewals, and the $225 individual renewal fee comes from NASBA's Puerto Rico page -- reconfirmed live on 2026-09-03. No Puerto Rico government fee schedule states the dollar figure itself, though: the codified 1945 statute (20 L.P.R.A. § 779) separately carries an outdated $50 figure that NASBA's current fee appears to have superseded.",
       "is_block_claim": false
     },
     {
