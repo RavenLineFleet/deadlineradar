@@ -1765,12 +1765,11 @@ _MIRROR_HOST_RE = re.compile(
 # serves the text at all. Each needs a reason AND a disclosure in the record's
 # own data_gap_note -- the gate checks that disclosure exists, so an exception
 # can't be silently granted to dodge the rule.
-_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
-    "tx-cpe": (
-        "Texas SOS migrated the TAC to a JS-only Appian portal; per-rule pages render only in a "
-        "browser, and a JS shell is a worse citation than a mirror that shows the text."
-    ),
-}
+# 2026-09-03 (gap-closure wave 2): tx-cpe's exception retired -- a real browser
+# navigation of the Appian portal's View TAC tree found working state-hosted
+# citation_url/secondary_source_url links for both cited rules (Sec.523.112,
+# Sec.523.130), so the "no reachable official host" premise no longer holds.
+_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {}
 
 
 def check_citations_are_primary(repo_root: Path) -> list[str]:

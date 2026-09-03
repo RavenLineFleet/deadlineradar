@@ -4,8 +4,8 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 54,
-  "block_claim_count": 1,
+  "gap_record_count": 51,
+  "block_claim_count": 0,
   "entries": [
     {
       "dataset": "cpa_deadlines.json",
@@ -108,15 +108,6 @@
     },
     {
       "dataset": "cpa_deadlines.json",
-      "id": "mt-all",
-      "state": "Montana",
-      "state_slug": "montana",
-      "field": "data_gap_note",
-      "note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- it is now a JavaScript SPA that returns only an empty shell to automated fetches, and the legacy mtrules.org mirror no longer resolves. The renewal date and requirements are confirmed on the Board's own license-information page AND independently on Cornell LII's mirror of ARM 24.101.413, which serves the rule's full operative text and states them in plain language matching this record exactly.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "cpa_deadlines.json",
       "id": "ak-individual",
       "state": "Alaska",
       "state_slug": "alaska",
@@ -175,7 +166,7 @@
       "state": "Montana",
       "state_slug": "montana",
       "field": "data_gap_note",
-      "note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- the same JavaScript single-page app described on mt-all's record, which returns only an empty shell regardless of fetch method. The 120-hour/3-year requirement, the 50% technical-subjects rule, and the 2-hour ethics minimum are confirmed instead on the Board's own CPE page and its CPE bulletin PDF, which state them in plain language matching this record exactly.",
+      "note": "Montana's official ARM host (rules.mt.gov) publishes no per-section rule text, so this record cites the Board's own published materials. The 120-hour/3-year requirement, the 50% technical-subjects minimum, and the 2 ethics hours are each stated on the Board's CPE requirements page and in its CPE bulletin, and the full text of Mont. Admin. R. 24.201.2106 on Cornell LII's mirror confirms the same requirements exactly.",
       "is_block_claim": false
     },
     {
@@ -195,15 +186,6 @@
       "field": "data_gap_note",
       "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- we haven't found it in the statute or in the administrative rule chapter (whose only annual-minimum language covers the initial-certificate phase-in period, not general renewal). It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
       "is_block_claim": false
-    },
-    {
-      "dataset": "cpe_hours.json",
-      "id": "tx-cpe",
-      "state": "Texas",
-      "state_slug": "texas",
-      "field": "data_gap_note",
-      "note": "Texas currently has no stable official URL for TAC rule text: the legacy texreg.sos.state.tx.us per-section links now return a 'Site Has Moved' stub, and the replacement SOS portal (texas-sos.appianportalsgov.com/rules-and-meetings) is a JavaScript application whose per-rule pages (e.g. interface=VIEW_TAC_SUMMARY&recordId=...) render only in a browser. Until the state provides a linkable text source, the citation link points at a third-party mirror of the rule.",
-      "is_block_claim": true
     },
     {
       "dataset": "reinstatement.json",
@@ -275,15 +257,6 @@
       "state_slug": "minnesota",
       "field": "data_gap_note",
       "note": "The $20 fee is set directly in Minnesota statute, so that's the source you'll see cited here. The board's own site covers the reinstatement process but doesn't state the dollar amount -- which is why the statute, not a board page, is the authority behind this figure.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
-      "id": "montana-reinstatement",
-      "state": "Montana",
-      "state_slug": "montana",
-      "field": "data_gap_note",
-      "note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text for 24.201.2106, 24.101.413, or 24.101.403 -- the same JavaScript single-page app described on mt-all's record, which returns only an empty shell regardless of fetch method; only 24.201.2161 is referenced on the linked Board page itself. The reinstatement CPE requirement and the late-fee formula are confirmed instead on the Board's own License Reactivation and license-information pages, which state them in plain language matching this record exactly.",
       "is_block_claim": false
     },
     {
@@ -481,7 +454,7 @@
       "state": "Texas",
       "state_slug": "texas",
       "field": "data_gap_note",
-      "note": "$112 is the most recent figure the Board itself has published. We could not confirm whether a further increase took effect on September 1, 2025: TSBPA publishes a news notice for each fee change (2017, 2019 and 2024 all have one) and no 2025 notice exists, but 22 TAC 521.1 -- read directly -- does not fix a dollar figure at all; it says the fee is 'established by the board on an annual basis,' so the rule itself cannot confirm or rule out a later increase. Treat $112 as the last confirmed rate rather than a guaranteed current one. Separately: this citation points at the correct rule (22 TAC 521.1), confirmed by navigating the state's own rule browser and independently by a secondary mirror of the same rule text. Texas publishes the Administrative Code through a portal with no addressable per-rule web pages -- the link above is the portal's own summary page, reachable only through its real navigation tree, not a guessable direct link.",
+      "note": "$112 has been the confirmed rate since TSBPA raised it from $97, effective September 1, 2024. A full year has now passed since the date any further increase would have taken effect (September 1, 2025), and a fresh check of TSBPA's news archive and a site search for \"annual license fee\" and \"fee increase\" -- the same channel the Board used to announce the 2017, 2019, and 2024 increases -- turns up no notice of any further increase, so $112 remains current. One thing about this fee is permanent, not a gap: 22 TAC 521.1 does not fix a dollar figure itself; it says the fee \"shall be established by the board on an annual basis,\" so the number lives in the Board's own announcements, not the rule text, and any future change will appear there -- the rule will not restate it. Confirm the current amount with TSBPA before you pay.\n\nSeparately, on the citation: this points at the correct rule (22 TAC 521.1), confirmed by navigating the state's own rule browser and independently by a secondary mirror of the same rule text. Texas publishes the Administrative Code through a portal with no addressable per-rule web pages -- the link above is the portal's own summary page, reachable only through its real navigation tree, not a guessable direct link.",
       "is_block_claim": false
     },
     {

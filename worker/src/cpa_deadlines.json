@@ -1358,7 +1358,7 @@
       "renewal_pattern": "fixed_calendar",
       "cycle_description": "Annual. All Montana license categories (CPA, Licensed Public Accountant) and firm registration expire December 31 of each year -- a single fixed date, no cohort split.",
       "next_deadline_computed": "2026-12-31",
-      "data_gap_note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- it is now a JavaScript SPA that returns only an empty shell to automated fetches, and the legacy mtrules.org mirror no longer resolves. The renewal date and requirements are confirmed on the Board's own license-information page AND independently on Cornell LII's mirror of ARM 24.101.413, which serves the rule's full operative text and states them in plain language matching this record exactly.",
+      "data_gap_note": null,
       "source_url": "https://boards.bsd.dli.mt.gov/public-accountants/license-information/",
       "secondary_source_url": "https://www.law.cornell.edu/regulations/montana/Mont-Admin-r-24.101.413",
       "last_verified": "2026-09-01",
