@@ -462,7 +462,7 @@
       "citation": "Montana Board of Accountancy CPE requirements page and CPE bulletin PDF (boards.bsd.dli.mt.gov), current Board guidance; cf. Mont. Admin. R. 24.201.2106 (Basic Continuing Education Requirement, codified rule -- the official ARM host serves no text for any section)",
       "citation_class": "operational_record",
       "citation_url": "https://boards.bsd.dli.mt.gov/public-accountants/",
-      "data_gap_note": "Montana's official ARM host (rules.mt.gov) serves no per-section rule text -- the same JavaScript single-page app described on mt-all's record, which returns only an empty shell regardless of fetch method. The 120-hour/3-year requirement, the 50% technical-subjects rule, and the 2-hour ethics minimum are confirmed instead on the Board's own CPE page and its CPE bulletin PDF, which state them in plain language matching this record exactly.",
+      "data_gap_note": "Montana's official ARM host (rules.mt.gov) publishes no per-section rule text, so this record cites the Board's own published materials. The 120-hour/3-year requirement, the 50% technical-subjects minimum, and the 2 ethics hours are each stated on the Board's CPE requirements page and in its CPE bulletin, and the full text of Mont. Admin. R. 24.201.2106 on Cornell LII's mirror confirms the same requirements exactly.",
       "source_url": "https://boards.bsd.dli.mt.gov/public-accountants/license-information/education-requirements",
       "total_hours": 120,
       "period_years": 3,
@@ -746,7 +746,7 @@
       "state": "Texas",
       "state_slug": "texas",
       "citation": "22 Tex. Admin. Code § 523.112; § 523.130",
-      "citation_url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
+      "citation_url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=226322",
       "source_url": "https://www.tsbpa.texas.gov/",
       "total_hours": 120,
       "period_years": 3,
@@ -754,9 +754,10 @@
       "ethics_hours": 4,
       "ethics_period_years": 2,
       "notes": "120 CPE credits per rolling 3-year period tied to the licensee's own birth month (see the CPA-renewal dataset's tx-individual gap record for why the renewal DATE itself is birth-month-personalized and unverified as a fixed date -- the CPE HOUR-COUNT rule itself, unlike the date, is a fixed statewide number, confirmed directly against §523.112). Minimum 20 credits per 1-year period. A board-approved 4-hour, Texas-specific ethics course is required every 2 years (§523.130/.131), counting toward the 120-hour total.",
-      "verified_date": "2026-08-13",
-      "data_gap_note": "Texas currently has no stable official URL for TAC rule text: the legacy texreg.sos.state.tx.us per-section links now return a 'Site Has Moved' stub, and the replacement SOS portal (texas-sos.appianportalsgov.com/rules-and-meetings) is a JavaScript application whose per-rule pages (e.g. interface=VIEW_TAC_SUMMARY&recordId=...) render only in a browser. Until the state provides a linkable text source, the citation link points at a third-party mirror of the rule.",
-      "verification_history": "2026-08-14 (SRC-1 disclosed exception): kept the Cornell mirror as citation_url deliberately -- the official SOS Appian portal serves no text to a non-browser client and its per-rule deep links (VIEW_TAC_SUMMARY + recordId, discovered by navigating the portal in a real browser: Title 22 > Part 22 > Chapter 521/523) are session-rendered JS. A JS shell is a worse citation than a mirror that shows the text. Figures remain as previously verified; the portal path is recorded here for the next manual verification pass."
+      "verified_date": "2026-09-03",
+      "data_gap_note": null,
+      "verification_history": "2026-08-14 (SRC-1 disclosed exception): kept the Cornell mirror as citation_url deliberately -- the official SOS Appian portal serves no text to a non-browser client and its per-rule deep links (VIEW_TAC_SUMMARY + recordId, discovered by navigating the portal in a real browser: Title 22 > Part 22 > Chapter 521/523) are session-rendered JS. A JS shell is a worse citation than a mirror that shows the text. Figures remain as previously verified; the portal path is recorded here for the next manual verification pass.\n\n2026-09-03 (primary-source pass, gap-closure wave 2): found working durable state-hosted links via the Appian portal's View TAC browse tree (Title 22 > Part 22 > Chapter 523, Subchapter B/C). Sec. 523.112 (recordId=226322) read in full and confirms verbatim: a licensee shall complete at least 120 CPE credits in each three-year period, with a minimum of 20 CPE credits in each one-year period -- matches total_hours, period_years, and annual_minimum_hours exactly. Its Source Note shows a 2025-10-09 amendment on file; the text read is the current post-amendment text, so no discrepancy. Sec. 523.130 (recordId=219854) read in full and confirms verbatim the board-approved four-CPE-credit ethics course required every two years -- matches ethics_hours and ethics_period_years exactly. citation_url replaced with the Sec. 523.112 state link; the Sec. 523.130 state link added as secondary_source_url. The Cornell mirror is no longer used and the tx-cpe mirror-citation exception is retired.",
+      "secondary_source_url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=219854"
     },
     {
       "id": "ut-cpe",
