@@ -1,9 +1,16 @@
-# DeadlineRadar — local prototype (CPA license renewal, 10 states)
+# DeadlineRadar — CPA license renewal deadline tracker (live production site)
 
-**Status:** local-only content-pipeline prototype, now paired with a local "remind me" email
-feature (see `reminders/`). No domain, no hosting, no Stripe, no billing, no real email ever
-sent, no network calls out to the public internet anywhere in this directory. Nothing here is
-deployed or public.
+**Status: this repo IS the live public site.** It is the GitHub Pages source for
+**deadline-radar.com** (repo must stay **public** — GitHub Pages on the free tier only serves
+public repos; flipping this repo private silently takes the entire live site down, as happened
+2026-09-03). `docs/` is the deployed static site (one page per state), paired with a Cloudflare
+Worker API (`worker/`, Stripe billing, D1-backed subscriber/firm accounts, SendGrid email) that
+is a **separate deploy** from this repo (`worker/.last_deploy_commit` tracks its own marker —
+pushing this repo does not redeploy the Worker). Current scope, state coverage, and feature
+status change often enough that this file does not try to track them precisely — the operator's
+own HANDOFF.md and passive_income_register.md (outside this repo) carry the live, current
+picture. The sections below describe the **content pipeline** (`generate.py`) itself, which is
+stable and still accurate.
 Scope: CPA license renewal only. A companion "contractor licensing" vertical was scouted and
 deliberately dropped before any build: a 10-state sample found most states have no single
 state-level general-contractor license to point a page at at all (licensing is fragmented across
@@ -12,9 +19,11 @@ model this pipeline depends on. CPA licensing cleared that same check cleanly (a
 states use a fixed calendar renewal date), so "renarrow to CPA-only" is a deliberate scope
 decision made from real research, not a shortcut.
 
-This exists to prove one thing: **the ingest → normalize → generate pipeline produces
-correct, non-stale, per-state pages from verified source data.** It is not a business yet —
-there is no distribution, no monetization, no account of any kind attached to it.
+This started as a proof that **the ingest → normalize → generate pipeline produces correct,
+non-stale, per-state pages from verified source data** — that proof succeeded, and the site
+built on it is now live (see Status above). The sections below still describe that original
+content-pipeline proof accurately; for the business/product layer built on top of it (accounts,
+billing, distribution), see HANDOFF.md.
 
 ## Pipeline
 
@@ -72,10 +81,9 @@ data/cpa_deadlines.json   (ingest: hand-verified facts, one record per state/lic
     with a `<lastmod>`
   - `docs/robots.txt` — allow-all, points at the sitemap
 
-  All URLs in `sitemap.xml`/`robots.txt` use the placeholder base
-  `https://example-deadlineradar.test` — there is no real domain anywhere in this repo.
-  Publishing a real domain, hosting, or any public URL is treated as a deliberate, separately
-  gated step and has not happened.
+  All URLs in `sitemap.xml`/`robots.txt` use the real `https://deadline-radar.com` base
+  (`SITE_BASE_URL` in `generate.py`) — publishing was a deliberate, gated step, and it has
+  happened; see the top of this file.
 
 ## Running it
 
@@ -84,27 +92,13 @@ cd b3_saas/deadlineradar
 python generate.py
 ```
 
-Output goes to `docs/`. Re-running is idempotent — it overwrites the same files. Confirmed by
-running it during this build: it produced 10 state folders + index + sitemap + robots.txt,
-listed below.
+Output goes to `docs/`. Re-running is idempotent — it overwrites the same files: one
+`docs/[state-slug]/index.html` per state in `data/cpa_deadlines.json`, plus `docs/index.html`,
+`docs/sitemap.xml`, `docs/robots.txt` — this is the live production build, so the actual state
+count changes as coverage grows; check `data/cpa_deadlines.json` (or HANDOFF.md) rather than
+trusting a number hardcoded here.
 
-```
-docs/california/index.html
-docs/florida/index.html
-docs/georgia/index.html
-docs/illinois/index.html
-docs/index.html
-docs/michigan/index.html
-docs/new-york/index.html
-docs/north-carolina/index.html
-docs/ohio/index.html
-docs/pennsylvania/index.html
-docs/robots.txt
-docs/sitemap.xml
-docs/texas/index.html
-```
-
-## Data coverage (10 states, 14 records, as of 2026-07-03)
+## Data coverage patterns (original 10-state spike sample — patterns still accurate; see `data/cpa_deadlines.json` for the current full state count)
 
 | Wave | States | Pattern |
 |---|---|---|
@@ -168,50 +162,43 @@ wave-1/2 record from its raw rule (month/day + cycle length + anchor year) at ge
 same way wave-3 already does, so `as_of_date` can be bumped freely and every date recomputes
 correctly without a human re-verification pass each time.
 
-## GitHub Pages deploy-readiness (staged, not deployed)
+## GitHub Pages deployment (live)
 
 Output is written to `docs/` (not `site/`) specifically because that's GitHub's zero-config Pages
-convention (repo Settings > Pages > Deploy from a branch > `/docs`) — once this directory lives in
-a pushed repo with Pages enabled on it, no build step, Actions workflow, or `gh-pages` branch is
-needed. Confirmed deploy-ready:
+convention: repo **Settings > Pages > Deploy from a branch > `main` / `/docs`**. This is live —
+pushing a `generate.py` rebuild to `main` is the entire deploy for the static site (see
+`worker/.last_deploy_commit` for the separate Worker deploy step, which pushing this repo does
+NOT trigger).
 - Every internal link in the generated pages is relative (`../` back-links, no `href="/..."` or
-  `localhost`/`127.0.0.1` references anywhere in `docs/`) — safe under a GitHub Pages *project*
-  URL (`https://<user>.github.io/<repo>/`), which serves from a subpath, not the domain root.
-- The one place an absolute URL is required by spec — `sitemap.xml`'s `<loc>` entries and
-  `robots.txt`'s `Sitemap:` line — uses a single placeholder constant (`SITE_BASE_URL` in
-  `generate.py`), swap that one line for the real `https://<user>.github.io/<repo>` URL (or a
-  real domain later) once a publish go is given.
-**Still not deployed**: a local git repo exists (with a placeholder `origin` remote configured,
-never pushed by this codebase — see HANDOFF.md for the identity-exposure question that's still
-unresolved on that), but Pages has not been enabled anywhere, nothing has ever been pushed by
-this codebase, and the placeholder URL has not been replaced. All of that requires an explicit
-publish decision — this section documents readiness, not a deployment that happened.
+  `localhost`/`127.0.0.1` references anywhere in `docs/`).
+- `sitemap.xml`'s `<loc>` entries and `robots.txt`'s `Sitemap:` line use the real
+  `https://deadline-radar.com` base (`SITE_BASE_URL` in `generate.py`).
+- Custom domain `deadline-radar.com` is on file in Pages settings, `docs/CNAME` matches it.
+**Hard requirement to keep this live:** the repo must stay **public**. GitHub Pages on a free
+plan refuses to serve a private repo at all (Settings > Pages shows "Upgrade or make this
+repository public to enable Pages" instead) — there is no warning banner elsewhere, the site
+just silently 404s. If Pages config is ever reset, Source must be re-set to `main` / `/docs`
+manually; a repo visibility flip does not auto-restore it even after reverting to public.
 
-## The "remind me" feature (built, dry-run only)
+## The "remind me" feature
 
-Every state page and the homepage now carry a signup form (email + whatever state-specific
-field is needed to compute *that reader's* exact deadline — see `signup_form_for_state()` /
-`signup_form_homepage()` in `generate.py`) that feeds a local backend engine in `reminders/`:
-double opt-in, an escalating reminder schedule (60/30/14/7/3/1 days out), one-click "I've
-renewed" / unsubscribe, and a re-arm offer for the next cycle. **Full detail, architecture, and
-the compliance/PII posture live in `reminders/README.md` — read that before touching this
-feature.** In short: `DryRunSender` is the only sender wired up anywhere in this codebase
-(logs what it would send instead of sending it), subscriber emails are gitignored and never
-committed, and a real send requires a real transactional-email account + key the project
-maintainer supplies, plus an explicit go — none of that exists yet.
+Every state page and the homepage carry a signup form (email + whatever state-specific field is
+needed to compute *that reader's* exact deadline — see `signup_form_for_state()` /
+`signup_form_homepage()` in `generate.py`) feeding a reminder engine: double opt-in, an
+escalating reminder schedule (60/30/14/7/3/1 days out), one-click "I've renewed" / unsubscribe,
+and a re-arm offer for the next cycle. This section originally described the local dry-run
+version of that engine (`reminders/`, `DryRunSender`, no real send wired up) built before the
+live site existed — the production version now runs on real transactional email (see the Worker
+API in the Status section above and `reminders/README.md`/HANDOFF.md for current architecture
+and send status); `reminders/` itself may still be relevant as the original local prototype the
+production engine grew from, but check before assuming it's what's live.
 
-## Explicitly out of scope for this prototype
+## Current status — see HANDOFF.md, not this section
 
-- No domain, no DNS, no hosting, no deploy of any kind (see "GitHub Pages deploy-readiness" above
-  for what's *prepared*, which is not the same as *deployed*). This applies to the reminder
-  backend too — `reminders/server.py` only runs on `127.0.0.1`; it has no public host yet (see
-  `reminders/README.md` "deployment gap").
-- No Stripe, no payment processing, no billing, no ICS file generation (the DeadlineRadar
-  pitch's paid tier) — those are deliberately deferred, capital/account-creating steps, not
-  part of proving the content pipeline. (Email capture itself is now built — see above — but
-  strictly as a free reminder feature, not the paid tier.)
-- No analytics, no tracking, no external JS, no CDN — the generated static pages have no
-  outbound network calls of any kind either (the one small inline `<script>` on the homepage
-  only shows/hides form fields locally in the browser, per `reminders/README.md`).
-- No real email has ever been sent — see `reminders/README.md` for the dry-run posture.
-- 40 states not yet covered (this is the 10-state spike sample, not the full 50-state build).
+This README used to describe an early undeployed prototype (10 states, no domain, no Stripe,
+dry-run-only email) and was left unmaintained as the project grew into the live production site
+described at the top of this file — that staleness is what caused a 2026-09-03 outage (an agent
+trusted this section and treated the live repo as safe to make private). Rather than re-stating
+specifics here that will drift out of date the same way, current state, count, and feature
+status live in the operator's own HANDOFF.md and passive_income_register.md (outside this repo)
+— check those, not this file, for what's actually live right now.
