@@ -5,6 +5,10 @@
   },
   "total_records": 246,
   "gap_record_count": 45,
+  "field_breakdown": {
+    "verification_note": 4,
+    "data_gap_note": 41
+  },
   "block_claim_count": 0,
   "entries": [
     {

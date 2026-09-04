@@ -75,9 +75,24 @@ def main() -> None:
     entries, total_records = collect_gap_entries(repo_root)
 
     block_claims = [e for e in entries if e["is_block_claim"]]
+    # Orchestrator (2026-09-04): gap_record_count (below) counts BOTH fields
+    # GAP_NOTE_FIELDS tracks -- data_gap_note (all 4 datasets) and
+    # verification_note (cpa_deadlines.json only) -- combined. A reader
+    # tracking the data_gap_note-specific priority task (the "51 -> 41"
+    # count) who reads gap_record_count as that same number sees it appear
+    # to lag behind their own filtered count, and reasonably reads that as
+    # staleness -- it isn't (this script recomputes fully from live data on
+    # every run, verified against 4 wave commits' worth of git history), it
+    # was ambiguous naming. field_breakdown makes the two counts explicit so
+    # nobody has to filter entries by hand to get the data_gap_note-only
+    # number again.
+    by_field: dict[str, int] = {}
+    for e in entries:
+        by_field[e["field"]] = by_field.get(e["field"], 0) + 1
 
     print(f"Gap-list inventory -- {len(entries)} record(s) of {total_records} total carry a "
           f"sourcing gap/verification note across {len(_DATASETS)} datasets")
+    print(f"  field breakdown: " + ", ".join(f"{field}={count}" for field, count in sorted(by_field.items())))
     print(f"  of those, {len(block_claims)} make a block/parse claim (SRC-5's class, "
           f"independently verified against source_check.py at gate time)")
 
@@ -102,6 +117,7 @@ def main() -> None:
         },
         "total_records": total_records,
         "gap_record_count": len(entries),
+        "field_breakdown": by_field,
         "block_claim_count": len(block_claims),
         "entries": entries,
     }
