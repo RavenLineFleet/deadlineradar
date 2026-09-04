@@ -4,7 +4,7 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 49,
+  "gap_record_count": 45,
   "block_claim_count": 0,
   "entries": [
     {
@@ -22,7 +22,7 @@
       "state": "Michigan",
       "state_slug": "michigan",
       "field": "data_gap_note",
-      "note": "The renewal rule itself is double-sourced (Michigan LARA's current licensing page plus a separately-hosted official LARA licensing-guide PDF both confirm: biennial, expires July 31), but neither document states which year of the 2-year cycle applies to a given license holder, so we cannot safely publish one 'next July 31' date for every visitor. Confirm your exact renewal date with the Michigan Board of Accountancy (LARA) or on your license.",
+      "note": "Michigan's renewal rule is confirmed by two official sources: LARA's licensing page and Mich. Admin. Code R 339.1003(1), both stating that an individual CPA license expires biennially on July 31. Neither source states which year of the two-year cycle applies to a given license, so no single \"next July 31\" date applies to every CPA. Check your license or the Michigan Board of Accountancy (LARA) for your specific renewal year.",
       "is_block_claim": false
     },
     {
@@ -40,7 +40,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "New Jersey's individual license renews three years from your own last expiration date -- a rolling, individualized cycle, not one shared calendar date for every licensee. We haven't yet confirmed the rule governing when a first-ever renewal period starts, so we can't compute your exact date from this alone. Confirm your exact expiration on your license certificate or with the New Jersey State Board of Accountancy.",
+      "note": "New Jersey's own regulation-code site doesn't serve a working link to N.J.A.C. 13:29-1.7, the specific rule confirming your renewal cycle -- we've verified its text through Cornell Law School's Legal Information Institute, an independent (non-official) legal-publishing mirror of state regulations. The rule itself: your license renews three years from your own license's last expiration date, a personal rolling cycle, not a shared calendar date -- and that same three-year clock applies to your first renewal too. Confirm your exact date on your license certificate or with the Board.",
       "is_block_claim": false
     },
     {
@@ -49,7 +49,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "Three official New Jersey Division of Consumer Affairs Accountancy Board pages were checked -- the application-form page, the Board's FAQ page, and the Board's main landing page -- and none states whether firm registration is synced to the same Jan 1-Dec 31 triennial calendar as individual licenses. Confirm your firm's exact renewal date with the New Jersey State Board of Accountancy or on your registration.",
+      "note": "New Jersey firm registration renews on the same personal, rolling triennial cycle as individual licenses -- three years from your firm's own last registration date, not one shared calendar date for every firm. Confirm your firm's exact renewal date with the New Jersey State Board of Accountancy or on your registration certificate.",
       "is_block_claim": false
     },
     {
@@ -58,7 +58,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts individual licenses renew every 2 years on a fixed odd- or even-year parity, permanently set once assigned -- not an arbitrary board-assigned split. We haven't yet independently confirmed which parity a brand-new license starts on, so we can't compute your exact date. Confirm your renewal year on your license, with the Board (617-701-8635, accountingboard@mass.gov), or via the eLIPSE portal.",
+      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- the Board's reinstatement guidance confirms a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated directly in statute or regulation; the Board's CPE-proration table suggests your first renewal falls on the second June 30 after issuance, but that's an inference, not a stated rule, so we don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false
     },
     {
@@ -67,7 +67,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts firm permits renew every 2 years on a fixed odd- or even-year parity, permanently set once assigned -- the same structure as individual licenses. We haven't yet independently confirmed which parity a brand-new firm permit starts on, so we can't compute your exact date. Confirm your renewal year with the Board (617-701-8635, accountingboard@mass.gov) or via the eLIPSE portal.",
+      "note": "Massachusetts firm permits renew every two years, expiring on the last day of June, on a fixed odd- or even-year parity that's set once and never changes -- the same structure as individual licenses. Which parity a brand-new firm permit starts on isn't clearly stated in the statute or on the Board's fee page, so we can't compute your exact renewal date from public sources. Confirm your renewal year with the Board (617-701-8635, accountingboard@mass.gov) or via the eLIPSE portal.",
       "is_block_claim": false
     },
     {
@@ -76,7 +76,7 @@
       "state": "Maryland",
       "state_slug": "maryland",
       "field": "data_gap_note",
-      "note": "Maryland's renewal mechanism isn't fully settled between sources: some Board guidance describes a personal anniversary date, while the current statute describes a single shared December 31 date recurring only in even-numbered years, and we haven't confirmed which is actually in effect today. Confirm your exact expiration date on your license certificate or with the Maryland Board of Public Accountancy.",
+      "note": "Maryland's statute sets a default: your license expires the first December 31 after your effective date that falls in an even-numbered year -- but only absent a staggering determination under the Secretary's separate authority (2-311(e)). No Maryland regulation implements that authority, but the Board's own renewal-guidance page has described a personal month/day anniversary (e.g., issued January 2, expires January 2) unchanged for over a decade -- the best evidence that's how renewals actually run today. Confirm your exact date on your license or with the Board.",
       "is_block_claim": false
     },
     {
@@ -193,7 +193,7 @@
       "state": "Alabama",
       "state_slug": "alabama",
       "field": "data_gap_note",
-      "note": "Heads-up: the underlying statute (Code of Ala. 1975 Sec 34-1-11) was amended by Act 2026-16 effective October 1, 2026 -- if you are reinstating on or after that date, check the revised text or confirm with the board, as these figures reflect the law in force before the amendment.",
+      "note": "Heads-up: Act 2026-16 (the \"Pathways to CPA Act\") amends Code of Ala. 1975 §34-1-11 effective October 1, 2026. The reinstatement fee cap, the per-lapsed-year back-fees and CPE catch-up, and the September 30 expiration / December 31 renewal-filing dates on this page carry over unchanged -- the amendment's changes to this subsection are stylistic renumbering, not substance. If you're reinstating on or after October 1, 2026, confirm you're citing the current section numbering with the Board.",
       "is_block_claim": false
     },
     {
@@ -202,7 +202,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "The $295 reinstatement fee is stated on the Board's own page, but no codified DCMR fee schedule or DC Register notice stating that exact number could be located -- only the general statutory authority for the Board to set fees. Recommend a manual check with the Board if you want the fee confirmed against a published rule rather than just the agency's own page. Separately: the 40-hour/120-hour-cap CPE figure is codified in 17 DCMR Sec2530.3, but the link above goes to D.C. Code Sec47-2851.10 (a different instrument) rather than the DCMR section itself -- the District has no stable web address for individual DCMR sections (confirmed by the same investigation that pointed the CPE-hours page's own link at a reporting-form PDF instead, since DC's regulations site has no per-section permalink and no independent legal-mirror site republishes DCMR). The 40-hour/120-hour figure itself is correct, just not independently confirmable against a linkable primary text.",
+      "note": "D.C. doesn't set this fee by codified rule: no DCMR fee schedule states the $295. The Board sets its fees administratively under D.C. Code §47-2853.10 and publishes the current amounts on its own page -- the same way DC handles its other licensing fees. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with the Board before you pay. The 40-hour-per-year CPE reinstatement requirement (capped at 120 hours) is codified in 17 DCMR §2530.3; the citation link above points to D.C. Code §47-2851.10 instead because the District publishes stable per-section web addresses only for the D.C. Code, not for individual DCMR sections.",
       "is_block_claim": false
     },
     {
@@ -229,7 +229,7 @@
       "state": "Louisiana",
       "state_slug": "louisiana",
       "field": "data_gap_note",
-      "note": "The reinstatement fee is genuinely unresolved: three different mechanisms apply depending on how long the certificate has been lapsed -- the renewal fee plus a board-prescribed penalty with no codified amount (LAC 46:XIX Sec1105.B.6), a $500 statutory cap on a formal reinstatement application (La. R.S. 37:74.1), and an escalating monthly delinquent schedule ($200-$700) -- and none reconciles cleanly with the others, so no single dollar figure is published here rather than picking one. The 3-hour ethics figure is currently sourced only from the board's own page, not independently confirmed in the codified rule text (checked Sec1301, Sec1303, Sec1319 -- none states an hour figure). Recommend a manual check with the board before citing a specific reinstatement dollar amount.",
+      "note": "Louisiana's reinstatement fee isn't a single number under Louisiana law: which of three mechanisms applies depends on how long your certificate has been lapsed. A same-year reinstatement uses the renewal fee plus a board-prescribed penalty fee, with no fixed dollar amount codified (LAC 46:XIX Sec1105.B.6). A fully expired or inactive certificate instead goes through a formal reinstatement application, capped by statute at $500 (La. R.S. 37:74.1). Separately, the board's own fee table applies an escalating monthly delinquent fee of $200-$700 depending on how many months have passed. These mechanisms don't reconcile with one another, which is why they don't reduce to one figure. The 3-hour ethics-CPE figure comes from the board's own page; the codified rule text (Sec1301, Sec1303, Sec1319) does not itself state an hour figure.",
       "is_block_claim": false
     },
     {
@@ -238,7 +238,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "The $57 late fee and $161 renewal fee figures come from the board's own pages rather than codified rule text -- 252 CMR 2.16's fee schedule is not part of the chapter PDF we have read directly. The statutory legs (the 160-hour/24-month CPE requirement and the 80-hour attest split, M.G.L. c. 112 s 87B(c)) are verified against the legislature's own site, and 252 CMR 2.14's CPE text has been read from the codified PDF.",
+      "note": "The $57 late fee and $161 renewal fee come straight from the Board of Public Accountancy's own current fee pages -- an official source, but the amounts are administratively set rather than published in 252 CMR 2.16's own rule text, so they can change without a formal rule amendment. The CPE side is codified directly in statute: M.G.L. c. 112, Sec 87B(c) sets the 160-hour/24-month requirement for a license lapsed two or more renewal cycles, including the rule that at least 80 of those hours must be in the attest function.",
       "is_block_claim": false
     },
     {
@@ -261,29 +261,11 @@
     },
     {
       "dataset": "reinstatement.json",
-      "id": "nebraska-reinstatement",
-      "state": "Nebraska",
-      "state_slug": "nebraska",
-      "field": "data_gap_note",
-      "note": "The $200 fee is confirmed on the Board's own reinstatement application form (a real board document), but the codified rule only sets a $300 statutory ceiling and delegates the exact amount to the board's own fee schedule, which doesn't appear separately codified. Recommend a manual check with the board if you want the fee confirmed against a published rule rather than just the agency's own form.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
       "id": "nevada-reinstatement",
       "state": "Nevada",
       "state_slug": "nevada",
       "field": "data_gap_note",
-      "note": "Nevada does not codify a single flat fee or CPE figure that applies uniformly to every lapsed scenario -- the applicable fee/hours depend on which status track applies (late renewal vs. retired/inactive reinstatement vs. revocation), and whether/when a simple missed deadline converts into a formal revocation is discretionary, not on an automatic timeline. Both the board's own page and the codified NRS/NAC text were checked and are internally consistent, but neither states one unambiguous number for the general case, hence the null fields above rather than picking one branch's figure to represent all cases. The board's current renewal page confirms the $175 annual renewal fee and $150 late fee referenced above.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
-      "id": "new-mexico-reinstatement",
-      "state": "New Mexico",
-      "state_slug": "new-mexico",
-      "field": "data_gap_note",
-      "note": "The $175 fee and the '90 days to cancellation' trigger are confirmed only on the board's own pages, not independently in the codified NMAC text (the rule authorizes fees without stating the dollar amount, and doesn't state the 90-day figure in the sections checked). The 40-hour/year (max 200) penalty CPE figure IS directly confirmed in the codified rule. Recommend a manual check with the board for the fee/90-day figures.",
+      "note": "Nevada doesn't have one flat reinstatement fee or CPE figure -- which one applies depends on your situation, because the state codifies three separate tracks. A simple late renewal (paid before the lapse goes further) costs a $150 late fee on top of the standard $175 annual fee. Reinstatement from retired or inactive status costs $250 and requires 40 CPE hours, including 4 in ethics, completed in the preceding 12 months. Reinstatement after voluntary surrender requires 40 hours plus payment of back fees. Reinstatement after revocation or disciplinary surrender requires 80 hours, including 8 in ethics, in the preceding 12 months. A missed renewal doesn't convert to revocation automatically: failing to obtain the annual permit within 60 days of expiration is a ground for the board to revoke, unless excused -- it is a board decision, not an automatic outcome. These are three distinct, separately codified paths (NAC 628.016, NAC 628.110), not one number with exceptions, so no single reinstatement fee or CPE-hours figure would accurately represent every case -- check which track applies to you before paying or scheduling CPE.",
       "is_block_claim": false
     },
     {
@@ -324,20 +306,11 @@
     },
     {
       "dataset": "reinstatement.json",
-      "id": "tennessee-reinstatement",
-      "state": "Tennessee",
-      "state_slug": "tennessee",
-      "field": "data_gap_note",
-      "note": "The $250 reinstatement application fee is stated clearly on the Board's own page, but couldn't be located verbatim in any codified rule (only the separate $100 delinquent/late-renewal fee is codified) -- it may be set by a fee schedule outside the CE/licensing chapters checked. Recommend a manual check with the board if you want the fee confirmed against a published rule.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
       "id": "utah-reinstatement",
       "state": "Utah",
       "state_slug": "utah",
       "field": "data_gap_note",
-      "note": "Fee figures come from DOPL's own reinstatement application document (rev. hosted at commerce.utah.gov), not codified rule text -- Utah publishes fees administratively. If the application document is revised, the amounts can change without a rule filing; check the current form before paying.",
+      "note": "Utah sets reinstatement fees administratively rather than codifying them in rule -- R156-26a contains no dollar figures anywhere in its text. The $113 total (and the $85 alternate for licenses expired more than two years with no unlicensed practice) comes directly from DOPL's own reinstatement application document, which is the fee's actual source of truth under this system. Because DOPL can revise that application without a rule filing, confirm the figure on the current application before paying.",
       "is_block_claim": false
     },
     {
@@ -378,20 +351,11 @@
     },
     {
       "dataset": "renewal_fees.json",
-      "id": "montana-renewal-fee",
-      "state": "Montana",
-      "state_slug": "montana",
-      "field": "data_gap_note",
-      "note": "The $125 base renewal fee is codified verbatim in ARM 24.201.410(1)(e). A separate late-fee figure of 100% of the base fee could not be re-confirmed anywhere in Chapter 24.201 or the board's own site (which currently has no fee content on its license-information page) -- not disproved, just unconfirmed.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "renewal_fees.json",
       "id": "nevada-renewal-fee",
       "state": "Nevada",
       "state_slug": "nevada",
       "field": "data_gap_note",
-      "note": "No fixed dollar figure is codified -- NRS 628.380 delegates the amount to the Board, and NAC 628.016(3)(g) only caps it at \"will not exceed $200\" annually. The Board's actual current-year fee is not published on an official .gov page that could be confirmed; only third-party aggregators report a figure (~$120-$140), which this site does not use for a final claim.",
+      "note": "Nevada doesn't fix this fee by statute. NRS 628.380 lets the Board set the annual renewal fee by regulation, and NAC 628.016(3)(g) caps whatever the Board sets: the fee \"will not exceed $200\" a year. The Board's current-year figure isn't published on an official Nevada .gov page -- only third-party aggregators cite one, in the $120-$140 range. Confirm the exact current fee with the Nevada State Board of Accountancy before you renew.",
       "is_block_claim": false
     },
     {
