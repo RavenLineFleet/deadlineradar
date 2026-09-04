@@ -305,7 +305,7 @@
       "state": "South Dakota",
       "state_slug": "south-dakota",
       "field": "data_gap_note",
-      "note": "These figures come straight from South Dakota's codified board rules -- the same rule text cited and linked above -- not from the board's FAQ page, which only describes lapsing in general terms. That rule citation is confirmed live, so it's the primary source to check if you want to verify a number yourself.",
+      "note": "Both cited rules confirmed verbatim, word for word: ARSD 20:75:03:03 states \"the fee for renewal is one hundred dollars\" and \"the annual late renewal fee is an additional one hundred dollars\" for each year the certificate was expired -- that's the $100-plus-$100-per-lapsed-year formula above, not a single flat figure by design. ARSD 20:75:04:08 confirms the CPE side exactly: a certificate lapsed more than 12 months requires 24 hours of CPE in the preceding 12 months; lapsed 12 months or less requires only the normal CPE the applicant would have owed anyway.",
       "is_block_claim": false
     },
     {
@@ -359,7 +359,7 @@
       "state": "Nevada",
       "state_slug": "nevada",
       "field": "data_gap_note",
-      "note": "Nevada doesn't fix this fee by statute. NRS 628.380 lets the Board set the annual renewal fee by regulation, and NAC 628.016(3)(g) caps whatever the Board sets: the fee \"will not exceed $200\" a year. The Board's current-year figure isn't published on an official Nevada .gov page -- only third-party aggregators cite one, in the $120-$140 range. Confirm the exact current fee with the Nevada State Board of Accountancy before you renew.",
+      "note": "The $175 figure isn't codified -- NAC 628.016(3)(g) only caps whatever the Board sets at \"will not exceed $200\" a year, and NRS 628.380 delegates the actual amount to the Board. It's confirmed instead on the Nevada State Board of Accountancy's own official renewal page (nvaccountancy.com, which redirects to the Board's licensing portal): \"the renewal fee will be $175\" whether you submit online or by mail, with a $150 late fee if you miss the January 31 deadline. Because the amount is board-set rather than fixed in the statute or rule, it can change year to year without a rule filing -- confirm the current figure with the Board before you renew.",
       "is_block_claim": false
     },
     {
