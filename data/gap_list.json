@@ -215,7 +215,7 @@
       "state": "Hawaii",
       "state_slug": "hawaii",
       "field": "data_gap_note",
-      "note": "The $204 individual license restoration fee and the $360 (entity) / $128 (sole proprietor) firm-permit restoration fees are published on the Hawaii Board of Public Accountancy's own current fee page, reconfirmed live on 2026-09-03. That page is the state's official source for these amounts; the cited HAR Chapter 71 rule text covers the renewal cycle and CPE deficiency/carryover requirements and does not itself restate the fee schedule.",
+      "note": "Confirmed directly from the codified fee rule, not just the Board's own page: HAR §16-53-38 sets the restoration formula as the biennial renewal fee plus an equal penalty fee (paragraphs (7) and (11)), and HRS §26-9(o) separately requires any unpaid fee -- including the $100 biennial Compliance Resolution Fund fee under HAR §16-53-38(12) -- to be paid to restore a license. For an individual license: $52 renewal + $52 penalty + $100 Compliance Resolution Fund fee = $204. For a non-sole-proprietorship firm permit: $130 + $130 + $100 = $360. Sole-proprietorship firm permits owe no Compliance Resolution Fund fee under (12), so their total stops at $64 + $64 = $128. These published figures are the baseline for restoring within the same biennium; HAR §16-53-38(8) and HRS §466-8(c) add a further $20 recordkeeping fee for each full biennium your license was on forfeited status.",
       "is_block_claim": false
     },
     {
