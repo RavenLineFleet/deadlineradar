@@ -23523,6 +23523,56 @@ date, not alongside it. <a href="../../colorado/">Set a reminder for your Colora
 so both clocks work for you instead of quietly running past you.</p>
 """,
     },
+    {
+        # 2026-09-04: standing weekly post. Topic picked from a live GSC pull
+        # (see draft memo) -- closest-to-page-1 real-demand state query
+        # without an existing guide. Repackages sc-individual/sc-firm
+        # (data/cpa_deadlines.json), sc-cpe (data/cpe_hours.json),
+        # south-carolina-reinstatement (data/reinstatement.json) and
+        # south-carolina-renewal-fee (data/renewal_fees.json); every fact
+        # re-confirmed via a live fetch of scstatehouse.gov and llr.sc.gov
+        # on 2026-09-03, adversarially verified, independently re-verified
+        # by both Orchestrator and AuditLab before shipping (two-party gate).
+        "slug": "south-carolina-cpa-license-renewal-guide",
+        "published": "2026-09-04",  # first-introduction commit date, from git history
+        "title": "South Carolina CPA License Renewal: An Annual Clock, and a Deadline Hidden in the Definitions",
+        "seo_title": "South Carolina CPA Renewal: Annual Clock",
+        "meta_description": (
+            "South Carolina CPA renewal is due February 1 every year for both individuals and firms: 40 CPE hours annually (2 ethics), lapse at Feb 15."
+        ),
+        "body_html": """
+<p class="intro">South Carolina renews CPA licenses on a true annual cycle &mdash; a faster clock than the two- or three-year cycles many states use. That means the paperwork comes around every single year, and the statute that controls it has a quirk: read the renewal sections alone and you won't find the deadline date at all. Here's exactly how the deadline, the hours, and the penalties work, sourced to the S.C. Code of Laws and the Board of Accountancy's own published pages.</p>
+
+<h2>The deadline: February 1, every year, for individuals and firms alike</h2>
+<p>Every individual CPA license in South Carolina renews annually, due <strong>February 1</strong>. That's not a Board scheduling choice &mdash; it's confirmed directly by the Board's own FAQ: "The deadline for license renewal is February 1 at 11:59pm." Miss that date and you're not immediately lapsed: renew by <strong>February 15 at 11:59pm</strong> and you're still current. Miss February 15 too, and the license is considered lapsed, which triggers the reinstatement process below.</p>
+<p>Firm registrations run on the identical schedule. The Board's FAQ states it in the same terms: "The deadline for firm registration renewal is February 1 at 11:59 pm. If a firm registration is not renewed by February 15 at 11:59 pm, it is considered lapsed." Unlike states that stagger individual and firm renewals onto separate calendars, South Carolina keeps both on one clock &mdash; just with different fees: $95 for an individual annual renewal, $60 for a firm.</p>
+<p>This guide covers the CPA license specifically &mdash; that's the exact scope of the Board's FAQ language quoted above. If you hold an Accounting Practitioner or Public Accountant license instead, the Board's fee schedule groups you into the same $95 annual line item, but the FAQ's deadline answers are worded around "CPA license renewal" only, so confirm your own category's timeline directly with the Board.</p>
+<p>Two more dates worth knowing: renewal notices go out by <strong>email</strong> in mid-November (not by mail), followed by three to five reminder emails during the renewal window &mdash; so a renewal notice living in your spam folder is a real risk, not a paper letter you can count on seeing. And if a genuine emergency will make you miss February 1, the Board's FAQ gives you an escalation path, but only if you use it in time: you must contact the Board no later than <strong>January 15</strong> to be considered for special consideration before the deadline hits.</p>
+<p><a href="../../south-carolina/">Confirm your own next South Carolina CPA renewal deadline here</a>, and if you're renewing on behalf of a firm, <a href="../../south-carolina-cpa-firm-renewal/">check the firm registration page</a> for the same Feb 1 / Feb 15 dates applied to your registration.</p>
+
+<h2>CPE: 40 hours every year, set by the licensing statute itself</h2>
+<p>South Carolina requires <strong>40 hours</strong> of CPE "completed during the immediately preceding calendar year," per S.C. Code Ann. &sect; 40-2-250(C). Notably, that requirement sits in the licensing statute itself &mdash; the same section that governs renewal &mdash; so the 40-hour figure is fixed by the legislature, not by a board schedule that could shift administratively.</p>
+<p>Of those 40 hours, at least <strong>2 must relate to ethics</strong>, and that minimum lives in the same subsection, at &sect; 40-2-250(C)(6): "No less than two hours of the annual forty hours of continuing professional education must relate to ethics." Note the wording &mdash; the ethics hours are included <em>in</em> the 40, not stacked on top of it, and the statute calls it "an annual ethics requirement," so it resets every calendar year right alongside the general requirement.</p>
+<p><a href="../../south-carolina-cpa-cpe-requirements/">See the full South Carolina CPE breakdown here</a>.</p>
+
+<h2>A discrepancy worth knowing: did February 1 move out of the law?</h2>
+<p>If you compare South Carolina's renewal statutes to older versions, you'll notice something: neither &sect; 40-2-250(A) nor &sect; 40-2-255(A) spells out "February first" anymore. A 2022 amendment (Act No. 174) replaced the literal date with a cross-reference to a defined term. It's tempting to read that as the deadline moving out of the Code and into a Board-set administrative schedule that could shift year to year.</p>
+<p>It didn't. The Code's own definitions section still fixes the date in black and white: &sect; 40-2-20(28) defines "Renewal due date" as "February first of a licensing year," and &sect; 40-2-20(29) defines "Renewal lapse date" as "a date fifteen days subsequent to the renewal date" &mdash; which lines up with the February 15, 11:59pm cutoff the Board's FAQ describes. The 2022 rewrite only swapped a literal date-string for a pointer to that definition; February 1 remains statutory, not discretionary.</p>
+<p>One more wrinkle for anyone reading the statute closely: &sect; 40-2-250(A) (individuals) uses the phrase "renewal due date," while &sect; 40-2-255(A) (firms) uses "renewal date" &mdash; dropping "due" and adding "of the calendar-year registration." The Code uses both forms elsewhere too, so this reads as inconsistent drafting rather than two different deadlines in disguise &mdash; but it's a reminder to always trace a renewal date back to the definitions section, not just the paragraph that happens to mention it.</p>
+
+<h2>If you miss February 1: what reinstatement actually costs</h2>
+<p>Once a license lapses (unrenewed past February 15), reinstatement isn't just paying the normal $95 renewal fee again. South Carolina adds a separate, codified <strong>$500 reinstatement fee</strong> under &sect; 40-2-250(F) &mdash; on top of, not instead of, the standard renewal fee. Budget <strong>$595 total</strong> to bring a lapsed license current, before any CPE catch-up. And per the Board's FAQ, the money isn't the whole process: you must also complete and submit a reinstatement application and obtain a criminal background check.</p>
+<p>The CPE makeup requirement scales with how long you were lapsed, per &sect; 40-2-250(G):</p>
+<ul>
+<li><strong>Lapsed fewer than 3 years:</strong> 40 CPE hours for each year the license was lapsed or inactive, plus the reinstatement fee.</li>
+<li><strong>Lapsed 3 years or more:</strong> the requirement jumps to <strong>120 CPE hours</strong>, plus <strong>six months of additional experience</strong> &mdash; a materially heavier bar than the under-3-year track.</li>
+</ul>
+<p>In other words: a short lapse costs money and a predictable amount of makeup coursework; a long one costs real time. Neither is worth risking against a deadline that's the same date every single year.</p>
+<p><a href="../../south-carolina-cpa-license-reinstatement/">Walk through the full South Carolina reinstatement math here</a>.</p>
+
+<p><strong>Bottom line</strong>: South Carolina CPAs and firms both renew on <strong>February 1</strong>, every year, with a hard lapse at February 15 &mdash; confirmed by both the Board's FAQ and the definitions built into &sect; 40-2-20 of the Code. Get your 40 CPE hours (2 ethics) done in the calendar year before you renew &mdash; the requirement is written into the licensing statute itself. And if you do lapse, know the number going in: $595 to reinstate, plus CPE that scales sharply once you cross the three-year mark. <a href="../../south-carolina/">Set a reminder for your South Carolina deadline here</a> so the annual clock works for you instead of resetting against you.</p>
+""",
+    },
 ]
 
 
