@@ -1769,16 +1769,13 @@ _MIRROR_HOST_RE = re.compile(
 # navigation of the Appian portal's View TAC tree found working state-hosted
 # citation_url/secondary_source_url links for both cited rules (Sec.523.112,
 # Sec.523.130), so the "no reachable official host" premise no longer holds.
-# 2026-09-03 (gap-closure wave 4): nj-individual granted -- N.J.A.C. 13:29-1.7
-# (the personal rolling-cycle rule) is not reachable on any official NJ host:
-# the DCA's current Chapter 29 compilation and all .aspx pages sit behind a
-# JS wall that returns no text to a fetcher, and no /Adoptions PDF covers
-# this specific section (the reachable PDF, accado_09042018.pdf, only covers
-# 13:29-1.5's fee rule). Verified instead via Cornell LII; disclosed in the
-# record's own data_gap_note.
-_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
-    "nj-individual": "N.J.A.C. 13:29-1.7 not reachable on any official NJ host (DCA Chapter 29 JS-walled); verified via Cornell LII, disclosed in data_gap_note",
-}
+# 2026-09-04 (gap-closure wave 5): nj-individual's exception retired -- a real
+# browser search found DCA's own Rule Adoption notice for the 2019 rulemaking
+# that produced N.J.A.C. 13:29-1.7 (accado_09032019.pdf, 51 N.J.R. 1424(a)),
+# reachable by plain curl with no JS wall. citation_url promoted off the
+# Cornell LII mirror to this official host, so the "no reachable official
+# host" premise no longer holds.
+_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {}
 
 
 def check_citations_are_primary(repo_root: Path) -> list[str]:
