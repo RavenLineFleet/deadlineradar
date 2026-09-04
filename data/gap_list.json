@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 45,
+  "gap_record_count": 43,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 41
+    "data_gap_note": 39
   },
   "block_claim_count": 0,
   "entries": [
@@ -44,7 +44,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "New Jersey's own regulation-code site doesn't serve a working link to N.J.A.C. 13:29-1.7, the specific rule confirming your renewal cycle -- we've verified its text through Cornell Law School's Legal Information Institute, an independent (non-official) legal-publishing mirror of state regulations. The rule itself: your license renews three years from your own license's last expiration date, a personal rolling cycle, not a shared calendar date -- and that same three-year clock applies to your first renewal too. Confirm your exact date on your license certificate or with the Board.",
+      "note": "Your New Jersey CPA license renews on a personal, rolling triennial (3-year) cycle -- three years from your own license's last expiration date, not a shared calendar date for every licensee. N.J.A.C. 13:29-1.7(b) sets this out directly, and the same three-year clock applies to your first renewal too. Confirm your exact date on your license certificate or with the Board.",
       "is_block_claim": false
     },
     {
@@ -62,7 +62,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- the Board's reinstatement guidance confirms a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated directly in statute or regulation; the Board's CPE-proration table suggests your first renewal falls on the second June 30 after issuance, but that's an inference, not a stated rule, so we don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
+      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated in the statute, in 252 CMR, or on any Board page -- we checked all of them. The Board's FAQ CPE table and the Mass. Society of CPAs point to a 'second June 30 after issuance' rule, but neither is Board-published, so we still don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false
     },
     {
@@ -71,7 +71,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts firm permits renew every two years, expiring on the last day of June, on a fixed odd- or even-year parity that's set once and never changes -- the same structure as individual licenses. Which parity a brand-new firm permit starts on isn't clearly stated in the statute or on the Board's fee page, so we can't compute your exact renewal date from public sources. Confirm your renewal year with the Board (617-701-8635, accountingboard@mass.gov) or via the eLIPSE portal.",
+      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated in the statute, in 252 CMR, or on any Board page -- we checked all of them. The Board's FAQ CPE table and the Mass. Society of CPAs point to a 'second June 30 after issuance' rule, but neither is Board-published, so we still don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false
     },
     {
@@ -80,7 +80,7 @@
       "state": "Maryland",
       "state_slug": "maryland",
       "field": "data_gap_note",
-      "note": "Maryland's statute sets a default: your license expires the first December 31 after your effective date that falls in an even-numbered year -- but only absent a staggering determination under the Secretary's separate authority (2-311(e)). No Maryland regulation implements that authority, but the Board's own renewal-guidance page has described a personal month/day anniversary (e.g., issued January 2, expires January 2) unchanged for over a decade -- the best evidence that's how renewals actually run today. Confirm your exact date on your license or with the Board.",
+      "note": "Your Maryland renewal date is personal to your license, not shared across all CPAs. The Board describes a personal month/day anniversary (e.g. issued January 2, expires January 2), and a check of real, active license records confirms that pattern is genuinely in use today -- including licenses outside December and in odd years. Maryland's statute also sets a Dec-31/even-year fallback, and at least one active license shows exactly that date, so not every license follows the anniversary rule. Look up your own date via NASBA's CPAverify (ald.nasba.org/search/cpa).",
       "is_block_claim": false
     },
     {
@@ -89,7 +89,7 @@
       "state": "Tennessee",
       "state_slug": "tennessee",
       "field": "data_gap_note",
-      "note": "Tennessee assigns each licensee and firm to one of two biennial renewal cohorts by license number (odd or even), so no single public date applies to everyone. The cohort assignment comes from the Board's current guidance rather than the codified rule. Confirm your exact renewal date with the Tennessee Board of Accountancy or on your license.",
+      "note": "Tennessee assigns each individual CPA certificate and PA registration to one of two biennial renewal cohorts by license number (odd or even), so no single date applies to everyone -- this is now codified at Tenn. Code Ann. Sec 62-1-107(b), not just Board guidance. Firm permits are a separate, still-open question: the codified rule sets them to expire annually, but the Board's current guidance runs firms on the same biennial cycle as individuals, with no rule change pending. Confirm your exact date and cohort with the Board.",
       "is_block_claim": false
     },
     {
@@ -107,7 +107,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "December 31 of every even-numbered year is the DC Board of Accountancy's renewal date for both the individual CPA license and the firm permit. Only the firm permit's date is codified: 17 DCMR § 2547.1 sets it for permits issued under § 2542, a firm-specific term distinct from an individual license. The DCMR's accountancy chapter (17-25) contains no section setting the individual license's own term, and the DC Code's general renewal statute (§ 47-2853.13) delegates term length to law or regulation without stating it. The individual license's date comes from the Board's published guidance rather than a codified rule.",
+      "note": "December 31 of every even-numbered year is the DC Board of Accountancy's renewal date for both the individual CPA license and the firm permit. Only the firm permit's date is codified: 17 DCMR § 2547.1 sets it for permits issued under § 2542, a firm-specific term distinct from an individual license. The DCMR's accountancy chapter (17-25) contains no section setting the individual license's own term, and the DC Code's general renewal statute (§ 47-2853.13) delegates term length to law or regulation without stating it. A separate Title 17 chapter does set a generic license-term rule for several other DC occupational boards (17 DCMR § 3306), but its own scope section names those boards specifically and doesn't include the Board of Accountancy, so it doesn't reach the individual CPA license either. The individual license's date comes from the Board's published guidance rather than a codified rule.",
       "is_block_claim": false
     },
     {
@@ -166,15 +166,6 @@
     },
     {
       "dataset": "cpe_hours.json",
-      "id": "mt-cpe",
-      "state": "Montana",
-      "state_slug": "montana",
-      "field": "data_gap_note",
-      "note": "Montana's official ARM host (rules.mt.gov) publishes no per-section rule text, so this record cites the Board's own published materials. The 120-hour/3-year requirement, the 50% technical-subjects minimum, and the 2 ethics hours are each stated on the Board's CPE requirements page and in its CPE bulletin, and the full text of Mont. Admin. R. 24.201.2106 on Cornell LII's mirror confirms the same requirements exactly.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "cpe_hours.json",
       "id": "ne-cpe",
       "state": "Nebraska",
       "state_slug": "nebraska",
@@ -220,15 +211,6 @@
     },
     {
       "dataset": "reinstatement.json",
-      "id": "illinois-reinstatement",
-      "state": "Illinois",
-      "state_slug": "illinois",
-      "field": "data_gap_note",
-      "note": "No separate penalty CPE or ethics hours apply here: restoration just requires your normal 120-hour, 3-year CPE total (with its standard 4 ethics hours) to fall within the 3 years right before you apply -- not any extra hours, per 68 Ill. Admin. Code 1420.60 and 1420.70. The $260 fee cap comes straight from the codified rule at 1420.40; IDFPR's own site doesn't publish a CPA-specific restoration figure (its general reactivation-fee table explicitly excludes CPAs), so the administrative code is the authoritative source for the exact amount.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
       "id": "louisiana-reinstatement",
       "state": "Louisiana",
       "state_slug": "louisiana",
@@ -242,7 +224,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "The $57 late fee and $161 renewal fee come straight from the Board of Public Accountancy's own current fee pages -- an official source, but the amounts are administratively set rather than published in 252 CMR 2.16's own rule text, so they can change without a formal rule amendment. The CPE side is codified directly in statute: M.G.L. c. 112, Sec 87B(c) sets the 160-hour/24-month requirement for a license lapsed two or more renewal cycles, including the rule that at least 80 of those hours must be in the attest function.",
+      "note": "The $57 late fee and $161 renewal fee come from the Board of Public Accountancy's own current fee pages, not from 252 CMR 2.16 itself -- read the rule's full text and you won't find a dollar figure anywhere in it. It describes reinstatement fees only as \"the back license fee,\" \"a late fee,\" and \"the current license fee\" (or \"current license renewal fee\"), leaving the actual amounts for the board to set administratively rather than fixing them in the rule text, so they can change without a formal rule amendment. The CPE side works differently: it's codified directly in statute, where M.G.L. c. 112, Sec 87B(c) sets the 160-hour/24-month requirement for a license lapsed two or more renewal cycles, including the rule that at least 80 of those hours must be in the attest function.",
       "is_block_claim": false
     },
     {
@@ -323,7 +305,7 @@
       "state": "Colorado",
       "state_slug": "colorado",
       "field": "data_gap_note",
-      "note": "Colorado's CPA renewal fee has no dollar amount in statute: Colo. Rev. Stat. 12-100-106 authorizes the fee and 12-20-105 directs DORA to set the amount administratively, so the figure lives on DORA's fee schedule and can change without a change in the law. We haven't been able to confirm the current amount from an official state source; third-party sites cite figures between about $77 and $110. Check DORA's online licensing portal for the exact fee before you renew.",
+      "note": "Colorado doesn't put a dollar figure on this fee anywhere in law. Colo. Rev. Stat. 12-100-106 authorizes the CPA renewal fee, and 12-20-105 has DORA's Division of Professions and Occupations set the actual amount administratively, so it lives on DORA's own fee schedule instead of the statute book -- and it can change without a rule filing. That holds at the regulation level too: the State Board of Accountancy's own rules (3 CCR 705-1) spell out the renewal requirement and a 60-day grace period (you can still renew during it, but a late fee is added) without putting a number on either fee. DORA's online renewal portal won't show you a fee until you log in, and the FAQ and licensing-services pages that would normally carry it are currently returning \"Access denied\" to any visitor. Since the amount isn't published anywhere we can point you to, log in to DORA's online licensing portal or contact the Board directly to confirm your current fee before you renew.",
       "is_block_claim": false
     },
     {
@@ -386,7 +368,7 @@
       "state": "Northern Mariana Islands",
       "state_slug": "northern-mariana-islands",
       "field": "data_gap_note",
-      "note": "CNMI's official administrative code confirms the $100 active-renewal fee directly, on an annual (not triennial) cycle. If you've seen $355 quoted on exam-prep sites, that figure doesn't match the code, so use the $100 annual amount shown here. Because the board can also update fees by resolution outside the code's regular revision cycle, confirm the current fee with the board before you renew.",
+      "note": "CNMI's codified administrative code still shows a $100 renewal fee -- that text hasn't changed. But CNMI's enabling statute, 4 CMC § 3422(b), makes clear a CPA certificate is issued and renewed on a three-year cycle, not annually, so the code table's \"Renewal/annual\" label is a legacy category name rather than a literal yearly requirement. CNMI's Board of Accountancy has no government website of its own -- NASBA administers CNMI licensing on the Board's behalf, and NASBA's current fee page lists the individual renewal fee at $355 for that same three-year (Sept 30-Dec 31) cycle. No CNMI government page states $355 directly, so this record keeps $100 as the codified figure, but the two sources disagree materially: verify the exact amount with NASBA or the Board before you pay.",
       "is_block_claim": false
     },
     {
@@ -395,7 +377,7 @@
       "state": "Puerto Rico",
       "state_slug": "puerto-rico",
       "field": "data_gap_note",
-      "note": "Puerto Rico's own Dept. of State designates NASBA as the official administrator of CPA licensing and renewals, and the $225 individual renewal fee comes from NASBA's Puerto Rico page -- reconfirmed live on 2026-09-03. No Puerto Rico government fee schedule states the dollar figure itself, though: the codified 1945 statute (20 L.P.R.A. § 779) separately carries an outdated $50 figure that NASBA's current fee appears to have superseded.",
+      "note": "Puerto Rico's CPA renewal fee isn't fixed in the law itself. 20 L.P.R.A. § 779 states three times that the license and renewal fee is set \"según disponga la Junta y el Departamento de Estado\" -- by the Board and Department of State, not the statute -- and no dollar figure appears anywhere in that section. The $50 renewal fee sometimes attributed to the 1945 law appears nowhere in its current text or in Ley Núm. 147 de 28 de agosto de 2014, which rewrote the section wholesale into today's wording -- and the arrangement is older than the wording: a 2011 NASBA renewal-instructions sheet already shows a $180 fee set under the same delegation. Puerto Rico's Dept. of State designates NASBA as the official administrator of CPA licensing and renewals, and that's where the actual dollar figures live: $225 for individual renewal, $275 if you file late, reconfirmed live on 2026-09-04. No Puerto Rico government page publishes that dollar figure itself -- it lives only on NASBA's site -- so this record's $225 traces to the government-designated administrator rather than to a Puerto Rico statute or regulation.",
       "is_block_claim": false
     },
     {
