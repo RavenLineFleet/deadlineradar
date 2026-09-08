@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 43,
+  "gap_record_count": 42,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 39
+    "data_gap_note": 38
   },
   "block_claim_count": 0,
   "entries": [
@@ -153,15 +153,6 @@
       "state_slug": "dc",
       "field": "data_gap_note",
       "note": "You can rely on DC's 80-hour biennial requirement (with a 4-hour ethics minimum) -- it's confirmed in two independent places that agree: 17 DCMR §§2530.1 and 2530.8, and the Board's own CPE Reporting Form, which quotes both sections verbatim. DC's online regulations portal doesn't offer a stable link to individual sections -- its section-list page resolves to a search screen, not the rule text -- so the citation above points you directly to the Board's reporting form PDF, the official document that reproduces the rule's language.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "cpe_hours.json",
-      "id": "ga-cpe",
-      "state": "Georgia",
-      "state_slug": "georgia",
-      "field": "data_gap_note",
-      "note": "Georgia has two official versions of this rule in circulation and they don't agree. The Secretary of State's site (rules.sos.ga.gov/gac/20-11) still shows the superseded pre-2024 text -- 80 hours with 16 in accounting and auditing, and no ethics requirement. The current rule is the Board's own Rule 20-11-.02, amended effective January 1, 2024, which sets today's 50%-technical-fields and 4-hour ethics requirements; that is what this record follows and what actually governs your CPE. If the Secretary of State's site shows different numbers, that's why.",
       "is_block_claim": false
     },
     {
