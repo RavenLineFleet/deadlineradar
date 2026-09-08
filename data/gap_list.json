@@ -62,7 +62,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated in the statute, in 252 CMR, or on any Board page -- we checked all of them. The Board's FAQ CPE table and the Mass. Society of CPAs point to a 'second June 30 after issuance' rule, but neither is Board-published, so we still don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
+      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. No statute, regulation, or Board page states which parity a brand-new license starts on. The Board's FAQ CPE table and the Mass. Society of CPAs both point to a 'second June 30 after issuance' rule, but no Board source states that rule outright, so we don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false
     },
     {
@@ -71,7 +71,7 @@
       "state": "Massachusetts",
       "state_slug": "massachusetts",
       "field": "data_gap_note",
-      "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. Which parity a brand-new license starts on isn't stated in the statute, in 252 CMR, or on any Board page -- we checked all of them. The Board's FAQ CPE table and the Mass. Society of CPAs point to a 'second June 30 after issuance' rule, but neither is Board-published, so we still don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
+      "note": "Massachusetts CPA firm licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. No statute, regulation, or Board page says which parity a brand-new firm license starts on. Real firm license records (issued 1998-2026) mostly follow a second-June-30-after-issuance pattern, but the most recently issued firm we checked breaks it, so a new registration can't rely on it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false
     },
     {
@@ -89,7 +89,7 @@
       "state": "Tennessee",
       "state_slug": "tennessee",
       "field": "data_gap_note",
-      "note": "Tennessee assigns each individual CPA certificate and PA registration to one of two biennial renewal cohorts by license number (odd or even), so no single date applies to everyone -- this is now codified at Tenn. Code Ann. Sec 62-1-107(b), not just Board guidance. Firm permits are a separate, still-open question: the codified rule sets them to expire annually, but the Board's current guidance runs firms on the same biennial cycle as individuals, with no rule change pending. Confirm your exact date and cohort with the Board.",
+      "note": "Tennessee assigns each individual CPA certificate and PA registration to one of two biennial renewal cohorts by license number (odd or even), so no single date applies to everyone -- this is now codified at Tenn. Code Ann. Sec 62-1-107(b), not just Board guidance. Firm permits are a separate, still-open question: the codified rule sets them to expire annually, but the Board's current guidance runs firms on the same biennial cycle as individuals, with no rule change filed. Confirm your exact date and cohort with the Board.",
       "is_block_claim": false
     },
     {
@@ -107,7 +107,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "December 31 of every even-numbered year is the DC Board of Accountancy's renewal date for both the individual CPA license and the firm permit. Only the firm permit's date is codified: 17 DCMR § 2547.1 sets it for permits issued under § 2542, a firm-specific term distinct from an individual license. The DCMR's accountancy chapter (17-25) contains no section setting the individual license's own term, and the DC Code's general renewal statute (§ 47-2853.13) delegates term length to law or regulation without stating it. A separate Title 17 chapter does set a generic license-term rule for several other DC occupational boards (17 DCMR § 3306), but its own scope section names those boards specifically and doesn't include the Board of Accountancy, so it doesn't reach the individual CPA license either. The individual license's date comes from the Board's published guidance rather than a codified rule.",
+      "note": "December 31 of every even-numbered year is the renewal date for both the individual CPA license and the CPA firm permit, per the DC Board of Accountancy's published guidance. Only the firm permit's term is codified: 17 DCMR § 2547.1 sets it for firm permits issued under § 2542. Nothing in the DCMR's accountancy chapter sets the individual license's own term, DC Code § 47-2853.13 delegates term length to law or regulation without stating it, and Title 17's generic license-term rule for other boards (§ 3306) doesn't cover the Board of Accountancy. If unsure, confirm your date with the Board.",
       "is_block_claim": false
     },
     {
@@ -134,7 +134,7 @@
       "state": "Vermont",
       "state_slug": "vermont",
       "field": "data_gap_note",
-      "note": "Your Vermont firm registration renews every two years -- confirmed by both the statute (26 V.S.A. § 75(a)) and Board Rule 6.1(d). The specific July 31/odd-year date, though, is written into the codified rule (Rule 8.1(b)) for \"Licenses\" only; that text is never extended to firm registrations. Vermont's Office of Professional Regulation applies the same July 31/odd-year date to firms in practice, listing it for every Accountancy license and firm type on its own official fee and renewal-date table. So the two-year cycle is codified law, and the July 31 date for firms comes from the regulator's own published table rather than from the statute or rule text itself.",
+      "note": "Your Vermont firm registration renews every two years, confirmed by both the statute (26 V.S.A. § 75(a)) and Board Rule 6.1(d). The codified July 31/odd-year date in Rule 8.1(b) is written for \"Licenses\" only -- it is never extended to firm registrations in the rule text itself. Vermont's Office of Professional Regulation does apply that same July 31/odd-year date to firms in practice, per its own official fee and renewal-date table. So the two-year cycle is codified law; the July 31 date for firms comes from the regulator's own table, not from the statute or rule text.",
       "is_block_claim": false
     },
     {
@@ -161,7 +161,7 @@
       "state": "Georgia",
       "state_slug": "georgia",
       "field": "data_gap_note",
-      "note": "Georgia has two official versions of this rule in circulation and they don't agree. The Secretary of State's site (rules.sos.ga.gov/gac/20-11) still shows the superseded pre-2024 text -- 80 hours with 16 in accounting and auditing, and no ethics requirement. The current rule is the Board's own Rule 20-11-.02, amended effective January 1, 2024, which sets today's 50%-technical-fields and ethics requirements; that is what this record follows and what actually governs your CPE. If the Secretary of State's site shows different numbers, that's why.",
+      "note": "Georgia has two official versions of this rule in circulation and they don't agree. The Secretary of State's site (rules.sos.ga.gov/gac/20-11) still shows the superseded pre-2024 text -- 80 hours with 16 in accounting and auditing, and no ethics requirement. The current rule is the Board's own Rule 20-11-.02, amended effective January 1, 2024, which sets today's 50%-technical-fields and 4-hour ethics requirements; that is what this record follows and what actually governs your CPE. If the Secretary of State's site shows different numbers, that's why.",
       "is_block_claim": false
     },
     {
@@ -179,7 +179,7 @@
       "state": "South Dakota",
       "state_slug": "south-dakota",
       "field": "data_gap_note",
-      "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- we haven't found it in the statute or in the administrative rule chapter (whose only annual-minimum language covers the initial-certificate phase-in period, not general renewal). It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
+      "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- it is not stated in the statute or anywhere in the administrative rule chapter governing continuing education (ARSD 20:75:04). That chapter's only annual-hour schedules apply to certificate holders phasing in during their first three-year cycle (20:75:04:07) or returning after a lapsed certificate (20:75:04:08), not to ordinary ongoing renewal. It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
       "is_block_claim": false
     },
     {
@@ -197,7 +197,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "D.C. doesn't set this fee by codified rule: no DCMR fee schedule states the $295. The Board sets its fees administratively under D.C. Code §47-2853.10 and publishes the current amounts on its own page -- the same way DC handles its other licensing fees. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with the Board before you pay. The 40-hour-per-year CPE reinstatement requirement (capped at 120 hours) is codified in 17 DCMR §2530.3; the citation link above points to D.C. Code §47-2851.10 instead because the District publishes stable per-section web addresses only for the D.C. Code, not for individual DCMR sections.",
+      "note": "D.C. doesn't set this fee by codified rule: no DCMR fee schedule states the $295. The Board sets its fees administratively under D.C. Code §47-2853.10 and publishes the current amounts on its own page -- the same way DC handles its other licensing fees. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with the Board before you pay. The 40-hour-per-year CPE reinstatement requirement (capped at 120 hours) is codified in 17 DCMR §2530.3, and the citation link above goes directly to that section's official text. The citation also names two D.C. Code sections (covering lapsed and reinstated licenses generally, and the Board's fee-setting authority); those have their own pages on the D.C. Council's code site, but the single link here goes to the DCMR section because that's the rule that actually sets the CPE numbers.",
       "is_block_claim": false
     },
     {
@@ -305,7 +305,7 @@
       "state": "Colorado",
       "state_slug": "colorado",
       "field": "data_gap_note",
-      "note": "Colorado doesn't put a dollar figure on this fee anywhere in law. Colo. Rev. Stat. 12-100-106 authorizes the CPA renewal fee, and 12-20-105 has DORA's Division of Professions and Occupations set the actual amount administratively, so it lives on DORA's own fee schedule instead of the statute book -- and it can change without a rule filing. That holds at the regulation level too: the State Board of Accountancy's own rules (3 CCR 705-1) spell out the renewal requirement and a 60-day grace period (you can still renew during it, but a late fee is added) without putting a number on either fee. DORA's online renewal portal won't show you a fee until you log in, and the FAQ and licensing-services pages that would normally carry it are currently returning \"Access denied\" to any visitor. Since the amount isn't published anywhere we can point you to, log in to DORA's online licensing portal or contact the Board directly to confirm your current fee before you renew.",
+      "note": "Colorado doesn't put a dollar figure on this fee anywhere in law. Colo. Rev. Stat. 12-100-106 authorizes the CPA renewal fee, and 12-20-105 has DORA's Division of Professions and Occupations set the actual amount administratively, so it lives on DORA's own fee schedule instead of the statute book -- and it can change without a rule filing. That holds at the regulation level too: the State Board of Accountancy's own rules (3 CCR 705-1) spell out the renewal requirement and a 60-day grace period (you can still renew during it, but a late fee is added) without putting a number on either fee. Even DORA's own accountancy licensing guide, which walks through eligibility, reciprocity, and reinstatement in detail, never lists a renewal fee. DORA's online renewal portal won't show you a fee until you log in, and the FAQ and licensing-services pages that would normally carry it are currently returning \"Access denied\" to any visitor. Since the amount isn't published anywhere we can point you to, log in to DORA's online licensing portal or contact the Board directly to confirm your current fee before you renew.",
       "is_block_claim": false
     },
     {
@@ -368,7 +368,7 @@
       "state": "Northern Mariana Islands",
       "state_slug": "northern-mariana-islands",
       "field": "data_gap_note",
-      "note": "CNMI's codified administrative code still shows a $100 renewal fee -- that text hasn't changed. But CNMI's enabling statute, 4 CMC § 3422(b), makes clear a CPA certificate is issued and renewed on a three-year cycle, not annually, so the code table's \"Renewal/annual\" label is a legacy category name rather than a literal yearly requirement. CNMI's Board of Accountancy has no government website of its own -- NASBA administers CNMI licensing on the Board's behalf, and NASBA's current fee page lists the individual renewal fee at $355 for that same three-year (Sept 30-Dec 31) cycle. No CNMI government page states $355 directly, so this record keeps $100 as the codified figure, but the two sources disagree materially: verify the exact amount with NASBA or the Board before you pay.",
+      "note": "CNMI's codified administrative code still shows a $100 renewal fee -- that text hasn't changed. But CNMI's enabling statute, 4 CMC § 3422(b), makes clear a CPA certificate is issued and renewed on a three-year cycle, not annually, so the code table's \"Renewal/annual\" label is a legacy category name rather than a literal yearly requirement. CNMI's Board of Accountancy has no government website of its own -- NASBA administers CNMI licensing on the Board's behalf, and NASBA's current fee page lists the individual renewal fee at $355 for that same three-year (Sept 30-Dec 31) cycle, but cites no CNMI statute, regulation, or resolution number for that figure. No CNMI government page states $355 directly either, so this record keeps $100 as the codified figure -- the two sources disagree materially: verify the exact amount with NASBA or the Board before you pay.",
       "is_block_claim": false
     },
     {
