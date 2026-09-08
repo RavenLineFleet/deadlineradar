@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 42,
+  "gap_record_count": 41,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 38
+    "data_gap_note": 37
   },
   "block_claim_count": 0,
   "entries": [
@@ -81,15 +81,6 @@
       "state_slug": "maryland",
       "field": "data_gap_note",
       "note": "Your Maryland renewal date is personal to your license, not shared across all CPAs. The Board describes a personal month/day anniversary (e.g. issued January 2, expires January 2), and a check of real, active license records confirms that pattern is genuinely in use today -- including licenses outside December and in odd years. Maryland's statute also sets a Dec-31/even-year fallback, and at least one active license shows exactly that date, so not every license follows the anniversary rule. Look up your own date via NASBA's CPAverify (ald.nasba.org/search/cpa).",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "cpa_deadlines.json",
-      "id": "tn-all",
-      "state": "Tennessee",
-      "state_slug": "tennessee",
-      "field": "data_gap_note",
-      "note": "Tennessee assigns each individual CPA certificate and PA registration to one of two biennial renewal cohorts by license number (odd or even), so no single date applies to everyone -- this is now codified at Tenn. Code Ann. Sec 62-1-107(b), not just Board guidance. Firm permits are a separate, still-open question: the codified rule sets them to expire annually, but the Board's current guidance runs firms on the same biennial cycle as individuals, with no rule change filed. Confirm your exact date and cohort with the Board.",
       "is_block_claim": false
     },
     {
