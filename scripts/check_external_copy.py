@@ -42,6 +42,20 @@ VIOLATION_RE = re.compile(r"\bDeadlineRadar\b")
 TEXT_SUFFIXES = {".md", ".txt", ".html", ".eml"}
 
 
+def find_violations_in_text(text: str) -> list[tuple[int, str]]:
+    """Shared core: scan a raw string, return (lineno, line) for every violating line.
+
+    Both the file/dir CLI path (find_violations) and any programmatic caller that has
+    content in memory before it's written to a file or sent (e.g. an outreach-email
+    send path -- see send_outreach_email.py) go through this one function, so there is
+    exactly one place the brand-name rule is encoded."""
+    return [
+        (lineno, line.strip())
+        for lineno, line in enumerate(text.splitlines(), start=1)
+        if VIOLATION_RE.search(line)
+    ]
+
+
 def find_violations(paths: list[str]) -> list[tuple[Path, int, str]]:
     violations: list[tuple[Path, int, str]] = []
     files: list[Path] = []
@@ -59,9 +73,7 @@ def find_violations(paths: list[str]) -> list[tuple[Path, int, str]]:
             text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            if VIOLATION_RE.search(line):
-                violations.append((f, lineno, line.strip()))
+        violations.extend((f, lineno, line) for lineno, line in find_violations_in_text(text))
     return violations
 
 
