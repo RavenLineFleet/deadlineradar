@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 38,
+  "gap_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 34
+    "data_gap_note": 35
   },
   "block_claim_count": 0,
   "entries": [
@@ -261,6 +261,15 @@
       "state_slug": "utah",
       "field": "data_gap_note",
       "note": "Utah sets reinstatement fees administratively rather than codifying them in rule -- R156-26a contains no dollar figures anywhere in its text. The $113 total (and the $85 alternate for licenses expired more than two years with no unlicensed practice) comes directly from DOPL's own reinstatement application document, which is the fee's actual source of truth under this system. Because DOPL can revise that application without a rule filing, confirm the figure on the current application before paying.",
+      "is_block_claim": false
+    },
+    {
+      "dataset": "renewal_fees.json",
+      "id": "colorado-renewal-fee",
+      "state": "Colorado",
+      "state_slug": "colorado",
+      "field": "data_gap_note",
+      "note": "The $66 figure above is confirmed by the Board directly for the individual CPA renewal only (the biennial cycle ending November 30, 2027). Colorado firm registrations renew on a separate triennial cycle (next due August 31, 2026) and the Board's reply did not address the firm fee -- it may or may not match the individual figure. We have asked the Board to confirm the firm figure on the same correspondence thread; this note will be updated once they answer.",
       "is_block_claim": false
     },
     {
