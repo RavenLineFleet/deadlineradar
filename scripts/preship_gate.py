@@ -642,56 +642,105 @@ def check_worker_error_strings_no_api_internals(repo_root: Path) -> list[str]:
 # (2026-09-09) are the same class of defect three times over: a secret-file
 # path constant joined straight off REPO_ROOT with no escaping `.parent`,
 # landing inside this PUBLIC repo where the next `git add -A` ships it. Each
-# occurrence was caught by a human reader, never by a check. Matches a
-# variable name containing KEY/SECRET/TOKEN/CRED whose value is REPO_ROOT
-# with zero .parent hops before the first path segment. Scope, stated
-# honestly: only catches THIS shape (the
-# one all three real occurrences used) -- a secret path built a different
-# way (a fresh Path(__file__) chain with no REPO_ROOT variable, or an
-# f-string) would not be caught. Deliberately requires KEY/SECRET/TOKEN/CRED
-# in the name, not a bare _PATH -- an early draft matched any *_PATH
-# constant and flagged scripts/es_translation_review.py's I18N_PATH (an
-# ordinary tracked source file, not a secret) as a false positive. Narrow
-# and precise beats broad and blind here; widen it if a fourth occurrence
-# uses a different shape.
+# occurrence was caught by a human reader, never by a check.
+#
+# 2026-09-09 (SEC-6, same day): the first version of this check (name-gated
+# on KEY/SECRET/TOKEN/CRED, counting literal ".parent" tokens on the secret
+# line only) had 3 fixture-proven bypasses: (1) it trusted REPO_ROOT to
+# always equal the true repo root and only counted .parent hops on the
+# SECRET line itself, so a file nested one directory deeper than
+# scripts/*.py or reminders/*.py could define its own REPO_ROOT one hop
+# short and still resolve inside the repo undetected; (2) it only walked
+# scripts/ and reminders/, missing generate.py/i18n.py/social/*.py entirely;
+# (3) the KEY|SECRET|TOKEN|CRED name gate meant a variable named
+# SENDGRID_PATH -- SEC-5's own real shape, renamed -- would never match.
+# Rewritten to close all three: match on the RHS shape regardless of
+# variable name, filter to dotfile/secret-extension literals instead (drops
+# the name allowlist without reintroducing the I18N_PATH false positive,
+# since an ordinary tracked source file is never a dotfile or a
+# .key/.token/.env/.pem/.p12/.cred), actually RESOLVE the path against the
+# file's own real filesystem location (not a token count) and test true
+# containment, and walk `git ls-files '*.py'` instead of two hardcoded
+# directories so a new script can't quietly sit outside the swept set.
 _SECRET_PATH_ASSIGN_RE = re.compile(
-    r"^[ \t]*([A-Z_]*(?:KEY|SECRET|TOKEN|CRED)[A-Z_]*)\s*=\s*"
+    r"^[ \t]*(\w+)\s*=\s*"
     r"REPO_ROOT((?:\s*\.\s*parent)*)\s*/\s*(.+?)\s*(?:#.*)?$",
     re.MULTILINE,
 )
+_REPO_ROOT_DEF_RE = re.compile(
+    r"\bREPO_ROOT\s*=\s*(?:pathlib\s*\.\s*)?Path\(\s*__file__\s*\)"
+    r"(?:\s*\.\s*resolve\(\s*\))?((?:\s*\.\s*parent)*)"
+)
 _QUOTED_PATH_SEGMENT_RE = re.compile(r"""["']([^"']+)["']""")
+_SECRET_EXTENSIONS = {".key", ".token", ".env", ".pem", ".p12", ".cred"}
+
+
+def _looks_secret(segments: list[str]) -> bool:
+    return any(
+        seg.startswith(".") or Path(seg).suffix.lower() in _SECRET_EXTENSIONS
+        for seg in segments
+    )
 
 
 def check_no_secret_paths_resolve_inside_repo(repo_root: Path) -> list[str]:
     errors = []
     git = shutil.which("git")
-    for subdir_name in ("scripts", "reminders"):
-        base_dir = repo_root / subdir_name
-        if not base_dir.exists():
+    if not git:
+        return [f"[ERR] git not found on PATH -- cannot enumerate tracked .py files for the secret-path check."]
+    result = subprocess.run(
+        [git, "ls-files", "*.py"], cwd=repo_root, capture_output=True, text=True,
+    )
+    tracked = [repo_root / line for line in result.stdout.splitlines() if line.strip()]
+    for path in sorted(tracked):
+        if not path.exists():
             continue
-        for path in sorted(base_dir.rglob("*.py")):
-            source = path.read_text(encoding="utf-8")
-            for m in _SECRET_PATH_ASSIGN_RE.finditer(source):
-                var_name, parent_hops, rest = m.groups()
-                if parent_hops.strip():
-                    continue  # escapes REPO_ROOT via >=1 .parent -- outside the repo, fine
-                line_no = source.count("\n", 0, m.start()) + 1
-                segments = _QUOTED_PATH_SEGMENT_RE.findall(rest)
-                rel_path = "/".join(segments) if segments else None
-                ignored = False
-                if rel_path and git:
-                    result = subprocess.run([git, "check-ignore", "-q", rel_path], cwd=repo_root)
-                    ignored = result.returncode == 0
-                if ignored:
-                    continue
-                where = f"resolves to {rel_path!r}" if rel_path else "resolves to a non-literal path (could not check .gitignore)"
+        source = path.read_text(encoding="utf-8")
+        root_def = _REPO_ROOT_DEF_RE.search(source)
+        for m in _SECRET_PATH_ASSIGN_RE.finditer(source):
+            var_name, parent_hops, rest = m.groups()
+            segments = _QUOTED_PATH_SEGMENT_RE.findall(rest)
+            if not _looks_secret(segments):
+                continue  # not a dotfile / secret-extension literal -- not this class
+            line_no = source.count("\n", 0, m.start()) + 1
+            rel_path = "/".join(segments) if segments else None
+            if root_def is None:
+                # REPO_ROOT is used but never defined via the standard
+                # Path(__file__)...parent chain in this file (imported from
+                # elsewhere, or a different construction) -- can't resolve
+                # it against the real filesystem, so flag for a human
+                # rather than silently pass.
                 errors.append(
-                    f"[ERR][{path}:{line_no}] {var_name} is built by joining REPO_ROOT "
-                    f"directly (no .parent) -- {where}, INSIDE this public repo, and no "
-                    f".gitignore rule covers it. Escape it with REPO_ROOT.parent.parent "
-                    f"(the correct convention -- see reminders/run_live_selftest.py's own "
-                    f"KEY_PATH) or add a .gitignore rule for it. Same class as REPO-1/SEC-4/SEC-5."
+                    f"[ERR][{path}:{line_no}] {var_name} is built from REPO_ROOT / "
+                    f"{rel_path!r} (looks like a secret path), but this file never "
+                    f"defines REPO_ROOT via the standard "
+                    f"'Path(__file__).resolve().parent.parent' shape -- cannot verify "
+                    f"where it resolves. Verify manually, or define REPO_ROOT locally "
+                    f"so this check can."
                 )
+                continue
+            total_hops = root_def.group(1).count("parent") + parent_hops.count("parent")
+            file_abs = path.resolve()
+            parents = file_abs.parents
+            resolved_root = parents[total_hops - 1] if total_hops >= 1 else file_abs
+            resolved = (resolved_root / "/".join(segments)) if segments else resolved_root
+            resolved = resolved.resolve() if resolved.exists() else Path(str(resolved))
+            repo_root_resolved = repo_root.resolve()
+            inside_repo = repo_root_resolved == resolved or repo_root_resolved in resolved.parents
+            if not inside_repo:
+                continue  # genuinely escapes the repo -- fine
+            ignored = False
+            if rel_path and git:
+                check = subprocess.run([git, "check-ignore", "-q", rel_path], cwd=repo_root)
+                ignored = check.returncode == 0
+            if ignored:
+                continue
+            errors.append(
+                f"[ERR][{path}:{line_no}] {var_name} resolves to {resolved} -- INSIDE "
+                f"this public repo (repo root {repo_root_resolved}), and no .gitignore "
+                f"rule covers {rel_path!r}. Escape it with enough .parent hops to clear "
+                f"the repo root (see reminders/run_live_selftest.py's own KEY_PATH) or "
+                f"add a .gitignore rule for it. Same class as REPO-1/SEC-4/SEC-5."
+            )
     return errors
 
 
