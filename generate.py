@@ -23590,6 +23590,59 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: South Carolina CPAs and firms both renew on <strong>February 1</strong>, every year, with a hard lapse at February 15 &mdash; confirmed by both the Board's FAQ and the definitions built into &sect; 40-2-20 of the Code. Get your 40 CPE hours (2 ethics) done in the calendar year before you renew &mdash; the requirement is written into the licensing statute itself. And if you do lapse, know the number going in: $595 to reinstate, plus CPE that scales sharply once you cross the three-year mark. <a href="../../south-carolina/">Set a reminder for your South Carolina deadline here</a> so the annual clock works for you instead of resetting against you.</p>
 """,
     },
+    {
+        # 2026-09-09: standing weekly post. Topic picked from a live GSC pull
+        # (see round-1 draft memo) -- highest combined real-demand signal of
+        # any uncovered state, and timed to the 2026-09-08 board confirmation
+        # that resolved tn-all's firm-permit annual-vs-biennial question.
+        # Repackages tn-all (data/cpa_deadlines.json), tn-cpe
+        # (data/cpe_hours.json), tennessee-reinstatement
+        # (data/reinstatement.json) and tennessee-renewal-fee
+        # (data/renewal_fees.json, updated 2026-09-09 by FEE-1 to disclose
+        # the separate firm fee); no live re-fetch this pass -- all four
+        # records verified 2026-08-14 through 2026-09-08/09, no open
+        # data_gap_note. Round 3 per AuditLab review: round 1 fixed the
+        # omitted firm fee, an overclaimed "Board confirmed no other page"
+        # line, an over-budget rendered <title>, and dropped the
+        # coordinator's name; round 2 fixed a residual overclaim in
+        # meta_description that attributed all three facts to the Board when
+        # only the firm-annual cycle was actually board-confirmed.
+        "slug": "tennessee-cpa-license-renewal-guide",
+        "published": "2026-09-09",  # first-introduction commit date, from git history
+        "title": "Tennessee CPA Renewal: Two Clocks on One Page, Confirmed by the Board",
+        "seo_title": "Tennessee CPA Renewal: Two Clocks",
+        "meta_description": (
+            "Tennessee CPA renewal runs two clocks: individuals biennial (odd/even), firms annual at $50/year. The firm cycle is confirmed directly by the Board."
+        ),
+        "body_html": """
+<p class="intro">Tennessee runs two different renewal clocks under one roof -- and the Board's own renewal page describes them in a way that makes it easy to think there's only one. We asked the Board directly which clock actually applies to firm permits, and got a clear, on-the-record answer. Here's exactly how individual and firm renewal work in Tennessee, sourced to the Tennessee Code, the Board's own rules, and that direct confirmation.</p>
+
+<h2>Two clocks: individual certificates run biennial, firm permits run annual</h2>
+<p>Individual CPA certificates and PA registrations renew every <strong>two years</strong>, assigned to an odd- or even-year cohort by your own license number -- if your license number is odd, you renew in odd-numbered years, and the same for even. This is codified directly: Tenn. Code Ann. &sect; 62-1-107(b) authorizes "procedures for odd-numbered certificates and registrations to be renewed... on odd-numbered years and even-numbered certificates and registrations to be renewed... on even-numbered years."</p>
+<p>Firm permits run on a completely separate clock: <strong>every single year</strong>, always expiring <strong>December 31</strong> -- regardless of what cohort year your own individual certificate falls in. That's set by Tenn. Comp. R. & Regs. 0020-01-.11(2), and we confirmed it directly with the Board rather than relying on the rule text alone: the Board's own Licensing Coordinator told us plainly, "Firm permits expire annually on December 31. There should be no conflicting guidance on official TN websites."</p>
+<p><a href="../../tennessee/">Confirm your own next Tennessee renewal deadline here</a> -- individual and firm renewals are tracked separately, since they run on genuinely different cycles.</p>
+
+<h2>Why the Board's own page can read like one shared cycle</h2>
+<p>If you've read Tennessee's renewal-requirements page and come away thinking firm permits follow the same two-year cycle as individual licenses, you're not misreading it by accident. The page's "[Year] Renewal Requirements" heading states: "Renewal applications for CPA/PA licenses and firm permits with an expiration date of December 31, [year] are available beginning November 2, [year]." Read at a glance, that sentence's modifying clause -- "with an expiration date of December 31, [year]" -- appears to describe both license types sharing one dated expiration in the same year.</p>
+<p>It doesn't -- the rule itself is unambiguous even if the page's phrasing isn't. We asked the Board's Licensing Coordinator directly, and got a clear answer: firm permits expire annually on December 31, full stop, and there should be no conflicting guidance anywhere on the Board's official site. They also asked us to point them at anything that reads otherwise so they could get it corrected -- so we did, flagging this exact page and sentence. Until any wording change goes up, know that the sentence above is only describing whichever individuals happen to fall in that year's odd/even cohort <em>and</em> firm permits, which land on December 31 every year without exception -- two groups that share a date in some years by coincidence of the cohort cycle, not because they run on the same schedule.</p>
+<p>One more distinction worth knowing: a license that's 1 day to 6 months past its expiration date is "delinquent" (a $100 late fee applies, per 0020-01-.08(6)) -- it isn't dead yet. Only past the 6-month mark does a license become "expired" and require full reinstatement (0020-01-.08(7)), covered below.</p>
+
+<h2>CPE: 80 hours every 2 years, with a Tennessee-specific ethics course</h2>
+<p>Tennessee requires <strong>80 hours</strong> of CPE per 2-year period immediately preceding renewal, with a minimum of <strong>20 hours completed each year</strong> -- so you can't bank all 80 in a single year and coast the next. Of those 80 hours, at least <strong>40 must be in technical subjects</strong>, and you need a <strong>board-approved 2-hour Tennessee-specific ethics course</strong> -- not just any generic ethics CPE. All four figures are set directly in Tenn. Comp. R. & Regs. 0020-05-.03(1).</p>
+<p><a href="../../tennessee-cpa-cpe-requirements/">See the full Tennessee CPE breakdown here</a>.</p>
+
+<h2>The renewal fee: two different numbers for two different clocks</h2>
+<p>Individuals pay a flat <strong>$110</strong> every two years, set at Tenn. Comp. R. & Regs. 0020-01-.04(1)(c) -- described in the rule text itself as "biennially," matching the individual certificate cycle above. Firms pay something else entirely: a flat <strong>$50 every single year</strong>, set two lines below at 0020-01-.04(1)(e) ("Renewal of firm permit... Fifty dollars ($50.00)"). If you're renewing a firm permit, $110 biennially isn't your number at all -- budget $50 annually instead.</p>
+<p>Either way, renew between 31 days and 6 months late, and a <strong>$100 late fee</strong> applies on top of whichever renewal fee is yours (0020-01-.04(1)(f) and .08(6)) -- but note that fee only attaches starting at day 31 of delinquency, not from the first day you're late.</p>
+
+<h2>If a license fully expires: what reinstatement costs</h2>
+<p>Cross the 6-month delinquent window and a license is "deemed to have expired," which triggers full reinstatement rather than a simple late renewal. Tennessee sets this at a flat <strong>$250 reinstatement application fee</strong>, codified at 0020-01-.04(1)(g) -- "Fee for application for reinstatement Two hundred and fifty dollars ($250.00)."</p>
+<p>The CPE side is steeper than a normal renewal: <strong>80 "penalty hours"</strong> in technical fields of study, including <strong>2 ethics hours</strong>, and all of it has to be earned in the <strong>6 months immediately preceding</strong> the reinstatement application -- per 0020-05-.03(6). These hours are explicitly labeled penalty hours and can't be recycled toward your next normal renewal cycle's CPE; it's a dedicated 80-hour catch-up on top of whatever you'll owe going forward.</p>
+<p><a href="../../tennessee-cpa-license-reinstatement/">Walk through the full Tennessee reinstatement math here</a>.</p>
+
+<p><strong>Bottom line</strong>: know which clock applies to you. Individual certificates and PA registrations renew every two years on an odd/even cohort tied to your license number, for $110; firm permits renew every single year on December 31 for $50, confirmed directly by the Board despite renewal-page wording that can read otherwise. Either way, budget 80 CPE hours per 2-year period (20 minimum each year, 2 of them a Tennessee-specific ethics course), and if a license does lapse past 6 months, plan on $250 plus 80 penalty hours earned in the 6 months before you reapply. <a href="../../tennessee/">Set a reminder for your own Tennessee deadline here</a> so you're never the one re-reading that renewal page trying to figure out which clock you're on.</p>
+""",
+    },
 ]
 
 
