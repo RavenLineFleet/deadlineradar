@@ -13477,16 +13477,19 @@ function drRenderProductTourStep() {
   // drSwitchView with a view that matches no panel hides every one of them.
   if (!step.skipViewSwitch) drSwitchView(step.view);
   drSetProductTourTarget(step);
-  // Unlike the sidebar nav (always on-screen, sticky), an in-view target
-  // like #dr-csv-import can sit well below the fold -- scroll it into view
-  // first so drPositionProductTour's getBoundingClientRect() reflects where
-  // it will actually be, not wherever it happened to be before this step's
-  // view switch. Instant (not smooth) so the very next position read is
-  // already correct rather than racing an in-flight scroll animation.
-  if (step.target) {
-    var scrollTargetEl = document.querySelector(step.target);
-    if (scrollTargetEl) scrollTargetEl.scrollIntoView({block: 'center', behavior: 'auto'});
-  }
+  // AuditLab MOB-10 (2026-09-09): .dr-sidebar is only sticky above the
+  // 860px breakpoint (see its own @media rule) -- at mobile widths it's
+  // `position: static` and sits at document top, so a step with no
+  // explicit `target` (falling back to the sidebar nav item) needs
+  // scrolling into view exactly like an explicit-target step does. Always
+  // resolve the real target via drProductTourTargetEl() rather than gating
+  // on step.target, so drPositionProductTour's getBoundingClientRect()
+  // below reflects where the target actually ends up, not wherever it
+  // happened to be before this step's view switch. Instant (not smooth) so
+  // the very next position read is already correct rather than racing an
+  // in-flight scroll animation.
+  var scrollTargetEl = drProductTourTargetEl(step);
+  if (scrollTargetEl) scrollTargetEl.scrollIntoView({block: 'center', behavior: 'auto'});
   drPositionProductTour();
   // AuditLab A11Y-15: must run AFTER drSwitchView above, not before --
   // drSwitchView moves focus to the newly active view panel itself (see

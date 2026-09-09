@@ -11,6 +11,8 @@
  */
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { resolvedNextDeadlineComputed, type CpaRecord } from "../src/deadline";
+import cpaDeadlinesData from "../src/cpa_deadlines.json";
 
 const BASE = "https://deadline-radar.com";
 
@@ -59,6 +61,35 @@ describe("GET /assistant/deadline", () => {
   it("404s a real state with no record for the requested license_type", async () => {
     const resp = await getAssistant("/api/assistant/deadline?state=texas&license_type=firm");
     expect(resp.status).toBe(404);
+  });
+
+  // AuditLab DATE-7 (2026-09-09): this endpoint read next_deadline_computed
+  // raw, so co-firm (elapsed 2026-08-31) served a stale date while every
+  // other surface (the static site, the ICS feed) already rolled it
+  // forward to 2029-08-31. id-firm/me-all arm the same bug on 2026-10-01.
+  // Asserts all three roll-forward records agree with resolvedNextDeadlineComputed()
+  // -- the same function the static site build and ICS feed already go through.
+  it("rolls forward next_deadline_computed for every roll-forward-eligible record (DATE-7 regression)", async () => {
+    const asOf = new Date();
+    const rollForwardIds = ["co-firm", "id-firm", "me-all"];
+    const records = (cpaDeadlinesData.records as unknown as CpaRecord[]).filter((r) =>
+      rollForwardIds.includes(r.id)
+    );
+    expect(records).toHaveLength(rollForwardIds.length);
+    for (const record of records) {
+      const expected = resolvedNextDeadlineComputed(record, asOf);
+      expect(expected).not.toBeNull();
+      const resp = await getAssistant(
+        `/api/assistant/deadline?state=${record.state_slug}&license_type=${record.license_type}`
+      );
+      expect(resp.status).toBe(200);
+      const body = (await resp.json()) as { records: { next_deadline_computed: string | null }[] };
+      expect(body.records[0]?.next_deadline_computed).toBe(expected);
+      // Never serve a next_deadline_computed strictly before today.
+      const todayUtc = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());
+      const servedDate = new Date(`${body.records[0]?.next_deadline_computed}T00:00:00Z`).getTime();
+      expect(servedDate).toBeGreaterThanOrEqual(todayUtc);
+    }
   });
 });
 

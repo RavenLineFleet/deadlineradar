@@ -5724,7 +5724,7 @@ function handleAssistantDeadline(url: URL): Response {
   const stateResult = assistantStateSlugOrError(url);
   if (stateResult instanceof Response) return stateResult;
   const licenseType = url.searchParams.get("license_type") ?? undefined;
-  const results = lookupAssistantDeadlines(stateResult.slug, licenseType);
+  const results = lookupAssistantDeadlines(stateResult.slug, licenseType, new Date());
   if (results.length === 0) {
     return jsonResponse(404, { error: "No matching license-type record for that state." });
   }
