@@ -314,7 +314,7 @@
       "state": "Nevada",
       "state_slug": "nevada",
       "field": "data_gap_note",
-      "note": "The $175 figure isn't codified -- NAC 628.016(3)(g) only caps whatever the Board sets at \"will not exceed $200\" a year, and NRS 628.380 delegates the actual amount to the Board. It's confirmed instead on the Nevada State Board of Accountancy's own official renewal page (nvaccountancy.com, which redirects to the Board's licensing portal): \"the renewal fee will be $175\" whether you submit online or by mail, with a $150 late fee if you miss the January 31 deadline. Because the amount is board-set rather than fixed in the statute or rule, it can change year to year without a rule filing -- confirm the current figure with the Board before you renew.",
+      "note": "Nevada's firm registration/annual-report fee amount (NAC 628.180/628.190, due January 31 alongside the individual renewal) is not published on any official page we could locate -- the individual $175 figure came from the Board's login-gated renewal.aspx portal, but no equivalent firm-specific renewal page was found. A pending proposed regulation (Nevada LCB file R054-25) would cap the firm annual-report fee at $200 (and a separate late-filing fee at $200), but that proposal is not yet adopted -- the currently effective rule (NAC 628.190) sets no cap at all, just \"the prescribed renewal fee.\" Confirm the current firm figure directly with the Board before budgeting for a firm renewal.",
       "is_block_claim": false
     },
     {

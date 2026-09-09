@@ -1812,6 +1812,17 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
     Promoted to a hard gate the same day once that sweep shipped clean --
     same enforcement level as check_fee_basis_supported() above, so a
     future record can't reintroduce this shape unnoticed.
+
+    FEE-6/GATE-24 (AuditLab, 2026-09-09): the original substring test
+    (`"firm" not in notes`) is satisfied by the substring "firm" inside
+    "con**firm**ed" -- this dataset's dominant sourcing verb, appearing in
+    11 of 55 renewal-fee records at the time this was found and growing
+    with every board-confirmation closure (ga-cpe, tn-all, colorado). Two
+    real disclosure gaps (nebraska-renewal-fee, nevada-renewal-fee) shipped
+    through the hard gate with zero errors because both records happen to
+    say "confirmed" without ever disclosing a firm figure. Fixed to a
+    word-boundary match so "confirmed"/"affirm"/"firms" can't satisfy it
+    the way a real "firm" mention should.
     """
     errors = []
     cpa_path = repo_root / "data" / "cpa_deadlines.json"
@@ -1822,13 +1833,14 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
     fees_data = json.loads(fees_path.read_text(encoding="utf-8"))
     firm_states = sorted({r["state_slug"] for r in cpa_data["records"] if r.get("license_type") == "firm"})
     fee_by_state = {r["state_slug"]: r for r in fees_data["records"]}
+    firm_word_re = re.compile(r"\bfirms?\b", re.IGNORECASE)
     for slug in firm_states:
         r = fee_by_state.get(slug)
         if r is None:
             continue  # no renewal-fee record for this state at all -- a different gap, not this one
-        notes = (r.get("fee_notes") or "").lower()
-        gap = (r.get("data_gap_note") or "").lower()
-        if "firm" not in notes and "firm" not in gap:
+        notes = r.get("fee_notes") or ""
+        gap = r.get("data_gap_note") or ""
+        if not firm_word_re.search(notes) and not firm_word_re.search(gap):
             errors.append(
                 f"[FEEDISCLOSURE][{r.get('id')}] state has a distinct firm license "
                 f"(cpa_deadlines.json license_type='firm') but neither fee_notes nor "
