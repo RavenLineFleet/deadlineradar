@@ -657,14 +657,14 @@
       "state": "Tennessee",
       "state_slug": "tennessee",
       "fee_usd": 110,
-      "fee_notes": "Flat $110 renewal fee (active status); $100 late fee if delinquent.",
+      "fee_notes": "Flat $110 renewal fee for individual CPAs, biennially (firm permit renewal is separately $50/year); $100 late fee if delinquent.",
       "source_url": "https://www.tn.gov/commerce/regboards/accountancy/license/renewal-requirements.html",
       "confidence": "high",
       "verified_date": "2026-08-14",
       "citation_url": "https://publications.tnsosfiles.com/rules/0020/0020-01.20240528.pdf",
-      "citation": "Tenn. Comp. R. & Regs. 0020-01-.04(1)(c) (renewal fee) and 0020-01-.08(6) (late fee)",
+      "citation": "Tenn. Comp. R. & Regs. 0020-01-.04(1)(c) (individual renewal fee), 0020-01-.04(1)(e) (firm permit renewal fee), and 0020-01-.08(6) (late fee)",
       "fee_basis": "codified",
-      "verification_history": "2026-08-14 (SRC-6 primary-citation sweep): citation_url set to https://publications.tnsosfiles.com/rules/0020/0020-01.20240528.pdf. The amount is codified in the rule/statute text cited here. Agent evidence: Rule 0020-01-.04(1)(c): 'Renewal of certificate or registration One hundred ten dollars ($110.00) biennially' -- the $110 is codified in the rule text (authority T.C.A. 62-1-105, 62-1-107). Late fee confirmed at .04(1)(f) and .08(6): licenses 'renewed between thirty-one (31) days and six (6) months following their expiration date will be assessed a late fee in the amount of one-hundred dollars ($100.00)' -- nuance: the $100 attaches only when renewing 31 days to 6 months late, not from day one of delinquency."
+      "verification_history": "2026-08-14 (SRC-6 primary-citation sweep): citation_url set to https://publications.tnsosfiles.com/rules/0020/0020-01.20240528.pdf. The amount is codified in the rule/statute text cited here. Agent evidence: Rule 0020-01-.04(1)(c): 'Renewal of certificate or registration One hundred ten dollars ($110.00) biennially' -- the $110 is codified in the rule text (authority T.C.A. 62-1-105, 62-1-107). Late fee confirmed at .04(1)(f) and .08(6): licenses 'renewed between thirty-one (31) days and six (6) months following their expiration date will be assessed a late fee in the amount of one-hundred dollars ($100.00)' -- nuance: the $100 attaches only when renewing 31 days to 6 months late, not from day one of delinquency.\n\n2026-09-09 (FEE-1, AuditLab): re-fetched the same rule PDF (browser UA; default curl 403s) and confirmed 0020-01-.04(1)(e) sets a SEPARATE firm permit renewal fee of $50.00 PER YEAR, two lines below the (c) this record already cited -- the prior fee_notes stated the $110/biennial figure with no individual/firm qualifier, which a firm reader would have read as their own cost. Added the qualifier, matching the alabama-renewal-fee/maryland-renewal-fee/utah-renewal-fee convention already used elsewhere in this dataset. No change to the $110/biennial individual figure itself (still correct) or the $100 late fee."
     },
     {
       "id": "texas-renewal-fee",
