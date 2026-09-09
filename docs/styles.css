@@ -724,8 +724,13 @@
   }
   .map-state--fixed { fill: var(--map-fixed); }
   .map-link { cursor: pointer; outline: none; }
-  .map-link:hover .map-state, .map-link:focus .map-state--variable { fill: var(--map-variable-hover); }
-  .map-link:hover .map-state--fixed, .map-link:focus .map-state--fixed { fill: var(--map-fixed-hover); }
+  .map-link:hover .map-state { fill: var(--map-variable-hover); }
+  .map-link:hover .map-state--fixed { fill: var(--map-fixed-hover); }
+  
+  .map-link:focus-visible .map-state {
+    stroke: #ffffff; stroke-width: 2;
+    filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
+  }
   .map-side {
     border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem;
     background: var(--card-bg); font-size: 0.85rem;
@@ -788,7 +793,8 @@
     border: 1px solid var(--border-strong); background: var(--card-bg);
   }
   .state-search-field { position: relative; flex: 1 1 auto; }
-  .state-search-field:focus-within { box-shadow: 0 0 0 3px rgba(31,61,84,.14); }
+  
+  .state-search-field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
   .state-search-field input {
     width: 100%; padding: 0.85rem 1rem; border: 0; background: transparent; color: var(--fg);
     font-size: 1rem; font-family: inherit; border-radius: 9px 0 0 9px;

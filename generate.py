@@ -1562,8 +1562,24 @@ PAGE_CSS = """
   }
   .map-state--fixed { fill: var(--map-fixed); }
   .map-link { cursor: pointer; outline: none; }
-  .map-link:hover .map-state, .map-link:focus .map-state--variable { fill: var(--map-variable-hover); }
-  .map-link:hover .map-state--fixed, .map-link:focus .map-state--fixed { fill: var(--map-fixed-hover); }
+  .map-link:hover .map-state { fill: var(--map-variable-hover); }
+  .map-link:hover .map-state--fixed { fill: var(--map-fixed-hover); }
+  /* A11Y-17 (AuditLab, 2026-09-09, WCAG 2.4.11): keyboard focus used to
+     swap fill the same way :hover does -- for the 21 variable-cycle
+     states that only ever reaches 2.47:1 (light) / 2.17:1 (dark) against
+     the unfocused fill, both under the 3:1 AA floor. The dashboard map's
+     .dr-map-link already solved the identical problem (A11Y-8/A11Y-9,
+     2026-08-20) with a white-stroke-plus-black-halo overlay that clears
+     3:1 against any fill without needing per-colour tuning -- copied
+     verbatim rather than re-deriving a fill-based fix that would just
+     reproduce the same contrast ceiling for a different colour pair.
+     :focus-visible (not :focus) so a mouse click doesn't show it, only
+     keyboard/programmatic focus -- the :hover rules above still fire on
+     click as before. */
+  .map-link:focus-visible .map-state {
+    stroke: #ffffff; stroke-width: 2;
+    filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
+  }
   .map-side {
     border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem;
     background: var(--card-bg); font-size: 0.85rem;
@@ -1629,7 +1645,15 @@ PAGE_CSS = """
     border: 1px solid var(--border-strong); background: var(--card-bg);
   }
   .state-search-field { position: relative; flex: 1 1 auto; }
-  .state-search-field:focus-within { box-shadow: 0 0 0 3px rgba(31,61,84,.14); }
+  /* A11Y-17 (AuditLab, 2026-09-09, WCAG 2.4.11): the old rgba(31,61,84,.14)
+     ring was a hardcoded light-theme colour at low alpha -- 1.28:1 against
+     white/#f7f7f5, both well under the 3:1 AA floor, and never adapted for
+     dark theme either since it wasn't a custom property. A solid outline at
+     full var(--accent) clears >10:1 in light and >6:1 in dark (that
+     variable already flips per theme), on the primary call-to-action across
+     all 57 pages that carry this field.
+  */
+  .state-search-field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
   .state-search-field input {
     width: 100%; padding: 0.85rem 1rem; border: 0; background: transparent; color: var(--fg);
     font-size: 1rem; font-family: inherit; border-radius: 9px 0 0 9px;
