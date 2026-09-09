@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 40,
+  "gap_record_count": 38,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 36
+    "data_gap_note": 34
   },
   "block_claim_count": 0,
   "entries": [
@@ -89,7 +89,7 @@
       "state": "Iowa",
       "state_slug": "iowa",
       "field": "verification_note",
-      "note": "2026-07-16 follow-up (per orchestrator instruction not to spin further, just keep this honest): tried one more avenue -- the aggregate Iowa Administrative Bulletin for 6/10/2026 (legis.iowa.gov/docs/aco/bulletin/06-10-2026.pdf) does exist and is reachable (corrects the prior note's 'not in the regular IAB bulletin index' -- it is indexed, at that exact date), but the PDF itself is image-based/encrypted (pdftotext: \"Unknown filter 'Crypt'\"; WebFetch independently confirmed the same -- \"a heavily compressed JPEG image embedded within a PDF structure\") and not text-extractable by either method, so ARC 1582Z's entry within it could not be read. Combined with the filing detail page (rules.iowa.gov/Notice/Details/1582Z) itself having no subject/summary/effective-date populated, this remains a genuinely unresolved lead, not a dead one -- three independent access methods now tried. June 30 is very likely still correct (rule text independently confirmed current against ARC 7681C, eff. 4/10/24, which verbatim-supports June 30) but this record should not be treated as fully current until 1582Z's content is confirmed by a human opening the filing directly or contacting Iowa LSA/the Board. 2026-07-13 audit (original): first surfaced this gap. || 2026-08-14 renumbering fix: All Iowa Admin. Code 193A accountancy chapters were editorially transferred to Inspections and Appeals [481] chapters 1021-1040 by IAC Supplement 2026-06-10 (2023 Iowa Acts SF 514); the old 193A chapter PDFs are now transfer-notice stubs. Old citation 193A-5.3(1) is now 481-1025.3(1) -- the full Chapter 1025 PDF was fetched and the operative sentence ('Licenses expire on June 30 of each year', 1025.3(1)) plus the 30-day grace/lapse rule (1025.4(2)) confirmed verbatim, chapter header itself records 'Prior to 6/10/26, see Accountancy Examining Board[193A] Ch 5'.",
+      "note": "2026-07-16 follow-up (per orchestrator instruction not to spin further, just keep this honest): tried one more avenue -- the aggregate Iowa Administrative Bulletin for 6/10/2026 (legis.iowa.gov/docs/aco/bulletin/06-10-2026.pdf) does exist and is reachable (corrects the prior note's 'not in the regular IAB bulletin index' -- it is indexed, at that exact date), but the PDF itself is image-based/encrypted (pdftotext: \"Unknown filter 'Crypt'\"; WebFetch independently confirmed the same -- \"a heavily compressed JPEG image embedded within a PDF structure\") and not text-extractable by either method, so ARC 1582Z's entry within it could not be read. Combined with the filing detail page (rules.iowa.gov/Notice/Details/1582Z) itself having no subject/summary/effective-date populated, this remains a genuinely unresolved lead, not a dead one -- three independent access methods now tried. June 30 is very likely still correct (rule text independently confirmed current against ARC 7681C, eff. 4/10/24, which verbatim-supports June 30) but this record should not be treated as fully current until 1582Z's content is confirmed by a human opening the filing directly or contacting Iowa LSA/the Board. 2026-07-13 audit (original): first surfaced this gap. || 2026-08-14 renumbering fix: All Iowa Admin. Code 193A accountancy chapters were editorially transferred to Inspections and Appeals [481] chapters 1021-1040 by IAC Supplement 2026-06-10 (2023 Iowa Acts SF 514); the old 193A chapter PDFs are now transfer-notice stubs. Old citation 193A-5.3(1) is now 481-1025.3(1) -- the full Chapter 1025 PDF was fetched and the operative sentence ('Licenses expire on June 30 of each year', 1025.3(1)) plus the 30-day grace/lapse rule (1025.4(2)) confirmed verbatim, chapter header itself records 'Prior to 6/10/26, see Accountancy Examining Board[193A] Ch 5'. || 2026-09-09 (gap-closure research, new avenue -- the individual ARC 1582Z filing PDF, distinct from the aggregate IAB bulletin already tried 2026-07-16): the notice page (rules.iowa.gov/Notice/Details/1582Z, re-read in full) links a second, previously-untried document via its 'View Official PDF' button -- legis.iowa.gov/docs/aco/arc/1582Z.pdf, the individual per-filing PDF as opposed to the aggregate bulletin. That URL fails outright rather than returning an unreadable file: curl with a Chrome UA returns 'Empty reply from server' (exit 52), WebFetch returns 'socket hang up', a live Chrome browser tab shows an in-browser network error page on direct navigation, a Google Docs-viewer wrap returns 'No preview available' (Google's own server-side fetch of the URL also failed), and the Wayback Machine's crawl calendar for this exact URL reports it 'is unavailable for archiving, because: server does not respond' -- i.e. even Internet Archive's crawler, not subject to ordinary bot-fingerprint filtering, cannot reach it either. This rules out simple bot-detection as the cause and indicates the resource is currently down/missing at the source, not merely hard to parse (unlike the bulletin PDF, which loads but is image-based/encrypted). The notice page itself discloses no additional substantive fields on this pass either -- filing status 'Filed Without Notice', published 6/10/2026, no subject/summary text rendered anywhere. This exhausts the last named untried avenue for reading ARC 1582Z directly (now 5 access methods tried across the 2 known document URLs, all unsuccessful). Practical effect on this record's accuracy: nil -- the live, current 481-1025.3(1) chapter text (not just the pre-renumbering predecessor) has independently been fetched and read verbatim three times since the original gap was raised (2026-07-16, 2026-08-14, 2026-09-01), each time confirming 'Licenses expire on June 30 of each year' unchanged, so 2027-06-30 stands on strong footing regardless of 1582Z. The note is retained only because the ARC 1582Z filing's own text remains unread and, per this pass, has not been read successfully by any of the 5 methods tried to date; if this gap is revisited, a human contacting Iowa LSA/the Board directly remains the only path left untried.",
       "is_block_claim": false
     },
     {
@@ -153,15 +153,6 @@
       "state_slug": "south-dakota",
       "field": "data_gap_note",
       "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- it is not stated in the statute or anywhere in the administrative rule chapter governing continuing education (ARSD 20:75:04). That chapter's only annual-hour schedules apply to certificate holders phasing in during their first three-year cycle (20:75:04:07) or returning after a lapsed certificate (20:75:04:08), not to ordinary ongoing renewal. It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "reinstatement.json",
-      "id": "alabama-reinstatement",
-      "state": "Alabama",
-      "state_slug": "alabama",
-      "field": "data_gap_note",
-      "note": "Heads-up: Act 2026-16 (the \"Pathways to CPA Act\") amends Code of Ala. 1975 §34-1-11 effective October 1, 2026. The reinstatement fee cap, the per-lapsed-year back-fees and CPE catch-up, and the September 30 expiration / December 31 renewal-filing dates on this page carry over unchanged -- the amendment's changes to this subsection are stylistic renumbering, not substance. If you're reinstating on or after October 1, 2026, confirm you're citing the current section numbering with the Board.",
       "is_block_claim": false
     },
     {
@@ -332,7 +323,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "The $135 triennial registration fee comes straight from New Jersey's codified rule, N.J.A.C. 13:29-1.5(a)3, which states it verbatim: \"3. Triennial registration: $ 135.00.\" That rule was readopted without any changes in 2024, so this is a confirmed, current figure -- not a stale snapshot from the original 2018 adoption.",
+      "note": "The $135 triennial registration fee comes straight from New Jersey's codified rule, N.J.A.C. 13:29-1.5(a)3, which states it verbatim: \"3. Triennial registration: $ 135.00.\" The full chapter (N.J.A.C. 13:29, which includes Subchapter 1's fee schedule) was reviewed and readopted without amendment effective 11/26/2024, continuing in effect through 11/26/2031 (57 N.J.R. 55(a)) -- confirmed by direct read of the official readoption notice text, not just a citation. This is a confirmed, current figure with no open gap.",
       "is_block_claim": false
     },
     {
@@ -360,15 +351,6 @@
       "state_slug": "texas",
       "field": "data_gap_note",
       "note": "$112 has been the confirmed rate since TSBPA raised it from $97, effective September 1, 2024. A full year has now passed since the date any further increase would have taken effect (September 1, 2025), and a fresh check of TSBPA's news archive and a site search for \"annual license fee\" and \"fee increase\" -- the same channel the Board used to announce the 2017, 2019, and 2024 increases -- turns up no notice of any further increase, so $112 remains current. One thing about this fee is permanent, not a gap: 22 TAC 521.1 does not fix a dollar figure itself; it says the fee \"shall be established by the board on an annual basis,\" so the number lives in the Board's own announcements, not the rule text, and any future change will appear there -- the rule will not restate it. Confirm the current amount with TSBPA before you pay.\n\nSeparately, on the citation: this points at the correct rule (22 TAC 521.1), confirmed by navigating the state's own rule browser and independently by a secondary mirror of the same rule text. Texas publishes the Administrative Code through a portal with no addressable per-rule web pages -- the link above is the portal's own summary page, reachable only through its real navigation tree, not a guessable direct link.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "renewal_fees.json",
-      "id": "us-virgin-islands-renewal-fee",
-      "state": "U.S. Virgin Islands",
-      "state_slug": "us-virgin-islands",
-      "field": "data_gap_note",
-      "note": "This fee is confirmed directly on the Virgin Islands Board's own official page: the $135 CPA permit renewal fee and the $25-per-month late fee (capped at $600) after the August 31 deadline both match what's posted there, most recently rechecked 2026-08-15. The U.S. Virgin Islands doesn't publish its Title 27 code text online, so no codified statute citation is available for this fee -- the board's own page is the authoritative source available.",
       "is_block_claim": false
     }
   ]
