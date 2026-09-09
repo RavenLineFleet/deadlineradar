@@ -3943,12 +3943,32 @@ describe("deadlines.ts", () => {
     // -- still passing every existing test -- and start refusing signups a
     // day early with nothing failing. This is the exact-boundary case: age
     // == STALENESS_THRESHOLD_DAYS must NOT throw.
+    //
+    // AuditLab STALE-16 (LOW, 2026-09-09): checkDataFreshness() binds on the
+    // WORSE of two anchors -- max(as_of_date age, oldest record's
+    // last_verified age), per combinedAgeDays() -- but this test originally
+    // computed its boundary from as_of_date alone. That's only correct
+    // because as_of_date and the oldest last_verified happen to be equal
+    // today; a routine as_of_date bump with no re-verify sweep decouples
+    // them and makes this test spuriously fail (reproduced: bumping
+    // as_of_date 14 days with the oldest record untouched throws at the
+    // "exactly at threshold" probe, because the REAL binding anchor is now
+    // older than as_of_date says). Anchoring on the binding value instead
+    // keeps this test correct regardless of which anchor is worse on any
+    // given day -- verified against both today's data and a simulated
+    // as_of_date bump.
     const asOfTime = Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`);
-    const exactlyAtThreshold = new Date(asOfTime + STALENESS_THRESHOLD_DAYS * 86_400_000);
+    const oldestVerifiedTime = Math.min(
+      ...cpaDeadlinesData.records
+        .map((r: { last_verified?: string }) => (r.last_verified ? Date.parse(`${r.last_verified}T00:00:00Z`) : NaN))
+        .filter((t: number) => Number.isFinite(t))
+    );
+    const bindingAnchorTime = Math.min(asOfTime, oldestVerifiedTime);
+    const exactlyAtThreshold = new Date(bindingAnchorTime + STALENESS_THRESHOLD_DAYS * 86_400_000);
     expect(() => checkDataFreshness(exactlyAtThreshold)).not.toThrow();
     // One day past the threshold must still throw -- proves this isn't
     // passing because the guard stopped checking anything near the boundary.
-    const justPastThreshold = new Date(asOfTime + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000);
+    const justPastThreshold = new Date(bindingAnchorTime + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000);
     expect(() => checkDataFreshness(justPastThreshold)).toThrow(StaleDataError);
   });
 
