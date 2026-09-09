@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 40,
+  "gap_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 36
+    "data_gap_note": 35
   },
   "block_claim_count": 0,
   "entries": [
@@ -324,15 +324,6 @@
       "state_slug": "new-hampshire",
       "field": "data_gap_note",
       "note": "New Hampshire's statute delegates the exact fee amount to OPLC's own rulemaking rather than spelling it out itself. OPLC's fee rule (Plc 1002.01, Table 1002.1) sets it at $201 -- the same figure posted on OPLC's fee page, so it's confirmed in two independent sources.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "renewal_fees.json",
-      "id": "new-jersey-renewal-fee",
-      "state": "New Jersey",
-      "state_slug": "new-jersey",
-      "field": "data_gap_note",
-      "note": "The $135 triennial registration fee comes straight from New Jersey's codified rule, N.J.A.C. 13:29-1.5(a)3, which states it verbatim: \"3. Triennial registration: $ 135.00.\" The full chapter (N.J.A.C. 13:29, which includes Subchapter 1's fee schedule) was reviewed and readopted without amendment effective 11/26/2024, continuing in effect through 11/26/2031 (57 N.J.R. 55(a)) -- confirmed by direct read of the official readoption notice text, not just a citation. This is a confirmed, current figure with no open gap.",
       "is_block_claim": false
     },
     {
