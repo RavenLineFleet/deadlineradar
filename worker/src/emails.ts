@@ -2322,6 +2322,58 @@ export function buildAssistantLatencyAlertEmail(stats: {
 }
 
 /**
+ * AuditLab BILL-17 (MEDIUM, 2026-09-09): nothing previously read a Stripe
+ * Price object back and compared it against what generate.py/tiers.ts
+ * advertise -- an ordinary dashboard edit or a repointed STRIPE_PRICE_FIRM_*
+ * env var would silently desync the advertised price from what a customer
+ * is actually charged, with every existing gate (preship_gate.py's
+ * check_pricing_matches_tiers()) still passing, since it only ever compares
+ * HTML to tiers.ts, never to Stripe. Same internal-only INTERNAL_NOTIFY_EMAIL
+ * convention as buildMobilityStalenessAlertEmail() above; same "at most once
+ * per UTC calendar month" framing, since a price desync is a slow-moving
+ * config-drift signal, not something needing a daily nag once known.
+ */
+export function buildStripePriceParityAlertEmail(
+  mismatches: { envVar: string; label: string; expectedUsd: number; problems: string[] }[]
+): BuiltEmail {
+  const subject = `Deadline-Radar: ${mismatches.length} Stripe price${mismatches.length === 1 ? "" : "s"} out of sync with the advertised rate`;
+  const lines = mismatches.map(
+    (m) => `  ${m.envVar} [${m.label}, advertised $${m.expectedUsd}/yr]:\n${m.problems.map((p) => `    - ${p}`).join("\n")}`
+  );
+  const textBody =
+    `The nightly Stripe price-parity check found ${mismatches.length} firm tier${mismatches.length === 1 ? "" : "s"} ` +
+    `where what Stripe would actually charge no longer matches the price this site advertises ` +
+    `(worker/src/tiers.ts's FIRM_TIERS):\n\n` +
+    `${lines.join("\n\n")}\n\n` +
+    `This does not block or refund any checkout already in progress -- it means a NEW subscriber ` +
+    `checking out right now would be charged an amount different from what /pricing/ and the paywall ` +
+    `modal show them. Fix by either correcting the Stripe Price object (dashboard) or updating ` +
+    `FIRM_TIERS to match and rebuilding, whichever reflects the intended price. Run ` +
+    `scripts/check_stripe_price_reconciliation.py locally to re-verify after fixing.\n\n` +
+    `This email fires at most once per UTC calendar month no matter how many cron ticks still see ` +
+    `the mismatch.`;
+  const htmlBody =
+    `<p>The nightly Stripe price-parity check found ${mismatches.length} firm tier${mismatches.length === 1 ? "" : "s"} ` +
+    `where what Stripe would actually charge no longer matches the price this site advertises ` +
+    `(<code>worker/src/tiers.ts</code>'s <code>FIRM_TIERS</code>):</p>` +
+    `<ul>${mismatches
+      .map(
+        (m) =>
+          `<li><code>${esc(m.envVar)}</code> [${esc(m.label)}, advertised $${m.expectedUsd}/yr]` +
+          `<ul>${m.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></li>`
+      )
+      .join("")}</ul>` +
+    `<p>This does not block or refund any checkout already in progress &mdash; it means a NEW ` +
+    `subscriber checking out right now would be charged an amount different from what /pricing/ and ` +
+    `the paywall modal show them. Fix by either correcting the Stripe Price object (dashboard) or ` +
+    `updating <code>FIRM_TIERS</code> to match and rebuilding, whichever reflects the intended price. ` +
+    `Run <code>scripts/check_stripe_price_reconciliation.py</code> locally to re-verify after fixing.</p>` +
+    `<p>This email fires at most once per UTC calendar month no matter how many cron ticks still see ` +
+    `the mismatch.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * Task #3 (2026-08-06): internal notification on a firm self-deleting its
  * account -- same "so Devin can actually see the feedback" reasoning as
  * sendSignupNotification() above, reused for the opposite event. The

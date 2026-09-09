@@ -219,6 +219,7 @@ import {
   runComplianceNewsletterPass,
   runMobilityStalenessAlertPass,
   runAssistantLatencyAlertPass,
+  runStripePriceParityAlertPass,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -12981,6 +12982,20 @@ export default {
           await runAssistantLatencyAlertPass(env);
         } catch (err) {
           console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // AuditLab BILL-17 (MEDIUM, 2026-09-09): see runStripePriceParityAlertPass()'s
+    // own docstring. Independent pass, no checkDataFreshness() dependency,
+    // gated behind requireSendApproval() per the standing consent-gate
+    // directive since this is a NEW pass added after that directive existed.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runStripePriceParityAlertPass(env);
+        } catch (err) {
+          console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
         }
       })()
     );

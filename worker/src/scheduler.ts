@@ -53,7 +53,10 @@ import {
   type NewsletterDigestItem,
   buildMobilityStalenessAlertEmail,
   buildAssistantLatencyAlertEmail,
+  buildStripePriceParityAlertEmail,
 } from "./emails";
+import { FIRM_TIERS, stripePriceIdForTier } from "./tiers";
+import { fetchStripePrice } from "./stripe";
 import {
   DEFAULT_DAILY_SEND_CAP,
   resolveDailySendCap,
@@ -2415,6 +2418,86 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
   } catch (err) {
     await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
+  }
+}
+
+/**
+ * AuditLab BILL-17 (MEDIUM, 2026-09-09), migration 0076. The recurring half
+ * of the fix -- scripts/check_stripe_price_reconciliation.py already did
+ * the one-time reconciliation (offline, run by hand; PASS as of 2026-09-09,
+ * every configured price matched tiers.ts exactly), but nothing previously
+ * ran it automatically, so a later dashboard edit or a repointed
+ * STRIPE_PRICE_FIRM_* secret would desync silently -- every existing gate
+ * (preship_gate.py's check_pricing_matches_tiers()) only ever compares HTML
+ * to tiers.ts, never to Stripe. This is that check, wired into the nightly
+ * cron: GET each configured FIRM_TIERS price, compare unit_amount/currency/
+ * recurring.interval/active against what the site advertises, and alert if
+ * any diverge. Standing consent-gate directive (Devin, 2026-08-21) -- gated
+ * behind requireSendApproval() since this is a NEW send pass, same
+ * mechanism every pass added after that directive must use. Month-keyed
+ * dedup (not daily), same reasoning as mobility staleness: a price desync
+ * is a slow-moving config-drift signal, not something needing a daily nag
+ * once known. A tier whose env var isn't configured at all is silently
+ * skipped (not itself a mismatch -- e.g. a test/preview environment
+ * legitimately missing live-mode price ids), matching the standalone
+ * script's own "NOT CONFIGURED" (not "MISMATCH") category.
+ */
+export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
+  if (!requireSendApproval(env, "stripePriceParityAlert")) return;
+  if (!env.STRIPE_SECRET_KEY) return;
+
+  const mismatches: { envVar: string; label: string; expectedUsd: number; problems: string[] }[] = [];
+  for (const tier of FIRM_TIERS) {
+    const priceId = stripePriceIdForTier(env, tier.planTier);
+    if (!priceId) continue; // not configured in this environment -- not a mismatch
+    const envVar = `STRIPE_PRICE_FIRM_${tier.planTier.replace(/^firm_/, "").toUpperCase()}`;
+    let price;
+    try {
+      price = await fetchStripePrice(env.STRIPE_SECRET_KEY, priceId);
+    } catch (err) {
+      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems: [`fetch failed: ${String(err)}`] });
+      continue;
+    }
+    if (!price) {
+      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems: [`price id ${priceId} not found or rejected by Stripe -- checkout for this tier would fail`] });
+      continue;
+    }
+    const problems: string[] = [];
+    const expectedCents = tier.priceUsd * 100;
+    if (price.unitAmount !== expectedCents) {
+      problems.push(`unit_amount=${price.unitAmount ?? "null"} (expected ${expectedCents}, i.e. $${tier.priceUsd})`);
+    }
+    if (price.currency !== "usd") {
+      problems.push(`currency=${price.currency ?? "null"} (expected "usd")`);
+    }
+    if (price.recurringInterval !== "year") {
+      problems.push(`recurring.interval=${price.recurringInterval ?? "null"} (expected "year")`);
+    }
+    if (!price.active) {
+      problems.push(`active=false -- Stripe would refuse a checkout using this price entirely`);
+    }
+    if (problems.length > 0) {
+      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems });
+    }
+  }
+
+  if (mismatches.length === 0) return;
+  if (!env.SENDGRID_API_KEY) {
+    console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but SENDGRID_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
+    return;
+  }
+  const monthUtc = new Date().toISOString().slice(0, 7);
+  const claimed = await store.claimStripePriceParityAlertForMonth(env.DB, monthUtc);
+  if (!claimed) return;
+  try {
+    const built = buildStripePriceParityAlertEmail(mismatches);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    if (!ok) {
+      await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
+    }
+  } catch (err) {
+    await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
+    console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
   }
 }
 

@@ -91,6 +91,46 @@ export async function createCheckoutSession(
   return { id: json.id, url: json.url };
 }
 
+export interface StripePrice {
+  id: string;
+  unitAmount: number | null;
+  currency: string | null;
+  recurringInterval: string | null;
+  active: boolean;
+}
+
+/**
+ * AuditLab BILL-17 (MEDIUM, 2026-09-09): GET /v1/prices/{id}, read-only --
+ * the missing half of "does what Stripe would charge match what the site
+ * advertises." Mirrors scripts/check_stripe_price_reconciliation.py's own
+ * fetch_price(), same endpoint and same fields, so the worker-side nightly
+ * check and the manual pre-deploy script agree on what "matches" means.
+ * Returns null (not a throw) on a 404/other Stripe rejection -- an
+ * unrecognised price id is itself the finding the caller reports, not a
+ * reason to abort the whole pass over one tier.
+ */
+export async function fetchStripePrice(secretKey: string, priceId: string): Promise<StripePrice | null> {
+  const res = await fetch(`https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}`, {
+    headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}` },
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    id?: string;
+    unit_amount?: number | null;
+    currency?: string | null;
+    recurring?: { interval?: string | null } | null;
+    active?: boolean;
+  };
+  if (!json.id) return null;
+  return {
+    id: json.id,
+    unitAmount: json.unit_amount ?? null,
+    currency: json.currency ?? null,
+    recurringInterval: json.recurring?.interval ?? null,
+    active: json.active ?? false,
+  };
+}
+
 export interface StripeSubscriptionCancellation {
   /** Stripe's own current_period_end (Unix seconds) as an ISO string --
    * display-only, see the migration's own comment for why this never
