@@ -12,6 +12,8 @@ Usage: python scripts/preship_gate.py [repo_root]
 import html
 import json
 import re
+import shutil
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -633,6 +635,63 @@ def check_worker_error_strings_no_api_internals(repo_root: Path) -> list[str]:
                 f"reword to describe the remedy in plain English (match the register of the "
                 f"neighbouring error strings in the same handler)."
             )
+    return errors
+
+
+# GATE-21 (AuditLab, 2026-09-09): REPO-1 -> SEC-4 (2026-08-20) -> SEC-5
+# (2026-09-09) are the same class of defect three times over: a secret-file
+# path constant joined straight off REPO_ROOT with no escaping `.parent`,
+# landing inside this PUBLIC repo where the next `git add -A` ships it. Each
+# occurrence was caught by a human reader, never by a check. Matches a
+# variable name containing KEY/SECRET/TOKEN/CRED whose value is REPO_ROOT
+# with zero .parent hops before the first path segment. Scope, stated
+# honestly: only catches THIS shape (the
+# one all three real occurrences used) -- a secret path built a different
+# way (a fresh Path(__file__) chain with no REPO_ROOT variable, or an
+# f-string) would not be caught. Deliberately requires KEY/SECRET/TOKEN/CRED
+# in the name, not a bare _PATH -- an early draft matched any *_PATH
+# constant and flagged scripts/es_translation_review.py's I18N_PATH (an
+# ordinary tracked source file, not a secret) as a false positive. Narrow
+# and precise beats broad and blind here; widen it if a fourth occurrence
+# uses a different shape.
+_SECRET_PATH_ASSIGN_RE = re.compile(
+    r"^[ \t]*([A-Z_]*(?:KEY|SECRET|TOKEN|CRED)[A-Z_]*)\s*=\s*"
+    r"REPO_ROOT((?:\s*\.\s*parent)*)\s*/\s*(.+?)\s*(?:#.*)?$",
+    re.MULTILINE,
+)
+_QUOTED_PATH_SEGMENT_RE = re.compile(r"""["']([^"']+)["']""")
+
+
+def check_no_secret_paths_resolve_inside_repo(repo_root: Path) -> list[str]:
+    errors = []
+    git = shutil.which("git")
+    for subdir_name in ("scripts", "reminders"):
+        base_dir = repo_root / subdir_name
+        if not base_dir.exists():
+            continue
+        for path in sorted(base_dir.rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            for m in _SECRET_PATH_ASSIGN_RE.finditer(source):
+                var_name, parent_hops, rest = m.groups()
+                if parent_hops.strip():
+                    continue  # escapes REPO_ROOT via >=1 .parent -- outside the repo, fine
+                line_no = source.count("\n", 0, m.start()) + 1
+                segments = _QUOTED_PATH_SEGMENT_RE.findall(rest)
+                rel_path = "/".join(segments) if segments else None
+                ignored = False
+                if rel_path and git:
+                    result = subprocess.run([git, "check-ignore", "-q", rel_path], cwd=repo_root)
+                    ignored = result.returncode == 0
+                if ignored:
+                    continue
+                where = f"resolves to {rel_path!r}" if rel_path else "resolves to a non-literal path (could not check .gitignore)"
+                errors.append(
+                    f"[ERR][{path}:{line_no}] {var_name} is built by joining REPO_ROOT "
+                    f"directly (no .parent) -- {where}, INSIDE this public repo, and no "
+                    f".gitignore rule covers it. Escape it with REPO_ROOT.parent.parent "
+                    f"(the correct convention -- see reminders/run_live_selftest.py's own "
+                    f"KEY_PATH) or add a .gitignore rule for it. Same class as REPO-1/SEC-4/SEC-5."
+                )
     return errors
 
 
@@ -5280,6 +5339,7 @@ def main():
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
+    all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
     all_errors += check_affiliate_disclosure(html_files)
