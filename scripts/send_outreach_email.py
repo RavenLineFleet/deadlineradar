@@ -45,7 +45,11 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts.check_external_copy import find_violations_in_text  # noqa: E402
 from reminders.sender import DryRunSender, SendGridSender  # noqa: E402
 
-KEY_PATH = REPO_ROOT / ".sendgrid_key"
+# SEC-5 (AuditLab/SecurityLab, 2026-09-09): must live two dirs up, out of the
+# repo entirely -- REPO_ROOT is public (RavenLineFleet/deadlineradar) and
+# unignored for a repo-root .sendgrid_key. Matches reminders/run_live_selftest.py's
+# own KEY_PATH; do not drop the .parent.parent again.
+KEY_PATH = REPO_ROOT.parent.parent / ".sendgrid_key"
 FROM_EMAIL = "support@deadline-radar.com"
 FROM_NAME = "Deadline-Radar"
 
@@ -125,7 +129,11 @@ def main() -> int:
     elif dry_run:
         sender = DryRunSender()
     else:
-        api_key = KEY_PATH.read_text(encoding="utf-8").strip()
+        try:
+            api_key = KEY_PATH.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            print(f"No SendGrid key at {KEY_PATH} -- this must live OUTSIDE the repo, never inside it.")
+            return 2
         sender = SendGridSender(api_key=api_key, from_email=FROM_EMAIL, from_name=FROM_NAME)
 
     all_ok = True

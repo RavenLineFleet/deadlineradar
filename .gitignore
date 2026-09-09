@@ -17,6 +17,14 @@ __pycache__/
 .secrets/
 *.env
 
+# SEC-5 (AuditLab/SecurityLab, 2026-09-09): send_outreach_email.py briefly
+# dropped run_live_selftest.py's own .parent.parent, resolving KEY_PATH
+# inside this public repo root -- fixed in code, but nothing here would have
+# objected if it happened again (same SEC-4 shape: safe only by placement).
+# Defense in depth so a future path mistake still can't ship a live key.
+.sendgrid_key
+*.sendgrid_key
+
 # Real subscriber PII (email addresses) and dry-run send logs (which contain
 # the same PII, since dry-run logs exactly what WOULD have been sent). Never
 # commit either -- only subscribers.example.json (fake data) is tracked.
