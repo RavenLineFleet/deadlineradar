@@ -27,7 +27,7 @@ import cpeHoursData from "./cpe_hours.json";
 import reinstatementData from "./reinstatement.json";
 import renewalFeesData from "./renewal_fees.json";
 import regChangeEventsData from "./reg_change_events.json";
-import { stateNameForSlug } from "./deadline";
+import { stateNameForSlug, resolvedNextDeadlineComputed, type CpaRecord } from "./deadline";
 import type { MobilityResult } from "./mobility";
 
 interface AssistantDeadlineResult {
@@ -43,7 +43,11 @@ interface AssistantDeadlineResult {
   last_verified: string;
 }
 
-export function lookupAssistantDeadlines(stateSlug: string, licenseType?: string): AssistantDeadlineResult[] {
+export function lookupAssistantDeadlines(
+  stateSlug: string,
+  licenseType?: string,
+  asOf: Date = new Date()
+): AssistantDeadlineResult[] {
   const records = (cpaData.records as unknown[]).filter(
     (r): r is Record<string, unknown> => typeof r === "object" && r !== null
   );
@@ -55,7 +59,11 @@ export function lookupAssistantDeadlines(stateSlug: string, licenseType?: string
       license_type: String(r.license_type ?? ""),
       license_type_label: String(r.license_type_label ?? ""),
       cycle_description: String(r.cycle_description ?? ""),
-      next_deadline_computed: typeof r.next_deadline_computed === "string" ? r.next_deadline_computed : null,
+      // Must go through resolvedNextDeadlineComputed(), not a raw read --
+      // AuditLab DATE-7 (2026-09-09): a raw read here served an elapsed
+      // date past the DATE-2/DATE-3 roll-forward that every other surface
+      // already applies. See deadline.ts's own docstring on that function.
+      next_deadline_computed: resolvedNextDeadlineComputed(r as unknown as CpaRecord, asOf),
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: typeof r.citation_url === "string" ? r.citation_url : null,

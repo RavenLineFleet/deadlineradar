@@ -413,7 +413,7 @@ function rollForwardRecurringDeadline(
  * every raw read of that field in computeSubscriberDeadline() below
  * should go through, so a future new read site can't reintroduce DATE-3
  * by reading the field directly again. */
-function resolvedNextDeadlineComputed(r: CpaRecord, asOf: Date): string | null {
+export function resolvedNextDeadlineComputed(r: CpaRecord, asOf: Date): string | null {
   if (!r.next_deadline_computed) return null;
   return rollForwardRecurringDeadline(r.next_deadline_computed, r.computation, asOf);
 }
