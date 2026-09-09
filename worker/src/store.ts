@@ -6495,23 +6495,45 @@ export async function recentAssistantChatLatencyStats(
   return { n, p95Ms: p95Row.elapsed_ms, maxMs: maxRow.elapsed_ms, totalN };
 }
 
-/** Same day-keyed claim/unclaim shape as claimStaleDataAlertForToday() --
- * at most one assistant-latency-degradation email per UTC day regardless
- * of how many cron ticks still see the breach. Returns true = "you own
- * today's alert, send it." */
+/** Same day-keyed claim shape as claimStaleDataAlertForToday() -- at most
+ * one assistant-latency-degradation email per UTC day regardless of how
+ * many cron ticks still see the breach. Returns true = "you own today's
+ * alert, send it." Inserts with outcome='pending' -- resolveAssistant
+ * LatencyAlertForToday() below records what actually happened.
+ *
+ * AuditLab MON-6 (2026-09-09), migration 0077: this used to pair with
+ * unclaimAssistantLatencyAlertForToday(), which DELETED the row on any
+ * send failure "so a later tick the same day could retry" -- but the cron
+ * is once daily, so there is no later tick, and the delete only erased the
+ * sole evidence an alert was ever attempted. A real failure on 2026-09-09
+ * was misread as a successful send by two independent readers who
+ * happened to query inside the pre-deletion window. Never delete now --
+ * resolveAssistantLatencyAlertForToday() persists the outcome instead. */
 export async function claimAssistantLatencyAlertForToday(db: D1Database, dayUtc: string): Promise<boolean> {
   const result = await db
-    .prepare(`INSERT INTO assistant_latency_alert_log (day, sent_at) VALUES (?1, ?2) ON CONFLICT(day) DO NOTHING`)
+    .prepare(`INSERT INTO assistant_latency_alert_log (day, sent_at, outcome) VALUES (?1, ?2, 'pending') ON CONFLICT(day) DO NOTHING`)
     .bind(dayUtc, nowIso())
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
 
-/** Same DROP-3-shaped "claim burned even when the alert never actually
- * sent" fix as unclaimStaleDataAlertForToday() -- called on every failure
- * branch so a later tick the same day gets a real retry. */
-export async function unclaimAssistantLatencyAlertForToday(db: D1Database, dayUtc: string): Promise<void> {
-  await db.prepare(`DELETE FROM assistant_latency_alert_log WHERE day = ?1`).bind(dayUtc).run();
+/** AuditLab MON-6 (2026-09-09), migration 0077: replaces the old
+ * delete-on-failure unclaim. `outcome` is 'sent' on success or
+ * 'failed_after_3_attempts' on exhausted retries/an uncaught error;
+ * `detail` carries the last status/error for a human reading the table
+ * directly. The row now survives either way, so "did today's alert get
+ * out" is answerable from this table alone, not from a race against the
+ * pass's own retry window. */
+export async function resolveAssistantLatencyAlertForToday(
+  db: D1Database,
+  dayUtc: string,
+  outcome: "sent" | "failed_after_3_attempts",
+  detail?: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE assistant_latency_alert_log SET outcome = ?1, detail = ?2 WHERE day = ?3`)
+    .bind(outcome, detail ?? null, dayUtc)
+    .run();
 }
 
 /** MON-5 (2026-09-02): unconditional cron-liveness heartbeat. Upserts the

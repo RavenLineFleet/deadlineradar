@@ -110,18 +110,33 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
   });
 });
 
-describe("claimAssistantLatencyAlertForToday / unclaim -- day-keyed dedup", () => {
+describe("claimAssistantLatencyAlertForToday / resolve -- day-keyed dedup, MON-6 outcome persistence", () => {
   it("first claim for a day succeeds, a second claim the same day fails", async () => {
     const day = "2099-01-15";
     expect(await store.claimAssistantLatencyAlertForToday(env.DB, day)).toBe(true);
     expect(await store.claimAssistantLatencyAlertForToday(env.DB, day)).toBe(false);
   });
 
-  it("unclaim releases the day so a later attempt can claim it again", async () => {
+  // AuditLab MON-6 (2026-09-09): resolving a failure must NOT free the day
+  // for a second claim -- the old unclaim (DELETE) did, on the theory that
+  // "a later tick the same day could retry," but the cron is once daily,
+  // so that never happened in practice and only meant a failure erased its
+  // own evidence. A resolved row (sent or failed) stays claimed.
+  it("resolving as failed does NOT free the day for a second claim -- the row persists as evidence", async () => {
     const day = "2099-01-16";
     expect(await store.claimAssistantLatencyAlertForToday(env.DB, day)).toBe(true);
-    await store.unclaimAssistantLatencyAlertForToday(env.DB, day);
-    expect(await store.claimAssistantLatencyAlertForToday(env.DB, day)).toBe(true);
+    await store.resolveAssistantLatencyAlertForToday(env.DB, day, "failed_after_3_attempts", "simulated failure");
+    expect(await store.claimAssistantLatencyAlertForToday(env.DB, day)).toBe(false);
+    const row = await env.DB.prepare("SELECT outcome, detail FROM assistant_latency_alert_log WHERE day = ?1").bind(day).first();
+    expect(row).toEqual({ outcome: "failed_after_3_attempts", detail: "simulated failure" });
+  });
+
+  it("resolving as sent records the outcome with no detail", async () => {
+    const day = "2099-01-17";
+    await store.claimAssistantLatencyAlertForToday(env.DB, day);
+    await store.resolveAssistantLatencyAlertForToday(env.DB, day, "sent");
+    const row = await env.DB.prepare("SELECT outcome, detail FROM assistant_latency_alert_log WHERE day = ?1").bind(day).first();
+    expect(row).toEqual({ outcome: "sent", detail: null });
   });
 
   it("different days are independent", async () => {
@@ -284,7 +299,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     }
   });
 
-  it("a SendGrid failure (non-202) unclaims the day, so a later tick can retry rather than losing the alert silently", async () => {
+  it("a SendGrid failure (non-202) resolves the day as failed_after_3_attempts -- MON-6: the row persists as evidence, it is not deleted", async () => {
     let calls = 0;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
@@ -308,9 +323,15 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       );
       // MON-5: the send is retried to exhaustion before giving up (was 1 call).
       expect(calls).toBe(3);
-      // The failed send must NOT have burned today's claim -- a fresh claim
-      // attempt should still succeed (DROP-3-shaped unclaim-on-failure).
-      expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(true);
+      // MON-6 (2026-09-09): the cron is once daily, so "release for a later
+      // retry" never actually retries anything -- it only erased the
+      // evidence a real failure on 2026-09-09 was misread as a success by
+      // two independent readers who queried inside the pre-deletion window.
+      // The row now persists with the real outcome, and a fresh claim
+      // correctly fails (today is already resolved, not retriable).
+      expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(false);
+      const row = await env.DB.prepare("SELECT outcome, detail FROM assistant_latency_alert_log WHERE day = ?1").bind(dayUtc).first();
+      expect(row?.outcome).toBe("failed_after_3_attempts");
     } finally {
       fetchSpy.mockRestore();
     }
@@ -339,14 +360,16 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       );
       expect(attempts).toBe(3);
       expect(fetchSpy).not.toHaveBeenCalled();
-      // A success on the 3rd attempt KEEPS the day claim -> a re-claim fails.
+      // A success on the 3rd attempt resolves the day as "sent" -> a re-claim fails.
       expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(false);
+      const row = await env.DB.prepare("SELECT outcome FROM assistant_latency_alert_log WHERE day = ?1").bind(dayUtc).first();
+      expect(row?.outcome).toBe("sent");
     } finally {
       fetchSpy.mockRestore();
     }
   });
 
-  it("MON-5: all attempts fail -- send is tried exactly ATTEMPTS times, then the day is unclaimed for a later retry (no throw)", async () => {
+  it("MON-6/MON-5: all attempts fail -- send is tried exactly ATTEMPTS times, then the day is resolved failed_after_3_attempts (not deleted, no throw)", async () => {
     const now = Math.floor(Date.now() / 1000);
     await seedSamples(now, [45000]);
     const dayUtc = new Date().toISOString().slice(0, 10);
@@ -359,7 +382,12 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       )
     ).resolves.toBeUndefined();
     expect(attempts).toBe(3);
-    expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(true); // released
+    // MON-6: a once-daily cron has no later tick to retry on, so the day
+    // stays claimed -- the row's survival with a real outcome is the fix.
+    expect(await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc)).toBe(false);
+    const row = await env.DB.prepare("SELECT outcome, detail FROM assistant_latency_alert_log WHERE day = ?1").bind(dayUtc).first();
+    expect(row?.outcome).toBe("failed_after_3_attempts");
+    expect(row?.detail).toBe("all send attempts exhausted");
   });
 
   it("MON-5: a first-attempt success does NOT retry and does NOT back off", async () => {
