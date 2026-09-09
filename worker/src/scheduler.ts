@@ -2589,17 +2589,22 @@ export async function runAssistantLatencyAlertPass(
         await sleep(ASSISTANT_LATENCY_ALERT_SEND_BACKOFF_MS * attempt);
       }
     }
-    if (!ok) {
-      // MON-5: was a bare unclaim with no log at all -- the day's only alert
-      // vanished silently. Name the exhausted-retries failure before
-      // releasing the day claim (so a later tick the same day could retry).
+    if (ok) {
+      await store.resolveAssistantLatencyAlertForToday(env.DB, dayUtc, "sent");
+    } else {
+      // MON-6 (AuditLab, 2026-09-09): used to be a bare unclaim (DELETE) with
+      // no log at all -- the day's only alert vanished silently, and the
+      // cron is once daily, so "releasing the day claim" never actually
+      // enabled a retry. Persist the failure instead so "did today's alert
+      // get out" survives as a query rather than requiring a read inside
+      // the now-eliminated pre-deletion race window.
       console.log(
-        `[assistant-latency-alert-cron] all ${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} send attempts failed for ${dayUtc}; releasing day claim`
+        `[assistant-latency-alert-cron] all ${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} send attempts failed for ${dayUtc}`
       );
-      await store.unclaimAssistantLatencyAlertForToday(env.DB, dayUtc);
+      await store.resolveAssistantLatencyAlertForToday(env.DB, dayUtc, "failed_after_3_attempts", "all send attempts exhausted");
     }
   } catch (err) {
-    await store.unclaimAssistantLatencyAlertForToday(env.DB, dayUtc);
+    await store.resolveAssistantLatencyAlertForToday(env.DB, dayUtc, "failed_after_3_attempts", String(err).slice(0, 500));
     console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
   }
 }
