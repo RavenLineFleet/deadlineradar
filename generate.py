@@ -1653,7 +1653,16 @@ PAGE_CSS = """
      variable already flips per theme), on the primary call-to-action across
      all 57 pages that carry this field.
   */
-  .state-search-field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* AuditLab A11Y-17 follow-up (2026-09-09): outline-offset:2px pushed the
+     ring outside main's own overflow-x:clip boundary on its left side --
+     the field sits only 1px inside that edge (measured live), so a 2px
+     ring at offset:0 still overshoot by 1px. -1px pulls the ring's outer
+     edge exactly flush with main's clip boundary (measured live: 0px
+     overshoot at every width, since the geometry is a fixed layout
+     relationship, not viewport-dependent) -- SC 2.4.11's minimum-area bar
+     was already cleared by the visible three sides even before this (not
+     filed as a defect), this just makes the fourth side visible too. */
+  .state-search-field:focus-within { outline: 2px solid var(--accent); outline-offset: -1px; }
   .state-search-field input {
     width: 100%; padding: 0.85rem 1rem; border: 0; background: transparent; color: var(--fg);
     font-size: 1rem; font-family: inherit; border-radius: 9px 0 0 9px;
