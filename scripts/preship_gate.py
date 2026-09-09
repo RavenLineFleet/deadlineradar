@@ -1795,6 +1795,52 @@ def check_fee_basis_supported(repo_root: Path) -> list[str]:
     return errors
 
 
+def print_firm_fee_disclosure_advisory(repo_root: Path) -> None:
+    """FEE-1/FEE-5 (AuditLab, 2026-09-09): Tennessee and then Colorado both
+    shipped a renewal_fees.json record that named a dollar figure with no
+    individual/firm qualifier, in a state that tracks a distinct firm
+    license (license_type='firm' in cpa_deadlines.json) on its own cycle --
+    a firm reader silently gets the individual number. FEE-1's own
+    write-up proposed exactly this check; FEE-5 caught the SECOND instance
+    of the same shape a few hours later, on a record that had just been
+    freshly edited, and asked for it to be built rather than caught by
+    hand a third time.
+
+    Advisory, not a hard gate: 22 of the 33 states with a distinct firm
+    license currently have no "firm" mention in either fee_notes or
+    data_gap_note (a real backlog FEE-1 already flagged, not new), so
+    failing the build on this today would block every unrelated ship
+    until all 22 are individually researched. Promote to a hard check
+    (same as check_fee_basis_supported() above) once that backlog is
+    cleared -- this makes the remaining count visible on every run
+    instead of needing to be rediscovered.
+    """
+    cpa_path = repo_root / "data" / "cpa_deadlines.json"
+    fees_path = repo_root / "data" / "renewal_fees.json"
+    if not cpa_path.exists() or not fees_path.exists():
+        print("  (skipping firm-fee-disclosure advisory -- cpa_deadlines.json or renewal_fees.json not found)")
+        return
+    cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
+    fees_data = json.loads(fees_path.read_text(encoding="utf-8"))
+    firm_states = sorted({r["state_slug"] for r in cpa_data["records"] if r.get("license_type") == "firm"})
+    fee_by_state = {r["state_slug"]: r for r in fees_data["records"]}
+    missing = []
+    for slug in firm_states:
+        r = fee_by_state.get(slug)
+        if r is None:
+            continue  # no renewal-fee record for this state at all -- a different gap, not this one
+        notes = (r.get("fee_notes") or "").lower()
+        gap = (r.get("data_gap_note") or "").lower()
+        if "firm" not in notes and "firm" not in gap:
+            missing.append(slug)
+    print("\n--- firm-fee-disclosure advisory (does not affect gate exit code) ---")
+    if not missing:
+        print("  PASS -- every state with a distinct firm license discloses a firm fee or an explicit gap.")
+    else:
+        print(f"  {len(missing)} of {len(firm_states)} firm-license states have no 'firm' mention in "
+              f"fee_notes or data_gap_note: {', '.join(missing)}")
+
+
 def check_renewal_fee_currency(repo_root: Path) -> list[str]:
     """Roadmap 2026-08-11 (14:30 item #6): the state pages now show a public,
     dated renewal-fee claim (or an honest "unconfirmed" disclosure) sourced
@@ -5624,6 +5670,7 @@ def main():
         print_gap_list_advisory(repo_root)
         print_es_translation_review_advisory(repo_root)
         print_seo_length_drift_advisory(html_files, repo_root)
+        print_firm_fee_disclosure_advisory(repo_root)
         sys.exit(1)
     print("\nPASS -- no violations found.")
     print_worker_deploy_staleness_advisory(repo_root)
@@ -5642,6 +5689,7 @@ def main():
     print_gap_list_advisory(repo_root)
     print_es_translation_review_advisory(repo_root)
     print_seo_length_drift_advisory(html_files, repo_root)
+    print_firm_fee_disclosure_advisory(repo_root)
     sys.exit(0)
 
 
