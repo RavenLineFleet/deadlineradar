@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 41,
+  "gap_record_count": 40,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 37
+    "data_gap_note": 36
   },
   "block_claim_count": 0,
   "entries": [
@@ -144,15 +144,6 @@
       "state_slug": "dc",
       "field": "data_gap_note",
       "note": "You can rely on DC's 80-hour biennial requirement (with a 4-hour ethics minimum) -- it's confirmed in two independent places that agree: 17 DCMR §§2530.1 and 2530.8, and the Board's own CPE Reporting Form, which quotes both sections verbatim. DC's online regulations portal doesn't offer a stable link to individual sections -- its section-list page resolves to a search screen, not the rule text -- so the citation above points you directly to the Board's reporting form PDF, the official document that reproduces the rule's language.",
-      "is_block_claim": false
-    },
-    {
-      "dataset": "cpe_hours.json",
-      "id": "ne-cpe",
-      "state": "Nebraska",
-      "state_slug": "nebraska",
-      "field": "data_gap_note",
-      "note": "Nebraska's 80-hour CPE figure is confirmed by two sources: the statute (Neb. Rev. Stat. § 1-136.01) sets the requirement in days, converted using the standard 8-hours-per-day basis every CPE-day-based state statute uses, and the Nebraska Board of Public Accountancy's current published guidance states the resulting 80 hours directly. The 4-hour ethics requirement is directly codified at 288 Neb. Admin. Code ch. 8, § 004.01.",
       "is_block_claim": false
     },
     {
