@@ -2654,7 +2654,14 @@ PAGE_CSS = """
   .dr-view[hidden] { display: none; }
 
   .dr-cal-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 11px; padding: 1.1rem 1.2rem; margin-bottom: 1.2rem; }
-  .dr-cal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
+  /* AuditLab MOB-11 (2026-09-09): no flex-wrap meant .dr-cal-export
+     couldn't shrink below its own content width at narrow widths, so at
+     <=320px it was pushed past the panel's right edge -- invisible under
+     main's overflow-x:clip (see that rule's own comment) and unreachable
+     (the document itself never grows a horizontal scrollbar, so there was
+     nothing to scroll to). wrap lets it drop to its own line instead of
+     overflowing when the title + button can't both fit on one. */
+  .dr-cal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
   .dr-cal-header h2 { font-size: 1.05rem; margin: 0; font-family: var(--font-display); }
   .dr-cal-nav { display: flex; align-items: center; gap: 0.4rem; }
   .dr-cal-nav button {
@@ -2851,7 +2858,14 @@ PAGE_CSS = """
   .dr-cpe-staff-panel h2 { font-size: 1.05rem; margin: 0 0 0.85rem; font-family: var(--font-display); }
   .dr-cpe-staff-card { border: 1px solid var(--border); border-radius: 9px; padding: 0.9rem 1rem; margin-bottom: 0.7rem; }
   .dr-cpe-staff-card:last-child { margin-bottom: 0; }
-  .dr-cpe-staff-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.6rem; }
+  /* AuditLab MOB-11 (2026-09-09): same shape as .dr-cal-header just below --
+     no flex-wrap meant .dr-cpe-remind-btn couldn't shrink below its own
+     content width, so once name+state+button's combined minimum width
+     exceeded the row at narrow widths, the button was pushed past the
+     card's right edge -- 0px visible for every staff row at 320px, still
+     4/5 unreachable at 390px (an iPhone-class width). wrap lets the button
+     drop to its own line instead. */
+  .dr-cpe-staff-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.6rem; }
   .dr-cpe-staff-name { font-weight: 600; }
   .dr-cpe-staff-state { color: var(--muted); font-size: 0.82rem; margin-right: auto; }
   /* Staff self-service nudge (2026-08-05) -- margin-right:auto on the state
