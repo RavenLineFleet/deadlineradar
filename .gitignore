@@ -2,6 +2,13 @@ __pycache__/
 *.pyc
 .DS_Store
 
+# GATE-23 follow-up (2026-09-09): the repo root's own node_modules/ (a local
+# vitest/vite cache, currently tiny) had no rule at all -- entirely
+# untracked and un-ignored, one `git add -A` away from being swept in
+# whole. worker/node_modules/ is already covered by worker/.gitignore; this
+# closes the same gap at the repo root.
+node_modules/
+
 # AuditLab SEC-4 (2026-08-20): no rule anywhere covered a repo-root secret
 # file, and the repo went public 2026-08-19 -- the real secrets have always
 # lived OUTSIDE this tree (AssetLab/.secrets/, two directories above this

@@ -721,6 +721,15 @@ def check_no_secret_paths_resolve_inside_repo(repo_root: Path) -> list[str]:
             total_hops = root_def.group(1).count("parent") + parent_hops.count("parent")
             file_abs = path.resolve()
             parents = file_abs.parents
+            if total_hops >= len(parents):
+                # SEC-7 (SecurityLab, 2026-09-09): more .parent hops than the
+                # real path has ancestors used to raise an unhandled
+                # IndexError, crashing the whole gate instead of failing
+                # clean -- reachable on any checkout shallower than this
+                # one's, with fewer hops needed to trigger it. That many
+                # hops walks above the filesystem root, which is certainly
+                # outside the repo -- treat it as such rather than crash.
+                continue
             resolved_root = parents[total_hops - 1] if total_hops >= 1 else file_abs
             resolved = (resolved_root / "/".join(segments)) if segments else resolved_root
             resolved = resolved.resolve() if resolved.exists() else Path(str(resolved))
@@ -758,13 +767,70 @@ def check_no_secret_paths_resolve_inside_repo(repo_root: Path) -> list[str]:
 # all (a manually-copied file needs no code to become a real exposure).
 _SECRET_FILENAME_STEM_RE = re.compile(r"(key|secret|credential|token)", re.IGNORECASE)
 
+# GATE-23 (AuditLab, 2026-09-09): the filename check above still allowlisted
+# by NAME -- key/secret/credential/token, a leading dot, or a fixed
+# extension set -- the same defect shape as MISS 4 and MISS A one layer
+# down: `id_rsa` (no dot, no matching extension, no matching stem, the most
+# standard secret filename there is) sailed through untouched. AuditLab's
+# own fix (SEC-7's parallel proposal): invert it. The dangerous-name space
+# is unbounded and grows a new evasion every time someone names a secret
+# file differently; the ordinary-content-file extension space used by this
+# repo is small, known, and closed. So: keep the existing name/stem/dotfile
+# triggers (they still catch e.g. credentials.json, whose .json extension
+# is otherwise perfectly ordinary), but ALSO flag any file whose extension
+# isn't on the known-benign list at all -- which is what actually catches
+# `id_rsa` and the next unnamed-yet secret filename, without guessing what
+# it will be called.
+_BENIGN_EXTENSIONS = {
+    ".py", ".md", ".html", ".css", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".mts",
+    ".json", ".csv", ".sql", ".txt", ".xml", ".yml", ".yaml", ".toml", ".lock",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
+    ".pdf",
+}
+# Legitimate tracked files with no extension at all -- an allowlist here has
+# to be an exact-name match, since "no extension" is otherwise indistinguishable
+# from `id_rsa`/`credentials`/a bare API token dropped in a file.
+_BENIGN_EXACT_NAMES = {
+    ".gitignore", ".nojekyll", ".editorconfig", "CNAME", "LICENSE",
+    ".last_deploy_commit",
+}
 
-def _looks_like_secret_filename(name: str) -> bool:
+# GATE-23 follow-up, same day: `service_account.json` (a real, common GCP
+# credential-file convention -- this fleet has one, `.gsc_service_account.json`,
+# a directory above this repo) has no dot prefix, an ordinary .json
+# extension, and a stem containing none of key/secret/credential/token, so
+# it passes every name-based check above untouched -- proven by the same
+# fixture pass that verified the rest of this check. Adding "service_account"
+# to the stem regex would still be one more name guess. Content is the
+# actual invariant for this shape: a GCP/Firebase service-account key JSON
+# always carries a small, fixed set of field names. Sniff for those instead
+# of the filename, for every untracked .json file regardless of name.
+_JSON_CREDENTIAL_MARKERS = ('"private_key"', '"client_email"', '"private_key_id"')
+
+
+def _json_looks_like_credential(path: Path) -> bool:
+    try:
+        head = path.read_text(encoding="utf-8", errors="ignore")[:4096]
+    except OSError:
+        return False
+    return any(marker in head for marker in _JSON_CREDENTIAL_MARKERS)
+
+
+def _looks_like_secret_filename(name: str, full_path: Path | None = None) -> bool:
+    if name in _BENIGN_EXACT_NAMES:
+        return False
     if name.startswith("."):
         return True
-    if Path(name).suffix.lower() in _SECRET_EXTENSIONS:
+    suffix = Path(name).suffix.lower()
+    if suffix in _SECRET_EXTENSIONS:
         return True
-    return bool(_SECRET_FILENAME_STEM_RE.search(Path(name).stem))
+    if _SECRET_FILENAME_STEM_RE.search(Path(name).stem):
+        return True
+    if suffix not in _BENIGN_EXTENSIONS:
+        return True  # unrecognized (or absent) extension -- deny by default, not by name guess
+    if suffix == ".json" and full_path is not None and _json_looks_like_credential(full_path):
+        return True  # content says credential even though the name doesn't
+    return False
 
 
 def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
@@ -772,7 +838,12 @@ def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
     if not git:
         return ["[ERR] git not found on PATH -- cannot check for untracked secret-looking files."]
     result = subprocess.run(
-        [git, "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True,
+        # --untracked-files=all: without it, an entirely-untracked directory
+        # collapses to one "??" line for the directory itself, so a secret
+        # file sitting inside one (e.g. a scratch dir nobody `git add`ed
+        # yet) would never be individually examined below.
+        [git, "status", "--porcelain", "--untracked-files=all"],
+        cwd=repo_root, capture_output=True, text=True,
     )
     errors = []
     for line in result.stdout.splitlines():
@@ -784,14 +855,16 @@ def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
             continue
         rel = rel.strip().strip('"')
         name = Path(rel.rstrip("/")).name
-        if _looks_like_secret_filename(name):
+        if _looks_like_secret_filename(name, repo_root / rel):
             errors.append(
                 f"[ERR][{repo_root / rel}] untracked, un-gitignored path with a "
-                f"credential-shaped name sits inside this PUBLIC repo's working tree -- "
-                f"a future `git add -A` would ship it. If it's a real secret, move it "
-                f"outside the repo (see reminders/run_live_selftest.py's own KEY_PATH "
-                f"convention -- two directories up) or add a .gitignore rule; if it's a "
-                f"false positive, rename it."
+                f"credential-shaped (or unrecognized-extension) name sits inside this "
+                f"PUBLIC repo's working tree -- a future `git add -A` would ship it. If "
+                f"it's a real secret, move it outside the repo (see "
+                f"reminders/run_live_selftest.py's own KEY_PATH convention -- two "
+                f"directories up) or add a .gitignore rule; if it's a false positive "
+                f"(an ordinary file whose extension just isn't on the known-benign "
+                f"list yet), add the extension to _BENIGN_EXTENSIONS in this file."
             )
     return errors
 
