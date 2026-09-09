@@ -4,10 +4,10 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset."
   },
   "total_records": 246,
-  "gap_record_count": 38,
+  "gap_record_count": 40,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 34
+    "data_gap_note": 36
   },
   "block_claim_count": 0,
   "entries": [
@@ -292,6 +292,15 @@
     },
     {
       "dataset": "renewal_fees.json",
+      "id": "louisiana-renewal-fee",
+      "state": "Louisiana",
+      "state_slug": "louisiana",
+      "field": "data_gap_note",
+      "note": "The $50 (+$25/owner-over-10, capped $2,500) firm renewal figure above is sourced to the Board's own published fee page (cpaboard.state.la.us/cpa-firm-permits/), not independently re-confirmed against the codified La. Admin. Code text this pass -- attempts to fetch the current LAC PDF this session returned redirect/placeholder pages rather than the rule text. The individual $120 figure remains codified (La. Admin. Code tit. 46, pt. XIX, 1105(B)(1)), unaffected.",
+      "is_block_claim": false
+    },
+    {
+      "dataset": "renewal_fees.json",
       "id": "maryland-renewal-fee",
       "state": "Maryland",
       "state_slug": "maryland",
@@ -333,6 +342,15 @@
       "state_slug": "northern-mariana-islands",
       "field": "data_gap_note",
       "note": "CNMI's codified administrative code still shows a $100 renewal fee -- that text hasn't changed. But CNMI's enabling statute, 4 CMC § 3422(b), makes clear a CPA certificate is issued and renewed on a three-year cycle, not annually, so the code table's \"Renewal/annual\" label is a legacy category name rather than a literal yearly requirement. CNMI's Board of Accountancy has no government website of its own -- NASBA administers CNMI licensing on the Board's behalf, and NASBA's current fee page lists the individual renewal fee at $355 for that same three-year (Sept 30-Dec 31) cycle, but cites no CNMI statute, regulation, or resolution number for that figure. No CNMI government page states $355 directly either, so this record keeps $100 as the codified figure -- the two sources disagree materially: verify the exact amount with NASBA or the Board before you pay.",
+      "is_block_claim": false
+    },
+    {
+      "dataset": "renewal_fees.json",
+      "id": "oklahoma-renewal-fee",
+      "state": "Oklahoma",
+      "state_slug": "oklahoma",
+      "field": "data_gap_note",
+      "note": "The firm permit fee is a statutory CAP (\"not more than Two Hundred Dollars ($200.00)\"), not a fixed figure -- 59 O.S. §15.15A(E) has the Board set the actual amount administratively, the same structure as the individual permit fee already on this record. We could not locate the Board's current specific firm figure in its published rules/statutes PDF this pass (only the statutory cap appears there); confirm the exact current amount with the Board (405-521-2397) or its online portal before budgeting.",
       "is_block_claim": false
     },
     {
