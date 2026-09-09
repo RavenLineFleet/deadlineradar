@@ -5974,6 +5974,17 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "rate_limited");
     return jsonResponse(429, { error: attempt1.error, escalate: true });
   }
+  // LAT-1 (AuditLab, 2026-09-09): a >40s success used to be explainable
+  // only after the fact, by reasoning about the code -- logAssistantChatLatency
+  // records just the final elapsed_ms/status, so which attempt actually
+  // produced it (and why attempt 1 didn't) was gone the moment the request
+  // finished. This is the observable half AuditLab asked for: name attempt
+  // 1's own elapsed time and failure reason BEFORE the retry delay, so a
+  // future >40s sample is traceable, not just explicable.
+  console.log(
+    `[assistant-chat] attempt 1 failed after ${Date.now() - chatStartedAt}ms ` +
+      `(${attempt1.ok ? "apology-text signature" : `status ${attempt1.status}`}), retrying`
+  );
   await new Promise((resolve) => setTimeout(resolve, ASSISTANT_CHAT_RETRY_DELAY_MS));
   const attempt2 = await callAssistantDroplet(message, sessionId, ip, env);
   // Whatever attempt 2 actually returned ships, success or not -- never
