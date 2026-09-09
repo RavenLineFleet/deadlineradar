@@ -66,6 +66,7 @@ def collect_gap_entries(repo_root: Path) -> tuple[list[dict], int]:
                     "field": field,
                     "note": note,
                     "is_block_claim": bool(BLOCK_CLAIM_RE.search(note)),
+                    "terminal_disclosure": bool(r.get("terminal_disclosure")),
                 })
     return entries, total_records
 
@@ -73,6 +74,24 @@ def collect_gap_entries(repo_root: Path) -> tuple[list[dict], int]:
 def main() -> None:
     repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
     entries, total_records = collect_gap_entries(repo_root)
+
+    # terminal_disclosure (AssetLab + AuditLab, 2026-09-09): a record's note
+    # can describe a genuinely OPEN question (a formula/figure that could
+    # still be found, or a reply still owed by a board) or a TERMINAL one
+    # (no public formula/figure exists at all, e.g. a per-licensee personal
+    # renewal date, or a state that deliberately never publishes a fee).
+    # Both kinds carry a data_gap_note/verification_note -- the field alone
+    # can't distinguish them, which is why every note-bearing record used to
+    # count as an open gap even when nothing further could ever close it.
+    # terminal_disclosure=true is set ONLY after AuditLab independently
+    # re-verifies the claim (not a self-assessment) -- see
+    # AuditLab/inbox/assetlab_20260909_gap_reclassify_VERDICT.md for the
+    # first batch's evidence. Marked records stay in `entries` in full (nothing
+    # is hidden or deleted) but are excluded from gap_record_count, which is
+    # meant to answer "how many records still need work," not "how many
+    # records carry an explanatory note."
+    active_entries = [e for e in entries if not e["terminal_disclosure"]]
+    terminal_entries = [e for e in entries if e["terminal_disclosure"]]
 
     block_claims = [e for e in entries if e["is_block_claim"]]
     # Orchestrator (2026-09-04): gap_record_count (below) counts BOTH fields
@@ -91,7 +110,8 @@ def main() -> None:
         by_field[e["field"]] = by_field.get(e["field"], 0) + 1
 
     print(f"Gap-list inventory -- {len(entries)} record(s) of {total_records} total carry a "
-          f"sourcing gap/verification note across {len(_DATASETS)} datasets")
+          f"sourcing gap/verification note across {len(_DATASETS)} datasets "
+          f"({len(active_entries)} active, {len(terminal_entries)} terminal disclosure)")
     print(f"  field breakdown: " + ", ".join(f"{field}={count}" for field, count in sorted(by_field.items())))
     print(f"  of those, {len(block_claims)} make a block/parse claim (SRC-5's class, "
           f"independently verified against source_check.py at gate time)")
@@ -107,16 +127,25 @@ def main() -> None:
         for e in sorted(block_claims, key=lambda x: (x["dataset"], x["state_slug"] or "")):
             print(f"    [{e['dataset']}:{e['id']}] {e['state']} ({e['field']}) -- {e['note'][:100]!r}")
 
+    if terminal_entries:
+        print(f"\n  terminal disclosures, excluded from gap_record_count ({len(terminal_entries)}):")
+        for e in sorted(terminal_entries, key=lambda x: (x["dataset"], x["state_slug"] or "")):
+            print(f"    [{e['dataset']}:{e['id']}] {e['state']} ({e['field']})")
+
     artifact_path = repo_root / "data" / "gap_list.json"
     artifact = {
         "_meta": {
             "generated_by": "scripts/gap_list_check.py",
             "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every "
                        "record carrying a sourcing gap/verification note, regenerated on every "
-                       "preship_gate.py run so it can never go stale or be a remembered subset.",
+                       "preship_gate.py run so it can never go stale or be a remembered subset. "
+                       "gap_record_count excludes AuditLab-verified terminal_disclosure records "
+                       "(2026-09-09) -- see note_bearing_record_count for the total including them.",
         },
         "total_records": total_records,
-        "gap_record_count": len(entries),
+        "gap_record_count": len(active_entries),
+        "terminal_disclosure_count": len(terminal_entries),
+        "note_bearing_record_count": len(entries),
         "field_breakdown": by_field,
         "block_claim_count": len(block_claims),
         "entries": entries,
