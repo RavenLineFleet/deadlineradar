@@ -3923,11 +3923,42 @@ describe("deadlines.ts", () => {
   it("checkDataFreshness throws StaleDataError once data is older than the threshold", () => {
     const farFuture = new Date("2030-01-01T00:00:00Z");
     expect(() => checkDataFreshness(farFuture)).toThrow(StaleDataError);
-    expect(() => checkDataFreshness(new Date("2026-07-05T00:00:00Z"))).not.toThrow();
+    // AuditLab STALE-15 (LOW, 2026-09-09): the original fresh arm here was a
+    // hardcoded 2026-07-05 -- as_of_date has since moved past it, so that
+    // date now reads as a NEGATIVE age (before as_of_date), which can never
+    // trip any threshold. Made threshold-relative, same pattern as the
+    // STALE-5/STALE-11 test below, so this stays load-bearing regardless of
+    // what as_of_date the shipped data carries on any given day.
+    const asOfTime = Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`);
+    const comfortablyFresh = new Date(asOfTime + 1 * 86_400_000);
+    expect(() => checkDataFreshness(comfortablyFresh)).not.toThrow();
+  });
+
+  it("AuditLab STALE-15: checkDataFreshness uses a strict `>` -- data exactly AT the threshold is still trusted", () => {
+    // The sibling guard in generate.py shipped a `<` vs `<=` version of this
+    // exact bug once already (fixed 2026-08-01: a deadline falling ON the
+    // current date read as already stale and refused the build on the
+    // morning of a real deadline). Nothing here pinned the worker copy's
+    // operator, so a `>` -> `>=` regression would throw at (threshold + 1)
+    // -- still passing every existing test -- and start refusing signups a
+    // day early with nothing failing. This is the exact-boundary case: age
+    // == STALENESS_THRESHOLD_DAYS must NOT throw.
+    const asOfTime = Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`);
+    const exactlyAtThreshold = new Date(asOfTime + STALENESS_THRESHOLD_DAYS * 86_400_000);
+    expect(() => checkDataFreshness(exactlyAtThreshold)).not.toThrow();
+    // One day past the threshold must still throw -- proves this isn't
+    // passing because the guard stopped checking anything near the boundary.
+    const justPastThreshold = new Date(asOfTime + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000);
+    expect(() => checkDataFreshness(justPastThreshold)).toThrow(StaleDataError);
   });
 
   it("AuditLab ST-1: dataFreshnessInfo() reports the same as_of_date/staleness checkDataFreshness() gates on", () => {
-    const fresh = dataFreshnessInfo(new Date("2026-07-05T00:00:00Z"));
+    // AuditLab STALE-15: same hardcoded-date decay as the test above this
+    // one -- 2026-07-05 has since drifted to a negative age relative to
+    // as_of_date, so the "fresh" arm no longer exercises fresh-but-aging
+    // data. Threshold-relative instead, same fix.
+    const asOfTime = Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`);
+    const fresh = dataFreshnessInfo(new Date(asOfTime + 1 * 86_400_000));
     expect(fresh.as_of_date).toBe(cpaDeadlinesData.as_of_date);
     expect(fresh.stale).toBe(false);
     expect(Number.isFinite(fresh.age_days)).toBe(true);
