@@ -816,21 +816,40 @@ def _json_looks_like_credential(path: Path) -> bool:
     return any(marker in head for marker in _JSON_CREDENTIAL_MARKERS)
 
 
-def _looks_like_secret_filename(name: str, full_path: Path | None = None) -> bool:
+def _secret_filename_reason(name: str, full_path: Path | None = None) -> str | None:
+    """None if `name` doesn't look secret; otherwise a short tag for why.
+
+    AuditLab (GATE-21v3 + SEC-7/GATE-23 re-verify, 2026-09-09) measured this
+    gate against the repo's own real conventions: every extension the repo
+    actually uses is already in _BENIGN_EXTENSIONS, so the deny-by-default
+    extension rule produces zero friction here -- but the STEM regex alone
+    flags real, ordinary tracked-style names in normal dev iteration (a
+    migration like `0014_refresh_token_ttl.sql`, a script like
+    `set_and_verify_new_secret.py`) with the same generic "credential-shaped"
+    wording used for an actual `id_rsa`. Both reviewers independently
+    recommended distinguishing the two rather than filing it as a new gap:
+    the tag lets the caller word a stem-only, benign-extension hit as a
+    lighter "rename or commit it" nudge instead of the full secret warning.
+    """
     if name in _BENIGN_EXACT_NAMES:
-        return False
+        return None
     if name.startswith("."):
-        return True
+        return "dotfile"
     suffix = Path(name).suffix.lower()
     if suffix in _SECRET_EXTENSIONS:
-        return True
-    if _SECRET_FILENAME_STEM_RE.search(Path(name).stem):
-        return True
+        return "secret-extension"
+    stem_match = _SECRET_FILENAME_STEM_RE.search(Path(name).stem)
     if suffix not in _BENIGN_EXTENSIONS:
-        return True  # unrecognized (or absent) extension -- deny by default, not by name guess
+        return "unrecognized-extension"  # deny by default, not by name guess
+    if stem_match:
+        return "stem-match-only"  # benign extension; only the name looks credential-ish
     if suffix == ".json" and full_path is not None and _json_looks_like_credential(full_path):
-        return True  # content says credential even though the name doesn't
-    return False
+        return "json-content"  # content says credential even though the name doesn't
+    return None
+
+
+def _looks_like_secret_filename(name: str, full_path: Path | None = None) -> bool:
+    return _secret_filename_reason(name, full_path) is not None
 
 
 def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
@@ -855,7 +874,22 @@ def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
             continue
         rel = rel.strip().strip('"')
         name = Path(rel.rstrip("/")).name
-        if _looks_like_secret_filename(name, repo_root / rel):
+        reason = _secret_filename_reason(name, repo_root / rel)
+        if reason == "stem-match-only":
+            # Ordinary extension (already known-benign); the name alone
+            # contains key/secret/credential/token -- plausibly a real
+            # migration or script following this repo's own naming (see
+            # 0013_login_token_purpose.sql, set_and_verify_assistant_secret.py),
+            # not a leaked file. Lighter wording, still blocks -- fail
+            # closed either way -- but doesn't cry wolf.
+            errors.append(
+                f"[ERR][{repo_root / rel}] untracked file's name contains "
+                f"key/secret/credential/token, but its extension is an ordinary, "
+                f"already-recognized one -- likely a real file (a migration, a script) "
+                f"rather than a leaked secret. `git add` it if so, or rename it if this "
+                f"is genuinely a credential file that needs to stay out of the repo."
+            )
+        elif reason is not None:
             errors.append(
                 f"[ERR][{repo_root / rel}] untracked, un-gitignored path with a "
                 f"credential-shaped (or unrecognized-extension) name sits inside this "
