@@ -744,6 +744,58 @@ def check_no_secret_paths_resolve_inside_repo(repo_root: Path) -> list[str]:
     return errors
 
 
+# GATE-22 (AuditLab, 2026-09-09): check_no_secret_paths_resolve_inside_repo()
+# (GATE-21/SEC-6) matches Python SOURCE SHAPE -- and each fix so far has
+# closed one shape while a new one appeared (GATE-21 -> SEC-6 -> this, three
+# times in one evening: .joinpath()/Path(REPO_ROOT, ...) construction, an
+# indirect variable holding the filename, and an ordinary-looking stem like
+# "sendgrid_credentials.json" all evade a source-shape match). The invariant
+# that actually matters isn't how a path is spelled in Python -- it's
+# whether an unignored, untracked, credential-shaped file sits in the
+# working tree at all, since that is exactly and only what `git add -A` can
+# ship to this public repo. Checking the filesystem directly is invariant to
+# how the path was constructed, or whether it was constructed in Python at
+# all (a manually-copied file needs no code to become a real exposure).
+_SECRET_FILENAME_STEM_RE = re.compile(r"(key|secret|credential|token)", re.IGNORECASE)
+
+
+def _looks_like_secret_filename(name: str) -> bool:
+    if name.startswith("."):
+        return True
+    if Path(name).suffix.lower() in _SECRET_EXTENSIONS:
+        return True
+    return bool(_SECRET_FILENAME_STEM_RE.search(Path(name).stem))
+
+
+def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
+    git = shutil.which("git")
+    if not git:
+        return ["[ERR] git not found on PATH -- cannot check for untracked secret-looking files."]
+    result = subprocess.run(
+        [git, "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True,
+    )
+    errors = []
+    for line in result.stdout.splitlines():
+        # Plain `git status --porcelain` never lists an ignored path, so
+        # every "??" (untracked) entry here is also NOT covered by
+        # .gitignore -- exactly the set a future `git add -A` would pick up.
+        status, _, rel = line.partition(" ")
+        if status != "??":
+            continue
+        rel = rel.strip().strip('"')
+        name = Path(rel.rstrip("/")).name
+        if _looks_like_secret_filename(name):
+            errors.append(
+                f"[ERR][{repo_root / rel}] untracked, un-gitignored path with a "
+                f"credential-shaped name sits inside this PUBLIC repo's working tree -- "
+                f"a future `git add -A` would ship it. If it's a real secret, move it "
+                f"outside the repo (see reminders/run_live_selftest.py's own KEY_PATH "
+                f"convention -- two directories up) or add a .gitignore rule; if it's a "
+                f"false positive, rename it."
+            )
+    return errors
+
+
 def check_stylesheet_integrity(html_files: list[Path], docs_dir: Path) -> list[str]:
     """Catch a TRUNCATED stylesheet -- the worst silent failure this site has.
 
@@ -5389,6 +5441,7 @@ def main():
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
+    all_errors += check_no_untracked_secret_looking_files(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_legal_safety(html_files, state_page_files)
     all_errors += check_affiliate_disclosure(html_files)
