@@ -5502,6 +5502,28 @@ export async function unclaimMobilityStalenessAlertForMonth(db: D1Database, mont
   await db.prepare(`DELETE FROM mobility_staleness_alert_log WHERE month = ?1`).bind(monthUtc).run();
 }
 
+/** AuditLab BILL-17 (MEDIUM, 2026-09-09), migration 0076. Same
+ * INSERT-and-report-whether-it-landed shape as
+ * claimMobilityStalenessAlertForMonth() above, month-keyed for the same
+ * reason: a Stripe price desync is a slow-moving config-drift signal, not
+ * something that needs a daily nag once known. Returns true = "you own
+ * this month's alert, send it." false = "already sent this month, don't." */
+export async function claimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string): Promise<boolean> {
+  const result = await db
+    .prepare(`INSERT INTO stripe_price_parity_alert_log (month, sent_at) VALUES (?1, ?2) ON CONFLICT(month) DO NOTHING`)
+    .bind(monthUtc, nowIso())
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+/** Same DROP-3-shaped "claim burned even when the alert never actually
+ * sent" fix as unclaimMobilityStalenessAlertForMonth() above -- called on
+ * every failure branch so a later tick this same month gets a real retry
+ * instead of losing the alert until next month. */
+export async function unclaimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string): Promise<void> {
+  await db.prepare(`DELETE FROM stripe_price_parity_alert_log WHERE month = ?1`).bind(monthUtc).run();
+}
+
 /** AuditLab SILENT-1 (HIGH, 2026-08-19), migration 0067: called from
  * runReminderPass() every time a confirmed subscriber's deadline fails to
  * compute -- the exact "believes they're covered, told nothing" gap.

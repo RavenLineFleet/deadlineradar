@@ -42,6 +42,16 @@ Stripe price/coupon configuration (a new tier, a changed STRIPE_PRICE_*
 secret, before flipping from test-mode to live-mode keys at Gate 2), not on
 every build.
 
+AuditLab BILL-17 (MEDIUM, 2026-09-09): this script only ever ran when
+someone remembered to, so a price desync between deploys (a dashboard edit,
+say) went undetected until the next manual run. worker/src/scheduler.ts's
+runStripePriceParityAlertPass() now covers the PRICE half of the same check
+automatically every night (gated behind requireSendApproval per the
+standing consent-gate directive) -- this script remains the pre-deploy
+gate for a NEW tier/secret change (it fails the deploy itself, not just
+alerts after the fact) and is still the only thing that checks the
+referral-coupon half at all.
+
 Usage:
     export STRIPE_SECRET_KEY=sk_test_...   (or source AssetLab's OWN
                                              .secrets/stripe.env, two directories
