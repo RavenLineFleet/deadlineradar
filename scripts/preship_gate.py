@@ -2099,25 +2099,16 @@ _MIRROR_HOST_RE = re.compile(
 # reachable by plain curl with no JS wall. citation_url promoted off the
 # Cornell LII mirror to this official host, so the "no reachable official
 # host" premise no longer holds.
-# 2026-09-10 (CITE-69, AuditLab): nebraska-reinstatement granted -- the whole
-# rules.nebraska.gov host started returning 403 today (curl, a real browser,
-# and a separate WebFetch vantage all 403; a sibling NE state host served
-# fine from the same client at the same moment, and DiffLab independently
-# flagged the host as newly WENT_DARK the same day), so the official PDF this
-# record used to cite is currently unreachable by any client tested. Citing
-# the already-verified Cornell LII mirror (matches the record's figures
-# exactly) until the host recovers; the official PDF is kept as
-# secondary_source_url, not discarded. Retire this exception once
-# rules.nebraska.gov serves the PDF again -- check before assuming it's still
-# down.
-_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
-    "nebraska-reinstatement": (
-        "rules.nebraska.gov returned 403 to every client tested on 2026-09-10 "
-        "(curl, real browser, WebFetch) -- whole host, not one broken path; "
-        "corroborated by DiffLab's independent same-day WENT_DARK detection. "
-        "Citing the pre-verified Cornell LII mirror until the host recovers."
-    ),
-}
+# 2026-09-10 (CITE-69, AuditLab): nebraska-reinstatement's exception granted
+# and retired the same day. rules.nebraska.gov 403'd whole-host for ~2 hours
+# (dark by 06:34, confirmed recovered by 08:13 -- 3 consecutive 200s on the
+# host root, 2 on the actual citation PDF with correct content, plain curl
+# with no browser UA). citation_url reverted to the official host; Cornell
+# LII back to secondary_source_url. Left as a worked example: the exception
+# mechanism did its job (blocked a bare swap with no disclosure), and the
+# retirement comment it required is why this got re-tested and closed
+# within hours instead of quietly becoming permanent.
+_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {}
 
 
 def check_citations_are_primary(repo_root: Path) -> list[str]:
