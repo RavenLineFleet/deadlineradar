@@ -661,7 +661,7 @@
       "id": "pa-cpe",
       "state": "Pennsylvania",
       "state_slug": "pennsylvania",
-      "citation": "49 Pa. Code § 11.62; § 11.63(a)(7)",
+      "citation": "49 Pa. Code § 11.62(b); § 11.63(a)(7)",
       "citation_url": "https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/049/chapter11/s11.62.html&d=reduce",
       "source_url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
       "total_hours": 80,
@@ -670,8 +670,8 @@
       "ethics_hours": 4,
       "ethics_period_years": 2,
       "notes": "80 hours per 2-year renewal period, minimum 20 hours each year (§11.62), 4 hours of ethics (§11.63(a)(7)). Several third-party CPE-vendor sites cite §11.65 for these requirements; that section has been RESERVED (no substantive text) since 2012. The governing sections are §11.62 and §11.63.",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-14 (COPY-6 full-class sweep, extra): dropped \"used here instead\" -- self-referential maintainer voice."
+      "verified_date": "2026-09-10",
+      "verification_history": "2026-08-14 (COPY-6 full-class sweep, extra): dropped \"used here instead\" -- self-referential maintainer voice.\n\n2026-09-10 (AuditLab, blog-draft review): pinned the citation to Sec11.62(b) specifically -- Sec11.62 splits into (a) initial licensure, (b) ordinary renewal (this record's actual subject), and (c) reactivation, so an unpinned cite could misread as ambiguous or even point at the wrong subsection. Sec11.62(b) verbatim: 'An applicant for renewal of a current license shall have completed 80 CPE hours ... during the 2-year period preceding the start of the next license period.' No substantive change -- figures unaffected."
     },
     {
       "id": "ri-cpe",
