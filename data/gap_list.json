@@ -4,8 +4,8 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 33,
-  "terminal_disclosure_count": 6,
+  "gap_record_count": 28,
+  "terminal_disclosure_count": 11,
   "note_bearing_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
@@ -141,7 +141,7 @@
       "field": "data_gap_note",
       "note": "Your Vermont firm registration renews every two years, confirmed by both the statute (26 V.S.A. § 75(a)) and Board Rule 6.1(d). The codified July 31/odd-year date in Rule 8.1(b) is written for \"Licenses\" only -- it is never extended to firm registrations in the rule text itself. Vermont's Office of Professional Regulation does apply that same July 31/odd-year date to firms in practice, per its own official fee and renewal-date table. So the two-year cycle is codified law; the July 31 date for firms comes from the regulator's own table, not from the statute or rule text.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -231,7 +231,7 @@
       "field": "data_gap_note",
       "note": "The $20 fee is set directly in Minnesota statute, so that's the source you'll see cited here. The board's own site covers the reinstatement process but doesn't state the dollar amount -- which is why the statute, not a board page, is the authority behind this figure.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -271,7 +271,7 @@
       "field": "data_gap_note",
       "note": "You can rely on the $500 reinstatement fee, $375 renewal fee, and 120-hour CPE requirement as stated directly in Rhode Island's codified accountancy rule -- not an estimate. The board's own renewal page independently confirms the lockout mechanic and cycle deadline that trigger reinstatement in the first place.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -341,7 +341,7 @@
       "field": "data_gap_note",
       "note": "Maryland's $63 individual and $151 firm renewal fees are codified in COMAR 09.24.01.09B, and the Board's own fee page shows the same figures -- confirmed in both places. That regulation only sets the dollar amounts; your renewal cycle is biennial, and how your exact expiration date is determined is covered on this site's Maryland individual-license renewal page.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
@@ -361,7 +361,7 @@
       "field": "data_gap_note",
       "note": "New Hampshire's statute delegates the exact fee amount to OPLC's own rulemaking rather than spelling it out itself. OPLC's fee rule (Plc 1002.01, Table 1002.1) sets it at $201 -- the same figure posted on OPLC's fee page, so it's confirmed in two independent sources.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
