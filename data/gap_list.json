@@ -239,7 +239,7 @@
       "state": "Nebraska",
       "state_slug": "nebraska",
       "field": "data_gap_note",
-      "note": "The 'read the rule' link above points to a mirror copy (Cornell Law School's Legal Information Institute), not Nebraska's own rules website -- Nebraska's own site is returning an access-denied error to every visitor as of 2026-09-10. The figures themselves are unaffected and match the mirror exactly. The state's own PDF is still on file and this link will switch back to it once the state's site recovers.",
+      "note": "The 'read the rule' link above points to a mirror copy (Cornell Law School's Legal Information Institute), not Nebraska's own rules website -- Nebraska's own site appears to be down -- it's returning an access-denied error to us and to automated checks as of 2026-09-10. The figures themselves are unaffected and match the mirror exactly. The state's own PDF is still on file and this link will switch back to it once the state's site recovers.",
       "is_block_claim": false,
       "terminal_disclosure": false
     },
