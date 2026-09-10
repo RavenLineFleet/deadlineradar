@@ -4,12 +4,12 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 29,
+  "gap_record_count": 28,
   "terminal_disclosure_count": 11,
-  "note_bearing_record_count": 40,
+  "note_bearing_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 36
+    "data_gap_note": 35
   },
   "block_claim_count": 0,
   "entries": [
@@ -232,16 +232,6 @@
       "note": "The $20 fee is set directly in Minnesota statute, so that's the source you'll see cited here. The board's own site covers the reinstatement process but doesn't state the dollar amount -- which is why the statute, not a board page, is the authority behind this figure.",
       "is_block_claim": false,
       "terminal_disclosure": true
-    },
-    {
-      "dataset": "reinstatement.json",
-      "id": "nebraska-reinstatement",
-      "state": "Nebraska",
-      "state_slug": "nebraska",
-      "field": "data_gap_note",
-      "note": "The 'read the rule' link above points to a mirror copy (Cornell Law School's Legal Information Institute), not Nebraska's own rules website -- Nebraska's own site appears to be down -- it's returning an access-denied error to us and to automated checks as of 2026-09-10. The figures themselves are unaffected and match the mirror exactly. The state's own PDF is still on file and this link will switch back to it once the state's site recovers.",
-      "is_block_claim": false,
-      "terminal_disclosure": false
     },
     {
       "dataset": "reinstatement.json",
