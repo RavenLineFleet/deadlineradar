@@ -259,7 +259,7 @@
       "state": "Oregon",
       "state_slug": "oregon",
       "field": "data_gap_note",
-      "note": "The $225 reinstatement fee, $255 biennial renewal fee, and 16-hour CPE penalty are all set out in Oregon's codified rules (OAR 801-010-0010 and 801-010-0130) -- the same rule text cited above. The Board's renewal-information page describes the lapse and reinstatement process in plain terms but doesn't restate these specific figures; the rule itself is the definitive source for them.",
+      "note": "The $225 reinstatement fee, $255 biennial renewal fee, and 80-hour CPE reinstatement requirement (with its 16-hour non-technical-credit cap) are all set out in Oregon's codified rules (OAR 801-010-0010 and 801-010-0130) -- the same rule text cited above. The Board's renewal-information page describes the lapse and reinstatement process in plain terms but doesn't restate these specific figures; the rule itself is the definitive source for them.",
       "is_block_claim": false,
       "terminal_disclosure": false
     },
