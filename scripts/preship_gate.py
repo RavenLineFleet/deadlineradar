@@ -4869,8 +4869,14 @@ def check_origin_check_coverage(repo_root: Path) -> list[str]:
             f"{', '.join(stale_exemptions)} -- remove the stale entry."
         )
 
+    # GATE-25 follow-up (AuditLab, 2026-09-10): was `async function` only,
+    # so a synchronous, non-exempted handler reported a misleading
+    # "definition was not found" instead of the real reason. Dormant until
+    # f3049f1d1 (same day) made the 6 assistant handlers -- the only sync
+    # ones in the tree -- reachable here at all; confirmed live by removing
+    # one from its allowlist and reading the corrected message.
     for name in sorted(write_handlers - set(CSRF_EXEMPT_WRITE_HANDLERS)):
-        fn_m = re.search(rf"async function {re.escape(name)}\([^)]*\)[^{{]*\{{", src)
+        fn_m = re.search(rf"(?:async\s+)?function {re.escape(name)}\([^)]*\)[^{{]*\{{", src)
         if not fn_m:
             errors.append(
                 f"[CSRF-2] {name} is write-dispatched in index.ts but its definition was not found "
@@ -4994,8 +5000,10 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
     # requireFirmRole() doesn't carry "Session" in its name, so it needs
     # its own alternative.
     session_helper_re = re.compile(r"require\w*Session\w*\(|requireFirmRole\(")
+    # GATE-25 follow-up (AuditLab, 2026-09-10) -- see check_origin_check_coverage's
+    # sibling comment for the async-only body-lookup fix this mirrors.
     for name in sorted(read_handlers - set(PUBLIC_READ_HANDLERS)):
-        fn_m = re.search(rf"async function {re.escape(name)}\([^)]*\)[^{{]*\{{", src)
+        fn_m = re.search(rf"(?:async\s+)?function {re.escape(name)}\([^)]*\)[^{{]*\{{", src)
         if not fn_m:
             errors.append(
                 f"[AUTH-1] {name} is GET-dispatched in index.ts but its definition was not "
