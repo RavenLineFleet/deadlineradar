@@ -4992,6 +4992,181 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
+# AuditLab CSRF-4 (LOW, 2026-09-10): CSRF-2 above covers write-dispatched
+# (POST/PATCH/DELETE/PUT) handlers, and AUTH-1 covers every GET-dispatched
+# handler for session presence -- but neither asks whether a GET handler
+# MUTATES. A mutating GET is worse than an uncovered write: `<img src="...">`
+# triggers it cross-site with the victim's cookies attached, with no
+# preflight and no origin header for a check like CSRF-2's to inspect. Seeded
+# with the 5 handlers AuditLab's own transitive call-graph sweep (2026-09-10)
+# found reaching a mutating store.ts/sender.ts/validation.ts function, out of
+# 24 total GET-dispatched handlers -- do NOT add a name here without reading
+# the actual defense the way AuditLab did for the two OAuth callbacks
+# (consumeOauthState's fail-closed, browser-bound single-use token).
+MUTATING_GET_HANDLERS = {
+    # Rate-limit/bookkeeping writes (3) -- state-changing, but nothing an
+    # attacker gains from forging the request cross-site.
+    "handleFirmPacketExport": "infrastructural-write (rate-limit counter only)",
+    "handleFirmSlackConnectStart": "infrastructural-write (rate-limit counter + OAuth state row, itself CSRF-inert -- the state row is looked up by its own random id, not trusted input)",
+    "handleOauthStart": "infrastructural-write (rate-limit counter + OAuth state row, same reasoning)",
+    # OAuth callbacks (2) -- GET by protocol necessity; the only possible
+    # defense is the `state` parameter, verified end to end by AuditLab:
+    # consumeOauthState() requires state to exist, be unused, be unexpired,
+    # AND its stored binding hash to match a hash of the dr_oauth_handshake
+    # cookie (HttpOnly/Secure/SameSite=Lax, read from the cookie, never the
+    # URL) -- an attacker's own binding cookie never matches the victim's
+    # stored hash, so the redemption fails closed. Single-use is enforced by
+    # a conditional `UPDATE ... WHERE used_at IS NULL` requiring changes==1.
+    "handleFirmSlackConnectCallback": "oauth-state-bound (consumeOauthState fails closed on browser-bound hash)",
+    "handleOauthCallback": "oauth-state-bound (consumeOauthState fails closed on browser-bound hash)",
+}
+
+
+def _strip_ts_comments(body: str) -> str:
+    """Shared by check_mutating_get_coverage()'s function-body extraction --
+    same stripping CSRF-2/AUTH-1 apply before their own substring checks, so
+    a comment merely NAMING a function (e.g. "...via store.mintReferralCode()")
+    can't be mistaken for a real call. Caught exactly this false positive in
+    handleFirmLicensesList during development -- its own comment mentions
+    mintReferralCode() and handleFirmBillingCancellationToggle() by name;
+    without stripping, both looked like real calls and the handler
+    misclassified as mutating."""
+    body = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", body)
+
+
+def _extract_top_level_ts_functions(src: str) -> dict[str, str]:
+    """Returns {name: comment-stripped body} for every top-level
+    `[export ][async ]function name(...) { ... }` in src, using the same
+    brace-matching as every other coverage gate in this file (no TypeScript
+    toolchain available). Arrow-function exports (`export const f = async
+    (...) => {`) are a known blind spot -- checked against store.ts/
+    sender.ts/validation.ts during development and found unused there
+    (0 matches), so not worth the added complexity unless that changes."""
+    fn_def_re = re.compile(r"^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(", re.M)
+    functions: dict[str, str] = {}
+    for m in fn_def_re.finditer(src):
+        brace_idx = src.find("{", m.end())
+        if brace_idx == -1:
+            continue
+        end = _bracket_match(src, brace_idx)
+        if end is None:
+            continue
+        functions[m.group(1)] = _strip_ts_comments(src[brace_idx : end + 1])
+    return functions
+
+
+# INSERT/DELETE/REPLACE are unambiguous; UPDATE needs a following SET (within
+# a generous span, since D1's .prepare() template literals can carry a long
+# column list) to avoid matching an unrelated use of the word "update".
+_MUTATING_DML_RE = re.compile(
+    r"\bINSERT\s+INTO\b|\bDELETE\s+FROM\b|\bREPLACE\s+INTO\b|\bUPDATE\s+\w+[\s\S]{0,300}?\bSET\b"
+)
+
+
+def check_mutating_get_coverage(repo_root: Path) -> list[str]:
+    """AuditLab CSRF-4 advisory (LOW, 2026-09-10): every GET-dispatched
+    handler in worker/src/index.ts that TRANSITIVELY reaches a mutating
+    database function (direct call, or a call chain through other named
+    functions) must be named, with a justification, in
+    MUTATING_GET_HANDLERS above. "Transitively" matters: index.ts itself
+    contains no SQL (confirmed -- every write delegates to store.ts), so a
+    naive scan of handler bodies for INSERT/UPDATE/DELETE finds nothing,
+    which is indistinguishable from a genuine all-clear without also
+    checking what each handler calls. Verified against AuditLab's own
+    finding before shipping (positive control): the same 5 of 24
+    GET-dispatched handlers came out of this implementation, and only after
+    comment-stripping was added -- see _strip_ts_comments()'s docstring for
+    the false positive that caught (a docstring mentioning a function BY
+    NAME reads as a real call to a naive regex). Audited in both
+    directions like CSRF-2/AUTH-1: a mutating GET handler missing from
+    MUTATING_GET_HANDLERS fails, and an entry that no longer reaches a
+    mutator (or is no longer GET-dispatched) fails too, so the allowlist
+    can't rot into a rubber stamp."""
+    index_ts = repo_root / "worker" / "src" / "index.ts"
+    store_ts = repo_root / "worker" / "src" / "store.ts"
+    sender_ts = repo_root / "worker" / "src" / "sender.ts"
+    validation_ts = repo_root / "worker" / "src" / "validation.ts"
+    for p in (index_ts, store_ts, sender_ts, validation_ts):
+        if not p.exists():
+            return [f"[CSRF-4] {p} not found -- mutating-GET coverage can't be verified and must be repaired."]
+
+    index_src = index_ts.read_text(encoding="utf-8")
+    functions: dict[str, str] = {}
+    for p in (store_ts, sender_ts, validation_ts):
+        functions.update(_extract_top_level_ts_functions(p.read_text(encoding="utf-8")))
+    functions.update(_extract_top_level_ts_functions(index_src))
+
+    mutating = {name for name, body in functions.items() if _MUTATING_DML_RE.search(body)}
+    if not mutating:
+        return ["[CSRF-4] found NO functions containing INSERT/UPDATE/DELETE/REPLACE in "
+                "store.ts/sender.ts/validation.ts. Either the DML shape changed or nothing is "
+                "wired -- this check is measuring nothing and must be repaired."]
+
+    call_re = re.compile(r"\b(\w+)\(")
+    known_names = set(functions)
+    calls: dict[str, set[str]] = {
+        name: {m for m in call_re.findall(body) if m in known_names and m != name}
+        for name, body in functions.items()
+    }
+
+    # Fixed-point closure: propagate "reaches a mutator" backward through the
+    # call graph until nothing new is added. Terminates because it's a
+    # monotonic set growth bounded by len(functions); handles cycles fine
+    # (a cycle member either reaches the mutating set through some exit edge
+    # or it never gets added, either way the loop still converges).
+    reaches_mutator = set(mutating)
+    changed = True
+    while changed:
+        changed = False
+        for name, called in calls.items():
+            if name not in reaches_mutator and called & reaches_mutator:
+                reaches_mutator.add(name)
+                changed = True
+
+    method_re = re.compile(r'request\.method\s*===\s*"(\w+)"')
+    dispatch_re = re.compile(r"return\s+await\s+(handle\w+)\(")
+    events = [(m.start(), "method", m.group(1)) for m in method_re.finditer(index_src)]
+    events += [(m.start(), "dispatch", m.group(1)) for m in dispatch_re.finditer(index_src)]
+    events.sort(key=lambda e: e[0])
+
+    current_method = None
+    read_handlers: set[str] = set()
+    for _, kind, val in events:
+        if kind == "method":
+            current_method = val
+        elif current_method == "GET":
+            read_handlers.add(val)
+
+    if not read_handlers:
+        return ["[CSRF-4] found NO GET-dispatched handlers in index.ts. Either the dispatch "
+                "shape changed or nothing is wired -- this check is measuring nothing and "
+                "must be repaired."]
+
+    mutating_get_handlers = {h for h in read_handlers if h in reaches_mutator}
+
+    errors = []
+    stale_allowlist = sorted(set(MUTATING_GET_HANDLERS) - mutating_get_handlers)
+    if stale_allowlist:
+        errors.append(
+            "[CSRF-4] MUTATING_GET_HANDLERS names handler(s) that no longer reach a mutating "
+            f"database function, or are no longer GET-dispatched: {', '.join(stale_allowlist)} "
+            f"-- remove the stale entry."
+        )
+
+    for name in sorted(mutating_get_handlers - set(MUTATING_GET_HANDLERS)):
+        errors.append(
+            f"[CSRF-4] {name} is GET-dispatched and transitively reaches a mutating database "
+            f"function (INSERT/UPDATE/DELETE/REPLACE), but is not named in MUTATING_GET_HANDLERS "
+            f"with a justification -- a GET route that mutates state is triggerable cross-site via "
+            f"<img src>, with no preflight and no origin header for CSRF-2's check to inspect. "
+            f"Either remove the mutation from this GET path, or add it to MUTATING_GET_HANDLERS "
+            f"with the specific defense (e.g. a fail-closed, single-use, browser-bound token) that "
+            f"makes it safe."
+        )
+    return errors
+
+
 def check_action_pages_post_switch_parity(repo_root: Path) -> list[str]:
     """AuditLab UX-7 (LOW, 2026-08-21, orchestrator-approved): every
     ACTION_PAGES key in worker/src/index.ts is a page an emailed link points
@@ -5667,6 +5842,7 @@ def main():
     all_errors += check_send_pass_consent_gate_coverage(repo_root)
     all_errors += check_origin_check_coverage(repo_root)
     all_errors += check_read_route_auth_coverage(repo_root)
+    all_errors += check_mutating_get_coverage(repo_root)
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
 
