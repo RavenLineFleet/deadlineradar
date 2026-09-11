@@ -1087,7 +1087,13 @@ def check_focus_indicator_compensation(docs_dir: Path) -> list[str]:
 
 
 _IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
-_ALT_ATTR_RE = re.compile(r"\balt\s*=", re.IGNORECASE)
+# GATE-27 (AuditLab, 2026-09-10): was `\balt\s*=` -- a hyphen is a non-word
+# character, so `\b` holds between `-` and `alt`, and the pattern matches
+# INSIDE `data-alt=`/`aria-alt=` (the conventional attribute name a
+# lazy-loading library swaps the real `alt` in from at runtime), a false
+# negative for exactly the case this check exists to catch. Negative
+# lookbehind requires alt's own attribute boundary.
+_ALT_ATTR_RE = re.compile(r"(?<![-\w])alt\s*=", re.IGNORECASE)
 
 
 def check_img_alt_attributes(html_files: list[Path]) -> list[str]:
