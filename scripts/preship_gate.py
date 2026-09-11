@@ -4742,6 +4742,18 @@ def check_send_pass_consent_gate_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
+# AuditLab GATE-25 (LOW, 2026-09-10): CSRF-2, AUTH-1, and CSRF-4 each
+# independently defined `return\s+await\s+(handle\w+)\(` to find dispatched
+# handlers -- which is blind to the 6 GET routes index.ts dispatches as
+# `return handleX(url)` (no `await`, legal since they return a Response
+# directly rather than a Promise). All 6 are the /assistant/* routes, each
+# `(url: URL): Response` with no `env`/D1 handle at all -- provably unable to
+# touch tenant data, so this was a coverage-claim gap, not a live leak.
+# Single source of truth now, so a future widening can't fix two gates and
+# miss the third the way three independent copies just did.
+_HANDLER_DISPATCH_RE = re.compile(r"return\s+(?:await\s+)?(handle\w+)\(")
+
+
 # AuditLab CSRF-2 (LOW advisory, 2026-08-21, orchestrator-approved): the
 # 55-call/29-exempt origin-check partition over every write-dispatched
 # handler in worker/src/index.ts is correct today only because someone
@@ -4825,7 +4837,7 @@ def check_origin_check_coverage(repo_root: Path) -> list[str]:
     src = index_ts.read_text(encoding="utf-8")
 
     method_re = re.compile(r'request\.method\s*===\s*"(\w+)"')
-    dispatch_re = re.compile(r"return\s+await\s+(handle\w+)\(")
+    dispatch_re = _HANDLER_DISPATCH_RE
     events = [(m.start(), "method", m.group(1)) for m in method_re.finditer(src)]
     events += [(m.start(), "dispatch", m.group(1)) for m in dispatch_re.finditer(src)]
     events.sort(key=lambda e: e[0])
@@ -4893,9 +4905,11 @@ def check_origin_check_coverage(repo_root: Path) -> list[str]:
 # one route class with no coverage assertion is the class where a miss
 # leaks rather than mutates. Seeded with the 3 handlers AuditLab's own live
 # sweep (2026-08-28) confirmed are correctly public, out of 21 total
-# GET-dispatched handlers -- do NOT add a name here without the same
-# "provably no tenant data" reasoning check_origin_check_coverage's sibling
-# dict demands for writes.
+# GET-dispatched handlers at the time (GATE-25, 2026-09-10, widened the
+# dispatch pattern to also see the non-`await` form -- 30 total today, +6
+# more added below with the same reasoning) -- do NOT add a name here
+# without the same "provably no tenant data" reasoning
+# check_origin_check_coverage's sibling dict demands for writes.
 PUBLIC_READ_HANDLERS = {
     # OAuth handshake (2) -- no session exists yet for either leg; the
     # callback is what CREATES the session, so it cannot itself require one.
@@ -4905,6 +4919,17 @@ PUBLIC_READ_HANDLERS = {
     # voter cookie (ROADMAP_VOTER_COOKIE_NAME), no tenant/session data of
     # any kind in the query or the response.
     "handleRoadmapData": "public-no-tenant-data",
+    # GATE-25 (AuditLab, 2026-09-10): the /assistant/* routes (6) -- newly
+    # visible once _HANDLER_DISPATCH_RE started matching the non-`await`
+    # `return handleX(url)` dispatch form these use. Each is
+    # `(url: URL): Response`, synchronous, no `env` parameter at all -- there
+    # is no D1 handle in scope for these to read or write tenant data with.
+    "handleAssistantDeadline": "public-no-tenant-data",
+    "handleAssistantCpe": "public-no-tenant-data",
+    "handleAssistantReinstatement": "public-no-tenant-data",
+    "handleAssistantRenewalFee": "public-no-tenant-data",
+    "handleAssistantMobility": "public-no-tenant-data",
+    "handleAssistantRuleChanges": "public-no-tenant-data",
 }
 
 
@@ -4937,7 +4962,7 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
     src = index_ts.read_text(encoding="utf-8")
 
     method_re = re.compile(r'request\.method\s*===\s*"(\w+)"')
-    dispatch_re = re.compile(r"return\s+await\s+(handle\w+)\(")
+    dispatch_re = _HANDLER_DISPATCH_RE
     events = [(m.start(), "method", m.group(1)) for m in method_re.finditer(src)]
     events += [(m.start(), "dispatch", m.group(1)) for m in dispatch_re.finditer(src)]
     events.sort(key=lambda e: e[0])
@@ -5000,8 +5025,12 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
 # preflight and no origin header for a check like CSRF-2's to inspect. Seeded
 # with the 5 handlers AuditLab's own transitive call-graph sweep (2026-09-10)
 # found reaching a mutating store.ts/sender.ts/validation.ts function, out of
-# 24 total GET-dispatched handlers -- do NOT add a name here without reading
-# the actual defense the way AuditLab did for the two OAuth callbacks
+# 24 total GET-dispatched handlers at the time (GATE-25, same day, widened
+# the dispatch pattern -- 30 total today; the 6 newly-visible /assistant/*
+# routes take no `env` parameter at all and were confirmed to reach nothing
+# mutating, so no new entry was needed here) -- do NOT add a name here
+# without reading the actual defense the way AuditLab did for the two OAuth
+# callbacks
 # (consumeOauthState's fail-closed, browser-bound single-use token).
 MUTATING_GET_HANDLERS = {
     # Rate-limit/bookkeeping writes (3) -- state-changing, but nothing an
@@ -5125,7 +5154,7 @@ def check_mutating_get_coverage(repo_root: Path) -> list[str]:
                 changed = True
 
     method_re = re.compile(r'request\.method\s*===\s*"(\w+)"')
-    dispatch_re = re.compile(r"return\s+await\s+(handle\w+)\(")
+    dispatch_re = _HANDLER_DISPATCH_RE
     events = [(m.start(), "method", m.group(1)) for m in method_re.finditer(index_src)]
     events += [(m.start(), "dispatch", m.group(1)) for m in dispatch_re.finditer(index_src)]
     events.sort(key=lambda e: e[0])
