@@ -23671,6 +23671,56 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: know which clock applies to you. Individual certificates and PA registrations renew every two years on an odd/even cohort tied to your license number, for $110; firm permits renew every single year on December 31 for $50, confirmed directly by the Board despite renewal-page wording that can read otherwise. Either way, budget 80 CPE hours per 2-year period (20 minimum each year, 2 of them a Tennessee-specific ethics course), and if a license does lapse past 6 months, plan on $250 plus 80 penalty hours earned in the 6 months before you reapply. <a href="../../tennessee/">Set a reminder for your own Tennessee deadline here</a> so you're never the one re-reading that renewal page trying to figure out which clock you're on.</p>
 """,
     },
+    {
+        # 2026-09-10/11: standing weekly post. Topic picked from a live GSC
+        # pull -- highest combined real-demand signal of any uncovered state
+        # (Massachusetts scored higher raw volume but ma-individual/ma-firm
+        # still carry an open data_gap_note pending a board reply, same
+        # blocker that passed it over for Tennessee). Repackages pa-individual
+        # (data/cpa_deadlines.json), pa-cpe (data/cpe_hours.json),
+        # pennsylvania-reinstatement (data/reinstatement.json) and
+        # pennsylvania-renewal-fee (data/renewal_fees.json); no live re-fetch
+        # this pass -- all four records verified 2026-08-13 through
+        # 2026-09-10, no open data_gap_note/verification_note. Round 2 per
+        # AuditLab review: round 1 attributed the $100+$35=$135 reinstatement
+        # total to 49 Pa. Code Sec11.4, which lists the two fees separately
+        # but never states they stack -- fixed in both this post and the
+        # source record (commit e590eb49d) to frame $135 as a budgeting
+        # estimate, not a codified total.
+        "slug": "pennsylvania-cpa-license-renewal-guide",
+        "published": "2026-09-11",  # first-introduction commit date, from git history
+        "title": "Pennsylvania CPA Renewal: No Grace Period, and a Dead Rule Citation Still in Circulation",
+        "seo_title": "Pennsylvania CPA Renewal: No Grace Period",
+        "meta_description": (
+            "Pennsylvania CPA licenses expire Dec. 31 of odd years with no grace period. See the real CPE rule -- not the reserved section still cited elsewhere."
+        ),
+        "body_html": """
+<p class="intro">Pennsylvania's CPA renewal cycle is simpler than most states in one respect -- every individual license expires on the exact same date, no personal cohort to track -- and stricter than most in another: miss that date, even by a day, and there's no cushion at all. Here's exactly how Pennsylvania renewal, CPE, and reinstatement work, sourced to the CPA Law itself and the Pennsylvania Code.</p>
+
+<h2>One date for everyone: December 31 of odd-numbered years</h2>
+<p>Every individual Pennsylvania CPA license expires on the same calendar date -- <strong>December 31 of odd-numbered years</strong> -- regardless of when you were originally licensed. That's set directly in the CPA Law itself: 63 P.S. &sect; 9.8b states "Licenses to practice shall expire on the last day of December of odd-numbered years..." The Board's own renewal-information page confirms the same date. The current cycle ends <strong>2027-12-31</strong>.</p>
+<p><a href="../../pennsylvania/">Confirm your own next Pennsylvania renewal deadline here</a>.</p>
+
+<h2>No grace period -- and a rule citation that's been dead since 2012</h2>
+<p>Two things about Pennsylvania's rules are easy to get wrong from a quick search, and both matter more than they look.</p>
+<p>First: there is <strong>no grace period</strong>. The Board states this explicitly -- a license not renewed by 11:59pm on December 31 of an odd year lapses effective January 1, full stop. That's a real difference from states like Tennessee, where a lapsed license still gets a multi-month "delinquent" window with just a late fee before it's treated as fully expired. In Pennsylvania, there's no delinquent stage at all: miss the date and you're straight into reactivation, covered below.</p>
+<p>Second: if you've seen a CPE-vendor site cite "49 Pa. Code &sect; 11.65" for Pennsylvania's CPE requirements, that citation is stale. Section 11.65 has been <strong>RESERVED</strong> -- meaning it carries no substantive text -- since 2012. The rules that actually govern Pennsylvania CPE today are &sect; 11.62 (hours and timing) and &sect; 11.63 (subject areas, including the ethics requirement), covered next. A citation to a reserved section isn't just outdated cosmetically; it points a reader at a rule that no longer says anything.</p>
+
+<h2>CPE: 80 hours every 2 years, with a 4-hour ethics minimum</h2>
+<p>Pennsylvania requires <strong>80 hours</strong> of CPE per 2-year renewal period, with a minimum of <strong>20 hours completed each year</strong> -- so, as in most states with an annual floor, you can't bank all 80 hours in one year and skip the next. Of those 80 hours, <strong>4 must be ethics</strong>. Both figures are set directly in 49 Pa. Code &sect; 11.62(b) (hours/timing for renewal) and &sect; 11.63(a)(7) (ethics) -- not &sect; 11.65, despite what some third-party sites still say. The Board's own renewal page states the reporting window in plain terms: CPE is tracked "January 1 of even-numbered years to December 31 of odd-numbered years."</p>
+<p><a href="../../pennsylvania-cpa-cpe-requirements/">See the full Pennsylvania CPE breakdown here</a>.</p>
+
+<h2>The renewal fee: a flat $100, written into the rule itself</h2>
+<p>The biennial renewal fee is a flat <strong>$100</strong>, codified directly in 49 Pa. Code &sect; 11.4: "Biennial renewal of license of certified public accountant, public accountant or public accounting firm... $100." Unlike states where the board sets the figure administratively each cycle, Pennsylvania's fee is written into the rule text itself -- so it doesn't change without an actual rule filing.</p>
+
+<h2>If a license lapses: budget $135 plus the same 80 hours, compressed</h2>
+<p>Because there's no grace period, a license that lapses on January 1 needs a reactivation application, not a late renewal. Pennsylvania's fee schedule lists a <strong>$35 reinstatement fee</strong> for an inactive or expired license, on top of the <strong>$100 biennial renewal fee</strong> itself -- both individually codified at 49 Pa. Code &sect; 11.4. The rule states the two figures separately rather than stacking them explicitly, so budget <strong>$135 total</strong>, plus whatever your CPE courses cost, as a planning figure rather than a codified line item.</p>
+<p>The CPE side isn't a separate penalty on top of your normal requirement -- it's the <strong>same 80 hours, including the same 4 ethics hours</strong>, you'd owe for an ordinary renewal. The only real difference is timing: those 80 hours have to fall within the <strong>24 months immediately preceding</strong> your reactivation filing, per &sect; 11.62(c), rather than the fixed biennial period everyone else renews against. If you lapse early in the cycle, that compressed 24-month window can be tighter to fill than it sounds.</p>
+<p><a href="../../pennsylvania-cpa-license-reinstatement/">Walk through the full Pennsylvania reinstatement math here</a>.</p>
+
+<p><strong>Bottom line</strong>: every Pennsylvania CPA renews on the same date -- December 31 of odd-numbered years -- with 80 CPE hours (4 ethics, 20 minimum per year) and a flat $100 fee written directly into the rule. The part that catches people off guard is what happens if you miss it: no grace period, straight to reactivation, budgeting around $135 (a codified $100 renewal fee plus a codified $35 reinstatement fee) with the same 80 hours squeezed into the 24 months before you refile. And if you're checking your CPE requirement against a site that cites &sect; 11.65, you're reading a rule that's said nothing since 2012 -- &sect; 11.62 and &sect; 11.63 are the ones that actually govern. <a href="../../pennsylvania/">Set a reminder for your own Pennsylvania deadline here</a> so December 31 doesn't sneak up on you.</p>
+""",
+    },
 ]
 
 

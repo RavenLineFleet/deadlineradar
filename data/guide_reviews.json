@@ -109,6 +109,10 @@
     "tennessee-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-09",
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-3-round-review"
+    },
+    "pennsylvania-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-09-11",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-2-round-review"
     }
   }
 }
