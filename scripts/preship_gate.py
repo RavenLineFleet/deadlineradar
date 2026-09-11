@@ -981,6 +981,144 @@ def check_stylesheet_integrity(html_files: list[Path], docs_dir: Path) -> list[s
     return errors
 
 
+# AuditLab GATE-26 (LOW, 2026-09-10): 26 accessibility/mobile findings (A11Y-1..17,
+# MOB-1..11) to date, found entirely by manual sweeps, and zero automated
+# assertions guard any of them from regressing. Concrete evidence the gap has
+# teeth: A11Y-17 fixed a sub-3:1 focus indicator on `.state-search-field:focus-
+# within`, but the identical defective declaration survived on a dead-CSS twin,
+# `.lookup-field:focus-within` -- removed as part of closing this gate (0 usages
+# of the class anywhere in rendered output, confirmed by grep for the class
+# attribute specifically). Noise-measured against the real stylesheet before
+# writing this: a naive `outline: none` check is 7 false positives / 0 true
+# positives (every current suppression is legitimately compensated), so the
+# assertion has to be "suppresses outline AND has no compensation in the same
+# rule AND no paired :focus-within/:focus-visible rule with one" to seed clean.
+_OUTLINE_SUPPRESSED_RE = re.compile(r"\boutline\s*:\s*(?:none|0)\b")
+# Any of these, with a real (non-none/non-zero) value, counts as a visible
+# focus indicator. Covers every compensation technique seen in the current
+# stylesheet: box-shadow rings, a real outline on a paired wrapper, a border
+# recolor, and the SVG stroke+drop-shadow pair the interactive-map states use.
+_FOCUS_COMPENSATION_RE = re.compile(
+    r"\bbox-shadow\s*:\s*(?!none\b)|"
+    r"\bborder-color\s*:\s*(?!none\b)|"
+    r"\bborder(?:-width)?\s*:\s*(?!none\b|0\b)|"
+    r"\bstroke\s*:\s*(?!none\b)|"
+    r"\bfilter\s*:\s*(?!none\b)|"
+    r"\boutline\s*:\s*(?!none\b|0\b)"
+)
+# Selectors allowed to suppress the outline with NO compensation anywhere,
+# because they are provably not an interactive control a sighted user tabs
+# through expecting a ring. Each needs the same "why" every other allowlist
+# in this file demands.
+FOCUS_SUPPRESSION_EXEMPT_SELECTORS = {
+    "main:focus": (
+        "skip-link landmark target -- receives focus only via the page's own "
+        "skip-link jump, and the resulting scroll position IS the visible "
+        "feedback; it is never in the normal tab order a sighted user cycles "
+        "through expecting a ring on every stop."
+    ),
+}
+
+
+def check_focus_indicator_compensation(docs_dir: Path) -> list[str]:
+    """AuditLab GATE-26 advisory (LOW, 2026-09-10): every CSS rule in
+    docs/styles.css that suppresses the focus outline (`outline: none` or
+    `outline: 0`) must provide a real visible alternative -- either in the
+    same rule, or in a same-base-selector `:focus-within`/`:focus-visible`
+    rule elsewhere in the sheet (the wrapper-compensates-for-the-child
+    pattern A11Y-17 and the interactive-map states both use) -- or be named
+    in FOCUS_SUPPRESSION_EXEMPT_SELECTORS with a reason. "Same base selector"
+    is the selector's leading `.class`/`#id` token: `.map-link` (suppressing)
+    pairs with any rule whose selector contains `.map-link:focus-visible`
+    (even followed by a descendant combinator, e.g. `.map-link:focus-visible
+    .map-state`) -- matching how this stylesheet actually pairs a state
+    change on a child element with a wrapper's own pseudo-class. Audited
+    both directions like every other allowlist in this file: an
+    uncompensated suppression fails, and an exempt entry that no longer
+    suppresses anything fails too."""
+    css_path = docs_dir / "styles.css"
+    if not css_path.is_file():
+        return ["[A11Y-GATE-1] docs/styles.css not found -- focus-indicator "
+                "compensation can't be verified and must be repaired."]
+    css = re.sub(r"/\*.*?\*/", " ", css_path.read_text(encoding="utf-8"), flags=re.S)
+    rules = re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+    if not rules:
+        return ["[A11Y-GATE-1] found NO CSS rule blocks in docs/styles.css -- either the file is "
+                "empty/truncated (see check_stylesheet_integrity) or the parsing shape changed; "
+                "this check is measuring nothing and must be repaired."]
+
+    errors = []
+    stale_exempt = set(FOCUS_SUPPRESSION_EXEMPT_SELECTORS)
+    for selector, decl in rules:
+        if not _OUTLINE_SUPPRESSED_RE.search(decl):
+            continue
+        for part in (p.strip() for p in selector.split(",")):
+            if part in FOCUS_SUPPRESSION_EXEMPT_SELECTORS:
+                stale_exempt.discard(part)
+                continue
+            decl_sans_outline = _OUTLINE_SUPPRESSED_RE.sub("", decl)
+            if _FOCUS_COMPENSATION_RE.search(decl_sans_outline):
+                continue  # compensated in the same rule
+            base_m = re.match(r"^([.#][\w-]+)", part)
+            compensated = False
+            if base_m:
+                base = base_m.group(1)
+                compensated = any(
+                    (f"{base}:focus-within" in sel2 or f"{base}:focus-visible" in sel2)
+                    and _FOCUS_COMPENSATION_RE.search(decl2)
+                    for sel2, decl2 in rules
+                )
+            if not compensated:
+                errors.append(
+                    f"[A11Y-GATE-1] `{part}` suppresses the focus outline with no compensating "
+                    f"indicator in the same rule and no paired :focus-within/:focus-visible rule "
+                    f"providing one -- either add a visible focus indicator, or name this selector "
+                    f"in FOCUS_SUPPRESSION_EXEMPT_SELECTORS with why it's provably not an "
+                    f"interactive control a sighted user tabs through."
+                )
+
+    if stale_exempt:
+        errors.append(
+            "[A11Y-GATE-1] FOCUS_SUPPRESSION_EXEMPT_SELECTORS names selector(s) that no longer "
+            f"suppress the outline in docs/styles.css: {', '.join(sorted(stale_exempt))} -- "
+            f"remove the stale entry."
+        )
+    return errors
+
+
+_IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+_ALT_ATTR_RE = re.compile(r"\balt\s*=", re.IGNORECASE)
+
+
+def check_img_alt_attributes(html_files: list[Path]) -> list[str]:
+    """AuditLab GATE-26 advisory (LOW, 2026-09-10): every rendered <img> tag
+    must carry an alt attribute (even alt="" for a genuinely decorative
+    image is fine -- this checks presence, not content, same "assert the
+    machinery exists" scope as every other structural check in this file).
+    Measured at write time: 2 <img> tags across 244 built pages, both
+    already correct -- seeds clean."""
+    errors = []
+    total_imgs = 0
+    for f in html_files:
+        text = f.read_text(encoding="utf-8")
+        for m in _IMG_TAG_RE.finditer(text):
+            total_imgs += 1
+            if not _ALT_ATTR_RE.search(m.group(0)):
+                errors.append(
+                    f"[A11Y-GATE-2][{f}] <img> tag has no alt attribute -- every image needs one "
+                    f"(alt=\"\" is fine for a genuinely decorative image, but it must be explicit): "
+                    f"{m.group(0)[:120]}"
+                )
+    if total_imgs == 0:
+        errors.append(
+            "[A11Y-GATE-2] found NO <img> tags anywhere in the built site. Either the site has "
+            "gone genuinely image-free (fine -- remove this check's registration if so) or the "
+            "<img> pattern stopped matching (a real regression) -- this needs a human look either "
+            "way before being trusted as a silent pass."
+        )
+    return errors
+
+
 def check_legal_safety(html_files: list[Path], state_page_files: list[Path]) -> list[str]:
     errors = []
     for f in html_files:
@@ -5829,6 +5967,8 @@ def main():
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_no_untracked_secret_looking_files(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
+    all_errors += check_focus_indicator_compensation(docs_dir)
+    all_errors += check_img_alt_attributes(html_files)
     all_errors += check_legal_safety(html_files, state_page_files)
     all_errors += check_affiliate_disclosure(html_files)
     all_errors += check_named_vendor_disparagement(html_files)

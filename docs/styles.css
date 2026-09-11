@@ -452,18 +452,7 @@
     display: block; font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--muted); margin-bottom: 0.5rem;
   }
-  .lookup-field {
-    display: flex; gap: 0; box-shadow: var(--shadow); border-radius: 9px; overflow: hidden;
-    border: 1px solid var(--border-strong); background: var(--card-bg);
-  }
-  .lookup-field input { flex: 1; border: 0; padding: 0.85rem 1rem; font-size: 1rem; font-family: inherit; color: var(--fg); background: transparent; }
-  .lookup-field input:focus { outline: none; }
-  .lookup-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,61,84,.14), var(--shadow); }
-  .lookup-field button {
-    border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 0.92rem;
-    padding: 0 1.3rem; cursor: pointer; font-family: inherit;
-  }
-  .lookup-field button:hover { background: var(--accent-deep); }
+  
   .lookup-hint { margin-top: 0.6rem; font-size: 0.8rem; color: var(--faint); }
   
   .trust-row {
