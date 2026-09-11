@@ -1223,18 +1223,13 @@ PAGE_CSS = """
     display: block; font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--muted); margin-bottom: 0.5rem;
   }
-  .lookup-field {
-    display: flex; gap: 0; box-shadow: var(--shadow); border-radius: 9px; overflow: hidden;
-    border: 1px solid var(--border-strong); background: var(--card-bg);
-  }
-  .lookup-field input { flex: 1; border: 0; padding: 0.85rem 1rem; font-size: 1rem; font-family: inherit; color: var(--fg); background: transparent; }
-  .lookup-field input:focus { outline: none; }
-  .lookup-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,61,84,.14), var(--shadow); }
-  .lookup-field button {
-    border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 0.92rem;
-    padding: 0 1.3rem; cursor: pointer; font-family: inherit;
-  }
-  .lookup-field button:hover { background: var(--accent-deep); }
+  /* .lookup-field's rules removed here (GATE-26, AuditLab, 2026-09-10): the
+     class has 0 usages anywhere in the rendered output (confirmed by grep
+     for the class attribute, not just the CSS definition), but its
+     :focus-within compensation for input:focus{outline:none} was the exact
+     defective declaration A11Y-17 fixed on .state-search-field -- an
+     unused twin left the trap live for anyone who reuses the class. Dead
+     code removed rather than fixed in place, since nothing renders it. */
   .lookup-hint { margin-top: 0.6rem; font-size: 0.8rem; color: var(--faint); }
   /* A proper 3-column grid (2026-07-31). These were flex-wrapped, so two
      items stacked left while the third sat mid-right on its own baseline and
