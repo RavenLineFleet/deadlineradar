@@ -5131,19 +5131,19 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   // the real shipped JSON" posture as the mobility describe block above --
   // stronger than a synthetic fixture, and it catches a future
   // re-verification pass that reshuffles the cohort spread. As of the
-  // 2026-09-12 FRESH-3 remediation, every record across all three datasets
-  // carries a verified_date/last_verified of 2026-09-12 or earlier, with
-  // 2026-09-12 itself the latest (76 records: 37 cpe_hours + 21
-  // reinstatement + 18 renewal_fees) -- so the 31-day-later date,
-  // 2026-10-13, is the point by which EVERY record in all three datasets
-  // has crossed the 30-day bar (AuditLab's own "157-record wall" finding).
-  // 2026-10-06 is exactly 7 days before that: the 76-record 2026-09-12
-  // cohort is right at the edge of the warning window (daysUntilExpiry=7),
-  // three smaller cohorts (2026-09-07/09-08/09-09/09-10, 2+1+39+3=45
-  // records) are already inside it, and everything verified before
-  // 2026-09-07 has already gone stale (excluded, not warned about again).
+  // 2026-09-12 remediation cascade (the original 74-record fix, the
+  // 2026-09-20 cliff, and 22 more single-digit cohorts through 2026-10-11,
+  // all closed the same day), every record across all three datasets now
+  // carries a verified_date/last_verified of EXACTLY ONE of two dates:
+  // 2026-09-09 (39 records: 1 cpe_hours + 5 reinstatement + 33 renewal_fees)
+  // or 2026-09-12 (118 records, the remainder) -- maximum concentration,
+  // AuditLab's own "157-record wall" finding, all of it landing 2026-10-10
+  // and 2026-10-13 respectively. 2026-10-03 is exactly 7 days before the
+  // first of those two dates: only the 39-record 2026-09-09 cohort is
+  // inside the warning window, the larger 2026-09-12 cohort is not yet
+  // (its own window opens 2026-10-06).
 
-  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 8 days out", async () => {
+  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 28 days out", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
     const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-09-12T00:00:00Z"));
     expect(nearing).toEqual([]);
@@ -5151,20 +5151,14 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
-    expect(nearing.length).toBe(121);
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-03T00:00:00Z"));
+    expect(nearing.length).toBe(39);
     expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
     expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
     expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
-    // Sorted soonest-first.
-    for (let i = 1; i < nearing.length; i++) {
-      expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
-    }
-    expect(nearing[0]!.daysUntilExpiry).toBe(2);
-    expect(nearing[0]!.expiresOn).toBe("2026-10-08");
-    expect(nearing.every((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 7)).toBe(true);
-    // The 76-record 2026-09-12 cohort sits right at the far edge of the window.
-    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(76);
+    // All 39 share the same verified_date (2026-09-09), so they all land on
+    // the same expiry date, right at the far edge of the 7-day window.
+    expect(nearing.every((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-10")).toBe(true);
   });
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
@@ -5180,7 +5174,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-10-06T00:00:00Z"));
+      vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
         throw new Error(`unexpected fetch in FRESH-3 unapproved-pass test: ${typeof input === "string" ? input : (input as Request).url}`);
       });
@@ -5199,7 +5193,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-10-06T00:00:00Z"));
+      vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
       try {
         const envWithConsent = {
@@ -5214,7 +5208,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
         const sentBody = JSON.parse(String(init.body));
         expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
         expect(sentBody.subject).toContain("expiring soon");
-        expect(sentBody.subject).toContain("2026-10-08");
+        expect(sentBody.subject).toContain("2026-10-10");
         const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
         expect(textContent).toContain("cpe_hours.json");
         expect(textContent).toContain("reinstatement.json");
