@@ -5698,13 +5698,28 @@ def print_cpa_deadlines_staleness_advisory(repo_root: Path) -> None:
     """Surfaces cpa_deadlines_staleness_check.py (roadmap #45, 2026-08-07) as
     part of the normal pre-ship run, same treatment as the CPE-hours/
     reinstatement/rule-change-monitoring advisories -- printed, never affects
-    exit code. cpa_deadlines.json's 88 records each have their own
-    last_verified date; the Worker's runtime guard (checkDataFreshness())
-    only checks a single whole-dataset as_of_date, which is real but blind
-    to one state's citation quietly going stale while as_of_date looks fresh
-    because some other record was more recently touched. This is the only
-    place PER-CITATION staleness on the product's most important dataset
-    gets surfaced at all."""
+    exit code. cpa_deadlines.json's 89 records each have their own
+    last_verified date.
+
+    AuditLab STALE-17 (2026-09-12): this docstring used to claim the
+    Worker's runtime guard (checkDataFreshness() -> combinedAgeDays())
+    "only checks a single whole-dataset as_of_date" and is "blind to one
+    state's citation quietly going stale" -- true when written (2026-08-07),
+    false since STALE-5 (2026-08-13, ef4744eca) anchored the guard on the
+    WORSE of as_of_date's own age and worker/src/deadline.ts's
+    worstRecordAgeDays() -- the oldest last_verified across EVERY record.
+    The guard does not miss an individually-stale record; if any record
+    crosses the threshold, the whole pipeline refuses, regardless of
+    as_of_date.
+
+    What the runtime guard's refusal message does NOT do is name which
+    record is the culprit -- it says only whether "as_of_date" or "its
+    single oldest record's last_verified date" is binding, not the specific
+    state/id. That is this advisory's real remaining value: a full,
+    individually-named breakdown of every record's age (this script sorts
+    stale ones oldest-first with id/state/source_url), so a human can see
+    which citations are approaching the bar and re-verify them BEFORE one
+    of them becomes the runtime guard's silent single-number trip."""
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import cpa_deadlines_staleness_check as cdsc
