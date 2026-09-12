@@ -86,6 +86,24 @@
  * (sender.ts) refuses to send to any recipient not on the list, before making
  * any network call. It MUST be left unset in production -- an unset/empty
  * value leaves sendViaSendGrid()'s behavior completely unchanged (no gate).
+ * This var controls ONLY recipient restriction -- see EMAIL_PREVIEW_LOG_BODY
+ * below for the separate (and separately gated) full-body logging switch.
+ *
+ * `EMAIL_PREVIEW_LOG_BODY` is an OPTIONAL wrangler var -- PREVIEW/STAGING-ONLY,
+ * like EMAIL_ALLOWLIST above but deliberately a SEPARATE var. When set to any
+ * non-empty value, sendViaSendGrid() (sender.ts) logs the complete outgoing
+ * email body via console.log, readable live via `wrangler tail --config
+ * wrangler.preview.toml` -- this is what lets a preview tester grab a
+ * magic-link URL straight out of the log stream instead of needing a real
+ * inbox. AuditLab LOG-1 (LOW, 2026-09-12): this used to ride along with
+ * EMAIL_ALLOWLIST's mere presence, which meant setting an allowlist in
+ * production as what reads like a safety measure ("only send to known
+ * addresses") would have silently also enabled full-body credential logging
+ * -- an inverted-from-intuition footgun. Decoupled into its own var so the
+ * two concerns (recipient restriction, debug body logging) require two
+ * separate, independently-reviewed operator actions. MUST be left unset in
+ * production -- set only via `wrangler secret put` on wrangler.preview.toml,
+ * never on the production config.
  *
  * `ACTION_BASE_URL` is an OPTIONAL wrangler var -- overrides index.ts's and
  * scheduler.ts's hardcoded `https://deadline-radar.com/api` action-link base
@@ -171,6 +189,7 @@ export interface Env {
   MOBILITY_STALENESS_ALERT_DAILY_SEND_CAP?: string;
   SENDGRID_WEBHOOK_PUBLIC_KEY?: string;
   EMAIL_ALLOWLIST?: string;
+  EMAIL_PREVIEW_LOG_BODY?: string;
   SEND_APPROVED_PASSES?: string;
   ACTION_BASE_URL?: string;
   STATIC_SITE_BASE_URL?: string;

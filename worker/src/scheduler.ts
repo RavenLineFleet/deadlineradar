@@ -308,7 +308,7 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
     opts.send ??
     ((to, built, replyTo) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, replyTo);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, replyTo);
     });
 
   // Roadmap #19: one query, not one per subscriber -- see
@@ -735,7 +735,7 @@ export async function runDripCoursePass(env: Env, opts: RunReminderOptions = {})
     opts.send ??
     ((to, built) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
 
   const summary: DripCourseSummary = { enrolled: 0, checked: 0, sent: 0, errors: [] };
@@ -939,7 +939,7 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
     opts.send ??
     ((to, built) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const asOf = opts.asOf ?? new Date();
 
@@ -1080,7 +1080,7 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
     opts.send ??
     ((to, built) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
 
   const firmsById = new Map((await store.listAllFirmsBasicInfo(env.DB)).map((f) => [f.id, f]));
@@ -1980,7 +1980,7 @@ export async function runAdminDigestAlertPass(env: Env, opts: RunAdminDigestAler
     opts.send ??
     ((to, built) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const cap = dailyAdminDigestSendCap(env);
   const staticBase = staticSiteAbsoluteBaseUrl(env);
@@ -2203,7 +2203,7 @@ export async function runComplianceNewsletterPass(
     opts.send ??
     ((to, built) => {
       if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST);
+      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const asOf = opts.asOf ?? new Date();
 
@@ -2415,7 +2415,7 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
   if (!claimed) return;
   try {
     const built = buildMobilityStalenessAlertEmail(nearing);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     }
@@ -2510,7 +2510,7 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
   if (!claimed) return;
   try {
     const built = buildGatedDatasetStalenessAlertEmail(nearing);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
     }
@@ -2590,7 +2590,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   if (!claimed) return;
   try {
     const built = buildStripePriceParityAlertEmail(mismatches);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
     }
@@ -2661,7 +2661,7 @@ export async function runAssistantLatencyAlertPass(
   if (!env.SENDGRID_API_KEY) return;
   const apiKey = env.SENDGRID_API_KEY;
   const send =
-    opts.send ?? ((built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => sendViaSendGrid(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST));
+    opts.send ?? ((built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => sendViaSendGrid(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY));
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const dayUtc = new Date().toISOString().slice(0, 10);
   const claimed = await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc);

@@ -177,6 +177,87 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   });
 });
 
+describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOWLIST (AuditLab LOG-1)", () => {
+  // Before this fix, the console.log body-dump rode along with the mere
+  // presence of the allowlist argument -- setting EMAIL_ALLOWLIST alone (a
+  // plausible "restrict recipients" safety action) would have silently also
+  // logged the complete email body, including any magic-link URL. These
+  // tests prove the two are now independent opt-ins in both directions.
+  it("EMAIL_ALLOWLIST set WITHOUT EMAIL_PREVIEW_LOG_BODY -- no email body is logged", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const result = await sendViaSendGrid(
+        "fake-api-key",
+        "test@example.com",
+        fakeEmail(),
+        "test@example.com" // allowlist set, recipient IS on it -- send proceeds
+        // no previewLogBody argument
+      );
+      expect(result).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("[preview-email]"));
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("EMAIL_PREVIEW_LOG_BODY set WITHOUT EMAIL_ALLOWLIST -- the body IS logged (the two are independent)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const result = await sendViaSendGrid(
+        "fake-api-key",
+        "anybody@example.com",
+        fakeEmail(),
+        undefined, // no allowlist
+        "1" // previewLogBody set
+      );
+      expect(result).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[preview-email] to=anybody@example.com"));
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("both set (real preview usage) -- allowlist still gates the send, and the body is logged", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const result = await sendViaSendGrid(
+        "fake-api-key",
+        "owner@example.com",
+        fakeEmail(),
+        "owner@example.com",
+        "1"
+      );
+      expect(result).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[preview-email] to=owner@example.com"));
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("neither set (production default) -- no logging, behavior unchanged", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const result = await sendViaSendGrid("fake-api-key", "anybody@example.com", fakeEmail());
+      expect(result).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("[preview-email]"));
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+});
+
 describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (POST /subscribe confirmation email)", () => {
   it("preview-style env (SENDGRID_API_KEY + EMAIL_ALLOWLIST set): a real-looking, non-allowlisted signup email never reaches fetch(), but the subscriber row is still stored", async () => {
     const worker = (await import("../src/index")).default;
