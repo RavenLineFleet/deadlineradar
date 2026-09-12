@@ -301,12 +301,21 @@ export function isEmailAllowlisted(raw: string | undefined, email: string): bool
  * contacted. When `emailAllowlist` is undefined/empty (the production
  * default), this check is skipped entirely and behavior is byte-identical to
  * before this gate existed.
+ *
+ * `previewLogBody` is the raw env.EMAIL_PREVIEW_LOG_BODY value (see env.ts) --
+ * a SEPARATE preview/staging-only switch, deliberately independent of
+ * `emailAllowlist`. AuditLab LOG-1 (LOW, 2026-09-12): this used to be the same
+ * condition as the allowlist gate above, which meant setting an allowlist in
+ * production (a plausible, well-intentioned "restrict recipients" action)
+ * would have silently also enabled full-body credential logging. The two are
+ * unrelated capabilities and now require two separate opt-ins.
  */
 export async function sendViaSendGrid(
   apiKey: string,
   toEmail: string,
   email: BuiltEmail,
   emailAllowlist?: string,
+  previewLogBody?: string,
   // Roadmap #19 (2026-08-07): lightweight white-label. Deliberately does NOT
   // change `from` -- every send still originates from FROM_EMAIL/FROM_NAME
   // above, so SendGrid's own domain authentication (SPF/DKIM) is untouched
@@ -315,14 +324,15 @@ export async function sendViaSendGrid(
   replyTo?: string
 ): Promise<boolean> {
   const allowlist = parseAllowlist(emailAllowlist);
-  // Preview/staging visibility (2026-07-28): whenever the allowlist gate is
-  // active at all, log the full built email -- readable live via
-  // `wrangler tail --config wrangler.preview.toml`. This is what makes the
-  // preview usable even before/without a real SENDGRID_API_KEY: a tester can
-  // grab a magic-link URL (or a reminder email's renew-and-rearm link)
-  // straight out of the log stream. Only fires when emailAllowlist is set,
-  // which is never true in production -- this line does not exist there.
-  if (allowlist) {
+  // Preview/staging visibility (2026-07-28; decoupled from the allowlist
+  // gate by AuditLab LOG-1, 2026-09-12): log the full built email -- readable
+  // live via `wrangler tail --config wrangler.preview.toml`. This is what
+  // makes the preview usable even before/without a real SENDGRID_API_KEY: a
+  // tester can grab a magic-link URL (or a reminder email's renew-and-rearm
+  // link) straight out of the log stream. Only fires when previewLogBody is
+  // explicitly set, which is never true in production -- this line does not
+  // exist there.
+  if (previewLogBody) {
     console.log(`[preview-email] to=${toEmail} subject=${JSON.stringify(email.subject)}\n${email.textBody}`);
   }
   if (allowlist && !allowlist.includes(toEmail.trim().toLowerCase())) {

@@ -7,7 +7,11 @@
 # firm-admin dashboard end-to-end before authorizing a production deploy,
 # with zero chance of emailing a real outside person (see env.ts's
 # EMAIL_ALLOWLIST, set only via `wrangler secret put` on THIS config, never
-# on production).
+# on production). To also see outgoing email bodies (e.g. to grab a magic-link
+# URL from `wrangler tail`), separately set EMAIL_PREVIEW_LOG_BODY the same
+# way -- deliberately a SEPARATE secret from EMAIL_ALLOWLIST (AuditLab LOG-1,
+# 2026-09-12) so restricting recipients never silently also logs full email
+# bodies.
 name = "deadlineradar-api-preview"
 main = "src/index.ts"
 compatibility_date = "2026-07-01"
