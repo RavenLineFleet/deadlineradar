@@ -2,15 +2,21 @@
 """CPA-deadlines per-citation staleness check (2026-08-07, roadmap #45).
 
 `data/cpa_deadlines.json` -- the product's single most important dataset -- has a per-record
-`last_verified` field on all 88 records, but until now had no script surfacing which INDIVIDUAL
+`last_verified` field on all 89 records, but until now had no script surfacing which INDIVIDUAL
 citations are overdue for re-verification, unlike its three sibling datasets
 (cpe_hours_staleness_check.py, reinstatement_staleness_check.py,
-rule_change_monitoring_staleness_check.py all already exist). The Worker's own runtime guard
-(worker/src/deadline.ts's checkDataFreshness()) only checks a single WHOLE-DATASET `as_of_date` --
-a real, meaningful signal for "was this file regenerated/reviewed recently," but blind to a single
-state's citation going stale for months while `as_of_date` looks fresh because some OTHER state was
-more recently touched. This script closes that per-citation blind spot the same way the CPE-hours
-script closed it for that dataset (see that script's own docstring).
+rule_change_monitoring_staleness_check.py all already exist).
+
+AuditLab STALE-17 (2026-09-12): the claim below that the Worker's runtime guard only checks a
+single whole-dataset `as_of_date` was true when this was written but was falsified by STALE-5
+(2026-08-13, ef4744eca): `checkDataFreshness()` -> `combinedAgeDays()` now anchors on the WORSE of
+`as_of_date`'s own age and `worstRecordAgeDays()` -- the oldest `last_verified` across every
+record -- so a single stale citation does trip the runtime guard, regardless of `as_of_date`. What
+the runtime guard's refusal message does NOT do is name which specific record is the culprit (it
+names only whether "as_of_date" or "its single oldest record's last_verified date" is binding).
+That per-record identification -- which citations are stale, by id/state, sorted oldest-first, with
+their source_url -- is this script's actual remaining value, the same way the CPE-hours script
+provides it for that dataset (see that script's own docstring).
 
 Advisory only: prints a report, never blocks a build or exits non-zero on its own -- same posture as
 every other staleness script in this directory. A human/agent re-verifying a flagged citation's
