@@ -2271,6 +2271,78 @@ export function buildMobilityStalenessAlertEmail(
 }
 
 /**
+ * FRESH-3 (AuditLab, 2026-09-12). buildMobilityStalenessAlertEmail() above
+ * warns about a TTL that downgrades one feature's own answer to
+ * `not_verified` -- unpleasant, but not a build-time failure. This is the
+ * higher-stakes sibling: cpe_hours.json/reinstatement.json/renewal_fees.json
+ * each have their own 30-day preship_gate.py gate
+ * (check_cpe_hours_currency/check_reinstatement_currency/
+ * check_renewal_fee_currency) that HARD-BLOCKS ALL SHIPPING once a record
+ * crosses it -- not a feature-level degradation, the whole site stops
+ * deploying. A batch-verification burst (2026-08-13/08-14) put 74 records
+ * on that collision course with ~24h notice; this alert exists so the next
+ * one is caught a week out, not a day out. Same internal-only
+ * INTERNAL_NOTIFY_EMAIL/no-unsubscribe-apparatus convention as
+ * buildMobilityStalenessAlertEmail(), but grouped by dataset (a
+ * cpe_hours-only wave and a renewal_fees-only wave call for different
+ * urgency/tooling) and framed as a daily-until-resolved warning, not a
+ * monthly one -- see runGatedDatasetStalenessAlertPass()'s own docstring
+ * for why the dedup cadence differs.
+ */
+export function buildGatedDatasetStalenessAlertEmail(
+  rows: { dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }[]
+): BuiltEmail {
+  const soonest = rows[0];
+  const subject = soonest
+    ? `Deadline-Radar: ${rows.length} gate-blocking record${rows.length === 1 ? "" : "s"} expiring soon, first on ${soonest.expiresOn}`
+    : "Deadline-Radar: gate-blocking records expiring soon";
+  const byDataset = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const list = byDataset.get(r.dataset) ?? [];
+    list.push(r);
+    byDataset.set(r.dataset, list);
+  }
+  const DATASET_LABELS: Record<string, string> = {
+    cpe_hours: "cpe_hours.json",
+    reinstatement: "reinstatement.json",
+    renewal_fees: "renewal_fees.json",
+  };
+  const sectionsText = [...byDataset.entries()]
+    .map(
+      ([dataset, group]) =>
+        `${DATASET_LABELS[dataset] ?? dataset} (${group.length}):\n` +
+        group.map((r) => `  ${r.state} (${r.id}) -- blocks shipping ${r.expiresOn}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left`).join("\n")
+    )
+    .join("\n\n");
+  const sectionsHtml = [...byDataset.entries()]
+    .map(
+      ([dataset, group]) =>
+        `<p><strong>${esc(DATASET_LABELS[dataset] ?? dataset)}</strong> (${group.length}):</p>` +
+        `<ul>${group.map((r) => `<li>${esc(r.state)} (${esc(r.id)}) &mdash; blocks shipping ${esc(r.expiresOn)}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left</li>`).join("")}</ul>`
+    )
+    .join("");
+  const textBody =
+    `The following record(s) will pass their 30-day preship_gate.py staleness bar soon. Unlike a ` +
+    `feature-level TTL, this HARD-BLOCKS ALL SHIPPING once it trips -- re-verify against the primary ` +
+    `source and bump verified_date/last_verified before the date listed:\n\n` +
+    `${sectionsText}\n\n` +
+    `This is a warning, not an outage -- nothing has degraded yet. preship_gate.py already refuses to ` +
+    `ship on genuinely stale data; this email exists so re-verification happens before that refusal, ` +
+    `not after a blocked deploy. Fires at most once per UTC day while any record remains in the ` +
+    `7-day warning window.`;
+  const htmlBody =
+    `<p>The following record(s) will pass their 30-day <code>preship_gate.py</code> staleness bar soon. ` +
+    `Unlike a feature-level TTL, this HARD-BLOCKS ALL SHIPPING once it trips &mdash; re-verify against ` +
+    `the primary source and bump <code>verified_date</code>/<code>last_verified</code> before the date ` +
+    `listed:</p>${sectionsHtml}` +
+    `<p>This is a warning, not an outage &mdash; nothing has degraded yet. <code>preship_gate.py</code> ` +
+    `already refuses to ship on genuinely stale data; this email exists so re-verification happens ` +
+    `before that refusal, not after a blocked deploy. Fires at most once per UTC day while any record ` +
+    `remains in the 7-day warning window.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * AuditLab (2026-08-31, Devin's "get to 100%" latency-monitoring directive).
  * Confirmed the assistant chat endpoint sits in a ~15-18s steady state for a
  * normal question -- LLM-inherent, expected, not itself worth alerting on.

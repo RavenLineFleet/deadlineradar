@@ -5100,6 +5100,162 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
   });
 });
 
+describe("store.claimGatedDatasetStalenessAlertForDay (FRESH-3)", () => {
+  it("first claim for a given day wins (true), second claim same day loses (false)", async () => {
+    const day = `9999-01-${(Date.now() % 28) + 1}`.padEnd(10, "0").slice(0, 10);
+    const first = await store.claimGatedDatasetStalenessAlertForDay(env.DB, day);
+    const second = await store.claimGatedDatasetStalenessAlertForDay(env.DB, day);
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+  });
+
+  it("a different day gets its own independent claim", async () => {
+    const dayA = "2027-05-01";
+    const dayB = "2027-05-02";
+    await store.claimGatedDatasetStalenessAlertForDay(env.DB, dayA);
+    const claimB = await store.claimGatedDatasetStalenessAlertForDay(env.DB, dayB);
+    expect(claimB).toBe(true);
+  });
+
+  it("unclaim frees the day up for a real retry, same DROP-3-shaped posture as stale_data_alert_log", async () => {
+    const day = "2027-05-03";
+    await store.claimGatedDatasetStalenessAlertForDay(env.DB, day);
+    await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, day);
+    const reclaimed = await store.claimGatedDatasetStalenessAlertForDay(env.DB, day);
+    expect(reclaimed).toBe(true);
+  });
+});
+
+describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRESH-3)", () => {
+  // Real bundled data, same "move the clock to a real date, check against
+  // the real shipped JSON" posture as the mobility describe block above --
+  // stronger than a synthetic fixture, and it catches a future
+  // re-verification pass that reshuffles the cohort spread. As of the
+  // 2026-09-12 FRESH-3 remediation, every record across all three datasets
+  // carries a verified_date/last_verified of 2026-09-12 or earlier, with
+  // 2026-09-12 itself the latest (76 records: 37 cpe_hours + 21
+  // reinstatement + 18 renewal_fees) -- so the 31-day-later date,
+  // 2026-10-13, is the point by which EVERY record in all three datasets
+  // has crossed the 30-day bar (AuditLab's own "157-record wall" finding).
+  // 2026-10-06 is exactly 7 days before that: the 76-record 2026-09-12
+  // cohort is right at the edge of the warning window (daysUntilExpiry=7),
+  // three smaller cohorts (2026-09-07/09-08/09-09/09-10, 2+1+39+3=45
+  // records) are already inside it, and everything verified before
+  // 2026-09-07 has already gone stale (excluded, not warned about again).
+
+  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 8 days out", async () => {
+    const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-09-12T00:00:00Z"));
+    expect(nearing).toEqual([]);
+  });
+
+  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets", async () => {
+    const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
+    expect(nearing.length).toBe(121);
+    expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
+    expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
+    expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
+    // Sorted soonest-first.
+    for (let i = 1; i < nearing.length; i++) {
+      expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
+    }
+    expect(nearing[0]!.daysUntilExpiry).toBe(2);
+    expect(nearing[0]!.expiresOn).toBe("2026-10-08");
+    expect(nearing.every((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 7)).toBe(true);
+    // The 76-record 2026-09-12 cohort sits right at the far edge of the window.
+    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(76);
+  });
+
+  it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
+    const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
+    // Every real record's verified_date/last_verified is 2026-09-12 or
+    // earlier, so by 2026-11-01 (well past the 31-day bar for even the
+    // most recent cohort) every row has already gone stale.
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-11-01T00:00:00Z"));
+    expect(nearing).toEqual([]);
+  });
+
+  it("runGatedDatasetStalenessAlertPass sends nothing when the pass isn't in SEND_APPROVED_PASSES, even inside the warning window with a key configured", async () => {
+    const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-06T00:00:00Z"));
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+        throw new Error(`unexpected fetch in FRESH-3 unapproved-pass test: ${typeof input === "string" ? input : (input as Request).url}`);
+      });
+      try {
+        await runGatedDatasetStalenessAlertPass({ ...env, SENDGRID_API_KEY: "test-key-not-real" } as never);
+        expect(fetchSpy).not.toHaveBeenCalled();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runGatedDatasetStalenessAlertPass sends a correct, complete alert once approved, in the window, with a key -- and dedupes within the same UTC day", async () => {
+    const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-06T00:00:00Z"));
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
+      try {
+        const envWithConsent = {
+          ...env,
+          SENDGRID_API_KEY: "test-key-not-real",
+          SEND_APPROVED_PASSES: "gatedDatasetStalenessAlert",
+        } as never;
+        await runGatedDatasetStalenessAlertPass(envWithConsent);
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+        expect(String(url)).toContain("sendgrid");
+        const sentBody = JSON.parse(String(init.body));
+        expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
+        expect(sentBody.subject).toContain("expiring soon");
+        expect(sentBody.subject).toContain("2026-10-08");
+        const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
+        expect(textContent).toContain("cpe_hours.json");
+        expect(textContent).toContain("reinstatement.json");
+        expect(textContent).toContain("renewal_fees.json");
+        expect(textContent).toContain("HARD-BLOCKS ALL SHIPPING");
+
+        // Same day, second tick -- must NOT send again.
+        await runGatedDatasetStalenessAlertPass(envWithConsent);
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("buildGatedDatasetStalenessAlertEmail() itself: subject and body name every row, grouped by dataset", async () => {
+    const { buildGatedDatasetStalenessAlertEmail } = await import("../src/emails");
+    const built = buildGatedDatasetStalenessAlertEmail([
+      { dataset: "cpe_hours", id: "tx-cpe", state: "Texas", daysUntilExpiry: 3, expiresOn: "2027-01-23" },
+      { dataset: "renewal_fees", id: "ohio-renewal-fee", state: "Ohio", daysUntilExpiry: 10, expiresOn: "2027-01-30" },
+    ]);
+    expect(built.subject).toContain("2 gate-blocking records");
+    expect(built.subject).toContain("2027-01-23");
+    expect(built.textBody).toContain("cpe_hours.json");
+    expect(built.textBody).toContain("Texas (tx-cpe)");
+    expect(built.textBody).toContain("2027-01-23");
+    expect(built.textBody).toContain("3 days left");
+    expect(built.textBody).toContain("renewal_fees.json");
+    expect(built.textBody).toContain("Ohio (ohio-renewal-fee)");
+    expect(built.textBody).toContain("2027-01-30");
+    expect(built.textBody).toContain("10 days left");
+    expect(built.textBody.toLowerCase()).toContain("warning, not an outage");
+
+    const single = buildGatedDatasetStalenessAlertEmail([{ dataset: "reinstatement", id: "maine-reinstatement", state: "Maine", daysUntilExpiry: 1, expiresOn: "2027-02-01" }]);
+    expect(single.subject).toContain("1 gate-blocking record "); // singular, not "1 gate-blocking records"
+    expect(single.textBody).toContain("1 day left"); // singular, not "1 days left"
+  });
+});
+
 describe("store.logSilentDrop / resolveSilentDrop (AuditLab SILENT-1)", () => {
   it("logs a fresh drop, keeps first_detected_at across repeated drops, then resolves", async () => {
     const id = `silent-drop-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
