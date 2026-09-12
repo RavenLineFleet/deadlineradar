@@ -54,6 +54,7 @@ import {
   buildMobilityStalenessAlertEmail,
   buildAssistantLatencyAlertEmail,
   buildStripePriceParityAlertEmail,
+  buildGatedDatasetStalenessAlertEmail,
 } from "./emails";
 import { FIRM_TIERS, stripePriceIdForTier } from "./tiers";
 import { fetchStripePrice } from "./stripe";
@@ -90,6 +91,9 @@ import mobilityRulesDataForStaleness from "./mobility_rules.json";
 import firmMobilityRulesDataForStaleness from "./firm_mobility_rules.json";
 import { MOBILITY_VERIFICATION_TTL_DAYS, normalizeRuleRow as normalizeMobilityRuleRow } from "./mobility";
 import { normalizeFirmRuleRow as normalizeFirmMobilityRuleRow } from "./firm_mobility";
+import cpeHoursDataForStaleness from "./cpe_hours.json";
+import reinstatementDataForStaleness from "./reinstatement.json";
+import renewalFeesDataForStaleness from "./renewal_fees.json";
 
 // scheduler.py: store.ESCALATION_THRESHOLDS_DAYS.
 export const ESCALATION_THRESHOLDS_DAYS = [1, 3, 7, 14, 30, 60];
@@ -2418,6 +2422,101 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
   } catch (err) {
     await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
+  }
+}
+
+/** FRESH-3 (AuditLab, 2026-09-12): the structural half of the fix, not just
+ * the one-time 74-record re-verification. `cpe_hours.json`, `reinstatement.
+ * json`, and `renewal_fees.json` each have their OWN 30-day
+ * verified_date/last_verified gate in preship_gate.py (check_cpe_hours_
+ * currency/check_reinstatement_currency/check_renewal_fee_currency) --
+ * unlike mobility_rules.json's TTL above, a record crossing this bar
+ * HARD-BLOCKS ALL SHIPPING, not just one feature's own answer. A batch-
+ * verification burst (2026-08-13/08-14) put 74 records on a collision
+ * course to go stale within one day of each other, discovered by AuditLab
+ * with ~24h notice -- and the very fix for that (re-verifying all 74 in
+ * one pass) re-created the same condition at roughly double the size,
+ * 157 records due 2026-10-13 (AuditLab's own follow-up finding). This is
+ * that dataset's pre-expiry warning, same shape as
+ * mobilityRowsNearingExpiry() above but for a 30-day TTL instead of a
+ * 180-day one, so the warning window is deliberately much shorter
+ * (GATED_DATASET_STALENESS_WARNING_DAYS, not the 30-day
+ * MOBILITY_STALENESS_WARNING_DAYS) -- a 30-day heads-up on a 30-day TTL
+ * would fire on literally every record, every day. */
+const GATED_DATASET_STALENESS_THRESHOLD_DAYS = 30;
+const GATED_DATASET_STALENESS_WARNING_DAYS = 7;
+
+export interface GatedDatasetRowNearingExpiry {
+  dataset: "cpe_hours" | "reinstatement" | "renewal_fees";
+  id: string;
+  state: string;
+  daysUntilExpiry: number;
+  expiresOn: string;
+}
+
+/** Rows whose 30-day preship_gate.py staleness bar will trip within the
+ * next GATED_DATASET_STALENESS_WARNING_DAYS, sorted soonest-first, across
+ * all three gate-blocking datasets combined -- one alert for the shared
+ * failure mode (batch-verification bursts), not three near-identical
+ * passes. Already-stale rows are excluded: preship_gate.py already refuses
+ * to ship on them, which is a build-time failure an operator can't miss;
+ * this warning exists so re-verification happens BEFORE that refusal, not
+ * after a blocked deploy. Reads the bundled JSON directly, same "duplicate
+ * the import, don't reach into another module's already-built lookup
+ * tables" reasoning as mobilityRowsNearingExpiry() above. `age_days > 30`
+ * is what actually goes stale (preship_gate.py's collect_stale()), so the
+ * first stale day is `verified + 31 days`, not `verified + 30`. */
+export function gatedDatasetRowsNearingExpiry(now: Date): GatedDatasetRowNearingExpiry[] {
+  const results: GatedDatasetRowNearingExpiry[] = [];
+  const thresholdMs = (GATED_DATASET_STALENESS_THRESHOLD_DAYS + 1) * 86_400_000;
+  const consider = (dataset: GatedDatasetRowNearingExpiry["dataset"], id: unknown, state: unknown, verifiedDateStr: unknown) => {
+    if (typeof id !== "string" || typeof state !== "string" || typeof verifiedDateStr !== "string") return;
+    const verified = Date.parse(verifiedDateStr);
+    if (Number.isNaN(verified)) return;
+    const daysUntilExpiry = Math.ceil((verified + thresholdMs - now.getTime()) / 86_400_000);
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > GATED_DATASET_STALENESS_WARNING_DAYS) return;
+    results.push({ dataset, id, state, daysUntilExpiry, expiresOn: new Date(verified + thresholdMs).toISOString().slice(0, 10) });
+  };
+  for (const raw of (cpeHoursDataForStaleness.records ?? []) as Record<string, unknown>[]) {
+    consider("cpe_hours", raw.id, raw.state, raw.verified_date);
+  }
+  for (const raw of (reinstatementDataForStaleness.records ?? []) as Record<string, unknown>[]) {
+    consider("reinstatement", raw.id, raw.state, raw.last_verified);
+  }
+  for (const raw of (renewalFeesDataForStaleness.records ?? []) as Record<string, unknown>[]) {
+    consider("renewal_fees", raw.id, raw.state, raw.verified_date);
+  }
+  results.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  return results;
+}
+
+/** The send half. New pass added after the standing consent-gate directive
+ * (Devin, 2026-08-21) -- gated behind requireSendApproval() like every pass
+ * added since. NOT present in any deployed SEND_APPROVED_PASSES value as of
+ * this writing (grep the wrangler secrets / .dev.vars before assuming
+ * otherwise) -- built, tested, and positive-controlled per the standing
+ * "no new send triggers without Devin's consent" policy, but the live send
+ * stays off until Devin explicitly adds "gatedDatasetStalenessAlert" to
+ * that list. DAY-keyed dedup (not month-keyed like
+ * runMobilityStalenessAlertPass() above) -- see the migration's own
+ * comment for why a 7-day warning window needs a daily, not monthly, nag. */
+export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void> {
+  if (!requireSendApproval(env, "gatedDatasetStalenessAlert")) return;
+  const nearing = gatedDatasetRowsNearingExpiry(new Date());
+  if (nearing.length === 0) return;
+  if (!env.SENDGRID_API_KEY) return;
+  const dayUtc = new Date().toISOString().slice(0, 10);
+  const claimed = await store.claimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
+  if (!claimed) return;
+  try {
+    const built = buildGatedDatasetStalenessAlertEmail(nearing);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST);
+    if (!ok) {
+      await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
+    }
+  } catch (err) {
+    await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
+    console.log(`[gated-dataset-staleness-alert-cron] error: ${String(err)}`);
   }
 }
 

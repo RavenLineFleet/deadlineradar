@@ -220,6 +220,7 @@ import {
   runMobilityStalenessAlertPass,
   runAssistantLatencyAlertPass,
   runStripePriceParityAlertPass,
+  runGatedDatasetStalenessAlertPass,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -12978,6 +12979,23 @@ export default {
           await runMobilityStalenessAlertPass(env);
         } catch (err) {
           console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // FRESH-3 (AuditLab, 2026-09-12): pre-expiry warning for the three
+    // datasets whose 30-day staleness gate HARD-BLOCKS ALL SHIPPING (unlike
+    // mobility above, which only degrades one feature's own answer) -- see
+    // runGatedDatasetStalenessAlertPass()'s own docstring. Independent
+    // pass, no checkDataFreshness() dependency, gated behind
+    // requireSendApproval() per the standing consent-gate directive since
+    // this is a NEW pass added after that directive existed.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runGatedDatasetStalenessAlertPass(env);
+        } catch (err) {
+          console.log(`[gated-dataset-staleness-alert-cron] error: ${String(err)}`);
         }
       })()
     );

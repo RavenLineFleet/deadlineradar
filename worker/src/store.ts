@@ -5524,6 +5524,30 @@ export async function unclaimStripePriceParityAlertForMonth(db: D1Database, mont
   await db.prepare(`DELETE FROM stripe_price_parity_alert_log WHERE month = ?1`).bind(monthUtc).run();
 }
 
+/** FRESH-3 (AuditLab, 2026-09-12), migration 0078. Same INSERT-and-report-
+ * whether-it-landed shape as claimStaleDataAlertForToday() above -- DAY-
+ * keyed, not month-keyed like claimMobilityStalenessAlertForMonth(), since
+ * the cpe_hours/reinstatement/renewal_fees pre-expiry warning window is
+ * only 7 days against a 30-day TTL (a much tighter ratio than mobility's
+ * 30-day window on a 180-day TTL), so it needs a daily reminder while risk
+ * is unresolved, not a monthly one. Returns true = "you own today's alert,
+ * send it." false = "already sent today, don't." */
+export async function claimGatedDatasetStalenessAlertForDay(db: D1Database, dayUtc: string): Promise<boolean> {
+  const result = await db
+    .prepare(`INSERT INTO gated_dataset_staleness_alert_log (day, sent_at) VALUES (?1, ?2) ON CONFLICT(day) DO NOTHING`)
+    .bind(dayUtc, nowIso())
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+/** Same DROP-3-shaped "claim burned even when the alert never actually
+ * sent" fix as unclaimStaleDataAlertForToday() above, for this dataset's
+ * claim -- called on every failure branch so a later tick the same day
+ * gets a real retry. */
+export async function unclaimGatedDatasetStalenessAlertForDay(db: D1Database, dayUtc: string): Promise<void> {
+  await db.prepare(`DELETE FROM gated_dataset_staleness_alert_log WHERE day = ?1`).bind(dayUtc).run();
+}
+
 /** AuditLab SILENT-1 (HIGH, 2026-08-19), migration 0067: called from
  * runReminderPass() every time a confirmed subscriber's deadline fails to
  * compute -- the exact "believes they're covered, told nothing" gap.
