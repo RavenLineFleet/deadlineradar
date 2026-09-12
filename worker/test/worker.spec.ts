@@ -5137,11 +5137,15 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   // carries a verified_date/last_verified of EXACTLY ONE of two dates:
   // 2026-09-09 (39 records: 1 cpe_hours + 5 reinstatement + 33 renewal_fees)
   // or 2026-09-12 (118 records, the remainder) -- maximum concentration,
-  // AuditLab's own "157-record wall" finding, all of it landing 2026-10-10
-  // and 2026-10-13 respectively. 2026-10-03 is exactly 7 days before the
-  // first of those two dates: only the 39-record 2026-09-09 cohort is
-  // inside the warning window, the larger 2026-09-12 cohort is not yet
-  // (its own window opens 2026-10-06).
+  // AuditLab's own "157-record wall" finding, landing 2026-10-10 and
+  // 2026-10-13 respectively. 2026-10-06 puts BOTH cohorts inside the 7-day
+  // warning window simultaneously (39 rows at 4 days out, 118 at 7) --
+  // AuditLab TEST-10 (LOW, 2026-09-12): an earlier pass at 2026-10-03 saw
+  // only the single-valued 39-row cohort, which cannot exercise sort order
+  // at all (every element carries the same daysUntilExpiry, so a broken
+  // sort would still pass) and dropped the block's only sort assertion
+  // along with it. 2026-10-06 is the actual multi-cohort scenario the
+  // alert exists for, and the only date that can catch a broken sort.
 
   it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 28 days out", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
@@ -5149,16 +5153,23 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     expect(nearing).toEqual([]);
   });
 
-  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets", async () => {
+  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-03T00:00:00Z"));
-    expect(nearing.length).toBe(39);
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
+    expect(nearing.length).toBe(157);
     expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
     expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
     expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
-    // All 39 share the same verified_date (2026-09-09), so they all land on
-    // the same expiry date, right at the far edge of the 7-day window.
-    expect(nearing.every((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-10")).toBe(true);
+    // Sorted soonest-first -- a real assertion here, not a degenerate one:
+    // the 39-row 2026-09-09 cohort (4 days out) must all precede the
+    // 118-row 2026-09-12 cohort (7 days out).
+    for (let i = 1; i < nearing.length; i++) {
+      expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
+    }
+    expect(nearing[0]!.daysUntilExpiry).toBe(4);
+    expect(nearing[0]!.expiresOn).toBe("2026-10-10");
+    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(39);
+    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(118);
   });
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
