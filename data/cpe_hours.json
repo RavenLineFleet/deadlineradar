@@ -402,8 +402,8 @@
       "ethics_hours": 2,
       "ethics_period_years": 1,
       "notes": "40 hours of CPE for each year of the license cycle, of which 8 must be in auditing/accounting and 2 in professional ethics (1 of those 2 ethics hours must specifically satisfy R 338.5215(1)(h), a Michigan-specific sub-requirement). No more than 50% of hours may come from self-study/instruction.",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-13: citation_url/source_url were previously single-homed (both pointed at the same LARA-hosted PDF), which went dead (404, page reorganized). Repointed to two distinct, independently-verified official sources: the Michigan Legislature's own codified MCL 339.729 text (citation_url) and LARA's Administrative Rules Search system's own R 338.5101-338.5503 compilation, which contains R 338.5215 including subsection (1)(h) verbatim (source_url). Both re-confirmed against their live text: 40 hours/year, 8 of those in auditing/accounting, 2 in ethics, and R 338.5215(1)(h)'s ethics-course requirement all present verbatim."
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-08-13: citation_url/source_url were previously single-homed (both pointed at the same LARA-hosted PDF), which went dead (404, page reorganized). Repointed to two distinct, independently-verified official sources: the Michigan Legislature's own codified MCL 339.729 text (citation_url) and LARA's Administrative Rules Search system's own R 338.5101-338.5503 compilation, which contains R 338.5215 including subsection (1)(h) verbatim (source_url). Both re-confirmed against their live text: 40 hours/year, 8 of those in auditing/accounting, 2 in ethics, and R 338.5215(1)(h)'s ethics-course requirement all present verbatim.\n\n2026-09-12 (monthly re-verification): re-read MCL 339.729 and R 338.5215 directly (HTML, not the PDF summary) -- 40 hrs/year, 8 accounting/auditing, 2 ethics, and (1)(h)'s Michigan-statutes-and-rules-course (MACPA-created) requirement all confirmed verbatim. Unchanged."
     },
     {
       "id": "mn-cpe",
@@ -572,8 +572,8 @@
       "ethics_hours": 4,
       "ethics_period_years": 3,
       "notes": "Either 24 contact hours per calendar year if concentrated in one recognized subject area, or 40 hours if spread across multiple areas -- published here as the 40-hour figure since that's the requirement absent single-subject concentration, the more broadly applicable case. 4 hours of ethics required once every 3 calendar years (countable toward that year's annual total, not an add-on). Citation is the New York State Education Department's own stated authority (Education Law + Commissioner's Regulations Part 70); the Department does not publish a subsection more granular than Part 70 itself, so this citation is less precise than most on this site -- we would rather say so than imply a precision the source does not have.",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-14 (COPY-6 full-class sweep, extra): reworded -- the note referred to \"this batch's other citations\", which is our own internal work-batching and means nothing to a reader. The caveat itself is genuine reader value and was kept."
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-08-14 (COPY-6 full-class sweep, extra): reworded -- the note referred to \"this batch's other citations\", which is our own internal work-batching and means nothing to a reader. The caveat itself is genuine reader value and was kept.\n\n2026-09-12 (monthly re-verification): re-read op.nysed.gov's MCE Q&A page -- \"Either 24 or 40 contact hours... (24 if concentrated in one of the recognized subject areas or 40 if in any combination)\" and \"4 contact hours of acceptable professional ethics completed during every three calendar years\" confirmed verbatim. Unchanged."
     },
     {
       "id": "nc-cpe",
@@ -588,8 +588,8 @@
       "ethics_hours": 1,
       "ethics_period_years": 1,
       "notes": "North Carolina's CPE requirement has been governed by a minutes-based framework since January 1, 2020. Active CPAs must complete 2,000 CPE minutes annually by December 31 (.0401(d)), including at least 50 minutes of regulatory or behavioral ethics (.0401(e)). At the Board's own 50-minutes-per-CPE-hour conversion, that is 40 hours/year including 1 ethics hour/year. The rule text was amended effective June 1, 2026 (the version now posted on the Board's page): the 2,000-minute and 50-minute ethics figures are unchanged, but the amendment added explicit proration for newly-approved certificates (1,500/1,000/500 minutes for approvals in Apr-Jun/Jul-Sep/Oct-Dec of the same year), a carry-forward of up to 1,000 excess minutes into the following year (ethics minutes excluded from carry-forward), and a duplicate-course exclusion. CPE reporting is due with the July 1 license renewal each year (.0406(a)).",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-13: re-confirmed against the Board's own posted rule text (version effective June 1, 2026) via a real browser. Core figures verbatim: '2,000 CPE minutes... by December 31 of each year' and 'a minimum of 50 CPE minutes annually in activities on regulatory or behavioral professional ethics.' Notes updated to describe the June 2026 amendment's new proration/carry-forward provisions, which don't change the headline hours/ethics figures. (2026-08-13, second pass: source_url repointed from a duplicate of citation_url to the Board's own https://nccpaboard.gov/cpe/ page, which states the hours-to-minutes conversion verbatim -- '40 hours (2,000 minutes) of CPE courses' -- rather than leaving the 50-minutes-per-hour conversion in this record's own notes as the only place the two units are tied together.)"
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-08-13: re-confirmed against the Board's own posted rule text (version effective June 1, 2026) via a real browser. Core figures verbatim: '2,000 CPE minutes... by December 31 of each year' and 'a minimum of 50 CPE minutes annually in activities on regulatory or behavioral professional ethics.' Notes updated to describe the June 2026 amendment's new proration/carry-forward provisions, which don't change the headline hours/ethics figures. (2026-08-13, second pass: source_url repointed from a duplicate of citation_url to the Board's own https://nccpaboard.gov/cpe/ page, which states the hours-to-minutes conversion verbatim -- '40 hours (2,000 minutes) of CPE courses' -- rather than leaving the 50-minutes-per-hour conversion in this record's own notes as the only place the two units are tied together.)\n\n2026-09-12 (monthly re-verification): re-read 21 NCAC 08G .0401(d)/(e) and the Board's cpe/ page -- 2,000 minutes (40 hrs)/year by Dec 31, 50 ethics minutes/year, June 2026 proration (1500/1000/500 min for Apr-Jun/Jul-Sep/Oct-Dec approvals) and 1,000-minute carry-forward (ethics excluded) all confirmed verbatim. Unchanged."
     },
     {
       "id": "nd-cpe",
@@ -621,7 +621,8 @@
       "ethics_hours": 3,
       "ethics_period_years": 3,
       "notes": "120 credits are required within the 36 months preceding permit renewal, but Ohio also sets a minimum of 20 credits every year (OAC 4701-15-02) -- a $10-per-credit fine applies for any annual shortfall, so the 120 hours cannot be concentrated into just one or two years of the triennium. Within the 120: at least 3 credits must be in Professional Standards and Responsibilities (OAC 4701-15-11(C)), plus subject-area minimums (24 credits in accounting/auditing/attestation, or 24 in tax, depending on practice area).",
-      "verified_date": "2026-08-13"
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-09-12 (monthly re-verification): re-read Ohio Admin. Code 4701-15-02 and 4701-15-11(C) directly -- 120 credits/triennial, 20/year minimum ($10/credit-deficient fine), 3 credits Professional Standards and Responsibilities, 24 credits accounting/auditing/attestation OR 24 tax, all confirmed verbatim. Note: source_url 404'd on direct fetch this pass (WebSearch still shows live cached content at the same URL) -- worth a real-browser re-check before concluding it's actually down."
     },
     {
       "id": "ok-cpe",
@@ -821,8 +822,8 @@
       "ethics_hours": 4,
       "ethics_period_years": 3,
       "notes": "120 hours per 3-year reporting period, minimum 20 hours each calendar year, a 4-hour Washington-board-approved ethics course, and a cap of no more than 60 hours in nontechnical subject areas. WAC 4-25 -- an older citation still circulating on third-party CPE-vendor sites -- has been recodified and superseded; the current section is WAC 4-30-134.",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-14 (COPY-6): methodology narration moved out of the reader-facing note. Requirements verified directly against the Washington Legislature's own rule-hosting site (app.leg.wa.gov); confirmed WAC 4-25 is recodified/superseded and WAC 4-30-134 is the correct current section, which is what this record cites."
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-08-14 (COPY-6): methodology narration moved out of the reader-facing note. Requirements verified directly against the Washington Legislature's own rule-hosting site (app.leg.wa.gov); confirmed WAC 4-25 is recodified/superseded and WAC 4-30-134 is the correct current section, which is what this record cites.\n\n2026-09-12 (monthly re-verification): re-read WAC 4-30-134 directly -- 120 hrs/3yr, 20/yr minimum, 4-hr WA-board-approved ethics course, 60-hr nontechnical cap all confirmed verbatim; WAC 4-25->4-30-134 recodification independently confirmed (WSR 10-24-009, eff. 12/19/10). Unchanged. Found a real WA Board of Accountancy page (acb.wa.gov/.../guidelines-cpe-sponsors) that could replace source_url's current third-party citation -- not swapped this pass, flagging for the record owner."
     },
     {
       "id": "wv-cpe",
@@ -854,8 +855,8 @@
       "ethics_hours": 3,
       "ethics_period_years": 2,
       "notes": "80 CPE credits per 2-year compliance period (the period immediately preceding renewal), of which at least 40 must be from formal learning activities and 3 of those formal-learning hours must be on ethics. At least 20 credits must be completed in each 12-month half of the period.",
-      "verified_date": "2026-08-13",
-      "verification_history": "2026-08-14 (COPY-6 full-class sweep, tier A): removed methodology narration from the reader-facing note -- it carried no information a licensee could act on. Removed text: \"Verified directly against the administrative code text, not a secondary summary.\""
+      "verified_date": "2026-09-12",
+      "verification_history": "2026-08-14 (COPY-6 full-class sweep, tier A): removed methodology narration from the reader-facing note -- it carried no information a licensee could act on. Removed text: \"Verified directly against the administrative code text, not a secondary summary.\"\n\n2026-09-12 (monthly re-verification): re-read Wis. Admin. Code Accy 2.602 directly -- 80 credits/2yr, 40 from formal learning, 3 of those on ethics, 20 credits minimum each 12-month half all confirmed verbatim. Unchanged."
     },
     {
       "id": "wy-cpe",
