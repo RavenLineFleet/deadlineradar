@@ -4,12 +4,12 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 17,
+  "gap_record_count": 16,
   "terminal_disclosure_count": 22,
-  "note_bearing_record_count": 39,
+  "note_bearing_record_count": 38,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 35
+    "data_gap_note": 34
   },
   "block_claim_count": 0,
   "entries": [
@@ -322,16 +322,6 @@
       "note": "Delaware doesn't publish a flat renewal fee, by design. State law (29 Del. C. 8735(c)) has the Division of Professional Regulation set license fees to cover its own costs rather than fixing a dollar figure in the code, and DPR's own fee page confirms it: you're notified of the amount directly when you renew. Since no schedule exists to publish, your renewal notice from DPR is the source for the current figure.",
       "is_block_claim": false,
       "terminal_disclosure": true
-    },
-    {
-      "dataset": "renewal_fees.json",
-      "id": "louisiana-renewal-fee",
-      "state": "Louisiana",
-      "state_slug": "louisiana",
-      "field": "data_gap_note",
-      "note": "The $50 (+$25/owner-over-10, capped $2,500) firm renewal figure above is sourced to the Board's own published fee page (cpaboard.state.la.us/cpa-firm-permits/), not independently re-confirmed against the codified La. Admin. Code text this pass -- attempts to fetch the current LAC PDF this session returned redirect/placeholder pages rather than the rule text. The individual $120 figure remains codified (La. Admin. Code tit. 46, pt. XIX, 1105(B)(1)), unaffected.",
-      "is_block_claim": false,
-      "terminal_disclosure": false
     },
     {
       "dataset": "renewal_fees.json",
