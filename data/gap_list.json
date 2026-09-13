@@ -4,8 +4,8 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 28,
-  "terminal_disclosure_count": 11,
+  "gap_record_count": 17,
+  "terminal_disclosure_count": 22,
   "note_bearing_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
@@ -119,9 +119,9 @@
       "state": "Alaska",
       "state_slug": "alaska",
       "field": "verification_note",
-      "note": "2026-08-21 (AuditLab CITE-42, self-directed fix): re-fetched cpa4060.pdf directly and read past the sentence this record already cited. The form states the biennial period applies 'regardless of the date of issuance, except licenses issued within 90 days of the expiration date which are issued to the next biennial expiration date' -- an undisclosed cohort exception the record's cycle_description didn't model. A CPA first licensed Oct-Dec 2027 is actually due 2029-12-31, not 2027-12-31; the site would have told them to renew ~8 weeks after being licensed. Added a plain sentence to cycle_description rather than a cohort_groups entry (the window is narrow and time-bounded, so prose is proportionate per AuditLab's own recommendation). next_deadline_computed unchanged -- it is still correct for the general population; the exception is disclosed, not computed per-visitor, matching how this site already handles Idaho's operational-guidance lag.\n\n2026-07-16 follow-up (see also 2026-07-13 note below): independently re-confirmed both AS 08.04.105(a) and 12 AAC 04.189 (License Renewal) directly via the Board's own hosted CPARegulations.pdf (pdftotext-extracted) -- neither states the specific December 31 date or the odd-year pattern for individual licenses. The statute text is not retrievable at any reachable host: akleg.gov's statutes page (re-confirmed 2026-08-20) returns 200 with a live navigation-stub page ('This page is no longer used please use www.akleg.gov') containing zero occurrences of the statute -- a moved page serving nothing at the destination, not a refused request. The parallel firm-permit rule (12 AAC 04.280(c)) DOES explicitly state a renewal is 'due not later than December 31' -- strong indirect corroboration that individuals share the same calendar -- but that is not a direct citation for the individual-license date specifically, so the citation/Verified badge was removed from this record rather than left pointing at a rule that doesn't itself establish the displayed date. The date is very likely correct (math, Board materials, and the firm-rule corroboration all agree) but is not verbatim-confirmed against an individual-specific codified provision. 2026-07-13 amendment-currency audit (original): unverified, akleg.gov's statute pages serve no rule text; candidates for the individual-specific cite (12 AAC 04.189, 12 AAC 02.935) remain unconfirmed; a related 2025 regulation package (12 AAC 04, eff. 7/26/2025) also unconfirmed as to scope. Pending a human browser check of akleg.gov/basis/aac.asp directly, or of 12 AAC 02.935 specifically.\n\n2026-09-13 (Orchestrator-directed follow-up, per Devin's push to close open gaps): read the COMPLETE current compiled edition of AS 08.04 and 12 AAC 04 (commerce.alaska.gov/web/portals/5/pub/CPARegulations.pdf, \"Statutes and Regulations Public Accountancy, January 2026\") section by section, all 6 articles of the statute and all 9 articles of the regulations -- not a targeted search this time, an exhaustive read of the entire chapter. Confirmed definitively: no section of either the statute or the regulations states a specific calendar date or odd/even-year parity for INDIVIDUAL license expiration anywhere in the current compiled text. Sec. 08.04.105(a) states only the mechanic (\"valid for the remainder of the biennial licensing period during which the initial license was granted\"), never a date. The ONLY place \"December 31\" appears in the entire compiled document is 12 AAC 04.280(c), which fixes the FIRM permit renewal deadline, not the individual one -- confirming this record's existing corroboration-only citation approach was already correct. This closes the \"is there a codified cite we're missing\" question with a definitive negative, not just another failed attempt -- the full current chapter has now been read in its entirety, not sampled. Recommendation (not self-classified -- routed to AuditLab for independent verification per the standing terminal_disclosure process): this may not be the same shape as Michigan's mi-individual (a genuinely PER-LICENSEE unknowable date). Alaska's operational renewal form states the date applies \"regardless of the date of issuance\" -- a single shared calendar for the whole population, not a personal cohort -- and that operational source has already been independently cross-verified twice (STALE-9, 2026-09-01 monthly pass). The open question was narrowly \"does a codified citation exist,\" and that is now answered: no. Whether that makes this record terminal_disclosure-eligible or simply confirms the existing operational_record citation_class was already the right and complete treatment is AuditLab's call, not mine.",
+      "note": "2026-08-21 (AuditLab CITE-42, self-directed fix): re-fetched cpa4060.pdf directly and read past the sentence this record already cited. The form states the biennial period applies 'regardless of the date of issuance, except licenses issued within 90 days of the expiration date which are issued to the next biennial expiration date' -- an undisclosed cohort exception the record's cycle_description didn't model. A CPA first licensed Oct-Dec 2027 is actually due 2029-12-31, not 2027-12-31; the site would have told them to renew ~8 weeks after being licensed. Added a plain sentence to cycle_description rather than a cohort_groups entry (the window is narrow and time-bounded, so prose is proportionate per AuditLab's own recommendation). next_deadline_computed unchanged -- it is still correct for the general population; the exception is disclosed, not computed per-visitor, matching how this site already handles Idaho's operational-guidance lag.\n\n2026-07-16 follow-up (see also 2026-07-13 note below): independently re-confirmed both AS 08.04.105(a) and 12 AAC 04.189 (License Renewal) directly via the Board's own hosted CPARegulations.pdf (pdftotext-extracted) -- neither states the specific December 31 date or the odd-year pattern for individual licenses. The statute text is not retrievable at any reachable host: akleg.gov's statutes page (re-confirmed 2026-08-20) returns 200 with a live navigation-stub page ('This page is no longer used please use www.akleg.gov') containing zero occurrences of the statute -- a moved page serving nothing at the destination, not a refused request. The parallel firm-permit rule (12 AAC 04.280(c)) DOES explicitly state a renewal is 'due not later than December 31' -- strong indirect corroboration that individuals share the same calendar -- but that is not a direct citation for the individual-license date specifically, so the citation/Verified badge was removed from this record rather than left pointing at a rule that doesn't itself establish the displayed date. The date is very likely correct (math, Board materials, and the firm-rule corroboration all agree) but is not verbatim-confirmed against an individual-specific codified provision. 2026-07-13 amendment-currency audit (original): unverified, akleg.gov's statute pages serve no rule text; candidates for the individual-specific cite (12 AAC 04.189, 12 AAC 02.935) remain unconfirmed; a related 2025 regulation package (12 AAC 04, eff. 7/26/2025) also unconfirmed as to scope. Pending a human browser check of akleg.gov/basis/aac.asp directly, or of 12 AAC 02.935 specifically.\n\n2026-09-13 (Orchestrator-directed follow-up, per Devin's push to close open gaps): read the COMPLETE current compiled edition of AS 08.04 and 12 AAC 04 (commerce.alaska.gov/web/portals/5/pub/CPARegulations.pdf, \"Statutes and Regulations Public Accountancy, January 2026\") section by section, all 6 articles of the statute and all 9 articles of the regulations -- not a targeted search this time, an exhaustive read of the entire chapter. Confirmed definitively: no section of either the statute or the regulations states a specific calendar date or odd/even-year parity for INDIVIDUAL license expiration anywhere in the current compiled text. Sec. 08.04.105(a) states only the mechanic (\"valid for the remainder of the biennial licensing period during which the initial license was granted\"), never a date. The ONLY place \"December 31\" appears in the entire compiled document is 12 AAC 04.280(c), which fixes the FIRM permit renewal deadline, not the individual one -- confirming this record's existing corroboration-only citation approach was already correct. This closes the \"is there a codified cite we're missing\" question with a definitive negative, not just another failed attempt -- the full current chapter has now been read in its entirety, not sampled. Recommendation (not self-classified -- routed to AuditLab for independent verification per the standing terminal_disclosure process): this may not be the same shape as Michigan's mi-individual (a genuinely PER-LICENSEE unknowable date). Alaska's operational renewal form states the date applies \"regardless of the date of issuance\" -- a single shared calendar for the whole population, not a personal cohort -- and that operational source has already been independently cross-verified twice (STALE-9, 2026-09-01 monthly pass). The open question was narrowly \"does a codified citation exist,\" and that is now answered: no. Whether that makes this record terminal_disclosure-eligible or simply confirms the existing operational_record citation_class was already the right and complete treatment is AuditLab's call, not mine.\n\n2026-09-13 (AuditLab-verified terminal_disclosure reclassification, standing 09-09 process): AuditLab independently endorsed terminal_disclosure=true -- the exhaustive AS 08.04 + 12 AAC 04 read established a real negative (no codified provision states the individual date) that no further reading will change, distinct from citation_class (which describes where the fact comes from, not whether it's still researchable). See AuditLab/inbox/assetlab_20260913_gap_reclassify_batch2_VERDICT.md.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -181,7 +181,7 @@
       "field": "data_gap_note",
       "note": "D.C. doesn't set this fee by codified rule: no DCMR fee schedule states the $295. The Board sets its fees administratively under D.C. Code §47-2853.10 and publishes the current amounts on its own page -- the same way DC handles its other licensing fees. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with the Board before you pay. The 40-hour-per-year CPE reinstatement requirement (capped at 120 hours) is codified in 17 DCMR §2530.3, and the citation link above goes directly to that section's official text. The citation also names two D.C. Code sections (covering lapsed and reinstated licenses generally, and the Board's fee-setting authority); those have their own pages on the D.C. Council's code site, but the single link here goes to the DCMR section because that's the rule that actually sets the CPE numbers.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -191,7 +191,7 @@
       "field": "data_gap_note",
       "note": "Confirmed directly from the codified fee rule, not just the Board's own page: HAR §16-53-38 sets the restoration formula as the biennial renewal fee plus an equal penalty fee (paragraphs (7) and (11)), and HRS §26-9(o) separately requires any unpaid fee -- including the $100 biennial Compliance Resolution Fund fee under HAR §16-53-38(12) -- to be paid to restore a license. For an individual license: $52 renewal + $52 penalty + $100 Compliance Resolution Fund fee = $204. For a non-sole-proprietorship firm permit: $130 + $130 + $100 = $360. Sole-proprietorship firm permits owe no Compliance Resolution Fund fee under (12), so their total stops at $64 + $64 = $128. These published figures are the baseline for restoring within the same biennium; HAR §16-53-38(8) and HRS §466-8(c) add a further $20 recordkeeping fee for each full biennium your license was on forfeited status.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -201,7 +201,7 @@
       "field": "data_gap_note",
       "note": "Louisiana's reinstatement fee isn't a single number under Louisiana law: which of three mechanisms applies depends on how long your certificate has been lapsed. A same-year reinstatement uses the renewal fee plus a board-prescribed penalty fee, with no fixed dollar amount codified (LAC 46:XIX Sec1105.B.6). A fully expired or inactive certificate instead goes through a formal reinstatement application, capped by statute at $500 (La. R.S. 37:74.1). Separately, the board's own fee table applies an escalating monthly delinquent fee of $200-$700 depending on how many months have passed. These mechanisms don't reconcile with one another, which is why they don't reduce to one figure. The 3-hour ethics-CPE figure comes from the board's own page; the codified rule text (Sec1301, Sec1303, Sec1319) does not itself state an hour figure.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -211,7 +211,7 @@
       "field": "data_gap_note",
       "note": "The $57 late fee and $161 renewal fee come from the Board of Public Accountancy's own current fee pages, not from 252 CMR 2.16 itself -- read the rule's full text and you won't find a dollar figure anywhere in it. It describes reinstatement fees only as \"the back license fee,\" \"a late fee,\" and \"the current license fee\" (or \"current license renewal fee\"), leaving the actual amounts for the board to set administratively rather than fixing them in the rule text, so they can change without a formal rule amendment. The CPE side works differently: it's codified directly in statute, where M.G.L. c. 112, Sec 87B(c) sets the 160-hour/24-month requirement for a license lapsed two or more renewal cycles, including the rule that at least 80 of those hours must be in the attest function.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -221,7 +221,7 @@
       "field": "data_gap_note",
       "note": "Michigan's statutes and rules don't state this $320 total in any single line -- you assemble it from three components: the $100 application-processing fee, the $20 late-renewal fee, and $200 for the upcoming two-year license period. The board's own licensing guide confirms the assembled figure (\"2 year CPA Relicensure Application and Fee: $320.00\"), independently matching what the law requires.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -241,7 +241,7 @@
       "field": "data_gap_note",
       "note": "Nevada doesn't have one flat reinstatement fee or CPE figure -- which one applies depends on your situation, because the state codifies three separate tracks. A simple late renewal (paid before the lapse goes further) costs a $150 late fee on top of the standard $175 annual fee. Reinstatement from retired or inactive status costs $250 and requires 40 CPE hours, including 4 in ethics, completed in the preceding 12 months. Reinstatement after voluntary surrender requires 40 hours plus payment of back fees. Reinstatement after revocation or disciplinary surrender requires 80 hours, including 8 in ethics, in the preceding 12 months. A missed renewal doesn't convert to revocation automatically: failing to obtain the annual permit within 60 days of expiration is a ground for the board to revoke, unless excused -- it is a board decision, not an automatic outcome. These are three distinct, separately codified paths (NAC 628.016, NAC 628.110), not one number with exceptions, so no single reinstatement fee or CPE-hours figure would accurately represent every case -- check which track applies to you before paying or scheduling CPE.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -251,7 +251,7 @@
       "field": "data_gap_note",
       "note": "Ohio doesn't publish one flat reinstatement fee because state law itself sets a formula, not a flat number, as laid out above. That's confirmed on two independent fronts: the Ohio Revised Code spells out the per-month rates and caps, and the Accountancy Board's own fees page (under its 'Late and Back Fees' tab) states the identical figures -- $50/month (capped at $300) for a registration or permit, $100/month (capped at $1,200) for a permit holder employed in public accounting.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -261,7 +261,7 @@
       "field": "data_gap_note",
       "note": "The $225 reinstatement fee, $255 biennial renewal fee, and 80-hour CPE reinstatement requirement (with its 16-hour non-technical-credit cap) are all set out in Oregon's codified rules (OAR 801-010-0010 and 801-010-0130) -- the same rule text cited above. The Board's renewal-information page describes the lapse and reinstatement process in plain terms but doesn't restate these specific figures; the rule itself is the definitive source for them.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -281,7 +281,7 @@
       "field": "data_gap_note",
       "note": "Both cited rules confirmed verbatim, word for word: ARSD 20:75:03:03 states \"the fee for renewal is one hundred dollars\" and \"the annual late renewal fee is an additional one hundred dollars\" for each year the certificate was expired -- that's the $100-plus-$100-per-lapsed-year formula above, not a single flat figure by design. ARSD 20:75:04:08 confirms the CPE side exactly: a certificate lapsed more than 12 months requires 24 hours of CPE in the preceding 12 months; lapsed 12 months or less requires only the normal CPE the applicant would have owed anyway.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -291,7 +291,7 @@
       "field": "data_gap_note",
       "note": "Utah sets reinstatement fees administratively rather than codifying them in rule -- R156-26a contains no dollar figures anywhere in its text. The $113 total (and the $85 alternate for licenses expired more than two years with no unlicensed practice) comes directly from DOPL's own reinstatement application document, which is the fee's actual source of truth under this system. Because DOPL can revise that application without a rule filing, confirm the figure on the current application before paying.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
