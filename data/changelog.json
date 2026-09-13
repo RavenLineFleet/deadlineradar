@@ -2,6 +2,18 @@
   "schema_note": "Roadmap #49 (2026-08-07): a curated public changelog of material corrections and updates to this site's data -- hand-maintained (not auto-generated from commit history), since raw internal commit messages reference internal tooling/finding codes never meant for public copy. Each entry here is a genuine, dated, already-verified change, rewritten in plain language. Newest first.",
   "entries": [
     {
+      "date": "2026-09-12",
+      "summary": "Utah: corrected a reinstatement page that listed a Laws-and-Rules exam as still required -- the current rule only requires the AICPA ethics exam. Because the state's own 2022 reinstatement checklist hasn't caught up to that change, the page now explains the conflict and points readers to confirm directly with the regulator rather than picking a side."
+    },
+    {
+      "date": "2026-09-12",
+      "summary": "Virginia: corrected a reinstatement page's stated ethics-hour penalty from 6 hours to the correct 2 hours per year, per the current rule."
+    },
+    {
+      "date": "2026-09-12",
+      "summary": "Illinois: corrected a CPE-requirements page that had wrongly said the state sets no specific hour count for its mandatory sexual-harassment training -- it's actually a 1-hour course each cycle, per the implementing rule."
+    },
+    {
       "date": "2026-08-21",
       "summary": "Illinois: corrected a renewal-fee page that had wrongly said no fee amount could be confirmed -- it now shows the codified $40/year rate and its source."
     },
