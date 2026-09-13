@@ -4,8 +4,8 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 16,
-  "terminal_disclosure_count": 22,
+  "gap_record_count": 5,
+  "terminal_disclosure_count": 33,
   "note_bearing_record_count": 38,
   "field_breakdown": {
     "verification_note": 4,
@@ -21,7 +21,7 @@
       "field": "verification_note",
       "note": "Corrected during sprint-task-5 adversarial verify: initial spike data used 'before July 1' loosely and computed a July 1 deadline; re-checked directly against the NC Board's own 2025-2026 renewal page, which states the cutoff is June 30 (July 1 is when the Letter-of-Demand process starts). Fixed to June 30 with the primary source URL updated accordingly. Downgraded to a data gap during the 2026-07-05 correctness audit after the source page went briefly dead. RE-OPENED 2026-07-06 (P2 gap-closure pass): re-confirmed 21 NCAC 08J .0101's current text and initially treated 'by the first day of July' and the Board's 'June 30' as the same instant described two ways -- WRONG. CORRECTED 2026-07-06 per the orchestrator's independent adversarial verification: these are two different calendar dates (July 1 vs. June 30), and the codified rule is the legally controlling text, not the Board's operational webpage. Publishing 2027-07-01 (the codified date), not 2027-06-30.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -41,7 +41,7 @@
       "field": "data_gap_note",
       "note": "Texas's own licensing rule (22 TAC 515.3) confirms this directly: individual CPA licenses have staggered expiration dates tied to your own birth month, so your renewal is due by the last day of that month each year. The board's own renewal page tells CPAs the same thing, so the codified rule and the board agree on this cycle. The annual renewal fee itself isn't fixed in the rule -- the board sets that amount each year, on top of a separate $10.00 Scholarship Trust Fund fee that is fixed by rule. Because the fee is set by board action rather than written into the rule, it can change from year to year without a rule filing -- confirm the current figure with the board when you renew.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -71,7 +71,7 @@
       "field": "data_gap_note",
       "note": "Massachusetts CPA licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. No statute, regulation, or Board page states which parity a brand-new license starts on. The Board's FAQ CPE table and the Mass. Society of CPAs both point to a 'second June 30 after issuance' rule, but no Board source states that rule outright, so we don't compute a date from it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -81,7 +81,7 @@
       "field": "data_gap_note",
       "note": "Massachusetts CPA firm licenses renew every 2 years, always on June 30, on a fixed odd- or even-year parity that's permanent once assigned -- a lapsed license returns to its original parity, never a new one. No statute, regulation, or Board page says which parity a brand-new firm license starts on. Real firm license records (issued 1998-2026) mostly follow a second-June-30-after-issuance pattern, but the most recently issued firm we checked breaks it, so a new registration can't rely on it. Confirm your renewal year with the Board (617-701-8635) or via eLIPSE.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -111,7 +111,7 @@
       "field": "data_gap_note",
       "note": "December 31 of every even-numbered year is the renewal date for both the individual CPA license and the CPA firm permit, per the DC Board of Accountancy's published guidance. Only the firm permit's term is codified: 17 DCMR § 2547.1 sets it for firm permits issued under § 2542. Nothing in the DCMR's accountancy chapter sets the individual license's own term, DC Code § 47-2853.13 delegates term length to law or regulation without stating it, and Title 17's generic license-term rule for other boards (§ 3306) doesn't cover the Board of Accountancy. If unsure, confirm your date with the Board.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -131,7 +131,7 @@
       "field": "verification_note",
       "note": "2026-07-16 follow-up: independently confirmed 12 AAC 04.280(c) directly via the Board's own hosted regulations PDF (pdftotext-extracted, not a summarized fetch) -- it explicitly states a firm-permit renewal application is 'due not later than December 31' for the biennial license period. This resolves the earlier uncertainty about whether the cited rule actually establishes the displayed date: for firms, it does. The specific odd-year pattern (that the current period ends in 2027, not 2026) is not itself spelled out in this section, but is corroborated by the Board's own published materials and the arithmetic of a continuous biennial cycle. The statute text is not retrievable at any reachable host: akleg.gov's statutes page (re-confirmed 2026-08-20) returns 200 with a live navigation-stub page ('This page is no longer used please use www.akleg.gov') containing zero occurrences of the statute -- a moved page serving nothing at the destination, not a refused request; this confirmation relies on the Board's own hosted copy of the regulation text instead. 2026-07-13 amendment-currency audit (original, superseded by the above): flagged this record as unverified pending exactly this check.\n\n2026-08-20 (CITE-13 labelling fix, AuditLab): cycle_description was attributing the specific 2026-2027 window to 12 AAC 04.280 itself, but the rule only establishes the biennial mechanic and the Dec 31 deadline, never naming which window is current -- exactly the gap this note already documented above. Reworded to separate what the rule states from what the Board's materials + arithmetic confirm; no change to the date itself, which was already right.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpa_deadlines.json",
@@ -161,7 +161,7 @@
       "field": "data_gap_note",
       "note": "You can rely on DC's 80-hour biennial requirement (with a 4-hour ethics minimum) -- it's confirmed in two independent places that agree: 17 DCMR §§2530.1 and 2530.8, and the Board's own CPE Reporting Form, which quotes both sections verbatim. DC's online regulations portal doesn't offer a stable link to individual sections -- its section-list page resolves to a search screen, not the rule text -- so the citation above points you directly to the Board's reporting form PDF, the official document that reproduces the rule's language.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "cpe_hours.json",
@@ -171,7 +171,7 @@
       "field": "data_gap_note",
       "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- it is not stated in the statute or anywhere in the administrative rule chapter governing continuing education (ARSD 20:75:04). That chapter's only annual-hour schedules apply to certificate holders phasing in during their first three-year cycle (20:75:04:07) or returning after a lapsed certificate (20:75:04:08), not to ordinary ongoing renewal. It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "reinstatement.json",
@@ -311,7 +311,7 @@
       "field": "data_gap_note",
       "note": "D.C. doesn't codify this fee in a rule: neither DCMR Title 17 Chapter 25 (Board of Accountancy) nor Chapter 40 (general licensing) contains a fee schedule. The fee is set administratively instead, and the regulator publishes the current amounts on DLCP's Board of Accountancy page -- $110 for renewal, $50 for late renewal. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with DLCP before you pay.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
@@ -381,7 +381,7 @@
       "field": "data_gap_note",
       "note": "Puerto Rico's CPA renewal fee isn't fixed in the law itself. 20 L.P.R.A. § 779 states three times that the license and renewal fee is set \"según disponga la Junta y el Departamento de Estado\" -- by the Board and Department of State, not the statute -- and no dollar figure appears anywhere in that section. The $50 renewal fee sometimes attributed to the 1945 law appears nowhere in its current text or in Ley Núm. 147 de 28 de agosto de 2014, which rewrote the section wholesale into today's wording -- and the arrangement is older than the wording: a 2011 NASBA renewal-instructions sheet already shows a $180 fee set under the same delegation. Puerto Rico's Dept. of State designates NASBA as the official administrator of CPA licensing and renewals, and that's where the actual dollar figures live: $225 for individual renewal, $275 if you file late, reconfirmed live on 2026-09-04. No Puerto Rico government page publishes that dollar figure itself -- it lives only on NASBA's site -- so this record's $225 traces to the government-designated administrator rather than to a Puerto Rico statute or regulation.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
@@ -391,7 +391,7 @@
       "field": "data_gap_note",
       "note": "$112 has been the confirmed rate since TSBPA raised it from $97, effective September 1, 2024. A full year has now passed since the date any further increase would have taken effect (September 1, 2025), and a fresh check of TSBPA's news archive and a site search for \"annual license fee\" and \"fee increase\" -- the same channel the Board used to announce the 2017, 2019, and 2024 increases -- turns up no notice of any further increase, so $112 remains current. One thing about this fee is permanent, not a gap: 22 TAC 521.1 does not fix a dollar figure itself; it says the fee \"shall be established by the board on an annual basis,\" so the number lives in the Board's own announcements, not the rule text, and any future change will appear there -- the rule will not restate it. Confirm the current amount with TSBPA before you pay.\n\nSeparately, on the citation: this points at the correct rule (22 TAC 521.1), confirmed by navigating the state's own rule browser and independently by a secondary mirror of the same rule text. Texas publishes the Administrative Code through a portal with no addressable per-rule web pages -- the link above is the portal's own summary page, reachable only through its real navigation tree, not a guessable direct link.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     }
   ]
 }
