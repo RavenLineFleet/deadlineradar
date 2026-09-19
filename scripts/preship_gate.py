@@ -354,6 +354,14 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
                 f"as a plain explanation of the rule + where to confirm it, move the correction "
                 f"history to verification_history)"
             )
+        for m in _PROSE_VERIFICATION_MARKER_RE.finditer(prose):
+            snippet = prose[max(0, m.start() - 60): m.end() + 90].replace("\n", " ").strip()
+            errors.append(
+                f"[SHAPE][{f}] ALLCAPS-word+date verification marker '{m.group(0)}' in rendered "
+                f"prose -- ...{snippet}... (see LEAK-5, 2026-09-19 -- a verification-narrative "
+                f"marker like RESOLVED/CONFIRMED/VERIFIED/FILLED reached the reader; same fix as "
+                f"the editorial-history case above)"
+            )
     return errors
 
 
@@ -458,6 +466,7 @@ def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> li
                 )
             for pat, label in (
                 (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
                 (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                 (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                 (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
@@ -528,6 +537,7 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
                     continue
                 for pat, label in (
                     (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                    (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
                     (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                     (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                     (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
@@ -690,6 +700,7 @@ def check_cpe_requirements_blob_no_internal_notes(html_files: list[Path]) -> lis
             note = note_js.encode().decode("unicode_escape")
             for pat, label in (
                 (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
                 (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                 (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                 (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
