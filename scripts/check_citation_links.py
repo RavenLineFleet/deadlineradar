@@ -57,21 +57,44 @@ cadence, still not a gate.
 
 That same run surfaced a real gap in the control-probe method above: two
 www.ilga.gov citations (Illinois firm-mobility, 225 ILCS 450/13 and /16)
-reported DEAD (404), but a real Chrome UA reaches both via a redirect
-chain this script's own honest, self-identifying USER_AGENT never
-receives -- confirmed directly: the exact same URL, same host, only the
-UA changed, is 404 for USER_AGENT above and a real 200-with-cited-text
-for a browser UA. The control-probe technique (compare a citation's
-response to a garbage path on the same host) doesn't catch this class
-because ilga.gov 404s automated requests to BOTH the real citation and a
-garbage path alike -- there's no divergence for the control to detect,
-unlike the ohio.gov soft-200 case CITE-64 already handles. Treat any
-www.ilga.gov DEAD/404 result from this script as UNVERIFIED, not
-confirmed, until re-checked with a real browser -- not fixed here
-(would need either a browser-shaped fetch for this one host or a UA
-allowlist, both bigger changes than this pass's scope) but worth knowing
-before the next person "fixes" an Illinois citation that was never
-actually broken.
+reported DEAD (404) under this script's own honest, self-identifying
+USER_AGENT, which the host blocks outright (404 on the real citation AND
+on a garbage path alike -- no divergence for the control probe to catch,
+unlike the ohio.gov soft-200 case CITE-64 already handles).
+
+AuditLab CITE-73 (2026-09-19), same day: my first fix here said "re-check
+with a real browser, treat a 200 as LIVE" -- WRONG, and it would have
+marked a genuinely dead Illinois citation as live. Under a browser UA,
+www.ilga.gov soft-redirects ANY unrecognized document -- including a
+garbage path -- to its chapters index (`/Legislation/ILCS/Chapters`,
+~75.7KB) and serves that at 200. A browser-UA recheck with no control
+probe can't tell a real page from that soft-redirect landing on 200
+alone. The actual fix is the same control-probe TECHNIQUE this script
+already uses, just run under a browser UA instead of the blocked script
+UA: under the script UA both the citation and a garbage path 404 and
+tell you nothing; under a browser UA they diverge cleanly -- a real
+citation resolves to its OWN final URL with real, citation-specific
+content (450/13: 3,700B at a `...K13.htm` final URL, real statute text
+"Sec. 13. Application for licensure..."), while anything dead or
+unrecognized lands at the chapters-index URL and its fixed ~75.7KB size.
+A genuine non-gating error (450/16 returned a stable HTTP 500 across 3
+retries in AuditLab's check, though a later independent recheck here
+found it briefly live again -- ilga.gov's own reliability for this
+specific document looks itself intermittent) is a third, distinct
+outcome from either of those, not a "recheck passed" green light.
+
+Net effect: treat any www.ilga.gov DEAD/404 result from this script's
+own (blocked) UA as UNVERIFIED, not confirmed -- but "unverified" stays
+unverified until someone actually runs the SAME control-probe comparison
+under a browser UA (final URL + byte count vs. the chapters-index
+soft-redirect signature above), not just eyeballing a single browser-UA
+status code. Not automated here (would need either a browser-shaped
+fetch for this one host or a UA allowlist, both bigger changes than this
+pass's scope) -- worth knowing so the next person doesn't "fix" a
+citation that was never broken (450/13) or, worse, wave through one that
+actually is (450/16, still unresolved as of this note -- see
+worker/src/firm_mobility_rules.json's illinois.peer_review_conditions_permit
+for its current status).
 
 Usage: python scripts/check_citation_links.py [repo_root]
 """

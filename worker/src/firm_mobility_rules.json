@@ -916,7 +916,7 @@
       "exists": true,
       "citation": "225 ILCS 450/16(e)",
       "citation_url": "https://www.ilga.gov/legislation/ilcs/documents/022504500K16.htm",
-      "notes": "As a condition for renewal license for CPA firms/sole practitioners performing accountancy activities under 8.05(a)(1), department requires satisfactory peer review completion during the preceding 3-year period. Confirmed verbatim against official IL General Assembly text."
+      "notes": "As a condition for renewal license for CPA firms/sole practitioners performing accountancy activities under 8.05(a)(1), department requires satisfactory peer review completion during the preceding 3-year period. Confirmed verbatim against official IL General Assembly text on 2026-08-07 -- that reading is not in question. LINK-HEALTH CAVEAT (2026-09-19, AuditLab CITE-73): the citation_url itself has shown inconsistent behavior since -- a stable HTTP 500 across 3 retries in one check, briefly resolving live with real statute text in a separate later check minutes apart. ilga.gov appears to serve this specific document intermittently rather than being either confirmed dead or confirmed reliably live; re-run the browser-UA control-probe method (see check_citation_links.py's own docstring) before trusting either state, and don't treat one successful load as closing the question."
     },
     "confidence": "single_source",
     "source_disagreement": null,
