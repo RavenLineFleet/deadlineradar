@@ -22642,13 +22642,15 @@ review of Chapters 455 and 473, Florida Statutes, and related rules), and no mor
 behavioral subjects. There's no separate annual minimum written into the rule itself -- the 80-hour
 count is checked against the full 2-year period. One date worth flagging separately from your license
 renewal itself: CPE reporting is due <strong>July 31</strong>, ahead of the biennial renewal, not on
-the renewal date itself.</p>
+the renewal date itself -- <strong>through September 29, 2026</strong>. An adopted rule amendment moves
+that reporting deadline to <strong>December 31</strong> starting September 30, 2026 (Fla. Admin. Code
+R. 61H1-33.003, amended); if you're reading this on or after that date, December 31 is correct.</p>
 
 <p><strong>Bottom line</strong>: if you're an individual Florida CPA, don't trust an odd/even guess --
 confirm your exact date on DBPR's own license lookup, since it's tied to your personal certificate
 date, not a public calendar rule. If you're tracking a firm license instead, December 31 of odd years
 is the real, confirmed date. Either way, your 80-hour/2-year CPE count (with its July 31 reporting
-deadline) runs on its own separate clock.
+deadline through September 29, 2026, then December 31 after) runs on its own separate clock.
 <a href="../../florida/">See the full sourcing and set a reminder for your Florida deadline here</a>.</p>
 """,
     },
