@@ -49,6 +49,30 @@ add real minutes and real flakiness risk (rate limiting, transient
 network errors on ~140 different government hosts) to every single
 build. Run it deliberately, on a cadence, not on every ship.
 
+AssetLab, 2026-09-19: "manually run" turned out to mean "nobody ever
+runs it" (AuditLab, surfaced while investigating a real malegislature.gov
+outage) -- added to scripts/run_freshness_sweep.bat's monthly Scheduled
+Task alongside the other two report-only checks it already chains, same
+cadence, still not a gate.
+
+That same run surfaced a real gap in the control-probe method above: two
+www.ilga.gov citations (Illinois firm-mobility, 225 ILCS 450/13 and /16)
+reported DEAD (404), but a real Chrome UA reaches both via a redirect
+chain this script's own honest, self-identifying USER_AGENT never
+receives -- confirmed directly: the exact same URL, same host, only the
+UA changed, is 404 for USER_AGENT above and a real 200-with-cited-text
+for a browser UA. The control-probe technique (compare a citation's
+response to a garbage path on the same host) doesn't catch this class
+because ilga.gov 404s automated requests to BOTH the real citation and a
+garbage path alike -- there's no divergence for the control to detect,
+unlike the ohio.gov soft-200 case CITE-64 already handles. Treat any
+www.ilga.gov DEAD/404 result from this script as UNVERIFIED, not
+confirmed, until re-checked with a real browser -- not fixed here
+(would need either a browser-shaped fetch for this one host or a UA
+allowlist, both bigger changes than this pass's scope) but worth knowing
+before the next person "fixes" an Illinois citation that was never
+actually broken.
+
 Usage: python scripts/check_citation_links.py [repo_root]
 """
 import json
