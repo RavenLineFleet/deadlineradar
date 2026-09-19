@@ -1,7 +1,7 @@
 {
   "_meta": {
     "purpose": "Publishable rule-change events for the public changes feed.",
-    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (14 currently promoted; 1 additional event -- an individual CPA disciplinary/enforcement decision, not a rule/statute change -- held pending an explicit policy ruling on whether that event class belongs on this feed).",
+    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (14 currently promoted; 1 event permanently excluded by policy -- orchestrator ruling 2026-09-19: individual CPA disciplinary/enforcement actions against a named person are out of scope for this feed, full stop, not a case-by-case call. DiffLab is adding a classifier to filter this event class before it ever reaches this file; until then, exclude by hand.)",
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
     "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'.",
@@ -162,8 +162,8 @@
       "citation_url": "https://flrules.org/gateway/ruleno.asp?id=61H1-33.003",
       "secondary_url": null,
       "verified_date": "2026-09-17",
-      "confidence": "single_source",
-      "summary_public": "The Florida Board of Accountancy finalized amendments to Rule 61H1-33.003 (Continuing Professional Education / re-establishment of professional knowledge and competency), moving the rule from Proposed to Final/Adopted status with a new effective date of September 30, 2026, superseding the prior 10/26/2023 version.",
+      "confidence": "dual_source",
+      "summary_public": "The Florida Board of Accountancy finalized amendments to Rule 61H1-33.003 (Continuing Professional Education / re-establishment of professional knowledge and competency): the CPE reporting deadline moves from July 31 to December 31, effective September 30, 2026, superseding the prior 10/26/2023 version. This is a reporting-date change only -- the underlying 80-hour/2-year CPE requirement itself is unchanged.",
       "kind": "rule_change",
       "effective_date": "2026-09-30",
       "status": "ADOPTED_RULE",
