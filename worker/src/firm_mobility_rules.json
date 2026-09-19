@@ -603,19 +603,19 @@
     "attest_exemption": {
       "exists": true,
       "citation": "59 O.S. sections 15.15(A)(3) and 15.15C",
-      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/December%202025%20OAB%20Statutes%20and%20Rules.pdf",
+      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
       "notes": "CONFIRMS the directive's original lead against the actual OAB statutes/rules PDF. Registration required only for: OK-office+practice/attest (1), OK-office+CPA/PA titling (2), or no-office+attest for an OK client (3, with its own mobility carve-out via 15.12A/15.30). A no-office firm doing ONLY non-attest work is captured by no trigger. Section 15.15C states the safe harbor explicitly."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "59 O.S. section 15.15(A)(1)-(2)",
-      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/December%202025%20OAB%20Statutes%20and%20Rules.pdf",
+      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
       "notes": "OK office triggers registration via practice-of-public-accounting/attest OR CPA/PA titling; practice of public accounting is defined broadly (includes bookkeeping/tax/advisory), so nearly any active OK office triggers registration in practice."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "59 O.S. section 15.30(A)",
-      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/December%202025%20OAB%20Statutes%20and%20Rules.pdf",
+      "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
       "notes": "Board may require peer review (not less than every 3 years) as a condition for permit issuance/renewal for attest-performing applicants; also a mandatory element of the no-office attest-mobility exemption."
     },
     "confidence": "dual_source",
