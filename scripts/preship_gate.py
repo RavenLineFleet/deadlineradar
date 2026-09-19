@@ -569,6 +569,26 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
 # rate would block shipping on prose that was never wrong. Triage each
 # candidate individually before editing anything beyond an unambiguous hit
 # like Nebraska's.
+# LEAK-5 (SecurityLab + AuditLab, 2026-09-19, same day GATE-16 shipped):
+# 2 of the 14 records the fix above DIDN'T catch (us-virgin-islands and
+# west-virginia's own peer_review_conditions_permit) used "CONFIRMED
+# 2026-08-17" -- a verb the enumerated _PROSE_EDITORIAL_HISTORY_RE list
+# never had a case for, because RESOLVED/CONFIRMED/VERIFIED/REVISED were
+# never added to it (only "corrected"/"UPGRADED" were). SecurityLab's
+# point, which holds: enumerating more verbs just moves the goalpost to
+# the next word a future record's author picks. The durable signal isn't
+# the VERB, it's the SHAPE -- an ALLCAPS word directly adjacent to an ISO
+# date, a construction that essentially never occurs in legitimate
+# reader-facing prose (this file's own legitimate ALLCAPS emphasis --
+# "NOT limited to", "MUST hold a permit", "SEPARATE firm" -- is never
+# followed by a literal date). Scoped to THIS advisory only, not promoted
+# into the shared _PROSE_EDITORIAL_HISTORY_RE the hard-gated
+# check_assistant_api_fields_no_internal_notes() above also uses -- that
+# would risk a hard-gate failure on the 4 main datasets from a pattern
+# never tested against them. Promote it there too once someone runs this
+# shape against those datasets and triages whatever it finds.
+_PROSE_VERIFICATION_MARKER_RE = re.compile(r"\b[A-Z]{4,}(?:-[A-Z]+)?\s+20\d\d-\d\d-\d\d\b")
+
 _FIRM_MOBILITY_CONDITION_KEYS = ("attest_exemption", "physical_office_trigger", "peer_review_conditions_permit")
 
 
@@ -596,6 +616,7 @@ def collect_firm_mobility_internal_note_candidates(repo_root: Path) -> list[str]
             first_match_pos: int | None = None
             for pat, label in (
                 (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
                 (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                 (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                 (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
