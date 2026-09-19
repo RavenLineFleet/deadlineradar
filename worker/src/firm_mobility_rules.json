@@ -135,7 +135,7 @@
       "exists": true,
       "citation": "Ala. Code section 34-1-10",
       "citation_url": "https://alison.legislature.state.al.us/code-of-alabama?section=34-1-10",
-      "notes": "Each office established/maintained in Alabama for public accounting practice must register. CITE-58 (2026-08-21): repointed from a dead FindLaw URL (HTTP 200 titled '404 Error: Page not found', confirmed URL-specific via 7 sibling FindLaw URLs live in the same session) to the official Alabama Legislature Code of Alabama site, per this sweep's official-source-first priority order. The site is a JS-rendered SPA (a plain fetch returns only the app shell; Chrome renders the real text) -- verified in Chrome with the exact statute text: '(a) Each office established or maintained in this state...shall be registered annually...(b) No firm or office not located in this state...shall be required to register under this section.' Same JS-dependency shape already accepted elsewhere in this dataset (Indiana's 872 IAC site)."
+      "notes": "Each office established/maintained in Alabama for public accounting practice must register."
     },
     "peer_review_conditions_permit": {
       "exists": true,
@@ -316,7 +316,7 @@
       "exists": true,
       "citation": "22 TAC section 527.4",
       "citation_url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-527-4",
-      "notes": "A firm subject to peer review cannot have its office license renewed unless peer review requirements are met. Narrow exemptions for PCAOB-only-inspected firms or SSARS-only firms (must request exemption at renewal). CITE-57 (2026-08-21): repointed from txrules.elaws.us (confirmed real platform outage -- 503 on both dcrules.elaws.us and txrules.elaws.us, same host, ~50 minutes across 3 observations/2 clients) to Cornell LII, matching the sibling firm claims (attest_exemption/physical_office_trigger) which already cite texas.public.law and matching this same dataset's existing tx-cpe precedent of using Cornell LII as Texas's stable TAC mirror (no linkable official state URL exists per that record's data_gap_note). Verified: correct breadcrumb (Title 22 > Part 22 Texas State Board of Public Accountancy > Chapter 527 Peer Review > 527.4 Enrollment and Participation) and body text confirms attest-triggered enrollment plus the PCAOB-only/SSARS-only exemptions."
+      "notes": "A firm subject to peer review cannot have its office license renewed unless peer review requirements are met. Narrow exemptions for PCAOB-only-inspected firms or SSARS-only firms (must request exemption at renewal)."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
@@ -1316,7 +1316,7 @@
       "exists": true,
       "citation": "17 DCMR section 2548; renewal mechanics at 17 DCMR section 2547",
       "citation_url": "https://dcregs.dc.gov/Common/DCMR/SectionList.aspx?SectionNumber=17-2548",
-      "notes": "Firms performing audits/reviews/compilations/SSAE-SAS-SSARS engagements must enroll in/complete board-approved peer review. Direct 'condition of renewal' cross-reference in section 2547 not found verbatim in the excerpt retrieved -- inferred from the regulatory scheme. CITE-56 (2026-08-21): repointed from a third-party mirror (dcrules.elaws.us, 503 for the path and host root) to DC's own Office of Documents and Administrative Issuances DCMR database, matching the sibling firm claims which already cite the official code.dccouncil.gov. Verified live and session-independent (fresh curl, no cookies): heading 'PEER REVIEW REQUIREMENT', Title 17 Business Occupations and Professionals, Chapter 17-25 Accountants, effective 5/18/2012."
+      "notes": "Firms performing audits/reviews/compilations/SSAE-SAS-SSARS engagements must enroll in/complete board-approved peer review. Direct 'condition of renewal' cross-reference in section 2547 not found verbatim in the excerpt retrieved -- inferred from the regulatory scheme."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
