@@ -8536,9 +8536,9 @@ _ROADMAP_JS_HTML = f"""<script>
   if (!listEl) return;
 
   function esc(s) {{
-    var d = document.createElement('div');
-    d.textContent = s == null ? '' : String(s);
-    return d.innerHTML;
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }}
 
   var hiddenFieldsHtml = {json.dumps(_ROADMAP_HONEYPOT_TURNSTILE_HIDDEN_HTML)};
@@ -8562,7 +8562,7 @@ _ROADMAP_JS_HTML = f"""<script>
         : '<form class="dr-roadmap-vote-form" data-idea-id="' + esc(idea.id) + '">' + hiddenFieldsHtml +
           '<button type="submit" class="dr-roadmap-vote-btn"' + (idea.voted_by_me ? ' disabled' : '') + '>' +
           (idea.voted_by_me ? '&check; Voted' : '&#9650; Vote') +
-          ' <span class="dr-roadmap-vote-count">' + idea.vote_count + '</span></button></form>';
+          ' <span class="dr-roadmap-vote-count">' + esc(idea.vote_count) + '</span></button></form>';
       return '<div class="dr-roadmap-idea">' +
         '<div class="dr-roadmap-idea-info"><h2>' + esc(idea.title) + statusBadge + '</h2>' +
         (idea.description ? '<p>' + esc(idea.description) + '</p>' : '') + '</div>' +
