@@ -5607,6 +5607,34 @@ def print_rule_change_ingestion_lag_advisory(repo_root: Path) -> None:
         pass
 
 
+def print_dated_change_staleness_advisory(repo_root: Path) -> None:
+    """STALE-18 (AuditLab, 2026-09-19): the four per-dataset staleness
+    checks below all ask "when did someone last look?" against a fixed
+    threshold -- none of them join against a KNOWN, confirmed, dated rule
+    change already sitting in reg_change_events.json for the same
+    jurisdiction. CITE-70 (this same session) is a live example of the
+    gap: fl-cpe's verified_date predated the Florida CPE-deadline event's
+    own confirmation, so a routine re-verification in that window would
+    have re-certified the old date as current with no signal a change was
+    already on the books. Advisory only, not a hard gate -- see
+    scripts/dated_change_staleness_check.py's own docstring for why (the
+    jurisdiction-level join isn't guaranteed topically relevant; checked
+    against live data before shipping this and found a real
+    false-positive-for-this-specific-fact case, Louisiana's Act 653 vs.
+    la-individual/la-firm, before choosing advisory over hard-gate)."""
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import dated_change_staleness_check as dcsc
+    except ImportError:
+        print("  (skipping dated-change-staleness advisory -- dated_change_staleness_check.py not importable)")
+        return
+    print("\n--- dated-change-staleness advisory (does not affect gate exit code) ---")
+    try:
+        dcsc.main()
+    except SystemExit:
+        pass
+
+
 def print_dual_credential_citation_advisory(repo_root: Path) -> None:
     """AuditLab DATA-3 (MEDIUM, 2026-08-04): dc-all's citation covered the firm-permit
     half of an "individual CPA license and firm permit" claim, not the individual half
@@ -6059,6 +6087,7 @@ def main():
         print_rule_change_monitoring_staleness_advisory(repo_root)
         print_deployed_rule_change_staleness_advisory(repo_root)
         print_rule_change_ingestion_lag_advisory(repo_root)
+        print_dated_change_staleness_advisory(repo_root)
         print_guide_review_staleness_advisory(repo_root)
         print_changelog_staleness_advisory(repo_root)
         print_dual_credential_citation_advisory(repo_root)
@@ -6077,6 +6106,7 @@ def main():
     print_rule_change_monitoring_staleness_advisory(repo_root)
     print_deployed_rule_change_staleness_advisory(repo_root)
     print_rule_change_ingestion_lag_advisory(repo_root)
+    print_dated_change_staleness_advisory(repo_root)
     print_guide_review_staleness_advisory(repo_root)
     print_changelog_staleness_advisory(repo_root)
     print_dual_credential_citation_advisory(repo_root)
