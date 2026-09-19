@@ -4988,8 +4988,16 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
   // spread. AuditLab CITE-63 (2026-08-27) re-verified Guam and bumped its
   // verified_date from 2026-07-31 to 2026-08-27, pushing its 180-day TTL
   // out to 2027-02-23 -- 34 days out at the 2027-01-20 test point below,
-  // outside the 30-day window, so Guam-individual is now the one row of
-  // 110 that does NOT appear (109 real rows should appear).
+  // outside the 30-day window, so Guam-individual dropped out of the 110.
+  // MOB-12 (2026-09-19, AssetLab) did the same to Oklahoma-individual --
+  // its real re-verification (a genuine residency-trigger fix, not a
+  // defect) bumped verified_date to 2026-09-19, pushing its TTL out to
+  // 2027-03-18, also outside the window. Both are legitimate
+  // re-verifications, not bugs -- this block's numbers are kept in sync
+  // with reality the same way the FRESH-3 block below it is (see that
+  // block's own 2026-09-19 comment for the general principle). Two of 110
+  // rows (Guam-individual, Oklahoma-individual) now sit outside the
+  // window; 108 real rows should appear.
 
   it("nothing is nearing expiry today (2026) -- the real window is 5 months out", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
@@ -5001,12 +5009,14 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
     // 2027-01-20: earliest expiry (2027-01-27) is 7 days out -- inside the
     // 30-day window, so every real row still within TTL at this point
-    // should appear (109 of the 110 total; Guam-individual's freshly
-    // re-verified TTL now expires 2027-02-23, 34 days out, outside the
-    // window -- see the describe-block comment above).
+    // should appear (108 of the 110 total; Guam-individual and
+    // Oklahoma-individual's re-verified TTLs now expire 2027-02-23 and
+    // 2027-03-18 respectively, both outside the window -- see the
+    // describe-block comment above).
     const nearing = mobilityRowsNearingExpiry(new Date("2027-01-20T00:00:00Z"));
-    expect(nearing.length).toBe(109);
+    expect(nearing.length).toBe(108);
     expect(nearing.some((r) => r.state === "Guam" && r.type === "individual")).toBe(false);
+    expect(nearing.some((r) => r.state === "Oklahoma" && r.type === "individual")).toBe(false);
     // Sorted soonest-first.
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
@@ -5133,19 +5143,33 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   // re-verification pass that reshuffles the cohort spread. As of the
   // 2026-09-12 remediation cascade (the original 74-record fix, the
   // 2026-09-20 cliff, and 22 more single-digit cohorts through 2026-10-11,
-  // all closed the same day), every record across all three datasets now
-  // carries a verified_date/last_verified of EXACTLY ONE of two dates:
+  // all closed the same day), every record across all three datasets
+  // carried a verified_date/last_verified of EXACTLY ONE of two dates:
   // 2026-09-09 (39 records: 1 cpe_hours + 5 reinstatement + 33 renewal_fees)
   // or 2026-09-12 (118 records, the remainder) -- maximum concentration,
   // AuditLab's own "157-record wall" finding, landing 2026-10-10 and
-  // 2026-10-13 respectively. 2026-10-06 puts BOTH cohorts inside the 7-day
-  // warning window simultaneously (39 rows at 4 days out, 118 at 7) --
-  // AuditLab TEST-10 (LOW, 2026-09-12): an earlier pass at 2026-10-03 saw
-  // only the single-valued 39-row cohort, which cannot exercise sort order
-  // at all (every element carries the same daysUntilExpiry, so a broken
-  // sort would still pass) and dropped the block's only sort assertion
-  // along with it. 2026-10-06 is the actual multi-cohort scenario the
-  // alert exists for, and the only date that can catch a broken sort.
+  // 2026-10-13 respectively.
+  //
+  // The wall has since chipped, exactly as a wall of re-verification dates
+  // should over time (2026-09-19, AssetLab, self-observed while chasing an
+  // unrelated vitest failure): louisiana-renewal-fee left the 09-09 cohort
+  // on 2026-09-13 (an earlier session's real fee resolution, predating this
+  // block's own authorship) and CITE-70/CITE-71 moved fl-cpe, ok-cpe, and
+  // oklahoma-reinstatement out of the 09-12 cohort on 2026-09-19 (real
+  // re-verifications, not a defect) -- neither event is a bug, and this
+  // block's numbers are updated to match rather than frozen at authorship
+  // time, the same maintenance TEST-10 (below) already established for
+  // this describe block. Current wall: 38 records at 2026-09-09
+  // (1 cpe_hours + 5 reinstatement + 32 renewal_fees) and 115 at
+  // 2026-09-12 (48 cpe_hours + 45 reinstatement + 22 renewal_fees).
+  // 2026-10-06 puts BOTH cohorts inside the 7-day warning window
+  // simultaneously (38 rows at 4 days out, 115 at 7) -- AuditLab TEST-10
+  // (LOW, 2026-09-12): an earlier pass at 2026-10-03 saw only the
+  // single-valued 39-row cohort, which cannot exercise sort order at all
+  // (every element carries the same daysUntilExpiry, so a broken sort
+  // would still pass) and dropped the block's only sort assertion along
+  // with it. 2026-10-06 is the actual multi-cohort scenario the alert
+  // exists for, and the only date that can catch a broken sort.
 
   it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 28 days out", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
@@ -5156,20 +5180,20 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
     const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
-    expect(nearing.length).toBe(157);
+    expect(nearing.length).toBe(153);
     expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
     expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
     expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
     // Sorted soonest-first -- a real assertion here, not a degenerate one:
-    // the 39-row 2026-09-09 cohort (4 days out) must all precede the
-    // 118-row 2026-09-12 cohort (7 days out).
+    // the 38-row 2026-09-09 cohort (4 days out) must all precede the
+    // 115-row 2026-09-12 cohort (7 days out).
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
     }
     expect(nearing[0]!.daysUntilExpiry).toBe(4);
     expect(nearing[0]!.expiresOn).toBe("2026-10-10");
-    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(39);
-    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(118);
+    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(38);
+    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(115);
   });
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {

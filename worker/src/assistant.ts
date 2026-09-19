@@ -29,6 +29,7 @@ import renewalFeesData from "./renewal_fees.json";
 import regChangeEventsData from "./reg_change_events.json";
 import { stateNameForSlug, resolvedNextDeadlineComputed, type CpaRecord } from "./deadline";
 import type { MobilityResult } from "./mobility";
+import { safeHttpUrl } from "./mobility";
 
 interface AssistantDeadlineResult {
   state: string;
@@ -66,7 +67,7 @@ export function lookupAssistantDeadlines(
       next_deadline_computed: resolvedNextDeadlineComputed(r as unknown as CpaRecord, asOf),
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
       citation: typeof r.citation === "string" ? r.citation : null,
-      citation_url: typeof r.citation_url === "string" ? r.citation_url : null,
+      citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
       last_verified: String(r.last_verified ?? ""),
     }));
 }
@@ -101,7 +102,7 @@ export function lookupAssistantCpe(stateSlug: string): AssistantCpeResult | null
     notes: typeof r.notes === "string" && r.notes ? r.notes : null,
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
-    citation_url: typeof r.citation_url === "string" ? r.citation_url : null,
+    citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
     verified_date: String(r.verified_date ?? ""),
   };
 }
@@ -136,7 +137,7 @@ export function lookupAssistantReinstatement(stateSlug: string): AssistantReinst
     lapse_trigger: typeof r.lapse_trigger === "string" ? r.lapse_trigger : null,
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
-    citation_url: typeof r.citation_url === "string" ? r.citation_url : null,
+    citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
     last_verified: String(r.last_verified ?? ""),
   };
 }
@@ -165,7 +166,7 @@ export function lookupAssistantRenewalFee(stateSlug: string): AssistantRenewalFe
     fee_basis: typeof r.fee_basis === "string" ? r.fee_basis : null,
     confidence: typeof r.confidence === "string" ? r.confidence : null,
     citation: typeof r.citation === "string" ? r.citation : null,
-    citation_url: typeof r.citation_url === "string" ? r.citation_url : null,
+    citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
     verified_date: String(r.verified_date ?? ""),
   };
 }
@@ -239,7 +240,7 @@ export function lookupAssistantRuleChanges(stateSlug: string): AssistantRuleChan
       // authored knowing summary_public specifically ships to a reader.
       summary_public: String(e.summary_public ?? ""),
       citation: typeof e.citation === "string" ? e.citation : null,
-      citation_url: typeof e.citation_url === "string" ? e.citation_url : null,
+      citation_url: safeHttpUrl(typeof e.citation_url === "string" ? e.citation_url : null),
       effective_date: typeof e.effective_date === "string" ? e.effective_date : null,
       status: typeof e.status === "string" ? e.status : null,
       verified_date: String(e.verified_date ?? ""),
