@@ -23755,6 +23755,66 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: every Pennsylvania CPA renews on the same date -- December 31 of odd-numbered years -- with 80 CPE hours (4 ethics, 20 minimum per year) and a flat $100 fee written directly into the rule. The part that catches people off guard is what happens if you miss it: no grace period, straight to reactivation, budgeting around $135 (a codified $100 renewal fee plus a codified $35 reinstatement fee) with the same 80 hours squeezed into the 24 months before you refile. And if you're checking your CPE requirement against a site that cites &sect; 11.65, you're reading a rule that's said nothing since 2012 -- &sect; 11.62 and &sect; 11.63 are the ones that actually govern. <a href="../../pennsylvania/">Set a reminder for your own Pennsylvania deadline here</a> so December 31 doesn't sneak up on you.</p>
 """,
     },
+    {
+        # 2026-09-19: standing weekly post, filed one day past the 09-18
+        # cadence day. Topic picked from a live GSC pull (see draft memo) --
+        # highest combined page + query demand signal of any uncovered state.
+        # Passed over twice before (Tennessee's and Pennsylvania's picks) for
+        # ma-individual/ma-firm's then-open data_gap_note pending a board
+        # reply; that blocker is resolved -- AuditLab's 2026-09-13 gap-
+        # reclassify batch3 verdict independently endorsed terminal_
+        # disclosure=true on both records. Repackages ma-individual/ma-firm
+        # (data/cpa_deadlines.json), ma-cpe (data/cpe_hours.json),
+        # massachusetts-renewal-fee (data/renewal_fees.json) and
+        # massachusetts-reinstatement (data/reinstatement.json); no live
+        # re-fetch this pass -- all five records verified 2026-09-04 through
+        # 2026-09-12, no open (non-terminal) data_gap_note. 4-round approval
+        # trail: B1-B3 (round 2), B4 (round 3), B5 (round 4) -- see
+        # AssetLab/inbox/assetlab_20260919_blog_draft_massachusetts-cpa-license-renewal-guide_round4.md
+        # for the full history.
+        "slug": "massachusetts-cpa-license-renewal-guide",
+        "published": "2026-09-19",
+        "title": "Massachusetts CPA Renewal: Every Two Years, Always June 30 -- But No One Publishes Which Year Is Yours",
+        "seo_title": "Massachusetts CPA Renewal: Which Year Is Yours?",
+        "meta_description": (
+            "Massachusetts CPA licenses renew every 2 years on June 30 -- but which year is never published. Here's what checking real license records showed."
+        ),
+        "body_html": """
+<p class="intro">Every Massachusetts CPA license renews on the same date -- June 30 -- but not the same year as every other licensee. Whether yours falls on an odd or even year is fixed for life once it's assigned, and no state source says how that assignment happens. Here's exactly what Massachusetts does say, sourced to the statute and the Code of Massachusetts Regulations, plus what we found checking real license records to fill the gap the state leaves open.</p>
+
+<h2>The pattern: every 2 years, always June 30</h2>
+<p>Massachusetts CPA licenses -- individual and firm -- renew on a <strong>2-year cycle expiring June 30</strong>, confirmed on the Board's own Division of Occupational Licensure fee and renewal-schedule page: "Biennial (2 years)," "30-Jun / ODD &amp; EVEN YEAR." That last part is the catch -- the Board splits licensees across odd- and even-numbered years, and once your license lands on one parity, it stays there. The Board's own reinstatement guidance confirms a lapsed license returns to its <em>original</em> parity on reactivation, never a new one.</p>
+<p><a href="../../massachusetts/">Confirm your own next Massachusetts renewal deadline here</a>.</p>
+
+<h2>The closest thing to an answer: a Board FAQ table, not a stated rule</h2>
+<p>Here's what no statute or rule states outright: which parity a <strong>brand-new</strong> license starts on. But it isn't a total blank, either. 252 CMR 2.14(2) itself codifies the hook: <em>"The Board may provide for prorated continuing professional education requirements to be met by applicants whose initial licenses were issued substantially less than two years prior to the renewal date"</em> -- and the Board's own FAQ page publishes a first-renewal CPE-proration table that, read together with that provision, strongly suggests how a new license's first cycle is set. Neither one states the assignment rule as a flat sentence you could quote, so we're not shipping it as a computed date -- but it's a real, citable pointer, not nothing.</p>
+
+<h2>We checked 9 real license records -- 8 fit a pattern, the 9th broke it</h2>
+<p>To see how that plays out in practice, we pulled real firm license records -- issue dates, statuses, and actual assigned expirations -- directly from the Commonwealth's own eLIPSE license-lookup tool: 9 licenses (LLCs and business corporations), issued between 1998 and 2026, a mix of active and lapsed. <strong>8 of the 9</strong> fit a clean pattern: first renewal lands on the <em>second</em> June 30 after issuance, then a fixed 2-year cycle on that same parity forever after. The <strong>9th</strong> -- the most recently issued firm in the sample, licensed July 2026 -- broke it: its real assigned expiration is a full year later than the pattern predicts, the <em>third</em> June 30 after issuance, not the second.</p>
+<p>Read plainly, that means the "second June 30" shape has held for licenses issued as far back as 1998, but the newest license in our sample landed differently -- so we can't tell you it's a reliable rule for a license issued today. If you were licensed recently, confirm your specific renewal year directly with the Board (617-701-8635) or via eLIPSE rather than assuming either pattern.</p>
+<p><a href="../../massachusetts-cpa-license-reinstatement/">See the full reinstatement math, including how a lapsed license keeps its original parity</a>.</p>
+
+<h2>CPE: 80 hours every 2 years, 4 ethics, no carryover</h2>
+<p>Massachusetts requires <strong>80 hours</strong> of CPE in the 2-year period immediately preceding relicensing, including <strong>4 hours of ethics</strong> -- codified directly in 252 CMR 2.14(2): "During the two year period immediately preceding re licensing, applicants for biennial license renewal must complete 80 hours of acceptable continuing education, except as stated in 252 CMR 2.14(6). Four hours of acceptable continuing education shall be in the area of professional ethics." That exception isn't nothing, either -- 2.14(6) lets the Board excuse a licensee for reasons of health (certified by a doctor), active duty with the Armed Services of the United States, or other good cause, so if a real hardship gets in the way, there's a documented path to ask. Within the ordinary 80 hours, and as covered above, the Board may also prorate the requirement for a license issued substantially less than two years before its renewal date. Unlike several other states in the CPE-hours cluster we've verified so far, Massachusetts allows <strong>no carryover</strong> of excess hours into the next 2-year period -- every cycle starts at zero (Vermont, one of Massachusetts' neighbors, is a rare exception that does allow some carryover, so this isn't universal even regionally).</p>
+<p><a href="../../massachusetts-cpa-cpe-requirements/">See the full Massachusetts CPE breakdown here</a>.</p>
+
+<h2>The fee: $161 individual, $324 firm -- set by the Board, not fixed in the rule</h2>
+<p>The biennial renewal fee is <strong>$161</strong> for an individual CPA and <strong>$324</strong> for a firm (CPA Corporation, Partnership, Business Corporation, LLC, or LLP) -- both listed on the same official DOL fee-schedule page, both due on the same June 30 cycle. Neither figure is written into the accountancy statute or 252 CMR itself; the amount is set administratively by the Secretary of Administration and Finance under M.G.L. c. 7, &sect;3B, so it can change without a formal rule filing.</p>
+
+<h2>If it lapses: it forks four ways, not three</h2>
+<p>Massachusetts doesn't publish a single reinstatement fee, because the amount depends on how long you lapsed and, for a longer lapse, whether you kept practicing. 252 CMR 2.16 breaks it down like this:</p>
+<ul>
+  <li><strong>Lapsed one renewal cycle or less</strong> (2.16(1)): the back license fee, a <strong>$57 late fee</strong>, and the current <strong>$161</strong> renewal fee -- regardless of whether you kept practicing.</li>
+  <li><strong>Lapsed more than one cycle, and practiced in Massachusetts</strong> during the lapse (2.16(2)(a)): all back license fees for each missed cycle, plus the $57 late fee, plus the current $161 fee, plus re-examination and a formal acknowledgment of practicing while unlicensed.</li>
+  <li><strong>Lapsed more than one cycle, and didn't practice</strong> (2.16(2)(b)): no back fees -- just the $57 late fee, the current $161 fee, re-examination, and a sworn affidavit of non-practice.</li>
+  <li><strong>Lapsed more than one cycle, and practiced under another state's license</strong> (2.16(2)(c)): no back fees, the $57 late fee, the current $161 fee, and a certificate of good standing from that state -- no re-examination required.</li>
+</ul>
+<p>Re-examination shows up in two of these four paths: (a) and (b), the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all. The two that skip it are the short-lapse case and (c) -- the one where you kept practicing under another state's license. Practising under a live license somewhere else is what excuses the re-exam.</p>
+<p>A lapse of <strong>two or more renewal cycles</strong> (roughly 4+ years) also triggers an enhanced CPE requirement: <strong>160 hours</strong> within the 24 months before reissue -- double the normal 80 -- with at least <strong>80 of those hours in the attest function</strong>, per M.G.L. c. 112, &sect;87B(c). A shorter lapse only requires the normal CPE already due.</p>
+
+<p><strong>Bottom line</strong>: Massachusetts CPAs renew every 2 years, always on June 30, for a flat $161 ($324 for firms) -- but which year is yours is something no statute or rule states as a flat sentence, though a Board FAQ table plus a codified proration provision point toward an answer. Checking 9 real license records ourselves added more evidence: 8 fit a "second June 30 after issuance" pattern, and the newest one broke it. If you lapse, there's no flat reinstatement fee either -- a short lapse owes back fees regardless of practice status, a longer one forks three further ways by whether and where you kept practicing, and re-examination applies to just two of those four paths -- the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all, not the one where you kept a license active in another state. Past a 4-year gap, CPE doubles too. <a href="../../massachusetts/">Set a reminder for your own Massachusetts deadline here</a> so you're not the one trying to reconstruct your renewal year from a license lookup tool.</p>
+""",
+    },
 ]
 
 
