@@ -560,13 +560,13 @@
       "exists": false,
       "citation": "27 V.I.C. section 250d(a)(1)(A)-(B)",
       "citation_url": "https://dlca.vi.gov/pdf/UAALegislationpass.pdf",
-      "notes": "FILLED 2026-08-17 (previously no source located): section 250d(a)(1)(A)-(B) requires a permit for 'any firm with an office in the Territory performing attest services' or 'with an office... that uses the title CPA or CPA firm' -- office presence alone is not an independent trigger, it's always paired with attest work or CPA-title use, matching the majority pattern in this dataset."
+      "notes": "Section 250d(a)(1)(A)-(B) requires a permit for 'any firm with an office in the Territory performing attest services' or 'with an office... that uses the title CPA or CPA firm' -- office presence alone is not an independent trigger, it's always paired with attest work or CPA-title use, matching the majority pattern in this dataset."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "27 V.I.C. section 250d(h)",
       "citation_url": "https://dlca.vi.gov/pdf/UAALegislationpass.pdf",
-      "notes": "CONFIRMED 2026-08-17 at the correct citation (250d(h), not 250e): as a condition of permit renewal, applicants must undergo peer review no more than once every 3 years, verifying that individuals supervising attest/compilation services meet professional-standards competency requirements. Directly read, not inferred from a search synthesis."
+      "notes": "As a condition of permit renewal (250d(h)), applicants must undergo peer review no more than once every 3 years, verifying that individuals supervising attest/compilation services meet professional-standards competency requirements."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
@@ -791,7 +791,7 @@
       "exists": true,
       "citation": "W. Va. Code section 30-9-19",
       "citation_url": "https://code.wvlegislature.gov/30-9-19/",
-      "notes": "Peer review compliance is a condition of a SEPARATE firm 'authorization' (section 30-9-19) needed to sign attest/compilation reports, distinct from the base firm 'permit' (section 30-9-17) whose own renewal provision doesn't list peer review. CONFIRMED 2026-08-17 directly from section 30-9-16(g): the mobility section itself names the 30-9-19 authorization (not the 30-9-17 permit) as what an individual practitioner must obtain for WV-home-office attest work -- independent confirmation that peer review (a condition of the authorization) binds mobility-privileged individuals performing attest work, not just firms with a permit."
+      "notes": "Peer review compliance is a condition of a SEPARATE firm 'authorization' (section 30-9-19) needed to sign attest/compilation reports, distinct from the base firm 'permit' (section 30-9-17) whose own renewal provision doesn't list peer review. Section 30-9-16(g) (the mobility section) names the 30-9-19 authorization (not the 30-9-17 permit) as what an individual practitioner must obtain for WV-home-office attest work, so peer review (a condition of the authorization) binds mobility-privileged individuals performing attest work, not just firms with a permit."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
