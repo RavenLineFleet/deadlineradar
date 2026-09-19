@@ -544,6 +544,89 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
     return errors
 
 
+# GATE-16 (SecurityLab, 2026-09-19, confirmed by AuditLab): the detector
+# above already exists for exactly this leak class -- it just never had
+# firm_mobility_rules.json added, because that file has a different shape
+# (a top-level dict keyed by state_slug, with `notes` nested three levels
+# down inside per-condition objects, not a flat `records` list) and lives
+# only in worker/src/ (no data/ copy, unlike the four datasets above).
+# Reuses the SAME four regex patterns, no new detector needed -- both fired
+# on LEAK-3's actual leaked text when tested against it before that fix
+# shipped. Deliberately a SEPARATE function rather than folded into
+# check_assistant_api_fields_no_internal_notes() above: forcing that
+# function's flat-records assumption to also handle this nested shape would
+# make both harder to read, for a dataset this is the only member of.
+#
+# ADVISORY ONLY, not wired into all_errors -- same posture as the STALE-18/
+# STALE-19 dated-change checks, for the same reason: AuditLab ran these
+# exact patterns against every notes field in this file and got 16
+# candidate hits, of which only ONE (Nebraska's "CORRECTED 2026-08-17") was
+# an unambiguous leak -- 10 were a dated-parenthetical shape needing a
+# per-record read (some are legitimate as-of dates, not leaks) and 6 were a
+# URL-pattern hit where at least one sample checked was legitimate sourcing
+# transparency ("Dual-sourced: statute + portal.ct.gov firm-permit page"),
+# not internal voice. A hard gate on free text with that false-positive
+# rate would block shipping on prose that was never wrong. Triage each
+# candidate individually before editing anything beyond an unambiguous hit
+# like Nebraska's.
+_FIRM_MOBILITY_CONDITION_KEYS = ("attest_exemption", "physical_office_trigger", "peer_review_conditions_permit")
+
+
+def collect_firm_mobility_internal_note_candidates(repo_root: Path) -> list[str]:
+    path = repo_root / "worker" / "src" / "firm_mobility_rules.json"
+    if not path.exists():
+        return [f"[GATE-16] {path} not found -- firm_mobility.ts imports this dataset, this check can't verify it"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    findings: list[str] = []
+    for state_slug, state_obj in data.items():
+        if not isinstance(state_obj, dict):
+            continue
+        for condition_key in _FIRM_MOBILITY_CONDITION_KEYS:
+            condition = state_obj.get(condition_key)
+            if not isinstance(condition, dict):
+                continue
+            val = condition.get("notes")
+            if not isinstance(val, str) or not val:
+                continue
+            # One finding per FIELD, not per pattern -- a field tripping two
+            # patterns (e.g. a dated-parenthetical AND a URL, both common on
+            # the same "RESOLVED 2026-08-17: ...read at example.gov" prose
+            # shape) is one thing for a human to read and judge, not two.
+            hits: list[str] = []
+            first_match_pos: int | None = None
+            for pat, label in (
+                (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                (_PROSE_DATED_PAREN_RE, "dated-parenthetical shape (may be a legitimate as-of date, read it)"),
+                (_PROSE_URL_RE, "embedded URL (verify it's sourcing transparency, not a repointing note)"),
+            ):
+                pm = pat.search(val)
+                if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                    hits.append(f"{label} '{pm.group(0)}'")
+                    if first_match_pos is None:
+                        first_match_pos = pm.start()
+            if hits:
+                snippet = val[max(0, (first_match_pos or 0) - 60): (first_match_pos or 0) + 90].strip()
+                findings.append(
+                    f"[{state_slug}.{condition_key}.notes] {'; '.join(hits)} -- ...{snippet}... "
+                    f"(this field is served directly by /firm/mobility/* -- see GATE-16, 2026-09-19)"
+                )
+    return findings
+
+
+def print_firm_mobility_internal_notes_advisory(repo_root: Path) -> None:
+    print("\n--- firm-mobility-internal-notes advisory (does not affect gate exit code) ---")
+    findings = collect_firm_mobility_internal_note_candidates(repo_root)
+    if not findings:
+        print("PASS -- no internal-marker candidates found in worker/src/firm_mobility_rules.json's notes fields.")
+        return
+    print(f"{len(findings)} candidate(s) -- READ EACH ONE, this pattern has real false positives (LOW confirmed-leak rate: ~1/16 in GATE-16's own baseline sweep):")
+    for f in findings:
+        print(f"  {f}")
+
+
 # AuditLab's own proactive sweep (2026-08-27, following LEAK-4's "a render
 # fix is half a fix" lesson): enumerated all 26 DR_* globals embedded across
 # every built page and found one more of the same shape -- DR_CPE_REQUIREMENTS
@@ -6088,6 +6171,7 @@ def main():
         print_deployed_rule_change_staleness_advisory(repo_root)
         print_rule_change_ingestion_lag_advisory(repo_root)
         print_dated_change_staleness_advisory(repo_root)
+        print_firm_mobility_internal_notes_advisory(repo_root)
         print_guide_review_staleness_advisory(repo_root)
         print_changelog_staleness_advisory(repo_root)
         print_dual_credential_citation_advisory(repo_root)
@@ -6107,6 +6191,7 @@ def main():
     print_deployed_rule_change_staleness_advisory(repo_root)
     print_rule_change_ingestion_lag_advisory(repo_root)
     print_dated_change_staleness_advisory(repo_root)
+    print_firm_mobility_internal_notes_advisory(repo_root)
     print_guide_review_staleness_advisory(repo_root)
     print_changelog_staleness_advisory(repo_root)
     print_dual_credential_citation_advisory(repo_root)
