@@ -181,9 +181,9 @@ looking at.</p>
   if (!listEl) return;
 
   function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s == null ? '' : String(s);
-    return d.innerHTML;
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   var hiddenFieldsHtml = "<div aria-hidden=\"true\" style=\"position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;\"><input type=\"text\" name=\"hp_website\" tabindex=\"-1\" autocomplete=\"off\"></div><input type=\"hidden\" name=\"cf-turnstile-response\" value=\"\">";
@@ -207,7 +207,7 @@ looking at.</p>
         : '<form class="dr-roadmap-vote-form" data-idea-id="' + esc(idea.id) + '">' + hiddenFieldsHtml +
           '<button type="submit" class="dr-roadmap-vote-btn"' + (idea.voted_by_me ? ' disabled' : '') + '>' +
           (idea.voted_by_me ? '&check; Voted' : '&#9650; Vote') +
-          ' <span class="dr-roadmap-vote-count">' + idea.vote_count + '</span></button></form>';
+          ' <span class="dr-roadmap-vote-count">' + esc(idea.vote_count) + '</span></button></form>';
       return '<div class="dr-roadmap-idea">' +
         '<div class="dr-roadmap-idea-info"><h2>' + esc(idea.title) + statusBadge + '</h2>' +
         (idea.description ? '<p>' + esc(idea.description) + '</p>' : '') + '</div>' +
