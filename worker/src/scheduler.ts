@@ -89,7 +89,7 @@ import cpaDataForDripCourse from "./cpa_deadlines.json";
 import regChangeEventsData from "./reg_change_events.json";
 import mobilityRulesDataForStaleness from "./mobility_rules.json";
 import firmMobilityRulesDataForStaleness from "./firm_mobility_rules.json";
-import { MOBILITY_VERIFICATION_TTL_DAYS, normalizeRuleRow as normalizeMobilityRuleRow } from "./mobility";
+import { MOBILITY_VERIFICATION_TTL_DAYS, normalizeRuleRow as normalizeMobilityRuleRow, safeHttpUrl } from "./mobility";
 import { normalizeFirmRuleRow as normalizeFirmMobilityRuleRow } from "./firm_mobility";
 import cpeHoursDataForStaleness from "./cpe_hours.json";
 import reinstatementDataForStaleness from "./reinstatement.json";
@@ -2277,7 +2277,7 @@ export async function runComplianceNewsletterPass(
       summary: e.summary_public,
       effectiveDate: e.effective_date || null,
       citation: e.citation ?? null,
-      citationUrl: e.citation_url ?? null,
+      citationUrl: safeHttpUrl(e.citation_url ?? null),
       detailUrl,
     });
   }
