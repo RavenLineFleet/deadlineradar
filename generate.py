@@ -22967,17 +22967,26 @@ peer/quality review requirement (&sect; 15.30), performing the work through an i
 15.12A practice privilege, and being able to lawfully perform that work in its home state. Miss any one
 of those conditions and the registration requirement comes back.</p>
 
-<h2>One practical trigger: moving your practice into Oklahoma</h2>
+<h2>Two different triggers: moving your firm vs. moving yourself</h2>
 <p>Mobility privilege covers out-of-state CPAs whose principal place of business stays outside
-Oklahoma. If you actually relocate your practice into the state, Oklahoma's administrative rules (OAC
-10:15-21-1) require a reciprocal certificate/permit application within 120 days &mdash; a different
-requirement than simply serving Oklahoma clients from Texas.</p>
+Oklahoma. If your firm's principal place of business actually relocates into the state, Oklahoma's
+administrative rules (OAC 10:15-21-1(a)) require a reciprocal certificate/permit application within
+120 days &mdash; a different requirement than simply serving Oklahoma clients from Texas.</p>
+<p><strong>Separately, and this is easy to miss:</strong> as of September 15, 2026, OAC 10:15-21-1(b)
+requires an Oklahoma certificate for anyone who personally <strong>resides</strong> in Oklahoma and
+holds themselves out as a CPA &mdash; <strong>regardless of where their firm office stays</strong>.
+That means a Texas CPA who moves to Oklahoma personally but keeps working for a Texas-based firm
+office doesn't get to rely on principal-place-of-business mobility at all: the residency rule applies
+to them directly, not the 120-day reciprocal-filing rule above. Those are two different triggers with
+two different tests &mdash; where your firm's office sits, and where you yourself live &mdash; and as
+of this rule change, either one alone can require an Oklahoma certificate.</p>
 
 <p><strong>The honest caveat</strong>: this page describes two different rule states on either side of
 a real statutory deadline, sourced to 59 O.S. &sect;&sect; 15.12A, 15.15, 15.15C, and 15.30 as amended
-by the 2023 and 2026 acts. It's general orientation, not a determination for your specific attest/
-non-attest engagement mix. For your actual situation &mdash; especially anything time-sensitive around
-the November 2026 changeover &mdash; run it through
+by the 2023 and 2026 acts, plus OAC 10:15-21-1 as amended effective September 15, 2026. It's general
+orientation, not a determination for your specific attest/non-attest engagement mix. For your actual
+situation &mdash; especially anything time-sensitive around the November 2026 changeover, or if you're
+personally relocating to Oklahoma &mdash; run it through
 <a href="../../practice-privilege-check/">our Practice Privilege Check tool</a> or confirm with the
 Oklahoma Accountancy Board directly. And keep your own Texas renewal on track while you're at it
 &mdash; it's due annually by your own birth month, easy to lose track of.
