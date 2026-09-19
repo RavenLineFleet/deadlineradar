@@ -9293,6 +9293,17 @@ def build_rule_changes_page() -> str:
     # bucket rather than being forced into whichever complement it happens
     # to fall out of.
     undated = [e for e in changes if not e.get("effective_date")]
+    # AuditLab STATUS-1 (2026-09-19, LIVE NOW): this bucket used to be
+    # rendered as one section titled "Proposed, not yet dated" -- true for a
+    # genuinely proposed rule with no effective date, but REG-1's publish put
+    # an ENACTED event (Arizona's reciprocity statute, signed into law with
+    # no effective_date pinned yet) in the same bucket, so its own "Enacted"
+    # badge sat directly under a section note reading "not yet signed into
+    # law." A signed-but-undated rule is a real, distinct state from a
+    # proposal that hasn't been adopted at all -- split on status rather than
+    # asserting one heading covers both.
+    undated_enacted = [e for e in undated if e.get("status") in ("ENACTED", "ADOPTED_RULE")]
+    undated_proposed = [e for e in undated if e not in undated_enacted]
     recent = [e for e in changes if not _is_still_upcoming(e) and e.get("effective_date")]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
@@ -9301,7 +9312,8 @@ def build_rule_changes_page() -> str:
         if upcoming
         else '<p class="rc-empty">No upcoming changes detected right now.</p>'
     )
-    undated_html = "\n".join(_rule_change_card_html(e) for e in undated)
+    undated_enacted_html = "\n".join(_rule_change_card_html(e) for e in undated_enacted)
+    undated_proposed_html = "\n".join(_rule_change_card_html(e) for e in undated_proposed)
     recent_html = (
         "\n".join(_rule_change_card_html(e) for e in recent)
         if recent
@@ -9388,11 +9400,17 @@ and clearly labelled where we could only confirm it against the board's own page
 <p class="rc-section-note">A dated, signed change that hasn't taken effect yet.</p>
 {upcoming_html}
 {f'''
-<h2>Proposed, not yet dated ({len(undated)})</h2>
+<h2>Enacted, effective date not yet set ({len(undated_enacted)})</h2>
+<p class="rc-section-note">Signed into law or adopted as a final rule, but no effective date has been
+set yet -- we move it to Upcoming the moment one is pinned.</p>
+{undated_enacted_html}
+''' if undated_enacted else ""}
+{f'''
+<h2>Proposed, not yet dated ({len(undated_proposed)})</h2>
 <p class="rc-section-note">Formally proposed, but not yet signed into law with a scheduled effective
 date -- we move it to Upcoming the moment one is set.</p>
-{undated_html}
-''' if undated else ""}
+{undated_proposed_html}
+''' if undated_proposed else ""}
 <h2>Recently changed, pending re-verification ({len(recent)})</h2>
 <p class="rc-section-note">The effective date has passed. We re-verify against the primary source
 before treating a post-change rule as settled &mdash; we do not assume a law took effect just
@@ -22969,19 +22987,24 @@ peer/quality review requirement (&sect; 15.30), performing the work through an i
 15.12A practice privilege, and being able to lawfully perform that work in its home state. Miss any one
 of those conditions and the registration requirement comes back.</p>
 
-<h2>Two different triggers: moving your firm vs. moving yourself</h2>
+<h2>Two different triggers, same subsection: working in Oklahoma vs. living in Oklahoma</h2>
 <p>Mobility privilege covers out-of-state CPAs whose principal place of business stays outside
-Oklahoma. If your firm's principal place of business actually relocates into the state, Oklahoma's
-administrative rules (OAC 10:15-21-1(a)) require a reciprocal certificate/permit application within
-120 days &mdash; a different requirement than simply serving Oklahoma clients from Texas.</p>
-<p><strong>Separately, and this is easy to miss:</strong> as of September 15, 2026, OAC 10:15-21-1(b)
-requires an Oklahoma certificate for anyone who personally <strong>resides</strong> in Oklahoma and
-holds themselves out as a CPA &mdash; <strong>regardless of where their firm office stays</strong>.
-That means a Texas CPA who moves to Oklahoma personally but keeps working for a Texas-based firm
-office doesn't get to rely on principal-place-of-business mobility at all: the residency rule applies
-to them directly, not the 120-day reciprocal-filing rule above. Those are two different triggers with
-two different tests &mdash; where your firm's office sits, and where you yourself live &mdash; and as
-of this rule change, either one alone can require an Oklahoma certificate.</p>
+Oklahoma. Two separate things can end that: taking employment with a public accounting firm
+<strong>located in Oklahoma</strong>, or <strong>engaging in the practice</strong> of public
+accounting in Oklahoma at all -- either one, not just your firm's office physically relocating --
+starts a 120-day clock to file for a reciprocal certificate/permit (OAC 10:15-21-1(b)). That's a
+broader trigger than "your firm relocates": taking a job with an Oklahoma-based firm while you
+personally still live elsewhere starts the same 120-day clock.</p>
+<p><strong>Separately, and this is easy to miss:</strong> as of September 15, 2026, the <em>same</em>
+subsection, OAC 10:15-21-1(b), also requires an Oklahoma certificate for anyone who personally
+<strong>resides</strong> in Oklahoma and holds themselves out as a CPA &mdash;
+<strong>regardless of where their firm office stays</strong>. That means a Texas CPA who moves to
+Oklahoma personally but keeps working for a Texas-based firm office (and doesn't otherwise work for
+an Oklahoma firm or practice in Oklahoma) doesn't get to rely on principal-place-of-business mobility
+at all: the residency rule applies to them directly, on top of -- not instead of -- the
+employment/practice trigger above. Those are two independent tests in the same subsection &mdash;
+where you work or practice, and where you yourself live &mdash; and as of this rule change, either
+one alone can require an Oklahoma certificate.</p>
 
 <p><strong>The honest caveat</strong>: this page describes two different rule states on either side of
 a real statutory deadline, sourced to 59 O.S. &sect;&sect; 15.12A, 15.15, 15.15C, and 15.30 as amended
