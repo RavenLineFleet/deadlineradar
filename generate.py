@@ -3493,6 +3493,7 @@ def site_footer(lang: str = "en") -> str:
       <a href="/rule-changes/">{esc(_t("footer.link_mobility_rule_changes", lang))}</a>
       <a href="/practice-privilege-check/">{esc(_t("footer.link_practice_privilege_check", lang))}</a>
       <a href="/multi-state-firms/">{esc(_t("footer.link_multi_state_firms", lang))}</a>
+      <a href="/compliance-reports/">{esc(_t("footer.link_compliance_reports", lang))}</a>
     </div>
     <div class="foot-col">
       <h3>{esc(_t("footer.heading_product", lang))}</h3>
@@ -9868,9 +9869,9 @@ gets a daily digest of newly-due renewals posted straight to the channel your te
 included on every paid plan.</p>
 
 <p>Preventing a missed deadline is the first job; being able to prove you tried is the second. The
-dashboard's Reports tab gives you a Compliance Summary and a full audit trail &mdash; a dated record of
-every roster change and every reminder actually sent &mdash; exportable for a board inquiry or your own
-file. Free on every tier, no export limit.</p>
+dashboard's Reports tab gives you a <a href="/compliance-reports/">Compliance Summary and a full audit
+trail</a> &mdash; a dated record of every roster change and every reminder actually sent &mdash;
+exportable for a board inquiry or your own file. Free on every tier, no export limit.</p>
 
 <h2>What Practice Privilege Check actually does</h2>
 <p>A different question from renewal dates: can this CPA provide this specific service in this specific
@@ -20153,6 +20154,116 @@ def build_multi_state_firms_page(lang: str = "en", publish_es: bool = True) -> s
     )
 
 
+def build_compliance_reports_page(real_today: date) -> str:
+    """ValueLab handoff (valuelab_20260920_reporting_page_DRAFT.md, routed by
+    Orchestrator, source finding: 12.2 of valuelab_20260909_canopy_exhaustive.md
+    "Priority 1 -- the highest-value gap"). Not new product: the Compliance
+    Summary, audit trail and export all ship today and previously had no
+    dedicated page -- one paragraph on /for-firms/ and one pricing-table row.
+    Every claim below is traceable to already-published copy on this site
+    (ValueLab's own 6 traceability table verified 2026-09-20; re-checked
+    against the live site again here before building, per that memo's own
+    "verify before you build" instruction -- every quoted fragment matched).
+    Structure mirrors /multi-state-firms/ per that memo's explicit direction
+    (numbered sections, a scope/pricing note under each, demo CTA, cross-
+    link back) -- deliberately NOT run through the i18n system like that
+    page: no Spanish draft exists yet (same as most of /for-firms/, which
+    this page's copy is sourced from), and Phase A conversion without a
+    translation to ship would be pure ceremony. English-only for now, same
+    posture ES-2 already established for a page with no ready translation.
+    URL is /compliance-reports/, not /proof-of-compliance/ -- ValueLab's own
+    reasoning, upheld here: this product cannot prove a firm is compliant,
+    only show what the firm and the product did, and a URL that overclaims
+    on a site whose whole position is not overclaiming is a bad trade."""
+    verified_recent, total_citations = _sitewide_freshness_stat(real_today)
+    body = f"""<h1>Preventing the miss is the first job. Proving you tried is the second.</h1>
+<p class="intro">Most of this site is about the first job: a renewal date sourced to the actual rule,
+and a reminder that reaches your admin instead of one person's inbox. This page is about the second
+one. When a partner, a board, an insurer or your own file asks what the firm did about a licence, the
+answer shouldn't be a reconstructed email thread. The dashboard's Reports tab keeps the record as it
+happens &mdash; and hands it to you on request, on every tier, with no export limit.</p>
+<p class="field-hint"><strong>{verified_recent} of {total_citations}</strong> dated records across this site's datasets
+were individually re-checked against their source within the last {STALENESS_THRESHOLD_DAYS} days
+&mdash; <a href="/methodology/">see exactly how we verify every deadline</a>.</p>
+
+<h2>1. The Compliance Summary &mdash; the roll-up</h2>
+<p>One view across the whole roster: coverage, status breakdown, and who needs to act before a
+deadline &mdash; for every staff CPA and for the firm's own registration. Not a dashboard you're meant
+to watch all day. A summary you can generate, date, and put in front of somebody.</p>
+<p>Each line traces back to the same sourcing standard as every free state page on this site: the
+codified statute or rule where we could confirm it, and clearly labelled where we could only confirm
+it against the board's own page. Never a guess, here or anywhere else.</p>
+<p class="field-hint"><em>Scope note:</em> the coverage overview &mdash; coverage %, status breakdown,
+due-soon count, at-risk ranking &mdash; is part of a paid firm plan. A solo account gets it free.
+<a href="/pricing/">See plans</a>.</p>
+
+<h2>2. The audit trail &mdash; the dated record</h2>
+<p>The part most tracking tools don't keep. The audit trail is a dated record of what actually
+happened in your account:</p>
+<ul>
+  <li>when a staff member was added to the roster, and by whom</li>
+  <li>when their state, licence type or renewal date changed</li>
+  <li><strong>every reminder we actually sent</strong> &mdash; to whom, on what date, about which
+  deadline</li>
+  <li>when somebody opted out (and every staff member can, from the one transparent email they get
+  the moment they're added)</li>
+</ul>
+<p>"Actually sent" is the operative phrase, and it's the reason the record is worth anything. Not
+<em>scheduled</em>, not <em>should have gone out</em> &mdash; sent, logged, dated.</p>
+
+<h2>3. The export &mdash; your file, not ours</h2>
+<p>Export the Compliance Summary as a CSV, and save the full record &mdash; summary and audit trail
+together &mdash; as a PDF, for a board inquiry, an insurer, a partner meeting, or your own file.
+<strong>Free on every tier. No export limit.</strong> No upgrade prompt at the moment you need it, no
+per-export cap, nothing held back on a cheaper plan &mdash; the same rule as the rest of our
+pricing.</p>
+<p class="field-hint"><em>Scope note:</em> firms on a paid plan can also keep the resulting documents
+alongside the record: document storage, 2MB per file, 50MB per firm.</p>
+
+<h2>4. What this record does and doesn't prove</h2>
+<p>Worth being exact, because a compliance record that overstates itself is worse than none.</p>
+<p><strong>What it does show.</strong> What this product did, and what your firm did in it: who was
+on the roster and when, what dates we were tracking, and every reminder that actually went out. If
+the question is "did anyone tell them?", this answers it with dates.</p>
+<p><strong>What it does not show.</strong></p>
+<ul>
+  <li><strong>It is not a verification of licence status with the board.</strong> There is no
+  recurring human check-in against the state board or CPAverify.org on your behalf &mdash; we've said
+  that on our <a href="/for-firms/">firm overview</a> since day one and it's still true here. The
+  renewal <em>dates</em> are verified against primary law; the individual's <em>standing</em> is not
+  something we look up for you.</li>
+  <li><strong>It is not proof the licensee renewed.</strong> It's proof of what the firm and this
+  product did. Whether the filing was made is between the licensee and the board.</li>
+  <li><strong>CPE hours in the record are self-reported.</strong> Your firm's own log against each
+  state's requirement &mdash; not independently verified, and kept clearly labelled and separate from
+  the sourced renewal dates. We won't blur the two.</li>
+</ul>
+<p class="backlink"><a href="/methodology/">How we verify every deadline &rarr;</a></p>
+
+<h2>5. Where it lives</h2>
+<p>It's the fifth tab in the firm dashboard, right after CPE Hours. Nothing to enable, nothing to
+configure, no reporting module to buy.</p>
+
+<p><a class="cta-button" href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login">Want to see the actual
+record instead of a description of it? Try the live demo &rarr;</a></p>
+<p class="field-hint">A shared account, seeded with sample staff &mdash; no signup, no credentials to
+type, just click through to the Reports tab.</p>
+
+<p><strong>New to Deadline-Radar?</strong> See the <a href="/for-firms/">full firm overview</a> for
+pricing and the whole feature set.</p>
+<p class="backlink"><a href="/">&larr; Back to all states</a></p>
+"""
+    return page_shell(
+        f"Compliance Reports & Audit Trail for CPA Firms — {SITE_NAME}",
+        "A dated record of every roster change and every reminder we actually sent, exportable for a "
+        "board inquiry or your own file. Free on every tier, no export limit.",
+        body,
+        home_href="../",
+        canonical_path="/compliance-reports/",
+        has_remind_anchor=False,
+    )
+
+
 def build_firm_dashboard_page(
     by_slug: dict[str, list[dict]], as_of: date, cpe_hours_by_slug: dict[str, dict]
 ) -> str:
@@ -24054,6 +24165,9 @@ def build_sitemap(states: list[dict], as_of: date, es_ready: dict[str, bool] | N
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/for-firms/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
+  </url>""", f"""  <url>
+    <loc>{SITE_BASE_URL}/compliance-reports/</loc>
+    <lastmod>{as_of.isoformat()}</lastmod>
   </url>""",
         _translated_page_sitemap_urls("pricing", as_of, es_ready.get("pricing", False)),
         _translated_page_sitemap_urls("practice-privilege-check", as_of, es_ready.get("practice-privilege-check", False)),
@@ -24619,6 +24733,11 @@ def main() -> None:
     firms_dir.mkdir(parents=True, exist_ok=True)
     (firms_dir / "index.html").write_text(build_firms_page(by_slug, as_of, real_today), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/for-firms/index.html")
+
+    compliance_reports_dir = SITE_DIR / "compliance-reports"
+    compliance_reports_dir.mkdir(parents=True, exist_ok=True)
+    (compliance_reports_dir / "index.html").write_text(build_compliance_reports_page(real_today), encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/compliance-reports/index.html")
 
     firm_login_dir = SITE_DIR / "firm-login"
     firm_login_dir.mkdir(parents=True, exist_ok=True)

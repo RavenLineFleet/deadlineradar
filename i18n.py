@@ -61,6 +61,7 @@ EN: dict[str, str] = {
     "footer.link_mobility_rule_changes": "Mobility Rule Changes",
     "footer.link_practice_privilege_check": "Practice Privilege Check",
     "footer.link_multi_state_firms": "Multi-State Firms",
+    "footer.link_compliance_reports": "Compliance Reports",
     "footer.heading_product": "Product",
     "footer.link_all_jurisdictions": "All {count} jurisdictions",
     "footer.link_pricing": "Pricing",
@@ -420,7 +421,7 @@ EN: dict[str, str] = {
     "pricing.row_roster_paid": "From 5 to 35 staff, depending on tier (see plans above)",
     "pricing.row_calendar": "Calendar view",
     "pricing.row_cpe": "CPE-hour tracking",
-    "pricing.row_compliance": "Compliance Summary &amp; audit trail export",
+    "pricing.row_compliance": '<a href="/compliance-reports/">Compliance Summary &amp; audit trail export</a>',
     "pricing.row_email_reminders": "Email renewal reminders (per staff)",
     # P6 (ValueLab pricing addendum, ruled 2026-08-20): the /for-firms/
     # showcase's Roster tab screenshot leads with coverage %, roster-status
