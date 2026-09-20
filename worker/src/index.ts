@@ -440,7 +440,7 @@ const ACTION_PAGES: Record<string, { heading: string; intro: string; button: str
   // to compute.
   "/snooze": {
     heading: "Remind me again later",
-    intro: `Click below to pause this reminder for up to ${SNOOZE_DAYS} days. You'll still get at least one more reminder before your deadline.`,
+    intro: `Click below to pause this reminder for up to ${SNOOZE_DAYS} days. You'll still get at least one more reminder on or before your deadline.`,
     button: `Remind me again in up to ${SNOOZE_DAYS} days`,
   },
   "/firm/login/verify": {
@@ -9371,9 +9371,18 @@ async function handleSnooze(env: Env, token: string | null): Promise<Response> {
   }
   // AuditLab SNOOZE-2 (2026-09-19): store.snoozeByToken() may have clamped
   // the actual pause shorter than SNOOZE_DAYS (never past the point where
-  // the final reminder could still fire before the deadline) -- this page
-  // has the real `updated.snoozed_until` it returned, so it states the
-  // actual date rather than repeating the fixed day-count as a promise.
+  // the final reminder could still fire on or before the deadline) --
+  // this page has the real `updated.snoozed_until` it returned, so it
+  // states the actual date rather than repeating the fixed day-count as
+  // a promise.
+  // AuditLab SNOOZE-2 residual (2026-09-20): the clamp lands snoozed_until
+  // at deadline-1, and the scheduler skips a subscriber THROUGH that date
+  // (`sub.snoozed_until >= todayIso`) -- so the final reminder actually
+  // fires ON the deadline day, not the day before it. "on or before" is
+  // the accurate claim; "before" alone was falsified by the clamp's own
+  // off-by-one, caught by AuditLab re-verifying this fix's own end-to-end
+  // test, whose asOf lands on the deadline and whose own comment already
+  // said "on or before".
   const resumeDateStr = updated.snoozed_until
     ? new Date(`${updated.snoozed_until}T00:00:00Z`).toLocaleDateString("en-US", {
         timeZone: "UTC",
@@ -9386,7 +9395,7 @@ async function handleSnooze(env: Env, token: string | null): Promise<Response> {
     htmlPage(
       "You're all set",
       `<h1>Reminder paused</h1><p>We'll pick this back up${resumeDateStr ? ` on ${resumeDateStr}` : ` in ${SNOOZE_DAYS} days`}. ` +
-        `You'll still get at least one more reminder before your deadline. ` +
+        `You'll still get at least one more reminder on or before your deadline. ` +
         `If you renew before then, use the link in your original reminder email to mark it done early.</p>`
     )
   );

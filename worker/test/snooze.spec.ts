@@ -180,7 +180,7 @@ describe("store.snoozeByToken()", () => {
   // fell into runReminderPass's past-deadline grace-period branch with
   // neverNotified=false (this subscriber already has a sent threshold) and
   // silently dropped every remaining reminder forever via logSilentDrop.
-  it("snoozing from the 7-day tier (deadline only 7 days out) still gets a reminder before the deadline, not a silent drop", async () => {
+  it("snoozing from the 7-day tier (deadline only 7 days out) still gets a reminder on or before the deadline, not a silent drop", async () => {
     const { runReminderPass } = await import("../src/scheduler");
     const email = `snooze7fix-${Date.now()}@example.com`;
     const rec = await store.addPending(env.DB, {
