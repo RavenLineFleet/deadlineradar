@@ -358,7 +358,19 @@ function formatThresholdList(thresholds: number[] | null): { list: string; dayWo
  * count, never the threshold (so a scheduler gap can't produce a subject that
  * contradicts the body). */
 function reminderSubject(stateName: string, threshold: number, actual: number, deadlineStr: string): string {
-  if (threshold === 1) {
+  // AuditLab COPY-18 (MEDIUM, 2026-09-20): the "-- a good time to start"/
+  // "expires" tail below was keyed off `threshold` (which reminder tier
+  // fired), not `actual` (the true remaining count) -- this function's own
+  // docstring already says it must be built from `actual` "so a scheduler
+  // gap can't produce a subject that contradicts the body," which the old
+  // threshold-keyed tail violated. Reachable for any firm whose
+  // `reminder_thresholds` excludes 1 (min is then 7/14/30/60): a
+  // never-notified subscriber caught up past their deadline got a subject
+  // like "due 14 days ago -- a good time to start", the wrong status at
+  // exactly the boundary this product's whole pitch is about getting right.
+  // `actual <= 0` now reuses the SAME lead logic threshold===1 already had
+  // correct (Today/Overdue), regardless of which threshold actually fired.
+  if (threshold === 1 || actual <= 0) {
     let lead: string;
     if (actual === 1) lead = "Tomorrow";
     else if (actual === 0) lead = "Today";
