@@ -1059,6 +1059,9 @@ export interface DigestSummary {
   itemsClaimed: number;
   digestsSent: number;
   errors: { email: string; error: string }[];
+  // AuditLab SILENT-4 (MEDIUM, 2026-09-20): mirrors runReminderPass()'s own
+  // skipped_grace_period -- see this pass's identical branch below for why.
+  skipped_grace_period: number;
 }
 
 const DIGEST_WINDOW_DAYS = 7;
@@ -1088,7 +1091,13 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
   const staticBase = staticSiteAbsoluteBaseUrl(env);
   const manageUrl = `${staticBase}/my/`;
 
-  const summary: DigestSummary = { emailsChecked: 0, itemsClaimed: 0, digestsSent: 0, errors: [] };
+  const summary: DigestSummary = {
+    emailsChecked: 0,
+    itemsClaimed: 0,
+    digestsSent: 0,
+    errors: [],
+    skipped_grace_period: 0,
+  };
 
   const emails = await store.listDigestEligibleEmails(env.DB, DIGEST_ELIGIBLE_EMAIL_BATCH_SIZE);
 
@@ -1180,6 +1189,19 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
             // now -- see runReminderPass()'s identical comment.
             threshold = Math.min(...thresholds);
           } else {
+            // AuditLab SILENT-4 (MEDIUM, 2026-09-20): mirrors
+            // runReminderPass()'s SILENT-2 treatment of this identical
+            // branch -- runReminderPass() explicitly skips digest-mode
+            // subscribers (notification_mode filter above), so this pass is
+            // the ONLY path that would ever record a digest-mode drop here.
+            // Same best-effort posture, same reason string, so the two
+            // delivery paths report into one place.
+            summary.skipped_grace_period += 1;
+            try {
+              await store.logSilentDrop(env.DB, sub.id, sub.email, sub.state_slug, "past_deadline_no_reminder");
+            } catch {
+              // See runReminderPass()'s identical comment -- never let this fail the pass.
+            }
             continue;
           }
         } else {
