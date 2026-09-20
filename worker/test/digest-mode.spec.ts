@@ -586,3 +586,48 @@ describe("POST /api/unsubscribe/digest", () => {
     expect(row?.notification_mode).toBe(store.NOTIFICATION_MODE_DIGEST); // GET must not change state
   });
 });
+
+// AuditLab SILENT-4 (MEDIUM, 2026-09-20): runReminderPass's SILENT-2 grace-
+// period logging never reached the identical branch in runDigestPass --
+// runReminderPass explicitly skips digest-mode subscribers, so a digest-mode
+// drop past the deadline was recorded nowhere. Mirrors worker.spec.ts's own
+// "AuditLab SILENT-2" test for the immediate-mode pass.
+describe("AuditLab SILENT-4: runDigestPass now logs a silent drop too, mirroring SILENT-2", () => {
+  it("runDigestPass logs a silent drop (not just the counter) once a digest-mode subscriber falls past the grace window", async () => {
+    const { runDigestPass } = await import("../src/scheduler");
+    const email = `sched-silent4-${Date.now()}@example.com`;
+    // Same shape as worker.spec.ts's SILENT-2 test: a BYOD deadline far in
+    // the past, well beyond GRACE_PERIOD_PAST_DEADLINE_DAYS.
+    const rec = await seedUserDate(email, "new-jersey", "2026-06-01");
+    await store.setSubscriberNotificationMode(env.DB, store.normalizeEmail(email), store.NOTIFICATION_MODE_DIGEST);
+    // neverNotified must be false so the run lands in the grace-period skip
+    // branch directly, not the bounded first-ever catch-up branch.
+    await env.DB.prepare(`UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2`).bind(JSON.stringify([30]), rec.id).run();
+
+    const asOf = new Date(Date.UTC(2026, 6, 24)); // 53 days past the 2026-06-01 deadline
+    const summary = await runDigestPass(env, { asOf, send: async () => true });
+    expect(summary.skipped_grace_period).toBeGreaterThan(0);
+
+    const row = await env.DB.prepare(`SELECT reason, resolved_at FROM silent_drop_log WHERE subscriber_id = ?1`)
+      .bind(rec.id)
+      .first<{ reason: string; resolved_at: string | null }>();
+    expect(row?.reason).toBe("past_deadline_no_reminder");
+    expect(row?.resolved_at).toBeNull();
+
+    await env.DB.prepare(`DELETE FROM silent_drop_log WHERE subscriber_id = ?1`).bind(rec.id).run();
+  });
+
+  it("runReminderPass does NOT log a drop for a digest-mode subscriber -- confirms there is exactly one path recording it, not a duplicate", async () => {
+    const { runReminderPass } = await import("../src/scheduler");
+    const email = `sched-silent4-noduplicate-${Date.now()}@example.com`;
+    const rec = await seedUserDate(email, "new-jersey", "2026-06-01");
+    await store.setSubscriberNotificationMode(env.DB, store.normalizeEmail(email), store.NOTIFICATION_MODE_DIGEST);
+    await env.DB.prepare(`UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2`).bind(JSON.stringify([30]), rec.id).run();
+
+    const asOf = new Date(Date.UTC(2026, 6, 24));
+    await runReminderPass(env, { asOf, send: async () => true });
+
+    const row = await env.DB.prepare(`SELECT * FROM silent_drop_log WHERE subscriber_id = ?1`).bind(rec.id).first();
+    expect(row).toBeNull();
+  });
+});
