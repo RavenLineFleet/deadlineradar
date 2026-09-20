@@ -9870,8 +9870,9 @@ included on every paid plan.</p>
 
 <p>Preventing a missed deadline is the first job; being able to prove you tried is the second. The
 dashboard's Reports tab gives you a <a href="/compliance-reports/">Compliance Summary and a full audit
-trail</a> &mdash; a dated record of every roster change and every reminder actually sent &mdash;
-exportable for a board inquiry or your own file. Free on every tier, no export limit.</p>
+trail</a> &mdash; a dated record of every roster change and every reminder actually sent &mdash; export
+the summary as a CSV, and save the full record as a PDF, for a board inquiry or your own file. Free on
+every tier, no export limit.</p>
 
 <h2>What Practice Privilege Check actually does</h2>
 <p>A different question from renewal dates: can this CPA provide this specific service in this specific
