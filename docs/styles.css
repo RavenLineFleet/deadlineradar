@@ -606,8 +606,9 @@
   }
   .remind-panel label { color: #cfe0ee; font-size: 0.8rem; font-weight: 600; margin: 0.2rem 0 0; }
   .remind-panel label:first-of-type { margin-top: 0; }
+  
   .remind-panel input, .remind-panel select {
-    width: 100%; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff;
+    width: 100%; border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.06); color: #fff;
     border-radius: 7px; padding: 0.6rem 0.7rem; font-family: inherit; font-size: 0.92rem;
   }
   
@@ -853,8 +854,9 @@
     display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem;
   }
   .signup-form label:first-of-type { margin-top: 0; }
+  
   .signup-form input:not([type="checkbox"]):not([type="radio"]), .signup-form select {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
   }
   .signup-form-row { display: flex; gap: 0.75rem; }
@@ -1129,8 +1131,9 @@
   .dr-report-table td, .dr-report-table th { white-space: normal; }
   
   .dr-audit-filter { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 0.9rem 0; }
+  
   .dr-audit-filter input, .dr-audit-filter select {
-    padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
   }
   .dr-audit-filter input { flex: 1 1 220px; min-width: 160px; }
@@ -1141,8 +1144,9 @@
   }
   .dr-bulk-tag-panel summary { cursor: pointer; font-weight: 600; }
   .dr-bulk-tag-panel label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem; }
+  
   .dr-bulk-tag-panel select, .dr-bulk-tag-panel input {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
   }
   .dr-bulk-tag-panel button {
@@ -1581,8 +1585,9 @@
   
   .dr-cpe-log-panel form label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem; }
   .dr-cpe-log-panel form label:first-of-type { margin-top: 0; }
+  
   .dr-cpe-log-panel form input, .dr-cpe-log-panel form select {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
   }
   .dr-cpe-log-panel form button {

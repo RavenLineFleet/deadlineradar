@@ -1434,8 +1434,19 @@ PAGE_CSS = """
   }
   .remind-panel label { color: #cfe0ee; font-size: 0.8rem; font-weight: 600; margin: 0.2rem 0 0; }
   .remind-panel label:first-of-type { margin-top: 0; }
+  /* A11Y-22 (AuditLab, 2026-09-19): .18 alpha measured 1.78:1 (dark theme)
+     against this field's own composited fill/panel backdrop -- WCAG 1.4.11
+     needs 3:1. .remind-panel doesn't use the --border-strong token (every
+     other color here is a literal value, deliberately theme-independent),
+     so the fix is alpha, not a token swap. Verified by computing the actual
+     composited border/fill/panel colors (rgba(255,255,255,.05) form bg over
+     --panel-dark, then this rule's own fill on top of that) in both site
+     themes, not just one: .45 is the lowest tested alpha that clears 3:1
+     against BOTH the panel (3.83 light / 4.31 dark) and the field's own
+     fill (3.20 light / 3.62 dark), the tighter of the two comparisons in
+     each theme. */
   .remind-panel input, .remind-panel select {
-    width: 100%; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff;
+    width: 100%; border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.06); color: #fff;
     border-radius: 7px; padding: 0.6rem 0.7rem; font-family: inherit; font-size: 0.92rem;
   }
   /* CONTRAST-1 (LOW, 2026-08-04): this was scoped to .remind-panel only, so
@@ -1744,8 +1755,14 @@ PAGE_CSS = """
     display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem;
   }
   .signup-form label:first-of-type { margin-top: 0; }
+  /* A11Y-22 (AuditLab, 2026-09-19): var(--border) is 1.41:1 dark / 1.26:1
+     light against this field's fill+panel -- WCAG 1.4.11 needs 3:1 for a
+     UI-component boundary. --border-strong is the site's own proven answer
+     to exactly this (see its definition comment above, already applied to
+     .dr-calc's input/select 2026-08-27) -- reused here instead of a new
+     value. */
   .signup-form input:not([type="checkbox"]):not([type="radio"]), .signup-form select {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
   }
   .signup-form-row { display: flex; gap: 0.75rem; }
@@ -2126,8 +2143,9 @@ PAGE_CSS = """
      client-side over the same GET /firm/audit-trail response #8 already
      fetches, no new endpoint. */
   .dr-audit-filter { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 0.9rem 0; }
+  /* A11Y-22 (AuditLab, 2026-09-19): same --border -> --border-strong field-boundary fix as .signup-form above. */
   .dr-audit-filter input, .dr-audit-filter select {
-    padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
   }
   .dr-audit-filter input { flex: 1 1 220px; min-width: 160px; }
@@ -2140,8 +2158,9 @@ PAGE_CSS = """
   }
   .dr-bulk-tag-panel summary { cursor: pointer; font-weight: 600; }
   .dr-bulk-tag-panel label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem; }
+  /* A11Y-22 (AuditLab, 2026-09-19): same --border -> --border-strong field-boundary fix as .signup-form above. */
   .dr-bulk-tag-panel select, .dr-bulk-tag-panel input {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
   }
   .dr-bulk-tag-panel button {
@@ -2926,8 +2945,9 @@ PAGE_CSS = """
      already has its own (adding both would double the box chrome). */
   .dr-cpe-log-panel form label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.3rem; }
   .dr-cpe-log-panel form label:first-of-type { margin-top: 0; }
+  /* A11Y-22 (AuditLab, 2026-09-19): same --border -> --border-strong field-boundary fix as .signup-form above. */
   .dr-cpe-log-panel form input, .dr-cpe-log-panel form select {
-    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
     background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
   }
   .dr-cpe-log-panel form button {
