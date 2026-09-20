@@ -122,6 +122,107 @@ describe("store.snoozeByToken()", () => {
     expect(await store.snoozeByToken(env.DB, rec.renewed_token, 14)).not.toBeNull();
   });
 
+  // AuditLab SNOOZE-2 (HIGH, 2026-09-19): the guard above only refused a
+  // snooze INSIDE the final-tier window -- it never checked whether the
+  // fixed 14-day duration itself would overshoot a NEARER deadline,
+  // silently cancelling every remaining reminder for anyone snoozing from
+  // the 3/7/14-day tiers (only 60/30 were ever actually safe). The 1-and-
+  // 90 pair above passes on the old code either way and would not have
+  // caught this -- these five cover the entire band the old guard let
+  // through unclamped, plus the boundary (15) where the fix should NOT
+  // need to clamp anything.
+  it.each([2, 3, 7, 14, 15])(
+    "clamps snoozed_until so it never overshoots a %i-day-out deadline -- a reminder can still land",
+    async (daysRemaining) => {
+      const email = `snoozeclamp${daysRemaining}-${Date.now()}@example.com`;
+      const rec = await store.addPending(env.DB, {
+        email,
+        stateSlug: "texas",
+        deadlineFields: { birth_month: "7" },
+        firstName: null,
+      });
+      await store.confirm(env.DB, rec.confirm_token);
+      const confirmed = (await store.findActiveOrPending(env.DB, email, "texas"))!;
+      const deadline = new Date(Date.now() + daysRemaining * 86_400_000);
+      const deadlineStr = deadline.toISOString().slice(0, 10);
+      await env.DB.prepare("UPDATE subscribers SET deadline_source = 'user', user_deadline = ?1 WHERE id = ?2")
+        .bind(deadlineStr, rec.id)
+        .run();
+
+      const updated = await store.snoozeByToken(env.DB, confirmed.renewed_token, 14);
+      expect(updated).not.toBeNull();
+      expect(updated?.snoozed_until).not.toBeNull();
+
+      // The guarantee: snoozed_until leaves at least one day of runway
+      // before the deadline for the final reminder to still fire -- ISO
+      // date strings compare correctly as plain strings.
+      const latestSafe = new Date(deadline.getTime() - 86_400_000).toISOString().slice(0, 10);
+      expect(updated!.snoozed_until! <= latestSafe).toBe(true);
+
+      if (daysRemaining >= 15) {
+        // Boundary: 14 days remaining of runway after a 1-day floor exactly
+        // matches the requested 14-day snooze -- nothing to clamp here.
+        const uncapped = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+        expect(updated!.snoozed_until).toBe(uncapped);
+      } else {
+        // Every case below the boundary must actually be clamped SHORTER
+        // than the requested 14 days -- otherwise this test would pass
+        // trivially without exercising the fix at all.
+        const uncapped = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+        expect(updated!.snoozed_until! < uncapped).toBe(true);
+      }
+    }
+  );
+
+  // End-to-end version of the same scenario, through the real cron pass --
+  // the exact bug AuditLab found live: snooze from the 7-day tier used to
+  // push snoozed_until 14 days out, past a deadline only 7 days away, which
+  // fell into runReminderPass's past-deadline grace-period branch with
+  // neverNotified=false (this subscriber already has a sent threshold) and
+  // silently dropped every remaining reminder forever via logSilentDrop.
+  it("snoozing from the 7-day tier (deadline only 7 days out) still gets a reminder before the deadline, not a silent drop", async () => {
+    const { runReminderPass } = await import("../src/scheduler");
+    const email = `snooze7fix-${Date.now()}@example.com`;
+    const rec = await store.addPending(env.DB, {
+      email,
+      stateSlug: "texas",
+      deadlineFields: { birth_month: "7" },
+      firstName: null,
+    });
+    await store.confirm(env.DB, rec.confirm_token);
+    const confirmed = (await store.findActiveOrPending(env.DB, email, "texas"))!;
+    const deadline = new Date(Date.now() + 7 * 86_400_000);
+    const deadlineStr = deadline.toISOString().slice(0, 10);
+    await env.DB.prepare(
+      "UPDATE subscribers SET deadline_source = 'user', user_deadline = ?1, reminders_sent = ?2 WHERE id = ?3"
+    )
+      .bind(deadlineStr, JSON.stringify([14]), rec.id) // already got the 14-day reminder -- clicked it to snooze
+      .run();
+
+    const updated = await store.snoozeByToken(env.DB, confirmed.renewed_token, 14);
+    expect(updated?.snoozed_until).not.toBeNull();
+    // Pre-fix this would have been requestedDays out (14), past the 7-day
+    // deadline -- confirm it actually landed before the deadline.
+    expect(updated!.snoozed_until! < deadlineStr).toBe(true);
+
+    // Advance the scheduler's simulated clock past snoozed_until (real end-
+    // to-end wiring, not just the date arithmetic above) and confirm a send
+    // actually happens, on or before the real deadline -- never silently
+    // dropped via skipped_grace_period.
+    const asOf = new Date(`${updated!.snoozed_until}T00:00:00Z`);
+    asOf.setUTCDate(asOf.getUTCDate() + 1);
+    let sent = false;
+    const summary = await runReminderPass(env, {
+      asOf,
+      send: async (to) => {
+        if (to === email) sent = true;
+        return true;
+      },
+    });
+    expect(sent).toBe(true);
+    expect(summary.skipped_grace_period).toBe(0);
+  });
+
   it("404s over HTTP with the same tailored message when too close to the deadline", async () => {
     const email = `snoozeclosehttp-${Date.now()}@example.com`;
     const rec = await store.addPending(env.DB, { email, stateSlug: "texas", deadlineFields: { birth_month: "7" }, firstName: null });
@@ -261,7 +362,9 @@ describe("GET/POST /snooze -- end-to-end via the real cron pass", () => {
       headers: { "cf-connecting-ip": "203.0.113.231" },
     });
     expect(getResp.status).toBe(200);
-    expect(await getResp.text()).toContain(`Remind me again in ${SNOOZE_DAYS} days`);
+    // SNOOZE-2: "up to" -- the button's own promise, since the actual
+    // applied snooze may be clamped shorter than SNOOZE_DAYS.
+    expect(await getResp.text()).toContain(`Remind me again in up to ${SNOOZE_DAYS} days`);
 
     const row = await env.DB.prepare("SELECT * FROM subscribers WHERE id = ?1").bind(rec.id).first<SubscriberRow>();
     expect(row?.snoozed_until).toBeNull();
