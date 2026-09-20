@@ -3576,25 +3576,32 @@ async function applyRenewAndRearm(db: D1Database, row: SubscriberRow): Promise<S
 // subscriber's REAL current deadline the same way scheduler.ts does and
 // refuses the snooze once they're inside the final-tier window, regardless
 // of which email's link was used.
+function deadlineForSnoozeCheck(row: SubscriberRow, now: Date): Date | null {
+  return row.deadline_source === DEADLINE_SOURCE_USER && row.user_deadline
+    ? new Date(`${row.user_deadline}T00:00:00Z`)
+    : computeSubscriberDeadline(row.state_slug, JSON.parse(row.deadline_fields || "{}"), now);
+}
+
 function daysUntilDeadlineForSnoozeCheck(row: SubscriberRow, now: Date): number | null {
-  const deadline =
-    row.deadline_source === DEADLINE_SOURCE_USER && row.user_deadline
-      ? new Date(`${row.user_deadline}T00:00:00Z`)
-      : computeSubscriberDeadline(row.state_slug, JSON.parse(row.deadline_fields || "{}"), now);
+  const deadline = deadlineForSnoozeCheck(row, now);
   if (!deadline) return null;
   const nowDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   return Math.round((deadline.getTime() - nowDay.getTime()) / 86_400_000);
 }
 
-/** Roadmap #26 (migration 0040). Self-service, fixed-duration snooze via
- * the subscriber's existing renewed_token/unsubscribe_token -- same lookup
- * and eligibility posture as renewAndRearmByToken() above (must be
- * confirmed; a stopped subscription has nothing to snooze). Returns null
- * for an invalid token, an unconfirmed row, a stopped row, or (AuditLab
- * SNOOZE-1) a subscriber already inside the final-reminder window
- * regardless of which email's link was clicked -- the caller (handleSnooze)
- * gives a specific reason for each case since they're genuinely different
- * situations from "bad link." */
+/** Roadmap #26 (migration 0040). Self-service snooze via the subscriber's
+ * existing renewed_token/unsubscribe_token -- same lookup and eligibility
+ * posture as renewAndRearmByToken() above (must be confirmed; a stopped
+ * subscription has nothing to snooze). Returns null for an invalid token,
+ * an unconfirmed row, a stopped row, or (AuditLab SNOOZE-1) a subscriber
+ * already inside the final-reminder window regardless of which email's
+ * link was clicked -- the caller (handleSnooze) gives a specific reason
+ * for each case since they're genuinely different situations from "bad
+ * link." The requested `days` duration is a ceiling, not a guarantee
+ * (AuditLab SNOOZE-2): it's clamped so it can never push snoozed_until
+ * past the point where the final reminder would still have a chance to
+ * fire, so a caller cannot assume the returned snoozed_until is always
+ * exactly `days` out. */
 export async function snoozeByToken(db: D1Database, token: string, days: number): Promise<SubscriberRow | null> {
   const row = await db
     .prepare(`SELECT * FROM subscribers WHERE unsubscribe_token = ?1 OR renewed_token = ?1`)
@@ -3603,9 +3610,31 @@ export async function snoozeByToken(db: D1Database, token: string, days: number)
   if (!row) return null;
   if (!row.confirmed_at) return null;
   if (row.status === STATUS_STOPPED) return null;
-  const daysRemaining = daysUntilDeadlineForSnoozeCheck(row, new Date());
+  const now = new Date();
+  const daysRemaining = daysUntilDeadlineForSnoozeCheck(row, now);
   if (daysRemaining !== null && daysRemaining <= 1) return null;
-  const snoozedUntil = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  const requestedSnoozedUntil = new Date(now.getTime() + days * 86_400_000);
+  // AuditLab SNOOZE-2 (HIGH, 2026-09-19): the guard above only refuses a
+  // snooze inside the final (1-day) tier's own window -- it never checked
+  // whether the FIXED `days` duration itself would overshoot the deadline
+  // from an earlier tier (3/7/14 days out), which silently cancelled every
+  // remaining reminder (runReminderPass's grace-period branch only catches
+  // up a `neverNotified` subscriber; anyone who already clicked a link
+  // fails that check and gets logSilentDrop'd, forever). Clamp rather than
+  // refuse, so the button stays usable from every tier that reaches here:
+  // never let snoozed_until land later than one day before the deadline --
+  // the same "1" the guard above already treats as the universal final
+  // safety-net threshold, not a per-firm reminder_thresholds lookup (this
+  // function has no cheap access to the firm's own subset, and every
+  // existing snooze-eligibility check in this function already makes that
+  // same simplifying assumption).
+  const deadline = deadlineForSnoozeCheck(row, now);
+  let snoozedUntilDate = requestedSnoozedUntil;
+  if (deadline) {
+    const latestSafeSnooze = new Date(deadline.getTime() - 86_400_000);
+    if (snoozedUntilDate.getTime() > latestSafeSnooze.getTime()) snoozedUntilDate = latestSafeSnooze;
+  }
+  const snoozedUntil = snoozedUntilDate.toISOString().slice(0, 10);
   await db.prepare(`UPDATE subscribers SET snoozed_until = ?1 WHERE id = ?2`).bind(snoozedUntil, row.id).run();
   return { ...row, snoozed_until: snoozedUntil };
 }

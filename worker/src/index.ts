@@ -431,11 +431,17 @@ const ACTION_PAGES: Record<string, { heading: string; intro: string; button: str
     button: "Yes, remind me next cycle",
   },
   // Roadmap #26 (2026-08-07). SNOOZE_DAYS interpolated so this copy can
-  // never drift from the actual duration store.snoozeByToken() applies.
+  // never drift from the actual MAXIMUM duration store.snoozeByToken()
+  // applies. AuditLab SNOOZE-2 (2026-09-19): "nothing else changes" was
+  // false whenever the fixed 14-day pause would have overshot the
+  // deadline -- store.snoozeByToken() now clamps that case short instead,
+  // so the copy says "up to" and states the actual guarantee rather than
+  // promising an exact day count this route has no per-subscriber context
+  // to compute.
   "/snooze": {
     heading: "Remind me again later",
-    intro: `Click below to pause this reminder for ${SNOOZE_DAYS} days. We'll pick up right where we left off after that -- nothing else changes.`,
-    button: `Remind me again in ${SNOOZE_DAYS} days`,
+    intro: `Click below to pause this reminder for up to ${SNOOZE_DAYS} days. You'll still get at least one more reminder before your deadline.`,
+    button: `Remind me again in up to ${SNOOZE_DAYS} days`,
   },
   "/firm/login/verify": {
     heading: "Sign in to Deadline-Radar",
@@ -9363,12 +9369,25 @@ async function handleSnooze(env: Env, token: string | null): Promise<Response> {
         "even an older one from a prior reminder -- to push it back further)."
     );
   }
+  // AuditLab SNOOZE-2 (2026-09-19): store.snoozeByToken() may have clamped
+  // the actual pause shorter than SNOOZE_DAYS (never past the point where
+  // the final reminder could still fire before the deadline) -- this page
+  // has the real `updated.snoozed_until` it returned, so it states the
+  // actual date rather than repeating the fixed day-count as a promise.
+  const resumeDateStr = updated.snoozed_until
+    ? new Date(`${updated.snoozed_until}T00:00:00Z`).toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
   return htmlResponse(
     200,
     htmlPage(
       "You're all set",
-      `<h1>Reminder paused</h1><p>We'll pick this back up in ${SNOOZE_DAYS} days. Nothing else changes -- ` +
-        `if you renew before then, use the link in your original reminder email to mark it done early.</p>`
+      `<h1>Reminder paused</h1><p>We'll pick this back up${resumeDateStr ? ` on ${resumeDateStr}` : ` in ${SNOOZE_DAYS} days`}. ` +
+        `You'll still get at least one more reminder before your deadline. ` +
+        `If you renew before then, use the link in your original reminder email to mark it done early.</p>`
     )
   );
 }

@@ -440,14 +440,21 @@ export function buildReminderEmail(
   // Roadmap #26: withheld on the final (1-day) tier specifically -- that
   // reminder IS the safety net for someone who hasn't renewed yet, and a
   // 14-day snooze from there would push well past most real deadlines.
-  // Every earlier tier still gets another escalation before the 1-day one,
-  // so snoozing there is a genuine "not yet, ask me later" rather than
-  // walking away from the deadline entirely.
+  // Every earlier tier still gets another escalation before the 1-day one
+  // (AuditLab SNOOZE-2, 2026-09-19: enforced by store.snoozeByToken()'s own
+  // clamp now, not just by which tiers offer the CTA), so snoozing there is
+  // a genuine "not yet, ask me later" rather than walking away from the
+  // deadline entirely.
   const showSnooze = snoozeUrl !== null && threshold !== 1;
 
   const firmAttribution = firmName ? `This reminder is sent by ${firmName} via Deadline-Radar.\n\n` : "";
+  // AuditLab SNOOZE-2: "in X days" overpromised an exact duration
+  // store.snoozeByToken() doesn't guarantee -- it clamps the actual snooze
+  // short of the deadline when this tier's own X days would overshoot it.
+  // "up to" stays true in every case instead of needing this copy to know
+  // the subscriber's actual days-remaining at render time.
   const snoozeTextCta = showSnooze
-    ? `Not ready to deal with this yet? Remind me again in ${SNOOZE_DAYS} days instead:\n${snoozeUrl}\n\n`
+    ? `Not ready to deal with this yet? Remind me again in up to ${SNOOZE_DAYS} days instead:\n${snoozeUrl}\n\n`
     : "";
   const textBody =
     `${textGreeting(firstName)}\n\n` +
@@ -481,7 +488,7 @@ export function buildReminderEmail(
       p("Use this instead if you don't want any more reminders for this deadline at all.", 13, LIGHT.muted) +
       (showSnooze
         ? p(
-            `Not ready yet? ${textLink(snoozeUrl, `Remind me again in ${SNOOZE_DAYS} days`)} instead.`,
+            `Not ready yet? ${textLink(snoozeUrl, `Remind me again in up to ${SNOOZE_DAYS} days`)} instead.`,
             13,
             LIGHT.muted
           )
