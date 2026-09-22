@@ -2765,6 +2765,14 @@ PAGE_CSS = """
   .dr-cal-daynum { font-weight: 600; color: var(--muted); }
   .dr-cal-day--today .dr-cal-daynum { color: var(--accent); }
   .dr-cal-item {
+    /* Devin, live, 2026-09-22: a staff member with no name set falls back to
+       their full raw email (drRenderCalendar()) -- a long one (e.g.
+       "jordan.mitchell@demo.deadline-radar.com") stretched the whole day
+       cell to fit it, distorting the grid. The ellipsis rules below already
+       existed but never engaged: .dr-cal-day is a flex column, and a flex
+       item's default min-width is `auto` (its own unwrapped content width),
+       which overrides `overflow:hidden` until min-width is reset. */
+    min-width: 0; width: 100%; box-sizing: border-box;
     font-size: 0.7rem; line-height: 1.25; padding: 0.1rem 0.3rem; border-radius: 4px;
     background: var(--accent-bg); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -2777,7 +2785,10 @@ PAGE_CSS = """
      itself -- this is the exact same feed, so the color should read the
      same way in both places. */
   .dr-cal-item--rule-change {
-    display: block; width: 100%; text-align: left; border: none; font: inherit;
+    /* Same flex min-width:auto fix as .dr-cal-item above -- this is also a
+       direct child of the .dr-cal-day flex column and had the identical
+       latent (if not yet reported) risk with a long jurisdiction/topic. */
+    display: block; width: 100%; min-width: 0; box-sizing: border-box; text-align: left; border: none; font: inherit;
     background: var(--gold-bg); color: var(--gold); cursor: pointer;
     font-size: 0.7rem; line-height: 1.25; padding: 0.1rem 0.3rem; border-radius: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -15831,7 +15842,18 @@ function drRenderSessions(items) {
     el.innerHTML = '<p class="dr-panel-empty">No active sessions.</p>';
     return;
   }
-  el.innerHTML = items.map(function(s) {
+  // Devin, live, 2026-09-22: this list had no cap -- a long-lived account
+  // (this demo firm included) just keeps growing it forever, one row per
+  // historical sign-in, with no visual limit. listSessionsForMember()
+  // already orders newest-first, so capping here is a true "most recent N",
+  // not an arbitrary cut. The "Sign out other devices" button just below
+  // this panel already does the actual bulk-cleanup work (Task #18) -- this
+  // just points at it instead of duplicating it, rather than building a
+  // second bulk-revoke mechanism that would do the same thing two ways.
+  var DR_SESSIONS_DISPLAY_CAP = 10;
+  var overflow = items.length - DR_SESSIONS_DISPLAY_CAP;
+  var shown = overflow > 0 ? items.slice(0, DR_SESSIONS_DISPLAY_CAP) : items;
+  var rowsHtml = shown.map(function(s) {
     var signedIn = drEscapeHtml(drFormatDeadline(String(s.created_at).slice(0, 10)));
     var lastActive = drEscapeHtml(drFormatDeadline(String(s.last_seen_at).slice(0, 10)));
     var thisDevice = s.is_current
@@ -15841,6 +15863,11 @@ function drRenderSessions(items) {
       '<span class="dr-agenda-date" style="display:block;">Last active ' + lastActive + '</span></span>' +
       thisDevice + '</div>';
   }).join('');
+  var overflowHtml = overflow > 0
+    ? '<p class="dr-panel-empty">+' + overflow + ' older session' + (overflow === 1 ? '' : 's') +
+      ' not shown. Use "Sign out other devices" below to clear them.</p>'
+    : '';
+  el.innerHTML = rowsHtml + overflowHtml;
 }
 
 function drLoadSessions() {
@@ -17835,6 +17862,19 @@ document.addEventListener('DOMContentLoaded', function() {
       var willOpen = notifPanel.hidden;
       notifPanel.hidden = !willOpen;
       notifBellBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      // Devin, live, 2026-09-22: the panel's old fixed top:3.6rem offset
+      // (measured from the sidebar, not the bell) didn't clear the firm-name
+      // header when it wraps to 2 lines -- the panel's top overlapped the
+      // header's own bottom ~30px, and its fixed left/width also spilled
+      // into main-content headings that happened to sit at the same height.
+      // Anchor to the bell's OWN live position instead of a guessed offset,
+      // so this holds regardless of firm-name length/wrapping or viewport.
+      if (willOpen && notifPanel.offsetParent) {
+        var bellRect = notifBellBtn.getBoundingClientRect();
+        var parentRect = notifPanel.offsetParent.getBoundingClientRect();
+        notifPanel.style.top = (bellRect.bottom - parentRect.top + 8) + 'px';
+        notifPanel.style.left = (bellRect.left - parentRect.left) + 'px';
+      }
     });
     document.addEventListener('click', function(ev) {
       if (notifPanel.hidden) return;
