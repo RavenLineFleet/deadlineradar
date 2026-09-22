@@ -2555,6 +2555,35 @@ PAGE_CSS = """
      (checked -- every OTHER standalone `<a class="cta-button">` on this site
      is unintentionally plain-text; not this page's bug to fix, but not one
      to copy either). */
+  /* ValueLab labelled-demo-doors (2026-09-22): a properly-scoped button
+     class, not the unscoped .cta-button the comment above already flags as
+     rendering as plain text everywhere it's used on this site -- same
+     "don't copy the mistake" posture .dr-paywall-tier-btn took. Six doors
+     into the demo dashboard (one per view), one optionally promoted to a
+     larger primary treatment matching real CTA weight. */
+  .dr-demo-doors { margin: 1.1rem 0; }
+  .dr-demo-doors-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem;
+  }
+  .dr-demo-door {
+    display: block; text-decoration: none; background: var(--card-bg);
+    border: 1px solid var(--border-strong); border-radius: 9px; padding: 0.75rem 0.9rem;
+    color: var(--fg); font-size: 0.9rem;
+  }
+  .dr-demo-door:hover { border-color: var(--accent); }
+  .dr-demo-door strong { display: block; font-size: 0.95rem; margin-bottom: 0.2rem; }
+  .dr-demo-door span { display: block; color: var(--muted); font-size: 0.8rem; line-height: 1.4; }
+  .dr-demo-door--primary {
+    background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+    padding: 0.9rem 1.1rem; margin-bottom: 0.6rem;
+  }
+  .dr-demo-door--primary span { color: var(--on-accent); opacity: 0.85; }
+  .dr-demo-doors-secondary { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .dr-demo-doors-secondary a {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 0.3rem 0.7rem;
+  }
+  .dr-demo-doors-secondary a:hover { color: var(--fg); border-color: var(--accent); }
   .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.4rem 0; }
   .pricing-card {
     background: var(--card-bg); border: 1px solid var(--border-strong); border-radius: 12px;
@@ -5145,6 +5174,78 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   });
 })();
 </script>"""
+
+
+# ValueLab labelled-demo-doors (2026-09-22, S12.4): the six real views the
+# demo dashboard has, in the order the sidebar itself lists them. Keys match
+# worker/src/index.ts's DEMO_LOGIN_DESTINATIONS allowlist exactly -- these
+# strings become the `to=` query param on /api/firm/demo-login, so a typo
+# here is a silent fall-through to the generic destination, not a build
+# error. Labels/captions are ValueLab's own handoff table, already the live
+# /for-firms/ showcase wording -- nothing new invented.
+_DEMO_DOORS = [
+    ("roster", "Roster", "Coverage overview: who's current, who's at risk, at a glance."),
+    ("calendar", "Calendar", "Every upcoming renewal, by date, with an .ics feed to export."),
+    ("map", "Map", "Which states your firm has staff licensed in, and who's at risk."),
+    (
+        "cpe",
+        "CPE Hours",
+        "Completed continuing-education hours, tracked per staff member against each state's own requirement.",
+    ),
+    ("reports", "Reports", "A printable compliance summary and audit trail, for a board inquiry or your own file."),
+    (
+        "mobility",
+        "Practice Privilege Check",
+        "A real result: can this CPA provide this service in this state, and what has to happen first.",
+    ),
+]
+
+
+def _demo_doors_html(promoted: str | None = None, mention_tour: bool = False) -> str:
+    """Replaces the old single generic 'Try the live demo' link with one
+    labelled door per real dashboard view. Two layouts:
+      - `promoted` given: that door renders full-size (.dr-demo-door--primary,
+        the page's real CTA weight); the other five render as a row of small
+        pill links below it -- "one door promoted, the rest available."
+      - `promoted` None: all six render equal-weight in a grid -- used only
+        on /for-firms/, which already treats its six-tab showcase this way.
+    Every href is /api/firm/demo-login?to=<key> -- handleDemoLogin() re-
+    validates `to` against the same allowlist server-side regardless of what
+    this function ever renders, so a stale/mismatched key here degrades to
+    the generic dashboard, not a broken or unsafe link.
+    """
+    base = f"{REMINDER_BACKEND_BASE_URL}/firm/demo-login"
+    by_key = {key: (label, caption) for key, label, caption in _DEMO_DOORS}
+    if promoted:
+        label, caption = by_key[promoted]
+        primary_html = (
+            f'<a class="dr-demo-door dr-demo-door--primary" href="{esc(base)}?to={promoted}">'
+            f"<strong>Try the live demo: {esc(label)} &rarr;</strong><span>{esc(caption)}</span></a>"
+        )
+        secondary_html = "\n".join(
+            f'<a href="{esc(base)}?to={key}">{esc(label)}</a>'
+            for key, label, _caption in _DEMO_DOORS
+            if key != promoted
+        )
+        doors_html = f'{primary_html}\n<div class="dr-demo-doors-secondary">\n{secondary_html}\n</div>'
+    else:
+        doors_html = '<div class="dr-demo-doors-grid">\n' + "\n".join(
+            f'<a class="dr-demo-door" href="{esc(base)}?to={key}">'
+            f"<strong>{esc(label)}</strong><span>{esc(caption)}</span></a>"
+            for key, label, caption in _DEMO_DOORS
+        ) + "\n</div>"
+    tour_html = (
+        '<p class="field-hint">Or take the guided walkthrough &mdash; twelve steps through the real '
+        "dashboard, not a recording. It starts automatically the first time you open any door above.</p>"
+        if mention_tour
+        else ""
+    )
+    return (
+        f'<div class="dr-demo-doors">\n{doors_html}\n'
+        '<p class="field-hint">A shared account, seeded with sample staff &mdash; no signup, no '
+        "credentials to type &mdash; just click through.</p>\n"
+        f"{tour_html}</div>"
+    )
 
 
 def page_shell(
@@ -7912,7 +8013,14 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   stamped with the day we last checked it.</p>
 {search_html}
   <p class="field-hint">Run a whole firm's staff instead?
-  <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login" style="font-weight:600;">Try the live demo &rarr;</a>
+  <!-- ValueLab labelled-demo-doors (2026-09-22): Roster promoted per their
+       own placement table -- it's already the default destination a bare
+       demo-login lands on, so ?to=roster is explicit rather than a change
+       in behavior. Kept inline/single-link rather than the full doors
+       component used on /for-firms/ et al. -- this hero is deliberately
+       minimized (see the "hero restraint" comment above), and Roster is
+       genuinely the one room this specific lead-in question is about. -->
+  <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo: Roster view &rarr;</a>
   <!-- ValueLab #8 (2026-08-24): was "one click" -- the actual flow is an
        interstitial confirm page plus a "View the demo" button, two clicks.
        The valuable, true half (no signup, no credentials) stays; dropped
@@ -9899,9 +10007,8 @@ Check, and <a href="../rule-changes/">Rule Changes</a> work together on the
 
 {_product_showcase_html()}
 
-<p class="how-it-works"><strong>Want to click around for real instead of screenshots?</strong>
-<a href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login" style="font-weight:600;">Try the live demo &rarr;</a> A shared
-account, seeded with sample staff &mdash; no signup, no credentials to type -- just click through.</p>
+<p class="how-it-works"><strong>Want to click around for real instead of screenshots?</strong></p>
+{_demo_doors_html(mention_tour=True)}
 
 <p><strong>Scope, plainly stated:</strong> the license <em>renewal dates</em> are the part we verify
 against actual state law, the same way we already do for individuals. The dashboard also has a CPE
@@ -20150,7 +20257,7 @@ def build_multi_state_firms_page(lang: str = "en", publish_es: bool = True) -> s
 <h2>{_t("msf.h2_rule_changes", lang)}</h2>
 <p>{_t("msf.rule_changes_body", lang, feed_link=feed_link)}</p>
 
-<p><a class="cta-button" href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login">{_t("msf.try_demo", lang)}</a></p>
+{_demo_doors_html(promoted="map")}
 
 <p><strong>{_t("msf.new_here_bold", lang)}</strong> {_t("msf.new_here_rest", lang, overview_link=overview_link)}</p>
 
@@ -20265,10 +20372,8 @@ the question is "did anyone tell them?", this answers it with dates.</p>
 <p>It's the fifth tab in the firm dashboard, right after CPE Hours. Nothing to enable, nothing to
 configure, no reporting module to buy.</p>
 
-<p><a class="cta-button" href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login">Want to see the actual
-record instead of a description of it? Try the live demo &rarr;</a></p>
-<p class="field-hint">A shared account, seeded with sample staff &mdash; no signup, no credentials to
-type, just click through to the Reports tab.</p>
+<p><strong>Want to see the actual record instead of a description of it?</strong></p>
+{_demo_doors_html(promoted="reports")}
 
 <p><strong>New to Deadline-Radar?</strong> See the <a href="/for-firms/">full firm overview</a> for
 pricing and the whole feature set.</p>
