@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 600px;
+    height: 150px;
+    overflow: hidden;
+  }
+  .banner {
+    width: 600px;
+    height: 150px;
+    box-sizing: border-box;
+    background: linear-gradient(135deg, #f7f9fb 0%, #eef2f6 100%);
+    border: 1px solid #d8e0e8;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    color: #17212b;
+  }
+  .icon {
+    flex: 0 0 auto;
+    margin-right: 16px;
+  }
+  .copy {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .wordmark {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 15px;
+    color: #1f3d54;
+    margin-bottom: 5px;
+    letter-spacing: -0.01em;
+  }
+  .headline {
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.22;
+    color: #17212b;
+    margin: 0 0 4px;
+  }
+  .headline .accent {
+    color: #8a6a33;
+  }
+  .subhead {
+    font-size: 13px;
+    line-height: 1.35;
+    color: #5a6b7a;
+    margin: 0;
+  }
+  .cta {
+    flex: 0 0 auto;
+    margin-left: 18px;
+    background: #1f3d54;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 10px 16px;
+    border-radius: 7px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="icon">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" width="46" height="46">
+        <circle cx="16" cy="16" r="13.5" stroke="#1f3d54" stroke-width="1.6"/>
+        <circle cx="16" cy="16" r="8" stroke="#c8d2db" stroke-width="1.2"/>
+        <circle cx="16" cy="16" r="2.3" fill="#8a6a33"/>
+        <path d="M16 16 L26 9" stroke="#8a6a33" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M16 3.5 L16 6" stroke="#1f3d54" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="copy">
+      <div class="wordmark">Deadline-Radar</div>
+      <p class="headline">Montana CPA licenses renew <span class="accent">Dec 31.</span></p>
+      <p class="subhead">Free reminders for your renewal &amp; CPE deadlines &mdash; so you're never guessing.</p>
+    </div>
+    <div class="cta">Track it free</div>
+  </div>
+</body>
+</html>
