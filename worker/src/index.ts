@@ -356,6 +356,26 @@ body{min-height:100vh;display:flex;flex-direction:column;background:#f7f9fb;colo
 </body></html>`;
 }
 
+// ValueLab labelled-demo-doors handoff (2026-09-22, orchestrator-routed via
+// 12.4): every "Try the live demo" CTA site-wide always landed on Roster
+// regardless of which page/feature the visitor was reading about --
+// diagnosed as two independent bugs (the fragment never surviving the
+// demo-login POST, and the auto-starting product tour clobbering whatever
+// view a fragment did select; see handleDemoLogin()'s own comment for the
+// second half). This is the fix for the first half: /firm/demo-login can
+// now carry an explicit destination. Deliberately an ALLOWLIST of view
+// keys, never a URL -- a `?next=<url>` parameter on an endpoint that mints
+// a session is an open redirect, and six fixed strings can't be
+// "simplified" into one later without reintroducing that.
+const DEMO_LOGIN_DESTINATIONS: Record<string, string> = {
+  roster: "/firm-dashboard/#roster",
+  calendar: "/firm-dashboard/#calendar",
+  map: "/firm-dashboard/#map",
+  cpe: "/firm-dashboard/#cpe",
+  reports: "/firm-dashboard/#reports",
+  mobility: "/firm-mobility/",
+};
+
 // Copy for the GET confirmation pages -- the landing page an action link opens.
 // The link itself changes nothing; only the button (a POST) does. This is what
 // makes the actions prefetch-safe against email link scanners.
@@ -631,7 +651,12 @@ function originAllowed(request: Request, env: Env): boolean {
   return allowed.has(origin);
 }
 
-async function actionConfirmPage(pathname: string, token: string, env: Env): Promise<Response> {
+async function actionConfirmPage(
+  pathname: string,
+  token: string,
+  env: Env,
+  demoDestination: string | null = null
+): Promise<Response> {
   const meta = ACTION_PAGES[pathname];
   if (!meta) return errorPage(404, "Not found.");
   const action = `/api${pathname}`; // the Worker is bound to /api/*
@@ -691,6 +716,17 @@ async function actionConfirmPage(pathname: string, token: string, env: Env): Pro
   // /firm/demo-login has no token at all -- the field would just be an
   // empty, meaningless value for that one path.
   const tokenFieldHtml = token ? `<input type="hidden" name="token" value="${escapeHtml(token)}">` : "";
+  // ValueLab labelled-demo-doors (2026-09-22): re-validated against the SAME
+  // allowlist here (not just trusted from the query string) -- an unknown
+  // key renders no hidden field at all, so an invalid/forged `to` silently
+  // falls back to handleDemoLogin()'s own default rather than being echoed
+  // back as a value that will just fail its OWN re-validation server-side.
+  const demoDestinationFieldHtml =
+    pathname === "/firm/demo-login" &&
+    demoDestination &&
+    Object.prototype.hasOwnProperty.call(DEMO_LOGIN_DESTINATIONS, demoDestination)
+      ? `<input type="hidden" name="to" value="${escapeHtml(demoDestination)}">`
+      : "";
   const body =
     `<h1>${escapeHtml(meta.heading)}</h1>` +
     `<p>${escapeHtml(intro)}</p>` +
@@ -698,6 +734,7 @@ async function actionConfirmPage(pathname: string, token: string, env: Env): Pro
     tokenFieldHtml +
     csrfFieldHtml +
     passwordFieldHtml +
+    demoDestinationFieldHtml +
     `<button type="submit">${escapeHtml(meta.button)}</button>` +
     `</form>`;
   const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8" };
@@ -2610,7 +2647,7 @@ async function finishFirmLoginVerify(
  * checked FIRST, before the global bucket) closes that: a single source now
  * exhausts its own bucket well before it could exhaust the shared one.
  */
-async function handleDemoLogin(env: Env, ip: string): Promise<Response> {
+async function handleDemoLogin(env: Env, ip: string, to: string | null = null): Promise<Response> {
   const perIpAllowed = await checkRateLimit(env.DB, ip, "firm_demo_login_per_ip", RATE_LIMIT_FIRM_DEMO_LOGIN_PER_IP);
   if (!perIpAllowed) {
     return errorPage(429, "The live demo is getting a lot of traffic right now. Please try again in a few minutes.");
@@ -2648,10 +2685,20 @@ async function handleDemoLogin(env: Env, ip: string): Promise<Response> {
     // Non-fatal -- the daily cron will still catch it eventually.
   }
   const { rawSessionToken } = await store.createSession(env.DB, firm.id);
+  // ValueLab labelled-demo-doors (2026-09-22): re-validated against the
+  // SAME allowlist actionConfirmPage() checked before rendering the hidden
+  // field -- this is the only place that actually matters, since a request
+  // could reach here with a forged/malformed `to` even if the real form
+  // never offered one. Unknown/absent falls back to the pre-existing
+  // behaviour, byte-identical to before this field existed.
+  const destinationPath =
+    to && Object.prototype.hasOwnProperty.call(DEMO_LOGIN_DESTINATIONS, to)
+      ? DEMO_LOGIN_DESTINATIONS[to]
+      : "/firm-dashboard/";
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `${env.STATIC_SITE_BASE_URL || ""}/firm-dashboard/`,
+      Location: `${env.STATIC_SITE_BASE_URL || ""}${destinationPath}`,
       "Set-Cookie": firmSessionSetCookieHeader(rawSessionToken, env),
     },
   });
@@ -9778,7 +9825,7 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         // /firm/demo-login is the one action path with no token to check --
         // see its own ACTION_PAGES comment.
         if (url.pathname === "/firm/demo-login") {
-          return await actionConfirmPage(url.pathname, "", env);
+          return await actionConfirmPage(url.pathname, "", env, url.searchParams.get("to"));
         }
         const token = url.searchParams.get("token");
         if (!token) return errorPage(400, "That link is missing its token.");
@@ -10428,6 +10475,12 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         // a separate step (2026-08-02, Devin's own feedback: signup never
         // surfaced a way to set a password at all).
         let optionalNewPassword: string | null = null;
+        // Only meaningful on /firm/demo-login -- the hidden `to` field
+        // actionConfirmPage() renders. Re-validated against
+        // DEMO_LOGIN_DESTINATIONS again in handleDemoLogin() itself before
+        // use -- never trust a form field's value just because this server
+        // rendered it, since it round-trips through the visitor's browser.
+        let demoDestination: string | null = null;
         try {
           const raw = await request.text();
           if (raw.length > 0 && raw.length <= MAX_BODY_BYTES) {
@@ -10435,6 +10488,7 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
             token = parsed.get("token") ?? token;
             formNonce = parsed.get(ACTION_CSRF_FIELD_NAME);
             optionalNewPassword = parsed.get("new_password");
+            demoDestination = parsed.get("to");
           }
         } catch {
           // keep whatever the query gave us
@@ -10493,7 +10547,7 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
             case "/roadmap/notify-confirm":
               return await handleRoadmapNotifyConfirm(env, token);
             case "/firm/demo-login":
-              return await handleDemoLogin(env, ip);
+              return await handleDemoLogin(env, ip, demoDestination);
           }
         } catch {
           return errorPage(400, "Something went wrong processing that request.");

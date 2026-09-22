@@ -12083,6 +12083,15 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
 # unescaped render here would be a real stored-XSS hole on a page an
 # authenticated firm admin will keep open, not merely a cosmetic bug.
 _FIRM_DASHBOARD_JS_HTML = """<script>
+// ValueLab labelled-demo-doors handoff (2026-09-22, orchestrator-routed via
+// 12.4): a genuine deep link to e.g. /firm-dashboard/#reports was still
+// silently overridden to Roster -- not by the hash router (correct, see the
+// initialView block below) but by the product tour auto-starting on load
+// and its own step 0 calling drSwitchView('roster'). Script-global (not a
+// local to whichever block computes initialView) so the /firm/licenses
+// callback -- a different function entirely -- can read it before deciding
+// whether to auto-start the tour.
+var drInitialViewFromHash = null;
 function drUpdateFields(slug) {
   document.querySelectorAll('.signup-extra-fields').forEach(function(el) {
     var show = (el.getAttribute('data-for-state') === slug);
@@ -17021,7 +17030,14 @@ function drLoadLicenses() {
       // otherwise show the modal AND the tour's tooltip at once. The tour
       // simply waits for the NEXT load (any later page visit) rather than
       // fighting the modal for attention on this one.
-      if (!data.questionnaire_pending && data.product_tour_pending) drStartProductTour();
+      // ValueLab labelled-demo-doors (2026-09-22): also skipped when the
+      // visitor asked for a specific view via the URL hash -- the tour's
+      // own step 0 switches to Roster unconditionally, which silently
+      // overrode a deep link like /firm-dashboard/#reports even though the
+      // hash router itself worked correctly. A visitor who asked for
+      // Reports should see Reports; the tour is still one click away via
+      // the existing replay button (#dr-product-tour-replay-btn), not lost.
+      if (!data.questionnaire_pending && data.product_tour_pending && !drInitialViewFromHash) drStartProductTour();
       // Roadmap #144: same "wait its turn" precedence as the tour just
       // above -- a brand-new firm's first-ever load has BOTH the
       // questionnaire and nps_prompt_due true (never prompted for either
@@ -17769,6 +17785,10 @@ document.addEventListener('DOMContentLoaded', function() {
   var hashParams = new URLSearchParams(qIdx === -1 ? '' : hashRaw.slice(qIdx + 1));
   if (initialView && document.getElementById('dr-view-' + initialView)) {
     drSwitchView(initialView);
+    // ValueLab labelled-demo-doors: recorded so the /firm/licenses callback
+    // can skip auto-starting the product tour over an explicit deep link --
+    // see drInitialViewFromHash's own top-of-script comment.
+    drInitialViewFromHash = initialView;
   }
   if (hashParams.get('checkout') === 'success') {
     drShowSuccess('Payment successful — your plan is now active.');
