@@ -55,8 +55,9 @@ function form(fields: Record<string, string>): string {
   return new URLSearchParams(fields).toString();
 }
 
-async function renderDemoLogin(ip: string) {
-  const page = await SELF.fetch(`${BASE}/firm/demo-login`, {
+async function renderDemoLogin(ip: string, to?: string) {
+  const qs = to !== undefined ? `?to=${encodeURIComponent(to)}` : "";
+  const page = await SELF.fetch(`${BASE}/firm/demo-login${qs}`, {
     headers: { "cf-connecting-ip": ip },
     redirect: "manual",
   });
@@ -66,6 +67,7 @@ async function renderDemoLogin(ip: string) {
     html,
     nonce: /name="action_csrf" value="([^"]+)"/.exec(html)?.[1] ?? "",
     cookie: (page.headers.get("Set-Cookie") ?? "").split(";")[0] ?? "",
+    toField: /name="to" value="([^"]+)"/.exec(html)?.[1] ?? null,
   };
 }
 
@@ -265,6 +267,104 @@ describe("POST /firm/demo-login -- redeem", () => {
       redirect: "manual",
     });
     expect(resp.status).toBe(404);
+  });
+});
+
+// ValueLab labelled-demo-doors (2026-09-22): /firm/demo-login can now carry
+// an explicit destination view so "Try the live demo" doesn't always land
+// on Roster. Deliberately an ALLOWLIST of view keys, never a URL -- the
+// security-critical property this whole block exists to prove is that an
+// unrecognized `to` can NEVER become the Location header's value, since a
+// `?next=<url>` shape on a session-minting endpoint is an open redirect.
+describe("GET/POST /firm/demo-login -- labelled destination (ValueLab, 2026-09-22)", () => {
+  it("GET with a valid ?to= renders it as a hidden field", async () => {
+    await makeDemoFirm("to-render-valid");
+    const { toField } = await renderDemoLogin("203.0.116.1", "reports");
+    expect(toField).toBe("reports");
+  });
+
+  it("GET with an unrecognized ?to= renders no hidden field at all -- not echoed back", async () => {
+    await makeDemoFirm("to-render-invalid");
+    const { toField, html } = await renderDemoLogin("203.0.116.2", "https://evil.example/");
+    expect(toField).toBeNull();
+    expect(html).not.toContain("evil.example");
+  });
+
+  it("GET with no ?to= behaves exactly as before -- no hidden field", async () => {
+    await makeDemoFirm("to-render-absent");
+    const { toField } = await renderDemoLogin("203.0.116.3");
+    expect(toField).toBeNull();
+  });
+
+  it.each([
+    ["roster", "/firm-dashboard/#roster", 50],
+    ["calendar", "/firm-dashboard/#calendar", 51],
+    ["map", "/firm-dashboard/#map", 52],
+    ["cpe", "/firm-dashboard/#cpe", 53],
+    ["reports", "/firm-dashboard/#reports", 54],
+    ["mobility", "/firm-mobility/", 55],
+  ])("POST with to=%s redirects to %s", async (to, expectedPath, ipSuffix) => {
+    await makeDemoFirm(`to-redeem-${to}`);
+    const ip = `203.0.116.${ipSuffix}`;
+    const rendered = await renderDemoLogin(ip, to);
+    const resp = await SELF.fetch(`${BASE}/firm/demo-login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "cf-connecting-ip": ip,
+        Cookie: rendered.cookie,
+      },
+      body: form({ action_csrf: rendered.nonce, to }),
+      redirect: "manual",
+    });
+    expect(resp.status).toBe(302);
+    expect(resp.headers.get("Location") ?? "").toContain(expectedPath);
+    // A real session was still minted -- the destination is additive, not a
+    // replacement for the existing login behaviour.
+    expect(resp.headers.get("Set-Cookie") ?? "").toContain("dr_firm_session=");
+  });
+
+  it("SECURITY: an unrecognized to= value in the POST body can never reach the Location header -- open-redirect guard", async () => {
+    await makeDemoFirm("to-redeem-forged");
+    const rendered = await renderDemoLogin("203.0.116.30");
+    const resp = await SELF.fetch(`${BASE}/firm/demo-login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "cf-connecting-ip": "203.0.116.31",
+        Cookie: rendered.cookie,
+      },
+      // Forged directly in the POST body -- bypasses whatever the GET page
+      // rendered entirely, proving the re-validation happens server-side in
+      // handleDemoLogin() itself, not just in actionConfirmPage()'s
+      // rendering step.
+      body: form({ action_csrf: rendered.nonce, to: "https://evil.example/steal" }),
+      redirect: "manual",
+    });
+    expect(resp.status).toBe(302);
+    const location = resp.headers.get("Location") ?? "";
+    expect(location).not.toContain("evil.example");
+    expect(location).toContain("/firm-dashboard/");
+    expect(location).not.toContain("#");
+  });
+
+  it("no to= at all still redirects to the bare dashboard -- byte-identical to pre-existing behaviour", async () => {
+    await makeDemoFirm("to-redeem-absent");
+    const rendered = await renderDemoLogin("203.0.116.40");
+    const resp = await SELF.fetch(`${BASE}/firm/demo-login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "cf-connecting-ip": "203.0.116.41",
+        Cookie: rendered.cookie,
+      },
+      body: form({ action_csrf: rendered.nonce }),
+      redirect: "manual",
+    });
+    expect(resp.status).toBe(302);
+    const location = resp.headers.get("Location") ?? "";
+    expect(location).toContain("/firm-dashboard/");
+    expect(location).not.toContain("#");
   });
 });
 
