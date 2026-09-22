@@ -1497,6 +1497,8 @@
   .dr-cal-daynum { font-weight: 600; color: var(--muted); }
   .dr-cal-day--today .dr-cal-daynum { color: var(--accent); }
   .dr-cal-item {
+    
+    min-width: 0; width: 100%; box-sizing: border-box;
     font-size: 0.7rem; line-height: 1.25; padding: 0.1rem 0.3rem; border-radius: 4px;
     background: var(--accent-bg); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -1504,7 +1506,8 @@
   @media (prefers-color-scheme: dark) { .dr-cal-item--soon { background: rgba(230, 90, 90, 0.2); color: #ff8080; } }
   
   .dr-cal-item--rule-change {
-    display: block; width: 100%; text-align: left; border: none; font: inherit;
+    
+    display: block; width: 100%; min-width: 0; box-sizing: border-box; text-align: left; border: none; font: inherit;
     background: var(--gold-bg); color: var(--gold); cursor: pointer;
     font-size: 0.7rem; line-height: 1.25; padding: 0.1rem 0.3rem; border-radius: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
