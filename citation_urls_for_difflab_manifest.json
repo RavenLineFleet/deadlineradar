@@ -1,0 +1,464 @@
+{
+  "schema_note": "DeadlineRadar citation_url manifest for DiffLab capture (ScoutLab S4, 2026-09-22). Same {state_slug, monitor_urls} shape as scoutlab_mobility_difflab_monitor_manifest.json. Sourced from cpa_deadlines/cpe_hours/reinstatement/renewal_fees.json citation_url fields, deduped per state. Updated 2026-09-22: added citation_url/secondary_url from the 6 SOURCE_CONFLICT records in reg_change_events.json (orchestrator_20260922_s4_design_APPROVED_plus_conflict_scope.md).",
+  "generated": "2026-09-22",
+  "total_distinct_urls": 181,
+  "total_distinct_hosts": 96,
+  "states": [
+    {
+      "state_slug": "alabama",
+      "monitor_urls": [
+        "https://admincode.legislature.state.al.us/api/chapter/30-X-3",
+        "https://admincode.legislature.state.al.us/api/chapter/30-X-5"
+      ]
+    },
+    {
+      "state_slug": "alaska",
+      "monitor_urls": [
+        "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+        "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.04.300&secEnd=12.04.300",
+        "https://www.commerce.alaska.gov/web/Portals/5/pub/cpa4060.pdf",
+        "https://www.commerce.alaska.gov/web/Portals/5/pub/cpa4062.pdf"
+      ]
+    },
+    {
+      "state_slug": "arizona",
+      "monitor_urls": [
+        "https://apps.azsos.gov/public_services/Title_04/4-01.pdf"
+      ]
+    },
+    {
+      "state_slug": "arkansas",
+      "monitor_urls": [
+        "https://labor.arkansas.gov/wp-content/uploads/17CARpt.236-Final.pdf"
+      ]
+    },
+    {
+      "state_slug": "california",
+      "monitor_urls": [
+        "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=5070.5",
+        "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=5070.6",
+        "https://www.dca.ca.gov/cba/about/cba_regs.pdf"
+      ]
+    },
+    {
+      "state_slug": "colorado",
+      "monitor_urls": [
+        "https://content.leg.colorado.gov/sites/default/files/images/olls/crs2024-title-12.pdf",
+        "https://data.colorado.gov/d/7s5z-vewr",
+        "https://data.colorado.gov/d/jzq6-fyp7",
+        "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1"
+      ]
+    },
+    {
+      "state_slug": "connecticut",
+      "monitor_urls": [
+        "https://eregulations.ct.gov/eRegsPortal/Browse/RCSA/Title_20Subtitle_20-280Section_20-280-25/",
+        "https://www.cga.ct.gov/current/pub/chap_389.htm"
+      ]
+    },
+    {
+      "state_slug": "dc",
+      "monitor_urls": [
+        "https://dcregs.dc.gov/Common/DCMR/RuleList.aspx?DownloadFile=00FE545F-0000-C61A-9809-9AF28E266CA9",
+        "https://dcregs.dc.gov/Common/DCMR/RuleList.aspx?DownloadFile=C0FD545F-0000-CFA6-9EBB-44D38E2B8685",
+        "https://dlcp.dc.gov/sites/default/files/dc/sites/DLCP/publication/attachments/Accountancy%20Continuing%20Education%20Reporting%20Form.pdf"
+      ]
+    },
+    {
+      "state_slug": "delaware",
+      "monitor_urls": [
+        "https://archive.regulations.delaware.gov/AdminCode/title24/100.shtml",
+        "https://delcode.delaware.gov/title24/c001/index.html",
+        "https://delcode.delaware.gov/title24/c001/index.html#124",
+        "https://delcode.delaware.gov/title29/c087/sc01/index.html"
+      ]
+    },
+    {
+      "state_slug": "florida",
+      "monitor_urls": [
+        "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=12439006&type=1&file=61H1-31.015.doc",
+        "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=20486417&type=1&file=61H1-31.003.doc",
+        "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+        "https://www2.myfloridalicense.com/certified-public-accounting/public-records/"
+      ]
+    },
+    {
+      "state_slug": "georgia",
+      "monitor_urls": [
+        "https://gsba.georgia.gov/document/document/website-cpe-rule-20-11-finalpdf/download",
+        "https://rules.sos.ga.gov/Download_pdf.aspx?st=GASOS&year=2026&dept=Departments&pdf=Department%2020%20RULES%20OF%20STATE%20BOARD%20OF%20ACCOUNTANCY",
+        "https://rules.sos.ga.gov/GAC/20-10",
+        "https://rules.sos.ga.gov/gac/20-10",
+        "https://rules.sos.ga.gov/gac/20-7"
+      ]
+    },
+    {
+      "state_slug": "guam",
+      "monitor_urls": [
+        "https://col.guamcourts.gov/sites/default/files/22gc035.pdf",
+        "https://col.guamcourts.gov/sites/default/files/25GAR002.pdf",
+        "https://www.guamboa.org/faqs.htm"
+      ]
+    },
+    {
+      "state_slug": "hawaii",
+      "monitor_urls": [
+        "https://cca.hawaii.gov/pvl/files/2013/08/HAR-16-71-C_1121.pdf",
+        "https://cca.hawaii.gov/wp-content/uploads/2026/02/HAR_16-53_FeesOct-2016-1.pdf",
+        "https://www.capitol.hawaii.gov/hrscurrent/Vol10_Ch0436-0474/HRS0466/HRS_0466-0005.htm"
+      ]
+    },
+    {
+      "state_slug": "idaho",
+      "monitor_urls": [
+        "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+        "https://dopl.idaho.gov/pressrelease/big-changes-are-on-the-way-stay-informed-about-important-licensure-updates-that-may-impact-your-renewal-cycle-21/"
+      ]
+    },
+    {
+      "state_slug": "illinois",
+      "monitor_urls": [
+        "https://data.illinois.gov/d/pzzh-kp68",
+        "https://www.ilga.gov/commission/jcar/admincode/068/068014200000400R.html",
+        "https://www.ilga.gov/commission/jcar/admincode/068/068014200000600R.html",
+        "https://www.ilga.gov/commission/jcar/admincode/068/068014200000700R.html",
+        "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html"
+      ]
+    },
+    {
+      "state_slug": "indiana",
+      "monitor_urls": [
+        "https://iar.iga.in.gov/code/2026/872/1",
+        "https://iar.iga.in.gov/code/current/872/1"
+      ]
+    },
+    {
+      "state_slug": "iowa",
+      "monitor_urls": [
+        "https://www.legis.iowa.gov/docs/iac/chapter/481.1025.pdf",
+        "https://www.legis.iowa.gov/docs/iac/chapter/481.1030.pdf",
+        "https://www.legis.iowa.gov/docs/iac/chapter/481.1032.pdf",
+        "https://www.legis.iowa.gov/docs/iac/rule/481.1028.2.pdf"
+      ]
+    },
+    {
+      "state_slug": "kansas",
+      "monitor_urls": [
+        "https://ksboa.kansas.gov/wp-content/uploads/Article-4.-April-26-2024.pdf",
+        "https://ksboa.kansas.gov/wp-content/uploads/article12.pdf",
+        "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0008.html",
+        "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0010.html"
+      ]
+    },
+    {
+      "state_slug": "kentucky",
+      "monitor_urls": [
+        "https://apps.legislature.ky.gov/law/kar/titles/201/001/065/",
+        "https://apps.legislature.ky.gov/law/kar/titles/201/001/100/",
+        "https://apps.legislature.ky.gov/law/kar/titles/201/001/140/",
+        "https://apps.legislature.ky.gov/law/statutes/statute.aspx?id=47505",
+        "https://apps.legislature.ky.gov/law/statutes/statute.aspx?id=56083"
+      ]
+    },
+    {
+      "state_slug": "louisiana",
+      "monitor_urls": [
+        "https://cpaboard.state.la.us/board-rules/",
+        "https://cpaboard.state.la.us/wp-content/uploads/2025/03/Board-Rules-May-2023.pdf"
+      ]
+    },
+    {
+      "state_slug": "maine",
+      "monitor_urls": [
+        "https://legislature.maine.gov/statutes/32/title32sec12203.html",
+        "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+        "https://www.maine.gov/sos/sites/maine.gov.sos/files/inline-files/041c010-2025-212%20%28AMD%29_0.docx",
+        "https://www.pfr.maine.gov/almsonline/almsquery/searchindividual.aspx?board=4110"
+      ]
+    },
+    {
+      "state_slug": "maryland",
+      "monitor_urls": [
+        "https://dsd.maryland.gov/regulations/Pages/09.24.01.09.aspx",
+        "https://mgaleg.maryland.gov/2026RS/Statute_Web/gbo/2-311.pdf",
+        "https://mgaleg.maryland.gov/2026RS/Statute_Web/gbo/2-407.pdf",
+        "https://regs.maryland.gov/us/md/exec/comar/09.24.01.09",
+        "https://regs.maryland.gov/us/md/exec/comar/09.24.02.03"
+      ]
+    },
+    {
+      "state_slug": "massachusetts",
+      "monitor_urls": [
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleII/Chapter7/Section3B",
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B",
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B%201~2",
+        "https://www.mass.gov/regulations/252-CMR-200-requirements-for-certification"
+      ]
+    },
+    {
+      "state_slug": "michigan",
+      "monitor_urls": [
+        "https://ars.apps.lara.state.mi.us/AdminCode/DownloadAdminCodeFile?FileName=R%20338.5101%20%20to%20R%20338.5503.pdf",
+        "https://ars.apps.lara.state.mi.us/AdminCode/DownloadAdminCodeFile?FileName=R%20339.1001%20to%20R%20339.1005.pdf",
+        "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-409",
+        "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-729",
+        "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-727a",
+        "https://www.michigan.gov/lara/bureau-list/bpl/occ/prof/accountancy"
+      ]
+    },
+    {
+      "state_slug": "minnesota",
+      "monitor_urls": [
+        "https://www.revisor.mn.gov/rules/1105.3100/",
+        "https://www.revisor.mn.gov/statutes/cite/326A.04",
+        "https://www.revisor.mn.gov/statutes/cite/326A.05"
+      ]
+    },
+    {
+      "state_slug": "mississippi",
+      "monitor_urls": [
+        "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf"
+      ]
+    },
+    {
+      "state_slug": "missouri",
+      "monitor_urls": [
+        "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+        "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf"
+      ]
+    },
+    {
+      "state_slug": "montana",
+      "monitor_urls": [
+        "https://boards.bsd.dli.mt.gov/public-accountants/license-information/index",
+        "https://boards.bsd.dli.mt.gov/public-accountants/license-information/license-reactivation",
+        "https://rules.mt.gov/browse/collections/aec52c46-128e-4279-9068-8af5d5432d74/policies/8f199e69-fbf8-4c7e-9f80-d880edea6909",
+        "https://rules.mt.gov/browse/collections/aec52c46-128e-4279-9068-8af5d5432d74/policies/e771662b-5ee2-465d-880e-b573b7bc1dcd"
+      ]
+    },
+    {
+      "state_slug": "nebraska",
+      "monitor_urls": [
+        "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136",
+        "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136.01",
+        "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf"
+      ]
+    },
+    {
+      "state_slug": "nevada",
+      "monitor_urls": [
+        "https://www.leg.state.nv.us/NAC/NAC-628.html",
+        "https://www.leg.state.nv.us/NAC/NAC-628.html#NAC628Sec210",
+        "https://www.leg.state.nv.us/nac/nac-628.html",
+        "https://www.leg.state.nv.us/nrs/nrs-628.html#NRS628Sec380"
+      ]
+    },
+    {
+      "state_slug": "new-hampshire",
+      "monitor_urls": [
+        "https://gc.nh.gov/rsa/html/XXX/310/310-8.htm",
+        "https://gc.nh.gov/rules/state_agencies/ac100-500.html",
+        "https://gc.nh.gov/rules/state_agencies/plc1000.html",
+        "https://www.oplc.nh.gov/sites/g/files/ehbemt441/files/inline-documents/20250717_ac400adoptedtext.pdf"
+      ]
+    },
+    {
+      "state_slug": "new-jersey",
+      "monitor_urls": [
+        "https://www.njconsumeraffairs.gov/Adoptions/accado_09032019.pdf",
+        "https://www.njconsumeraffairs.gov/Adoptions/accado_09042018.pdf"
+      ]
+    },
+    {
+      "state_slug": "new-mexico",
+      "monitor_urls": [
+        "https://www.nmlegis.gov/Sessions/25%20Regular/final/HB0296.pdf",
+        "https://www.srca.nm.gov/parts/title16/16.060.0001.html",
+        "https://www.srca.nm.gov/parts/title16/16.060.0003.html"
+      ]
+    },
+    {
+      "state_slug": "new-york",
+      "monitor_urls": [
+        "https://www.nysenate.gov/legislation/laws/EDN/6502",
+        "https://www.nysenate.gov/legislation/laws/EDN/7404",
+        "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/part-70"
+      ]
+    },
+    {
+      "state_slug": "north-carolina",
+      "monitor_urls": [
+        "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html",
+        "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.pdf",
+        "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0106.html",
+        "https://nccpaboard.gov/resource-group/ncac-08g-continuing-professional-education-cpe/"
+      ]
+    },
+    {
+      "state_slug": "north-dakota",
+      "monitor_urls": [
+        "https://ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
+        "https://www.ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
+        "https://www.ndlegis.gov/information/acdata/pdf/3-03-01.pdf"
+      ]
+    },
+    {
+      "state_slug": "northern-mariana-islands",
+      "monitor_urls": [
+        "https://cnmilaw.gov/docs/admincode/T01/T01-10.pdf",
+        "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
+        "https://cnmilaw.gov/commonwealth-code/3743"
+      ]
+    },
+    {
+      "state_slug": "ohio",
+      "monitor_urls": [
+        "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-02",
+        "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-09",
+        "https://codes.ohio.gov/ohio-revised-code/section-4701.10"
+      ]
+    },
+    {
+      "state_slug": "oklahoma",
+      "monitor_urls": [
+        "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+        "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=95027",
+        "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=95028",
+        "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=95030"
+      ]
+    },
+    {
+      "state_slug": "oregon",
+      "monitor_urls": [
+        "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+        "https://secure.sos.state.or.us/oard/viewSingleRule.action?ruleVrsnRsn=314982",
+        "https://www.oregonlegislature.gov/bills_laws/ors/ors673.html",
+        "https://www.oregon.gov/boa/pages/peer-review.aspx"
+      ]
+    },
+    {
+      "state_slug": "pennsylvania",
+      "monitor_urls": [
+        "https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/049/chapter11/s11.4.html&d=reduce",
+        "https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/049/chapter11/s11.62.html",
+        "https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/049/chapter11/s11.62.html&d=reduce",
+        "https://www.palegis.us/statutes/unconsolidated/law-information/view-statute?iFrame=true&txtType=HTM&yr=1947&sessInd=0&smthLwInd=0&act=140&chpt=0&sctn=8&subsctn=2"
+      ]
+    },
+    {
+      "state_slug": "puerto-rico",
+      "monitor_urls": [
+        "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
+        "https://www.estado.pr.gov/juntas-examinadoras/contadores-publicos-autorizados"
+      ]
+    },
+    {
+      "state_slug": "rhode-island",
+      "monitor_urls": [
+        "https://rules.sos.ri.gov/regulations/part/400-00-00-1",
+        "https://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-7.htm"
+      ]
+    },
+    {
+      "state_slug": "south-carolina",
+      "monitor_urls": [
+        "https://www.scstatehouse.gov/code/t40c002.php"
+      ]
+    },
+    {
+      "state_slug": "south-dakota",
+      "monitor_urls": [
+        "https://sdlegislature.gov/Rules/Administrative/20:75:03:12",
+        "https://sdlegislature.gov/api/Rules/20:75:03:03.html",
+        "https://sdlegislature.gov/api/Rules/20:75:03:12.html",
+        "https://sdlegislature.gov/api/Statutes/36-20B-27.html"
+      ]
+    },
+    {
+      "state_slug": "tennessee",
+      "monitor_urls": [
+        "https://publications.tnsosfiles.com/rules/0020/0020-01.20240528.pdf",
+        "https://publications.tnsosfiles.com/rules/0020/0020-05.20211006.pdf"
+      ]
+    },
+    {
+      "state_slug": "texas",
+      "monitor_urls": [
+        "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=184997",
+        "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=206373",
+        "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=226322",
+        "https://www.tsbpa.texas.gov/act"
+      ]
+    },
+    {
+      "state_slug": "us-virgin-islands",
+      "monitor_urls": [
+        "https://dlca.vi.gov/pdf/Rules%20and%20Regulations%20CPA.pdf",
+        "https://dlca.vi.gov/pdf/USVI_Board_of_Public_Accountancy_Act_of_2014.pdf",
+        "https://billtracking.legvi.org/view-pdf/?pdf_path=RTpcaW5ldHB1Ylx3d3dyb290XEJpbGxUcmFja2luZzIwMnhCYWNrZW5kXEJpbGxUcmFja2luZ1BERlxBY3RcNzU5Ni5wZGY=",
+        "https://dlca.vi.gov/aboutcpa/"
+      ]
+    },
+    {
+      "state_slug": "utah",
+      "monitor_urls": [
+        "https://adminrules.utah.gov/api/public/getfile/uac-pdf/568163a4-6f7f-4c4f-b2f3-d930f2598eff.pdf/R156-1.pdf",
+        "https://adminrules.utah.gov/api/public/getfile/uac-pdf/a87bebd9-585a-455e-b397-fe66ba37a698.pdf/R156-26a.pdf",
+        "https://le.utah.gov/xcode/Title58/Chapter1/C58-1-S308_2024050120240501.html"
+      ]
+    },
+    {
+      "state_slug": "vermont",
+      "monitor_urls": [
+        "https://legislature.vermont.gov/statutes/section/03/005/00127",
+        "https://legislature.vermont.gov/statutes/section/26/001/00056",
+        "https://legislature.vermont.gov/statutes/section/26/001/00075",
+        "https://outside.vermont.gov/dept/sos/office_professional_regulation/professions/accountancy/accountancy_board_administrative_rules.pdf"
+      ]
+    },
+    {
+      "state_slug": "virginia",
+      "monitor_urls": [
+        "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section180/",
+        "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section20/",
+        "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section90/"
+      ]
+    },
+    {
+      "state_slug": "washington",
+      "monitor_urls": [
+        "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-038",
+        "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-094",
+        "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-114",
+        "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-124",
+        "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134"
+      ]
+    },
+    {
+      "state_slug": "west-virginia",
+      "monitor_urls": [
+        "https://code.wvlegislature.gov/30-9-12/",
+        "https://code.wvlegislature.gov/30-9-17/",
+        "https://www.boa.wv.gov/www/download_resource.asp?id=55"
+      ]
+    },
+    {
+      "state_slug": "wisconsin",
+      "monitor_urls": [
+        "https://docs.legis.wisconsin.gov/document/administrativecode/Accy%202.501",
+        "https://docs.legis.wisconsin.gov/document/administrativecode/Accy%202.602",
+        "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/03",
+        "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08"
+      ]
+    },
+    {
+      "state_slug": "wyoming",
+      "monitor_urls": [
+        "https://drive.google.com/uc?export=download&id=17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj",
+        "https://drive.google.com/uc?export=download&id=1_PXSjRL7bujzlYPfR4-srukZSptY2Saa",
+        "https://drive.google.com/uc?export=download&id=1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5",
+        "https://wyoleg.gov/statutes/compress/title33.pdf"
+      ]
+    }
+  ]
+}
