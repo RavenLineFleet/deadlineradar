@@ -146,6 +146,19 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string;
   SENDGRID_API_KEY?: string;
   /**
+   * OPTIONAL -- a wrangler secret, never hardcoded, never committed, same
+   * convention as SENDGRID_API_KEY. Devin chose Resend to replace SendGrid
+   * (2026-09-23, orchestrator directive: SendGrid's trial ended 09-02 and
+   * the account is confirmed blocked -- 401 "Maximum credits exceeded",
+   * live-tested the same day). sendViaSendGrid() (sender.ts) selects the
+   * Resend transport when a caller passes this through as its new trailing
+   * `resendApiKey` param; SendGrid stays the active path (and the fallback)
+   * until Resend is wired into real call sites and verified live -- not yet
+   * true anywhere in this checkout, so this var currently has zero
+   * production effect even once set.
+   */
+  RESEND_API_KEY?: string;
+  /**
    * SecurityLab (2026-08-29, corroborated by AuditLab): without this, every
    * control this Worker enforces (originAllowed(), the 100/hr/IP
    * RATE_LIMIT_ASSISTANT_CHAT) is bypassable by hitting the droplet's own

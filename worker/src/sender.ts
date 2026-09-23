@@ -21,6 +21,7 @@
 import type { BuiltEmail } from "./emails";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM_EMAIL = "noreply@deadline-radar.com";
 const FROM_NAME = "Deadline-Radar";
 const SEND_TIMEOUT_MS = 10_000;
@@ -321,7 +322,21 @@ export async function sendViaSendGrid(
   // above, so SendGrid's own domain authentication (SPF/DKIM) is untouched
   // and DeadlineRadar remains the sender of record for CAN-SPAM purposes.
   // Only where a REPLY goes changes.
-  replyTo?: string
+  replyTo?: string,
+  // Devin chose Resend to replace SendGrid (2026-09-23, orchestrator
+  // directive, SendGrid account blocked -- "Maximum credits exceeded",
+  // live-confirmed same day). Deliberately a NEW TRAILING optional param,
+  // not a signature change: the function's NAME and existing params stay
+  // exactly as every one of the 41 current call sites (plus preship_gate's
+  // DEMO-EMAIL/consent checks, which key on the literal name) already
+  // expect -- a rename is separate, later cleanup. Selected when the
+  // CALLER passes a truthy env.RESEND_API_KEY here; no call site does yet
+  // (that wiring is a deliberate follow-up, once the key exists and the
+  // sending domain is verified), so this is fully dead in production today
+  // -- exercised only by direct unit tests until then. SendGrid stays the
+  // active path (and remains available as a fallback) until Resend is
+  // wired in and verified live.
+  resendApiKey?: string
 ): Promise<boolean> {
   const allowlist = parseAllowlist(emailAllowlist);
   // Preview/staging visibility (2026-07-28; decoupled from the allowlist
@@ -338,6 +353,21 @@ export async function sendViaSendGrid(
   if (allowlist && !allowlist.includes(toEmail.trim().toLowerCase())) {
     return false;
   }
+  // Shared across both transports -- the allowlist/preview gates above are
+  // provider-agnostic and must apply identically regardless of which one
+  // ends up sending.
+  if (resendApiKey) {
+    return sendViaResendTransport(resendApiKey, toEmail, email, replyTo);
+  }
+  return sendViaSendGridTransport(apiKey, toEmail, email, replyTo);
+}
+
+async function sendViaSendGridTransport(
+  apiKey: string,
+  toEmail: string,
+  email: BuiltEmail,
+  replyTo?: string
+): Promise<boolean> {
   const personalization: Record<string, unknown> = { to: [{ email: toEmail }] };
   if (email.headers && Object.keys(email.headers).length > 0) {
     // SendGrid attaches custom transport headers per personalization, values
@@ -397,6 +427,67 @@ export async function sendViaSendGrid(
     // SEND_TIMEOUT_MS abort also vanished silently. Name it (still returns
     // false; the caller's own failure handling is unchanged).
     console.log(`[sendgrid-error] ${String(err)}`);
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Resend's v1 mail-send API (https://resend.com/docs/api-reference/emails/send-email).
+ * Mirrors sendViaSendGridTransport()'s contract exactly (2xx -> true, every
+ * other outcome -> false, never throws) and preserves everything the
+ * SendGrid path does that Resend's request shape supports: same FROM_EMAIL/
+ * FROM_NAME, same reply-to behavior, same List-Unsubscribe/List-Unsubscribe-
+ * Post headers (RFC 8058), same text+html bodies. Resend has no
+ * per-request click/open-tracking toggle (unlike SendGrid's
+ * tracking_settings) -- tracking is an account-level dashboard setting on
+ * Resend, so there is no equivalent field to set here; this is a real
+ * parity gap to confirm (not assume) is off once the account exists.
+ */
+async function sendViaResendTransport(
+  apiKey: string,
+  toEmail: string,
+  email: BuiltEmail,
+  replyTo?: string
+): Promise<boolean> {
+  const payload: Record<string, unknown> = {
+    from: `${FROM_NAME} <${FROM_EMAIL}>`,
+    to: [toEmail],
+    subject: email.subject,
+    text: email.textBody,
+    html: email.htmlBody,
+    ...(replyTo ? { reply_to: replyTo } : {}),
+    ...(email.headers && Object.keys(email.headers).length > 0 ? { headers: email.headers } : {}),
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+  try {
+    const resp = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (resp.status >= 200 && resp.status < 300) return true;
+    // Same MON-5 discipline as the SendGrid path -- log status + a bounded
+    // body snippet, never swallow the failure reason. Resend error bodies
+    // carry validation/quota messages, never the API key (Authorization
+    // header only, never echoed back).
+    let bodySnippet: string;
+    try {
+      bodySnippet = (await resp.text()).slice(0, 500);
+    } catch {
+      bodySnippet = "<body unreadable>";
+    }
+    console.log(`[resend-fail] status=${resp.status} body=${JSON.stringify(bodySnippet)}`);
+    return false;
+  } catch (err) {
+    console.log(`[resend-error] ${String(err)}`);
     return false;
   } finally {
     clearTimeout(timeoutId);
