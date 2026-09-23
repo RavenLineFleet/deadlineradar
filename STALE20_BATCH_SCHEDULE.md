@@ -102,9 +102,18 @@ counts, same as batch 1's own report) as it ships -- do not let it go stale itse
 ## Standing rules for auto-extend's --apply (2026-09-23, until told otherwise)
 
 Once STALE-20 batches start recording manual anchors, auto-extend's `--apply` flag becomes able to
-produce real proposals. Per `_AAA_orchestrator_20260923_AUTO10_plus_apply_rules.md`:
-1. No scheduler, cron, loop, or watchdog may call `--apply`. Run by hand only.
+produce real proposals. Per `_AAA_orchestrator_20260923_AUTO10_plus_apply_rules.md` +
+`_AAA_orchestrator_20260923_APPLY1_code_enforce.md` (amended 04:50):
+1. No scheduler, cron, loop, or watchdog may call `--apply`. **Code-enforced (APPLY-1)**, not just a
+   standing rule: `--apply` refuses (writes nothing, exits non-zero) unless BOTH a per-run approval
+   token matching that exact proposals set (via `AUTO_EXTEND_APPLY_APPROVED` env var or the one-shot
+   file `auto_extend_proposals/.apply_approved`, containing `compute_proposals_tag()`'s sha256) AND
+   an interactive TTY are present. No bypass either way -- a non-interactive invocation refuses even
+   with a valid token.
 2. The FIRST `--apply` run with more than 0 proposals: stop after the write, BEFORE commit/deploy.
    Send AuditLab the proposals JSON plus the diff to check against live sources. Commit only on its
-   PASS.
+   PASS. (Procedural, not mechanically enforceable -- it's about not committing prematurely.)
 3. Every applied run is exactly one commit, so any run can be reverted.
+4. **The approval token is granted by Orchestrator, after AuditLab's PASS on that specific proposals
+   file.** Whoever runs a real `--apply` (proposals > 0) must wait for that token before running with
+   the flag -- running without it is a guaranteed refusal by design, not an error to work around.

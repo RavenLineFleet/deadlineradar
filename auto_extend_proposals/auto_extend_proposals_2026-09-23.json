@@ -4,10 +4,11 @@
   "candidate_total": 58,
   "proposal_count": 0,
   "proposals": [],
+  "proposals_tag": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   "rejection_summary": {
-    "ceiling": 18,
+    "ceiling": 17,
     "no_baseline": 39,
-    "no_owner": 1
+    "no_owner": 2
   },
   "coverage": {
     "by_dataset": {
@@ -20,7 +21,7 @@
         "eligible": 0
       },
       "cpa_deadlines.json": {
-        "total": 15,
+        "total": 14,
         "eligible": 0
       },
       "reinstatement.json": {
@@ -74,10 +75,6 @@
         "eligible": 0
       },
       "colorado": {
-        "total": 1,
-        "eligible": 0
-      },
-      "louisiana": {
         "total": 1,
         "eligible": 0
       },
@@ -184,7 +181,6 @@
       "iowa",
       "kansas",
       "kentucky",
-      "louisiana",
       "maine",
       "maryland",
       "michigan",
@@ -208,5 +204,6 @@
     ]
   },
   "stage_b_applied_count": 0,
-  "stage_b_out_of_scope_count": 0
+  "stage_b_out_of_scope_count": 0,
+  "stage_b_refused_reason": null
 }
