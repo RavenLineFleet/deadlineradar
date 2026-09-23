@@ -9414,13 +9414,27 @@ def _rule_conflict_card_html(e: dict) -> str:
     # the page or in a gate surfacing it. verified_date was already in the
     # data (every event carries it); conflict_events_staleness_check.py
     # (same commit) is the gate half of this fix.
+    #
+    # AuditLab RC-23 (2026-09-23): the date rendered as plain text with no
+    # `data-verified` attribute, so _STALE_BADGE_RUNTIME_JS's own
+    # re-verification-overdue script -- already shipped on this page,
+    # already live on 56 state pages -- found nothing here. Same
+    # data-verified format _verified_badge_html() uses (raw ISO string, not
+    # fmt_date's human string -- the script's own regex requires it), plus
+    # the verified-badge class so a card the script marks stale also gets
+    # its existing .verified-badge.verified-stale visual treatment.
     _verified = e.get("verified_date")
     verified_html = ""
     if isinstance(_verified, str) and _verified:
         try:
-            verified_html = f'<p class="rc-verified">Verified {esc(fmt_date(date.fromisoformat(_verified)))}</p>'
+            _verified_human = esc(fmt_date(date.fromisoformat(_verified)))
         except ValueError:
             pass
+        else:
+            verified_html = (
+                f'<p class="rc-verified verified-badge" data-verified="{esc(_verified)}">'
+                f'Verified {_verified_human}</p>'
+            )
     return f"""<div class="rc-card rc-conflict">
   <div class="rc-head">
     <span class="rc-jurisdiction">{esc(e.get("jurisdiction") or e.get("jurisdiction_slug", ""))}</span>
