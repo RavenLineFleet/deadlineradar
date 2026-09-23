@@ -5486,6 +5486,10 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
   // for the dismiss-endpoint class of finding.
   if (session.firm.demo_locked) {
     reason = "This is a shared demo account -- emails aren't sent from it.";
+  } else if (session.firm.is_test_tenant) {
+    // migration 0079: same "gate the send" posture as demo_locked above,
+    // synthetic operator test tenant -- never demo_locked itself.
+    reason = "This is a test tenant -- emails aren't sent from it.";
   } else if (!env.SENDGRID_API_KEY) {
     reason = "Email sending isn't configured.";
   } else if (await store.isPermanentlySuppressed(env.DB, staffRow.email)) {
@@ -7906,7 +7910,9 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   // true. A demo visitor types any address here and our servers email it
   // in one step. See handleFirmStaffCpeReminder's own comment for the
   // "gate the send, not the edit" reasoning.
-  if (env.SENDGRID_API_KEY && !session.firm.demo_locked) {
+  // migration 0079: is_test_tenant gets the same send-gate as demo_locked
+  // immediately above -- never demo_locked itself.
+  if (env.SENDGRID_API_KEY && !session.firm.demo_locked && !session.firm.is_test_tenant) {
     try {
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (underCap) {
@@ -8193,7 +8199,9 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
   // edit" reasoning as handleFirmLicenseCreate's own comment -- the PATCH
   // (including the email swap itself) still succeeds normally for a demo
   // visitor, only the outbound email to the new address is skipped.
-  if (emailChanged && env.SENDGRID_API_KEY && !session.firm.demo_locked) {
+  // migration 0079: is_test_tenant gets the same send-gate as demo_locked
+  // immediately above -- never demo_locked itself.
+  if (emailChanged && env.SENDGRID_API_KEY && !session.firm.demo_locked && !session.firm.is_test_tenant) {
     try {
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (underCap) {
@@ -11188,7 +11196,9 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
   // sign-in to keep working. Two-factor authentication tying sign-in to
   // ONE person's authenticator app would lock everyone else out of the
   // exact account this exists to let anyone freely try.
-  if (firm.demo_locked) {
+  // migration 0079: is_test_tenant gets the same front-door block as
+  // demo_locked immediately above -- never demo_locked itself.
+  if (firm.demo_locked || firm.is_test_tenant) {
     return jsonResponse(400, { error: "Two-factor authentication isn't available for this shared demo account." });
   }
   if (member.totp_enrolled_at) {
@@ -11320,7 +11330,9 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
   // could otherwise hold a secret from before a firm became demo_locked
   // and confirm it after, same "don't trust an earlier gate alone" posture
   // as this file's own M1 fix for email_change/password purposes.
-  if (firm.demo_locked) {
+  // migration 0079: is_test_tenant gets the same front-door block as
+  // demo_locked immediately above -- never demo_locked itself.
+  if (firm.demo_locked || firm.is_test_tenant) {
     return jsonResponse(400, { error: "Two-factor authentication isn't available for this shared demo account." });
   }
   if (member.totp_enrolled_at) {
@@ -11424,7 +11436,9 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
   // Unreachable in practice today (a demo_locked firm can never enroll --
   // see handleFirm2faEnroll's own gate), kept explicit anyway rather than
   // relying on that invariant holding forever across future changes.
-  if (firm.demo_locked) {
+  // migration 0079: is_test_tenant gets the same front-door block as
+  // demo_locked immediately above -- never demo_locked itself.
+  if (firm.demo_locked || firm.is_test_tenant) {
     return jsonResponse(400, { error: "Two-factor authentication isn't available for this shared demo account." });
   }
   if (!env.TOTP_ENCRYPTION_KEY) {

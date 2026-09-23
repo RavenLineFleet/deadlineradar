@@ -120,6 +120,18 @@ docs_preview/
 worker/.wrangler/
 .wrangler/
 
+# Orchestrator ruling (2026-09-23, unblock AuditLab's cross-tenant IDOR
+# test): Test Firm B's provisioning state (its real firm_id, member_id,
+# subscriber ids in production) and any minted operator session file --
+# never commit either. The session file holds a raw, valid production
+# session token (mint_test_session.py writes it, teardown deletes it with
+# the tenant); the state file is what teardown reads to know what to
+# delete. Neither is secret in the sense of unlocking anything but a
+# synthetic test tenant with no real data, but both are per-run
+# operational state, same posture as the .apply_approved token above.
+scripts/.test_tenant_b_state.json
+scripts/.test_tenant_*_session.txt
+
 # Session scratch (raw D1 query dumps with internal row ids, dry-run
 # screenshot output, ad-hoc probe scripts) -- found sitting untracked next to
 # a real change during the 2026-09-02 showcase re-capture review, one

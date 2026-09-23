@@ -4388,19 +4388,38 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             # to a bare substring search. Balanced-paren extraction (not a
             # naive `[^)]*` regex, which mis-truncates on a nested call --
             # see _find_if_conditions()'s docstring, GUARD-1 follow-up).
-            guarded = any(
+            demo_locked_guarded = any(
                 "demo_locked" in cond and not _condition_is_constant_false(cond)
                 for cond, _, _ in _find_if_conditions(body)
             )
-            if guarded:
+            # migration 0079 (Orchestrator ruling, 2026-09-23, unblock
+            # AuditLab's cross-tenant IDOR test): is_test_tenant is a
+            # SEPARATE flag from demo_locked (never reused -- see
+            # FirmBasicInfo.is_test_tenant's own comment in store.ts for
+            # why), so it needs its OWN live-condition guard, not just
+            # demo_locked's. Reuses the SAME allowlist below: every entry's
+            # reasoning (fixed operator recipient, no firm association,
+            # front-door-gated, self-referential) applies identically to a
+            # test tenant as it does to the demo firm -- none of them turn
+            # on demo_locked specifically.
+            test_tenant_guarded = any(
+                "is_test_tenant" in cond and not _condition_is_constant_false(cond)
+                for cond, _, _ in _find_if_conditions(body)
+            )
+            if demo_locked_guarded and test_tenant_guarded:
                 continue
             if name in allowlisted:
                 continue
+            missing = []
+            if not demo_locked_guarded:
+                missing.append("demo_locked")
+            if not test_tenant_guarded:
+                missing.append("is_test_tenant")
             errors.append(
-                f"[DEMO-EMAIL] {name}() ({ts_file.name}) calls sendViaSendGrid() but has no demo_locked "
-                "check and isn't in check_demo_locked_email_coverage()'s allowlist -- either gate the "
-                "send for a demo_locked firm, or add it to the allowlist with the reason its recipient "
-                "is never attacker-controlled"
+                f"[DEMO-EMAIL] {name}() ({ts_file.name}) calls sendViaSendGrid() but has no live "
+                f"{'/'.join(missing)} check and isn't in check_demo_locked_email_coverage()'s allowlist "
+                "-- either gate the send for a demo_locked or is_test_tenant firm, or add it to the "
+                "allowlist with the reason its recipient is never attacker-controlled"
             )
 
     # Reverse direction: an allowlist entry for a function that no longer
