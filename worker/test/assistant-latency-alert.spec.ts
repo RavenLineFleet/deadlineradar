@@ -240,8 +240,15 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       fetchSpy.mockRestore();
     }
     // AssetLab (2026-09-23): same 1000-real-write shape as the sibling test
-    // above -- see its comment.
-  }, 60000);
+    // above -- see its comment. Bumped 60000 -> 90000 after it still timed
+    // out at 60000ms in a later full-suite run -- this is the heaviest
+    // single test in the suite (1000 sequential writes AND a full pass
+    // invocation on top), so it's the first to reveal how bad a given
+    // run's contention actually is. Noting honestly rather than assuming
+    // this number is now final: some residual variance under heavy
+    // parallel-suite load is inherent to this machine, not fully
+    // eliminable by tuning one test's timeout indefinitely upward.
+  }, 90000);
 
   it("approved, p95 threshold breached without any single sample over 30s -- still sends", async () => {
     const captured: string[] = [];
