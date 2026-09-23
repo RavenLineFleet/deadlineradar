@@ -5000,12 +5000,23 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
   // 2027-03-22, also outside the window. Michigan had shared the earliest
   // expiry (2027-01-27) with Alabama; Alabama alone now holds that slot,
   // so nearing[0]'s daysUntilExpiry/expiresOn below are unchanged even
-  // though which state they belong to changed. All three are legitimate
-  // re-verifications, not bugs -- this block's numbers are kept in sync
-  // with reality the same way the FRESH-3 block below it is (see that
-  // block's own 2026-09-19 comment for the general principle). Three of
-  // 110 rows (Guam-individual, Oklahoma-individual, Michigan-individual)
-  // now sit outside the window; 107 real rows should appear.
+  // though which state they belong to changed. RC-31 (2026-09-23,
+  // AssetLab, AuditLab-ruled, reversing their own prior NO once the NMIAC
+  // PDF was found readable) did the same to Northern-Mariana-Islands-
+  // individual -- both sides read from primary that day too, bumping
+  // verified_date to 2026-09-23 and pushing its TTL out to 2027-03-22 as
+  // well (same date as Michigan's, coincidentally, since both were
+  // verified the same day). mobilityRowsNearingExpiry() reads EVERY
+  // mobility_rules.json record's verified_date as an "individual" row
+  // regardless of individual_practice_privilege's actual value (NMI's is
+  // null) -- NMI-FIRM is a separate row sourced from firm_mobility_rules.
+  // json's own verified_date and is unaffected by this bump. All four are
+  // legitimate re-verifications, not bugs -- this block's numbers are kept
+  // in sync with reality the same way the FRESH-3 block below it is (see
+  // that block's own 2026-09-19 comment for the general principle). Four
+  // of 110 rows (Guam-individual, Oklahoma-individual, Michigan-
+  // individual, Northern-Mariana-Islands-individual) now sit outside the
+  // window; 106 real rows should appear.
 
   it("nothing is nearing expiry today (2026) -- the real window is 5 months out", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
@@ -5017,15 +5028,19 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
     // 2027-01-20: earliest expiry (2027-01-27) is 7 days out -- inside the
     // 30-day window, so every real row still within TTL at this point
-    // should appear (107 of the 110 total; Guam-individual, Oklahoma-
-    // individual and Michigan-individual's re-verified TTLs now expire
-    // 2027-02-23, 2027-03-18 and 2027-03-22 respectively, all outside the
-    // window -- see the describe-block comment above).
+    // should appear (106 of the 110 total; Guam-individual, Oklahoma-
+    // individual, Michigan-individual and Northern-Mariana-Islands-
+    // individual's re-verified TTLs now expire 2027-02-23, 2027-03-18,
+    // 2027-03-22 and 2027-03-22 respectively, all outside the window --
+    // see the describe-block comment above). NMI-FIRM (a separate row,
+    // from firm_mobility_rules.json's own verified_date, untouched by
+    // RC-31) is unaffected and still appears.
     const nearing = mobilityRowsNearingExpiry(new Date("2027-01-20T00:00:00Z"));
-    expect(nearing.length).toBe(107);
+    expect(nearing.length).toBe(106);
     expect(nearing.some((r) => r.state === "Guam" && r.type === "individual")).toBe(false);
     expect(nearing.some((r) => r.state === "Oklahoma" && r.type === "individual")).toBe(false);
     expect(nearing.some((r) => r.state === "Michigan" && r.type === "individual")).toBe(false);
+    expect(nearing.some((r) => r.state === "Northern Mariana Islands" && r.type === "individual")).toBe(false);
     // Sorted soonest-first.
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
