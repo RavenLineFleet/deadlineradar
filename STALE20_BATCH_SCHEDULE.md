@@ -13,28 +13,35 @@ shipping once a record's `verified_date`/`last_verified` turns 31 days old. Re-v
 first in ~31-record batches (spread across sessions ahead of each cliff) avoids re-creating a
 157-record wall on a single date, per AuditLab's original "157-record wall" finding.
 
-## Current wall, as of 2026-09-23 post-batch-2 (independently recomputed from live data, not carried forward)
+## Current wall, as of 2026-09-23 post-batch-2-corrected (independently recomputed from live data, not carried forward)
 
 | Cohort date | Records | cpe_hours | reinstatement | renewal_fees | Gate-blocking cliff (verified_date + 30d) |
 |---|---|---|---|---|---|
-| 2026-09-12 (89 remain of 115) | 89 | 22 | 45 | 22 | 2026-10-12 |
+| 2026-09-09 (4 remain of 6) | 4 | 0 | 0 | 4 | **2026-10-09** |
+| 2026-09-12 (109 remain of 115) | 109 | 42 | 45 | 22 | 2026-10-12 |
 | 2026-09-13 | 1 | 0 | 0 | 1 | 2026-10-13 |
 | 2026-09-19 | 3 | 2 | 1 | 0 | 2026-10-19 |
 | 2026-09-22 (batch 1, DONE) | 32 | 1 | 5 | 26 | 2026-10-22 |
-| 2026-09-23 (batch 2, DONE) | 32 | 26 | 0 | 6 | 2026-10-23 |
+| 2026-09-23 (batch 2, 8 genuinely confirmed) | 8 | 6 | 0 | 2 | 2026-10-23 |
 
 Batch 1 (32 records: 1 cpe_hours + 5 reinstatement + 26 renewal_fees, all originally 2026-09-09)
 already shipped 2026-09-22, `CONFIRMED_UNCHANGED` 32/32 — see HANDOFF's 2026-09-22 ~12:00 MDT
 entry.
 
-**Batch 2 (32 records: all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cpe_hours cohort)
-shipped 2026-09-23, commit `229d85b80`.** 20/32 anchored a real manual baseline for the first time
-(manual_verified_raw_hash/byte_length/manual_verified_anchor); 12/32 stayed honestly manual-only (0
-hard fetch failures — bot-walls/missing-anchor/identity misses, not network errors).
-`wyoming-renewal-fee` anchored via its recorded monitor_url override, per AUTO-10. Produced
-auto-extend's first-ever 7 real eligible candidates (6 cpe_hours + 1 renewal_fees) — not applied,
-awaiting the standing first-run approval process. **93 records remain**, across the 09-12 (89
-remaining)/09-13/09-19 cohorts above.
+**Batch 2 (32 records attempted, commit `229d85b80`, corrected 2026-09-23 per DATE-1 --
+`_AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md`): only 8 genuinely re-confirmed
+(ak-cpe, ct-cpe, il-cpe, la-cpe, md-cpe, mi-cpe, virginia-renewal-fee, washington-renewal-fee) --
+their `verified_date`/`last_manual_verified_date` bump and anchor baseline are legitimate.** The
+first ship wrongly bumped dates on 24 more (12 PDFs never text-read, 2 fetches that 403'd, several
+anchor/identity misses, one HTML page where the cited figure wasn't actually on it) -- those 24 are
+reverted to their pre-batch-2 dates (20 back to 09-12, 4 back to 09-09) and their history notes
+reworded to say plainly they were fetched but NOT re-verified. **These 24 still need a real
+re-verification pass (batch-1 method: PDF text extraction or an agent reading it) before their own
+cliff**, folded into batch 3 alongside its own new records. Auto-extend's proposals recomputed:
+only the 8 genuinely confirmed can ever be eligible.
+
+**Batches 3-5 are PAUSED** until AuditLab verifies this correction against the live site (per the
+amended ruling). Do not start batch 3 before that clears.
 
 ## Batches 2–5
 
@@ -44,10 +51,10 @@ must clear before the 2026-10-09 cliff, since that's the earliest hard block. Th
 
 | Batch | Target ship date | Records | Composition | Method |
 |---|---|---|---|---|
-| **2 (DONE, 2026-09-23, `229d85b80`)** | by 2026-09-27 | 32 | all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cohort (all landed in cpe_hours.json, alphabetical by state -- al through mt; the 09-12 cohort's reinstatement/renewal_fees records happened to sort after cpe_hours in file-iteration order, so batch 3 onward should re-derive its own oldest-N rather than assume an even split across datasets) | real citation_url fetch + field-level comparison (cited fee/hours figure presence) + anchor recording |
-| **3** | by 2026-10-01 | 31 | next 31 of the 09-12 cohort (26 consumed so far -- all cpe_hours -- 89 remain: 22 cpe_hours + 45 reinstatement + 22 renewal_fees) | " |
-| **4** | by 2026-10-05 | 31 | next 31 of the 09-12 cohort (57 consumed so far, 27 remain after this) | " |
-| **5** | by 2026-10-08 (day before the first cliff) | 31 | remaining 27 of 09-12 + the 1 09-13 record + all 3 09-19 records | " |
+| **2 (DONE + corrected, 2026-09-23, `229d85b80` + DATE-1 fix)** | by 2026-09-27 | 32 attempted, 8 confirmed | all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cohort (all landed in cpe_hours.json by file-iteration order); only 8 genuinely re-confirmed the cited value, 24 need a real re-pass | real citation_url fetch + field-level comparison (cited fee/hours figure ACTUALLY confirmed, not just fetched) + anchor recording, gated by DATE-1 |
+| **3 (PAUSED)** | by 2026-10-01 | 31 new + the 24 needing re-verification from batch 2 | re-derive the oldest-N of the 09-12/09-09 cohort at execution time; prioritize the 4 remaining 09-09 records (nearest cliff) and the 20 reverted 09-12 cpe_hours records over fresh ones | batch-1 method for anything landing on a PDF (real text extraction or an agent read) -- a magic-bytes-only fetch can never confirm a PDF per DATE-1 |
+| **4** | by 2026-10-05 | ~31 | re-derive at execution time | " |
+| **5** | by 2026-10-08 (day before the first cliff) | remainder + the 1 09-13 + all 3 09-19 | re-derive at execution time | " |
 
 ## Batch 2 onward: also record the anchor baseline (new, 2026-09-23)
 
@@ -56,20 +63,35 @@ records until MANUAL anchors exist for it to compare against, so from batch 2 on
 re-verification pass must ALSO record its anchor baseline, not just bump `verified_date`/
 `last_verified` the way batch 1 did.
 
+**DATE-1 correction (HIGH, `_AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md`, amended):
+batch 2's first version of this instruction was wrong** -- it said "always set
+`last_manual_verified_date`, regardless of outcome." A fetch succeeding is not the same as the
+claim being re-confirmed: 24 of batch 2's 32 records got a live "Verified" date bump (and their
+30-day cliff clock reset) with nothing behind it -- 12 PDFs whose text was never read, 2 fetches
+that 403'd, several anchor/identity misses. Corrected 2026-09-23, commit TBD-fill-in-on-ship.
+
 For each record, on the SAME fetch used for the field-level comparison, call
-`build_manual_verification_update(url, dataset_filename, record, today=..., fetch=..., overrides=_load_overrides(repo_root))` in
-`scripts/citation_auto_extend_check.py` -- fetch exactly ONCE and reuse those bytes for both the
-comparison and this call, never a second network round-trip. Apply the returned dict's fields to the
-record:
-- `last_manual_verified_date` -- always set, regardless of outcome (a verifier DID look).
-- If the source qualifies (`validate_fetch_for_anchoring()` approves): also
-  `manual_verified_raw_hash`, `manual_verified_raw_byte_length`, `manual_verified_anchor` (audit-trail
-  snapshot of the anchor confirmed this pass), and `manual_verify_fetched_url` if an override applied.
-- If not (walled, no extractable anchor, wrong document): those three are explicitly `None` -- clears
-  any stale value from an earlier pass -- and `manual_verify_gap_reason` records why. The record still
-  gets its `last_manual_verified_date`/`verified_date` bump and stays manual-only; this is an expected,
-  honest outcome, not a batch failure. Oregon's OAR and Colorado's board-email source (both already
-  flagged below) are expected to land here.
+`build_manual_verification_update(url, dataset_filename, record, today=..., fetch=..., overrides=_load_overrides(repo_root), pdf_value_manually_confirmed=...)`
+in `scripts/citation_auto_extend_check.py` -- fetch exactly ONCE and reuse those bytes for both the
+comparison and this call, never a second network round-trip. **A verified date moves ONLY when this
+pass actually re-confirmed the record's own `cited_value_for_record()` figure** (a non-PDF page
+literally contains it, or a human/agent read the PDF text directly and passes
+`pdf_value_manually_confirmed=True` -- this function cannot search PDF bytes as text, and a
+coincidental raw-byte match is not evidence, per DATE-1). Apply the returned dict's fields to the
+record EXACTLY as returned, field by field -- do not invent a bump the function didn't return:
+- If confirmed: `last_manual_verified_date` IS in the returned dict -- set it, and ALSO bump
+  `verified_date`/`last_verified` to the same date (the caller's own responsibility, this function
+  doesn't touch that field name). Also apply `manual_verified_raw_hash`, `manual_verified_raw_
+  byte_length`, `manual_verified_anchor`, and `manual_verify_fetched_url` if present.
+- If NOT confirmed: `last_manual_verified_date` is ABSENT from the returned dict -- do not touch
+  the record's existing `verified_date`/`last_verified`/`last_manual_verified_date` at all, they
+  stay exactly as they were before this pass. Still apply `manual_verified_raw_hash`/`byte_length`/
+  `anchor` (all `None`, clearing any stale value from an earlier pass) and `manual_verify_gap_reason`
+  (why) -- this is an honest, expected outcome for a record needing a real content read (a PDF, or a
+  walled page), not a batch failure, and it must be re-attempted (batch-1 method: PDF text
+  extraction or an agent actually reading it) before its own 30-day cliff, not left as "verified."
+  Oregon's OAR and Colorado's board-email source (both already flagged below) are expected to land
+  here structurally (no fetchable text/no citation_url at all).
 
 **AUTO-10, batch 2 MUST pass `overrides`:** RC-29's four override records (`wyoming-renewal-fee`,
 `wyoming-reinstatement`, `wy-cpe`, `northern-mariana-islands-all`) have a `citation_url` that is a
