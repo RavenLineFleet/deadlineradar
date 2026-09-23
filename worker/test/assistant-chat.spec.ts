@@ -171,6 +171,27 @@ describe("POST /assistant/chat -- droplet failure modes", () => {
     }
   });
 
+  it("AuditLab ASSIST-7 (2026-09-23): a 401/403 from the droplet (secret set but wrong/rotated) still 502s the customer, but logs [assistant-secret-rejected] distinctly, and never leaks the upstream body", async () => {
+    for (const status of [401, 403]) {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(JSON.stringify({ error: "unauthorized" }), { status }));
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => { logs.push(String(m)); });
+      try {
+        const resp = await postChat({ message: "hello" });
+        expect(resp.status).toBe(502);
+        const body = (await resp.json()) as { error: string; escalate: boolean };
+        expect(body.error).toBe("The assistant is temporarily unavailable. Please try again shortly.");
+        expect(body.error).not.toContain("unauthorized"); // upstream body never leaks to the customer
+        expect(logs.some((l) => l.includes("[assistant-secret-rejected]") && l.includes(String(status)))).toBe(true);
+      } finally {
+        fetchSpy.mockRestore();
+        logSpy.mockRestore();
+      }
+    }
+  }, 20000); // two statuses x two real retry attempts each (ASSISTANT_CHAT_RETRY_DELAY_MS=2500ms) exceeds vitest's 5s default
+
   it("502s when the droplet's body isn't valid JSON", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("not json", { status: 200 }));
     try {

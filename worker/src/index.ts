@@ -6141,6 +6141,18 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
         rateLimited: true,
       };
     }
+    // AuditLab ASSIST-7 (2026-09-23): a 401/403 (secret set but wrong or
+    // rotated) used to collapse into the same generic 502 as droplet-down,
+    // droplet-500, or malformed JSON -- ASSIST-1's shape recurring (429 got
+    // its own branch above for the same reason). The 2026-08-29 secret-
+    // rotation outage was found by customers, not by operators, because
+    // nothing in the logs named the cause. Customer-facing behavior is
+    // deliberately unchanged (still the generic message, still 502, never
+    // the upstream body) -- only the log line is new.
+    if (resp.status === 401 || resp.status === 403) {
+      console.log(`[assistant-secret-rejected] droplet returned ${resp.status} -- the shared secret is set but wrong or rotated`);
+      return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
+    }
     if (!resp.ok) {
       return { ok: false, status: 502, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
     }
