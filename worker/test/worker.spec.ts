@@ -6832,12 +6832,44 @@ describe("POST /firm/change-email -- request phase", () => {
     expect(resp.status).toBe(400);
   });
 
-  it("rejects a request to change to an email ANOTHER firm already uses", async () => {
+  // ENUM-1 fix (AuditLab, 2026-09-19): this used to return a distinguishable
+  // 400 "already in use" -- an account-existence oracle for any address an
+  // authenticated firm admin named. Now silently no-ops with the SAME
+  // generic success a real request gets, same pattern handleFirmSignup()
+  // already uses pre-auth.
+  it("silently no-ops a request to change to an email ANOTHER firm already uses -- same generic success, no token created", async () => {
     const takenEmail = `changeemail-taken-${Date.now()}@example.com`;
     await createFirmWithSession("Change Email Taken Firm", takenEmail);
-    const { cookie } = await createFirmWithSession("Change Email Requester Firm", `changeemail-requester-${Date.now()}@example.com`);
+    const { firmId, cookie } = await createFirmWithSession("Change Email Requester Firm", `changeemail-requester-${Date.now()}@example.com`);
     const resp = await postChangeEmail(cookie, takenEmail, "203.0.113.264");
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(200);
+    expect(await resp.json()).toEqual({ ok: true });
+    const row = await env.DB
+      .prepare("SELECT COUNT(*) AS c FROM firm_login_tokens WHERE firm_id = ?1 AND purpose = 'email_change'")
+      .bind(firmId)
+      .first<{ c: number }>();
+    expect(row?.c).toBe(0);
+  });
+
+  it("ENUM-1: sends NO email at all for a conflicting target -- never generates a confirm link for an address the caller doesn't control", async () => {
+    const takenEmail = `changeemail-takennomail-${Date.now()}@example.com`;
+    await createFirmWithSession("Change Email Taken NoMail Firm", takenEmail);
+    const { cookie } = await createFirmWithSession("Change Email Requester NoMail Firm", `changeemail-requesternomail-${Date.now()}@example.com`);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 202 }));
+    try {
+      const headers: Record<string, string> = { "content-type": "application/json", "cf-connecting-ip": "203.0.113.267", Cookie: cookie };
+      const worker = (await import("../src/index")).default;
+      const resp = await worker.fetch(
+        new Request("https://deadline-radar.com/firm/change-email", { method: "POST", headers, body: JSON.stringify({ new_email: takenEmail }) }),
+        { ...env, SENDGRID_API_KEY: "test-key-not-real" } as never,
+        testExecutionContext()
+      );
+      expect(resp.status).toBe(200);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("on success, creates an email_change token carrying the exact requested address, and does NOT change admin_email yet", async () => {

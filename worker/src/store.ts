@@ -4818,6 +4818,32 @@ export async function deleteAllSessionsForMember(db: D1Database, memberId: strin
 }
 
 /**
+ * SESS-3 (AuditLab, 2026-09-19, LOW): expiry is already enforced at READ
+ * time and fails closed -- an expired row can never authenticate (see
+ * verifySession()/verifySubscriberSession()) -- so this is a data-
+ * retention fix, not a security one. Without it, every session row ever
+ * created persists forever, including for a member who left a firm
+ * months ago. The cutoff is comfortably PAST expiry itself (not just
+ * `expires_at < now`), so a row stays queryable for a reasonable "when
+ * did this session last run" window before it's swept.
+ */
+export const SESSION_RETENTION_DAYS_PAST_EXPIRY = 90;
+
+export async function purgeExpiredSessions(
+  db: D1Database,
+  asOf: Date,
+  retentionDaysPastExpiry = SESSION_RETENTION_DAYS_PAST_EXPIRY
+): Promise<{ firmSessionsDeleted: number; subscriberSessionsDeleted: number }> {
+  const cutoff = new Date(asOf.getTime() - retentionDaysPastExpiry * 86_400_000).toISOString();
+  const firmResult = await db.prepare(`DELETE FROM firm_sessions WHERE expires_at < ?1`).bind(cutoff).run();
+  const subscriberResult = await db.prepare(`DELETE FROM subscriber_sessions WHERE expires_at < ?1`).bind(cutoff).run();
+  return {
+    firmSessionsDeleted: firmResult.meta.changes ?? 0,
+    subscriberSessionsDeleted: subscriberResult.meta.changes ?? 0,
+  };
+}
+
+/**
  * Roadmap #66 (2026-08-07): "what changed since your last login" banner.
  * Reuses firm_sessions (no new column/migration needed) -- the most recent
  * OTHER session's created_at IS the previous login, by definition. Excludes
