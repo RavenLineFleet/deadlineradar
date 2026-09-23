@@ -109,7 +109,7 @@
       "state": "District of Columbia",
       "state_slug": "dc",
       "field": "data_gap_note",
-      "note": "December 31 of every even-numbered year is the renewal date for both the individual CPA license and the CPA firm permit, per the DC Board of Accountancy's published guidance. Only the firm permit's term is codified: 17 DCMR § 2547.1 sets it for firm permits issued under § 2542. Nothing in the DCMR's accountancy chapter sets the individual license's own term, DC Code § 47-2853.13 delegates term length to law or regulation without stating it, and Title 17's generic license-term rule for other boards (§ 3306) doesn't cover the Board of Accountancy. If unsure, confirm your date with the Board.",
+      "note": "December 31 of every even-numbered year is the renewal date for both the individual CPA license and the CPA firm permit. Only the firm permit's term is codified (17 DCMR § 2547.1); no DCMR section or DC Code provision states the individual license's own term. The DC Board of Accountancy directly confirmed by email (2026-09-16, in reply to a written sourcing question) that this date applies to all accountancy licenses, not just firm permits -- direct Board confirmation, not a codified rule.",
       "is_block_claim": false,
       "terminal_disclosure": true
     },
