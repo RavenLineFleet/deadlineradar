@@ -4559,13 +4559,31 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   if (store.normalizeEmail(newEmailRaw) === session.emailNormalized) {
     return jsonResponse(400, { error: "That's already your email address." });
   }
-  // Same anti-enumeration trade-off handleFirmChangeEmailRequest() makes
-  // (and the same reasoning): the caller here is already an authenticated
-  // subscriber, not an anonymous visitor, and a silent failure at
-  // redemption time is strictly worse UX for zero real benefit -- that
-  // outcome already confirms the same fact one click later regardless.
+  // ENUM-1 fix (AuditLab, 2026-09-19, orchestrator-ruled): this used to
+  // return a distinguishable "already in use" 400, an account-existence
+  // oracle for ANY address the caller names -- the same shape
+  // handleSubscribe()/handleFirmSignup() deliberately avoid pre-auth, and
+  // this codebase already wrote down why that matters (see their own
+  // comments). Fixed the same way those do: identical generic success,
+  // no token created, no email sent to newEmailRaw at all in this branch.
+  // Deliberately NOT "create the token and send the confirm email anyway"
+  // (the pattern this comment used to justify, and the literal shape of
+  // handleFirmSignup()'s "send a login link to the existing owner"): the
+  // redemption handler below signs whoever CLICKS the confirm link into
+  // THIS caller's own session (result.emailNormalized, the token's
+  // identity, not the clicker's) -- safe when the caller genuinely
+  // controls newEmailRaw (the intended, common case), but if newEmailRaw
+  // is really a stranger's live address, sending them an unsolicited
+  // "confirm your email change" link and having them click it would sign
+  // an uninvolved third party into THIS caller's account. Silently
+  // no-op'ing here means that link is never generated for an address the
+  // caller doesn't already control, closing the oracle without opening
+  // that cross-account exposure. (The narrow legitimate RACE case --
+  // newEmailRaw becomes claimed AFTER this check passes, before
+  // redemption -- is pre-existing, unrelated to this fix, and out of its
+  // scope; flagged separately for AuditLab/SecurityLab.)
   if (await store.hasAnySubscriberRowForEmail(env.DB, newEmailRaw)) {
-    return jsonResponse(400, { error: "That email address is already in use." });
+    return jsonResponse(200, { ok: true });
   }
 
   await store.invalidateOutstandingSubscriberEmailChangeTokens(env.DB, session.emailNormalized);
@@ -11691,19 +11709,32 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   if (newEmailRaw.trim().toLowerCase() === member.email.trim().toLowerCase()) {
     return jsonResponse(400, { error: "That's already your email address." });
   }
-  // Adversarial-review L2 (2026-08-05): this IS an account-existence oracle
-  // for an arbitrary address, the same shape handleFirmSignup()/handleFirmLogin()
-  // deliberately avoid pre-auth. Kept anyway, deliberately: unlike those,
-  // the caller here is ALREADY an authenticated firm admin (requireFirmSession()
-  // above), not an anonymous visitor -- and a silent failure at redemption
-  // time (the alternative) would be strictly worse UX for zero real
-  // anti-enumeration benefit, since redemption's own "conflict" outcome
-  // (updateFirmAdminEmail()) already confirms the same fact one click
-  // later regardless. migration 0045: findFirmMemberByEmail(), checking
-  // against every member across every firm, not just each firm's primary.
+  // ENUM-1 fix (AuditLab, 2026-09-19, orchestrator-ruled): Adversarial-
+  // review L2 (2026-08-05) found this exact oracle and chose to KEEP it,
+  // reasoning that redemption's own "conflict" outcome
+  // (updateFirmAdminEmail()) "already confirms the same fact one click
+  // later regardless." That reasoning doesn't hold for an adversarial
+  // caller: redemption signs whoever CLICKS the confirm link into THIS
+  // firm/member (result.firmId/memberId, the token's identity, not the
+  // clicker's) -- safe when the caller genuinely controls newEmailRaw
+  // (the intended, common case), but if newEmailRaw is really a
+  // stranger's live address, "confirming one click later" means an
+  // uninvolved third party clicking an unsolicited email ends up signed
+  // into THIS caller's firm. "One click later" is a real person's
+  // account, not a neutral echo of the same fact back to the prober.
+  // Fixed the same way handleSubscribe()/handleFirmSignup() already do:
+  // identical generic success, no token created, no email sent to
+  // newEmailRaw at all in this branch -- closes the oracle without
+  // generating that link for an address the caller doesn't already
+  // control. (The narrow legitimate RACE case -- newEmailRaw becomes
+  // claimed AFTER this check passes, before redemption -- is
+  // pre-existing, unrelated to this fix, and out of its scope; flagged
+  // separately for AuditLab/SecurityLab.) migration 0045:
+  // findFirmMemberByEmail(), checking against every member across every
+  // firm, not just each firm's primary.
   const conflicting = await store.findFirmMemberByEmail(env.DB, newEmailRaw);
   if (conflicting) {
-    return jsonResponse(400, { error: "That email address is already in use." });
+    return jsonResponse(200, { ok: true });
   }
 
   // Only the LATEST requested address should ever be confirmable -- see
@@ -12834,6 +12865,26 @@ export default {
           }
         } catch (err) {
           console.log(`[account-deletion-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // SESS-3 (AuditLab, 2026-09-19, LOW): expired firm_sessions/
+    // subscriber_sessions rows were never purged -- not a security gap
+    // (expiry is enforced at read time, fails closed), just unbounded
+    // table growth. Deliberately NOT inside the SENDGRID_API_KEY gate
+    // below -- same "unrelated concern that shares one cron trigger"
+    // reasoning as the account-deletion pass just above; a data-retention
+    // sweep must keep working whether or not email is configured.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const { firmSessionsDeleted, subscriberSessionsDeleted } = await store.purgeExpiredSessions(env.DB, new Date());
+          if (firmSessionsDeleted > 0 || subscriberSessionsDeleted > 0) {
+            console.log(`[session-purge-cron] deleted ${firmSessionsDeleted} firm_sessions, ${subscriberSessionsDeleted} subscriber_sessions row(s) past retention`);
+          }
+        } catch (err) {
+          console.log(`[session-purge-cron] error: ${String(err)}`);
         }
       })()
     );

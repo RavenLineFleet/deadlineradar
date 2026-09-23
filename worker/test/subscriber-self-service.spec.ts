@@ -224,13 +224,50 @@ describe("POST /subscriber/change-email -- request phase", () => {
     expect(resp.status).toBe(400);
   });
 
-  it("rejects a request to change to an email ANOTHER subscriber already uses", async () => {
+  // ENUM-1 fix (AuditLab, 2026-09-19): this used to return a distinguishable
+  // 400 "already in use" -- an account-existence oracle for any address an
+  // authenticated caller named. Now silently no-ops with the SAME generic
+  // success a real request gets, same pattern handleSubscribe()/
+  // handleFirmSignup() already use pre-auth.
+  it("silently no-ops a request to change to an email ANOTHER subscriber already uses -- same generic success, no token created", async () => {
     const taken = `sub12-taken-${Date.now()}@example.com`;
     const requester = `sub12-requester-${Date.now()}@example.com`;
     await seed(taken, "ohio");
     await seed(requester, "texas");
     const resp = await postChangeEmail(await subscriberCookie(requester), taken, "203.0.113.223");
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(200);
+    expect(await resp.json()).toEqual({ ok: true });
+    const row = await env.DB
+      .prepare("SELECT COUNT(*) AS c FROM subscriber_login_tokens WHERE email_normalized = ?1 AND purpose = 'email_change'")
+      .bind(store.normalizeEmail(requester))
+      .first<{ c: number }>();
+    expect(row?.c).toBe(0);
+  });
+
+  it("ENUM-1: sends NO email at all for a conflicting target -- never generates a confirm link for an address the caller doesn't control", async () => {
+    const taken = `sub12-takennomail-${Date.now()}@example.com`;
+    const requester = `sub12-requesternomail-${Date.now()}@example.com`;
+    await seed(taken, "ohio");
+    await seed(requester, "texas");
+    const cookie = await subscriberCookie(requester);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 202 }));
+    try {
+      const worker = (await import("../src/index")).default;
+      const resp = await worker.fetch(
+        new Request(`${BASE}/subscriber/change-email`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.230", Cookie: cookie },
+          body: JSON.stringify({ new_email: taken }),
+        }),
+        { ...env, SENDGRID_API_KEY: "test-key-not-real" },
+        { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext
+      );
+      expect(resp.status).toBe(200);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("400s when Origin doesn't match -- same CSRF defense-in-depth as every other mutating route", async () => {
