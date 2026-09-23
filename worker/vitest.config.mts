@@ -8,25 +8,38 @@ export default defineConfig(async () => {
   return {
     test: {
       setupFiles: ["./test/apply-migrations.ts"],
-      // AssetLab (2026-09-23): root cause of the "9 remaining known-failing
-      // tests" from AuditLab's/SecurityLab's reports -- a DIFFERENT small,
-      // random set of tests times out at exactly the default 5000ms on
-      // every full-79-file-suite run (confirmed across 3 separate runs:
-      // never the same files twice, never a test this session's changes
-      // touched, always passing clean in isolation or in a small subset).
-      // That signature is real parallel-load resource contention on this
-      // machine (vitest-pool-workers spins up one workerd instance per
-      // file; ~79 of them contending for CPU/IO at once), not a per-test
-      // logic bug -- so per-test quarantining was the wrong fix (whichever
-      // tests lose the scheduling lottery isn't stable) and per-test
-      // timeout bumps would be permanent whack-a-mole against a moving
-      // target. A single generous global default absorbs the contention
-      // for every test at once, while still catching a genuinely hung test
-      // (3x the vitest default, not unbounded) -- explicit per-test
-      // timeouts elsewhere in this suite (20000/30000/60000ms, for tests
-      // with a documented reason of their own) are unaffected, since an
-      // explicit `it(..., ms)` always overrides this default.
-      testTimeout: 15000,
+      // AssetLab (2026-09-23), corrected by AuditLab TEST-1: the "9
+      // remaining known-failing tests" (a DIFFERENT small, random set of
+      // tests failing on every full-79-file-suite run, never the same
+      // files twice, always clean in isolation) is real parallel-load
+      // resource contention, not a per-test logic bug -- vitest-pool-
+      // workers spins up one workerd instance per file, and this file's
+      // default `maxWorkers` (unset -- vitest defaults to CPU count, 32 on
+      // this box) let up to 32 of them contend for CPU/IO at once, which
+      // also crashed a workerd worker outright in one of AuditLab's
+      // measurement runs. That is the actual cause; the testTimeout bump
+      // below (my first attempt) could only ever mask it for tests that
+      // don't set their own timeout -- AuditLab TEST-1 (2026-09-23) proved
+      // the bulk rate-limit tests that kept failing under load ALL carry
+      // an explicit `it(..., ms)`, which always overrides this default, so
+      // raising it never reached them. Capping maxWorkers addresses the
+      // contention directly instead (orchestrator ruling, same date) --
+      // this value is deliberately modest, not "as many as this box's 32
+      // cores allow," because other agents can run their own full suite on
+      // the same shared machine concurrently (confirmed live by AuditLab's
+      // own measurement being contaminated by another session's orphaned
+      // workerd processes).
+      maxWorkers: 4,
+      // Brought down from 15000 (orchestrator ruling: "once it's stable,
+      // bring the inflated per-test timeouts back down to something that
+      // still catches a real hang") after verifying maxWorkers:4 actually
+      // fixes the contention -- a full clean run held steady at 3-4
+      // workerd.exe processes throughout (vs. the old ~31-32) and came
+      // back 79/79 files, 2589/2589 tests, judged by vitest's own exit
+      // code (0) and passed==total, not a grep for FAIL. Kept modestly
+      // above vitest's bare 5000 default, not restored to it exactly, as a
+      // safety margin for a shared machine other agents may also be using.
+      testTimeout: 8000,
     },
     plugins: [
       cloudflareTest({

@@ -95,10 +95,14 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
     // AssetLab (2026-09-23): 1000 real sequential DB-writing calls (seedSamples
     // awaits store.logAssistantChatLatency() one at a time, no batching) --
     // ~1.7s isolated, but timed out at the 15000ms global default under
-    // full-79-file-suite contention (same class of slowdown as the CPE
-    // rate-limit tests in worker.spec.ts, just 10x the write volume). Explicit
-    // timeout rather than a global bump big enough to cover this one outlier.
-  }, 60000);
+    // full-79-file-suite contention -- unlike worker.spec.ts's CPE rate-
+    // limit tests (a genuinely different, intra-file cause), this file is
+    // small, so the contention was cross-file: vitest-pool-workers'
+    // default maxWorkers (unset, = CPU count, 32 on this box) let up to 32
+    // workerd instances run at once. Briefly bumped to 60000, then brought
+    // back down to 20000 (10x+ the isolated baseline) once vitest.config.
+    // mts's maxWorkers:4 cap fixed the actual cause.
+  }, 20000);
 
   it("MON-4: an all-429 window (zero successes) reports null p95/max, not 0 -- never mistaken for 'fast and healthy'", async () => {
     const now = 5_600_000;
@@ -239,16 +243,16 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     } finally {
       fetchSpy.mockRestore();
     }
-    // AssetLab (2026-09-23): same 1000-real-write shape as the sibling test
-    // above -- see its comment. Bumped 60000 -> 90000 after it still timed
-    // out at 60000ms in a later full-suite run -- this is the heaviest
-    // single test in the suite (1000 sequential writes AND a full pass
-    // invocation on top), so it's the first to reveal how bad a given
-    // run's contention actually is. Noting honestly rather than assuming
-    // this number is now final: some residual variance under heavy
-    // parallel-suite load is inherent to this machine, not fully
-    // eliminable by tuning one test's timeout indefinitely upward.
-  }, 90000);
+    // AssetLab (2026-09-23): same cross-file-contention shape as the
+    // sibling test above -- see its comment. Was briefly bumped as high as
+    // 90000 while vitest.config.mts had no maxWorkers cap (up to 32
+    // concurrent workerd instances) -- this is the heaviest single test in
+    // the suite (1000 sequential writes AND a full pass invocation on
+    // top), so it was the first to reveal how bad a given run's contention
+    // actually was. Brought down to 25000 (still above the sibling's
+    // 20000, since this one does more real work) once maxWorkers:4 fixed
+    // the actual cause.
+  }, 25000);
 
   it("approved, p95 threshold breached without any single sample over 30s -- still sends", async () => {
     const captured: string[] = [];

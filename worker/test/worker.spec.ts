@@ -2223,13 +2223,11 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       license_type_id: "ga-individual",
     });
     expect(overCap.status).toBe(429);
-    // AssetLab (2026-09-23): bumped 20000 -> 60000, same as this cluster's
-    // 3 siblings below (DELETE/RENEW/PATCH) -- 50+ real sequential D1-
-    // writing requests, genuine parallel-load contention under a full-
-    // suite run, not a per-test logic problem (see worker.spec.ts's CPE
-    // rate-limit tests and vitest.config.mts for the same root cause,
-    // already fixed elsewhere in this suite).
-  }, 60_000);
+    // AssetLab (2026-09-23): briefly bumped 20000 -> 60000 (parallel-load
+    // contention under a full-suite run, same as this cluster's 3 siblings
+    // below), then restored once vitest.config.mts's maxWorkers cap fixed
+    // the actual cause.
+  }, 20_000);
 
   it("GET lists only this firm's roster, sorted soonest-deadline-first", async () => {
     const { cookie } = await createFirmWithSession("List Firm", `list-${Date.now()}@example.com`);
@@ -2311,7 +2309,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(404);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_DELETE ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 60000);
+  }, 20000);
 
   it("POST /firm/licenses/:id/renew is rate-limited per firm (was completely unbounded)", async () => {
     const { cookie } = await createFirmWithSession("Renew Rate Firm", `renew-rate-${Date.now()}@example.com`);
@@ -2325,7 +2323,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(404);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_RENEW ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 60000);
+  }, 20000);
 
   // AuditLab F-2, 2026-08-02 (HIGH): PATCH had NO rate limit at all -- PoC
   // sent 400 PATCHes to one row and got 400 accepted, 0 rejected. Each
@@ -2351,7 +2349,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(200);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_PATCH ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 60000);
+  }, 20000);
 
   // AuditLab F-3, 2026-08-02 (MEDIUM): PATCH skipped the (email, state_slug)
   // dedupe POST already enforces, so a firm could PATCH a roster row onto
@@ -5945,11 +5943,16 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
     // isolation, but consistently times out at 20000ms when worker.spec.ts
     // runs as a whole file (this file alone is ~2,500 tests) -- confirmed
     // via `git stash` against the pre-this-session baseline too, so it
-    // isn't something this session's changes caused. Real, reproducible
-    // slowdown from cumulative D1/workerd load this late in a huge single
-    // file, not flakiness and not a logic bug -- same shape as the other
-    // 60000ms-timeout tests already in this suite (map1-mobility-scope.
-    // spec.ts, mobility-roster-check.spec.ts).
+    // isn't something this session's changes caused. NOT the same class as
+    // the multi-file contention vitest.config.mts's maxWorkers now caps --
+    // this is cumulative D1/workerd load WITHIN one file's own ~2,500-test
+    // run (a single file gets one workerd instance regardless of
+    // maxWorkers), so capping cross-file concurrency doesn't touch it.
+    // Left at 60000 deliberately, unlike this session's other timeout
+    // bumps, which WERE reverted once the concurrency cap fixed their
+    // actual (cross-file) cause -- same shape as the other 60000ms-timeout
+    // tests already in this suite (map1-mobility-scope.spec.ts,
+    // mobility-roster-check.spec.ts).
     const { cookie } = await createFirmWithSession("CPE Rate Firm", `cpe-rate-${Date.now()}@example.com`);
     const created = await postFirmLicense(cookie, { email: `cpe-rate-staff-${Date.now()}@example.com`, state_slug: "georgia", license_type_id: "ga-individual" });
     const { id: subscriberId } = (await created.json()) as { id: string };
@@ -5965,7 +5968,9 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
   // above. Rate limit runs before the id lookup, so a nonexistent id still
   // consumes the bucket.
   // Bumped 30000 -> 60000 (2026-09-23, AssetLab): same real cumulative-load
-  // slowdown as the POST test just above, not flakiness -- see its comment.
+  // slowdown as the POST test just above, not flakiness, and not the class
+  // of cross-file contention the maxWorkers cap addresses -- see its
+  // comment. Left at 60000 for the same reason.
   it("blocks the 101st CPE-entry DELETE from the same firm within the daily window", async () => {
     const { cookie } = await createFirmWithSession("CPE Delete Rate Firm", `cpe-delete-rate-${Date.now()}@example.com`);
     let sawA429 = false;
