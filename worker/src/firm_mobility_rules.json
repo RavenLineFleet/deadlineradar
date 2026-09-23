@@ -678,13 +678,13 @@
     "attest_exemption": {
       "exists": true,
       "citation": "R.I. Gen. Laws section 5-3.1-9",
-      "citation_url": "http://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-9.HTM",
+      "citation_url": "https://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-9.HTM",
       "notes": "Practice unit must hold a permit to provide attest/compilation services or use CPA/CPA-firm titling. Trigger is framed around service-type/title-use rather than explicitly 'no office,' but practical result for an out-of-state no-office firm matches the framed question."
     },
     "physical_office_trigger": {
       "exists": false,
       "citation": "R.I. Gen. Laws section 5-3.1-9",
-      "citation_url": "http://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-9.HTM",
+      "citation_url": "https://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-9.HTM",
       "notes": "Confirmed directly: maintaining a physical RI office alone does not trigger the permit requirement -- trigger is service type/title use. A firm that DOES need a permit must then register each RI office."
     },
     "peer_review_conditions_permit": {
