@@ -146,14 +146,15 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string;
   SENDGRID_API_KEY?: string;
   /**
-   * SecurityLab (2026-08-29, corroborated by AuditLab): the assistant
-   * droplet is directly reachable off-Cloudflare with no shared secret, so
-   * every control this Worker enforces (originAllowed(), the 100/hr/IP
+   * SecurityLab (2026-08-29, corroborated by AuditLab): without this, every
+   * control this Worker enforces (originAllowed(), the 100/hr/IP
    * RATE_LIMIT_ASSISTANT_CHAT) is bypassable by hitting the droplet's own
-   * /chat directly with a forged CF-Connecting-IP. OPTIONAL here: sending
-   * it is inert until the droplet side (ShopLab, not this repo) is
-   * configured to require and check it -- until then this is a no-op
-   * header the droplet ignores, not a functioning fix on its own. Set via
+   * /chat directly with a forged CF-Connecting-IP. NOT optional -- the
+   * droplet side (ShopLab's repo) has ENFORCED this secret since 2026-08-30;
+   * an unset/rotated value here means callAssistantDroplet() refuses to call
+   * the droplet at all (SecurityLab, 2026-09-23: the prior fail-open
+   * behavior -- silently omitting the header and letting the droplet 401 --
+   * produced an outage with no code-level signal of the cause). Set via
    * `wrangler secret put`, never in wrangler.toml, never committed -- same
    * convention as TURNSTILE_SECRET_KEY/SENDGRID_API_KEY.
    */

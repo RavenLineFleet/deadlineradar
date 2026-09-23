@@ -34,7 +34,18 @@ function testExecutionContext(): ExecutionContext {
 
 async function workerFetch(request: Request, envOverrides: Record<string, unknown> = {}): Promise<Response> {
   const worker = (await import("../src/index")).default;
-  return worker.fetch(request, { ...env, ...envOverrides } as never, testExecutionContext());
+  // SecurityLab (2026-09-23): the droplet has enforced this secret since
+  // 2026-08-30, and callAssistantDroplet() now refuses to call the droplet
+  // at all when it's unset -- so every test in this file that exercises the
+  // droplet call itself (not the missing-secret path specifically) needs it
+  // present by default, the same as production. Pass
+  // `{ ASSISTANT_DROPLET_SHARED_SECRET: undefined }` as an override to test
+  // the unset case.
+  return worker.fetch(
+    request,
+    { ...env, ASSISTANT_DROPLET_SHARED_SECRET: "test-secret-value", ...envOverrides } as never,
+    testExecutionContext()
+  );
 }
 
 function droplet(reply: string): Response {
@@ -621,26 +632,39 @@ describe("POST /assistant/chat -- real visitor IP forwarded to the droplet (Shop
     }
   });
 
-  it("SecurityLab (2026-08-29): the shared secret is sent to the droplet when configured, absent when not", async () => {
+  it("SecurityLab (2026-08-29): the shared secret is sent to the droplet when configured", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
     try {
-      await workerFetch(
+      await postChat({ message: "hello" }); // workerFetch's default env now always sets the secret.
+      const [, initWith] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(new Headers(initWith.headers).get("X-Assistant-Shared-Secret")).toBe("test-secret-value");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("SecurityLab (2026-09-23): an unset secret fails LOUD -- the droplet is never called, an explicit [assistant-secret-missing] log line is emitted, and the visitor gets a clean 503, not an unexplained 401 from a fail-open request", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(droplet("ok"));
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => { logs.push(String(m)); });
+    try {
+      const resp = await workerFetch(
         new Request(`${BASE}/api/assistant/chat`, {
           method: "POST",
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.60", Origin: "https://deadline-radar.com" },
           body: JSON.stringify({ message: "hello" }),
         }),
-        { ASSISTANT_DROPLET_SHARED_SECRET: "test-secret-value" }
+        { ASSISTANT_DROPLET_SHARED_SECRET: undefined }
       );
-      const [, initWith] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(new Headers(initWith.headers).get("X-Assistant-Shared-Secret")).toBe("test-secret-value");
-
-      fetchSpy.mockClear();
-      await postChat({ message: "hello" });
-      const [, initWithout] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(new Headers(initWithout.headers).has("X-Assistant-Shared-Secret")).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(resp.status).toBe(503);
+      const parsed = (await resp.json()) as { error: string; escalate: boolean };
+      expect(parsed.escalate).toBe(true);
+      expect(parsed.error).toBe("The assistant is temporarily unavailable. Please try again shortly.");
+      expect(logs.filter((l) => l.includes("[assistant-secret-missing]")).length).toBe(2); // both attempts log it
     } finally {
       fetchSpy.mockRestore();
+      logSpy.mockRestore();
     }
   });
 
