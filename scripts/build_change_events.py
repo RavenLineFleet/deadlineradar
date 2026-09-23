@@ -68,7 +68,7 @@ import json
 import os
 import pathlib
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RULES = ROOT / "worker" / "src" / "mobility_rules.json"
@@ -633,6 +633,35 @@ def _selftest_rc17_no_conflict_without_authored_field() -> None:
             "rule_in_flux": True,
             "source_conflict": True,
         },
+        # AuditLab RC-22 (2026-09-23): mutation-tested this selftest and
+        # found two survivors. (1) `_public_summary()` regressed to emit
+        # the conflict sentence unconditionally still passed, because
+        # nothing in the synthetic set published as kind=rule_change --
+        # the exact defect RC-17 fixed (wrong sentence on a non-conflict
+        # record) was never exercised on the one code path that actually
+        # writes it. This record closes that: a real, dated, non-conflict
+        # rule_change.
+        {
+            "state_slug": "test-dated-change",
+            "state": "Test Dated Change",
+            "citation": "Test Code § 4",
+            "citation_url": "https://example.test/4",
+            "rule_in_flux": True,
+            "rule_changes_on": (date.today() + timedelta(days=30)).isoformat(),
+            "status": "ENACTED",
+            "confidence": "single_source",
+        },
+        # (2) Mutating `is True` to `bool(...)` also passed -- the shipped
+        # code is correct, but nothing caught a future loosening or a
+        # hand-authoring slip like this truthy-but-not-True string.
+        {
+            "state_slug": "test-conflict-truthy-not-true",
+            "state": "Test Conflict Truthy Not True",
+            "citation": "Test Code § 5",
+            "citation_url": "https://example.test/5",
+            "rule_in_flux": True,
+            "source_conflict": "false",
+        },
     ]
     synthetic_deadlines = [{"state_slug": r["state_slug"]} for r in synthetic_records]
 
@@ -668,6 +697,32 @@ def _selftest_rc17_no_conflict_without_authored_field() -> None:
     )
     assert "don't agree" not in json.dumps(withheld), (
         "the conflict sentence must never appear anywhere in the withheld-queue output"
+    )
+
+    # RC-22 (1): the dated rule_change must publish, and its summary_public
+    # must never carry the conflict sentence -- this is _public_summary()
+    # itself, not the classifier, and it has TWO prior silent
+    # reintroductions on record (REGEN-4's `basis` branch, and the
+    # 2026-08-28 "withhold a determination" phrasing) -- the worst
+    # track-record function in this file, and until now the one function
+    # in the conflict-classification path with no test coverage at all.
+    dated = by_slug.get("test-dated-change")
+    assert dated is not None and dated.get("kind") == KIND_CHANGE, (
+        "RC-22 REGRESSION: a dated, non-conflict record must publish as a rule_change"
+    )
+    assert "don't agree" not in dated.get("summary_public", ""), (
+        "RC-22 REGRESSION: _public_summary() emitted the conflict sentence on a dated rule_change "
+        "-- this is RC-17's exact defect, reachable through _public_summary() rather than the "
+        "classifier"
+    )
+
+    # RC-22 (2): a truthy-but-not-True source_conflict (e.g. a hand-authored
+    # "false" string in mobility_rules.json) must not publish as a
+    # conflict. Guards the `is True` identity check specifically, not just
+    # its current correct behavior.
+    assert "test-conflict-truthy-not-true" not in by_slug, (
+        "RC-22 REGRESSION: source_conflict must be checked with `is True`, not truthiness -- a "
+        "truthy non-True value (e.g. a hand-authored string) published as a conflict"
     )
 
 
