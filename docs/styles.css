@@ -384,7 +384,8 @@
   .sheethead .stamp--unconfirmed { color: var(--gold); }
   .sheethead .stamp--unconfirmed .dot { background: var(--gold); box-shadow: 0 0 0 3px var(--gold-bg); }
   
-  .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0 0.6rem 1.2rem; }
+  
+  .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
   .dr-seal svg { width: 100%; height: 100%; display: block; }
   .dr-seal .dr-seal-stale { display: none; }
   .dr-seal.is-stale .dr-seal-ok { display: none; }

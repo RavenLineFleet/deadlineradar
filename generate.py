@@ -1153,7 +1153,17 @@ PAGE_CSS = """
      threshold: both read _STALE_DAYS (30). Unified by orchestrator decision
      2026-08-14; the earlier 30/45 split let one record show a green "Verified"
      caveat next to a red "RE-VERIFY NEEDED" seal. Do not re-split them. */
-  .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0 0.6rem 1.2rem; }
+  /* Devin (2026-09-23, screenshot: devin_20260923_kansas_verified_seal_clipped.png)
+     caught the right edge sliced off on a live render. Root cause: this
+     floated-right seal had a ZERO right margin, landing pixel-flush against
+     `main { overflow-x: clip; }` (added 2026-08-28 for an unrelated fix,
+     UX-6 above -- neither change accounted for the other). A zero-margin
+     fit against a safe padded boundary is fine; a zero-margin fit against a
+     CLIPPING boundary has no tolerance for the sub-pixel rounding a floated
+     rem-sized box can pick up at some zoom/DPI combinations, so a hairline
+     sliver gets clipped. Small non-zero right margin gives that tolerance
+     back without visibly moving the seal. */
+  .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
   .dr-seal svg { width: 100%; height: 100%; display: block; }
   .dr-seal .dr-seal-stale { display: none; }
   .dr-seal.is-stale .dr-seal-ok { display: none; }
