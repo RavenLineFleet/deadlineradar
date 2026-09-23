@@ -21,7 +21,24 @@ import {
   TERMS_VERSION,
 } from "../src/validation";
 import * as store from "../src/store";
-import { REMINDER_PASS_SILENT_DROP_REASONS } from "../src/scheduler";
+import {
+  GATED_DATASET_STALENESS_THRESHOLD_DAYS,
+  GATED_DATASET_STALENESS_WARNING_DAYS,
+  MOBILITY_STALENESS_WARNING_DAYS,
+  REMINDER_PASS_SILENT_DROP_REASONS,
+} from "../src/scheduler";
+import { MOBILITY_VERIFICATION_TTL_DAYS } from "../src/mobility";
+// Orchestrator ruling (2026-09-23, decoupling drifting test counts): these
+// are the SAME data files mobilityRowsNearingExpiry()/gatedDatasetRowsNearing
+// Expiry() read at runtime -- reading them here too doesn't reintroduce the
+// hardcoded-number problem, since the test independently RECOMPUTES the
+// expected row set from them below rather than hand-typing a count. See
+// computeExpectedMobilityNearing()/computeExpectedGatedDatasetNearing().
+import mobilityRulesDataForTest from "../src/mobility_rules.json";
+import firmMobilityRulesDataForTest from "../src/firm_mobility_rules.json";
+import cpeHoursDataForTest from "../src/cpe_hours.json";
+import reinstatementDataForTest from "../src/reinstatement.json";
+import renewalFeesDataForTest from "../src/renewal_fees.json";
 import { isUsFederalHoliday as isUsFederalHolidayForTest } from "../src/holidays";
 import { hashPassword, verifyPassword } from "../src/password";
 import type { CpeEntryRow, FirmLeadRow, FirmRow, SubscriberRow } from "../src/store";
@@ -2206,7 +2223,13 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       license_type_id: "ga-individual",
     });
     expect(overCap.status).toBe(429);
-  }, 20_000);
+    // AssetLab (2026-09-23): bumped 20000 -> 60000, same as this cluster's
+    // 3 siblings below (DELETE/RENEW/PATCH) -- 50+ real sequential D1-
+    // writing requests, genuine parallel-load contention under a full-
+    // suite run, not a per-test logic problem (see worker.spec.ts's CPE
+    // rate-limit tests and vitest.config.mts for the same root cause,
+    // already fixed elsewhere in this suite).
+  }, 60_000);
 
   it("GET lists only this firm's roster, sorted soonest-deadline-first", async () => {
     const { cookie } = await createFirmWithSession("List Firm", `list-${Date.now()}@example.com`);
@@ -2288,7 +2311,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(404);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_DELETE ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 20000);
+  }, 60000);
 
   it("POST /firm/licenses/:id/renew is rate-limited per firm (was completely unbounded)", async () => {
     const { cookie } = await createFirmWithSession("Renew Rate Firm", `renew-rate-${Date.now()}@example.com`);
@@ -2302,7 +2325,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(404);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_RENEW ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 20000);
+  }, 60000);
 
   // AuditLab F-2, 2026-08-02 (HIGH): PATCH had NO rate limit at all -- PoC
   // sent 400 PATCHes to one row and got 400 accepted, 0 rejected. Each
@@ -2328,7 +2351,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       expect(resp.status).toBe(200);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_PATCH ceiling (50/day) -- got none in 55 requests").toBe(true);
-  }, 20000);
+  }, 60000);
 
   // AuditLab F-3, 2026-08-02 (MEDIUM): PATCH skipped the (email, state_slug)
   // dedupe POST already enforces, so a firm could PATCH a roster row onto
@@ -4977,46 +5000,71 @@ describe("store.claimMobilityStalenessAlertForMonth (AuditLab STALE-10)", () => 
   });
 });
 
+// Orchestrator ruling (2026-09-23): worker.spec.ts used to hardcode the
+// LIVE-data result of mobilityRowsNearingExpiry() (e.g. `expect(nearing.
+// length).toBe(106)`), which broke on every legitimate verified_date bump
+// -- Guam (CITE-63), Oklahoma (MOB-12), Michigan (RC-25) and Northern
+// Mariana Islands (RC-31) each broke it in turn, teaching "just edit the
+// number," which defeats the test. This independently RECOMPUTES the
+// expected row set straight from the same two JSON files scheduler.ts
+// itself reads (mobility_rules.json, firm_mobility_rules.json), using the
+// real exported thresholds (MOBILITY_VERIFICATION_TTL_DAYS,
+// MOBILITY_STALENESS_WARNING_DAYS) -- NOT by calling
+// mobilityRowsNearingExpiry() itself, so a real regression in that
+// function's wiring (wrong threshold, dropped dataset, broken sort, off-
+// by-one) still fails this test, while a routine re-verification (which
+// changes the DATA, not the CODE) no longer does. Deliberately does not
+// replicate normalizeMobilityRuleRow()'s/normalizeFirmRuleRow()'s full
+// field normalization -- only the two fields these two functions actually
+// gate on (a non-empty state_slug, a parseable verified_date) -- so this
+// stays a genuinely separate implementation, not a copy-paste that would
+// share the production code's own bugs.
+function computeExpectedMobilityNearing(now: Date): Array<{ state: string; type: "individual" | "firm"; daysUntilExpiry: number; expiresOn: string }> {
+  const ttlMs = MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
+  const rows: Array<{ state: string; type: "individual" | "firm"; daysUntilExpiry: number; expiresOn: string }> = [];
+  const consider = (state: unknown, stateSlug: unknown, type: "individual" | "firm", verifiedDateStr: unknown) => {
+    if (typeof stateSlug !== "string" || stateSlug.length === 0) return;
+    if (typeof verifiedDateStr !== "string" || verifiedDateStr.length === 0) return;
+    const verified = Date.parse(verifiedDateStr);
+    if (Number.isNaN(verified)) return;
+    const daysUntilExpiry = Math.ceil((verified + ttlMs - now.getTime()) / 86_400_000);
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > MOBILITY_STALENESS_WARNING_DAYS) return;
+    rows.push({
+      state: typeof state === "string" ? state : stateSlug,
+      type,
+      daysUntilExpiry,
+      expiresOn: new Date(verified + ttlMs).toISOString().slice(0, 10),
+    });
+  };
+  for (const raw of (mobilityRulesDataForTest.records ?? []) as Record<string, unknown>[]) {
+    consider(raw.state, raw.state_slug, "individual", raw.verified_date);
+  }
+  for (const raw of Object.values(firmMobilityRulesDataForTest as Record<string, Record<string, unknown>>)) {
+    consider(raw.state, raw.state_slug, "firm", raw.verified_date);
+  }
+  rows.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  return rows;
+}
+
 describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab STALE-10)", () => {
-  // Real bundled data: individual rows verified 2026-07-31..2026-08-27,
-  // firm rows verified 2026-08-07..2026-08-21, both at the real 180-day
-  // TTL -- earliest expiry 2027-01-27 (matches AuditLab's own finding
-  // evidence exactly). Rather than mock the JSON files, these tests move
-  // the clock to real dates around that real window and check against the
-  // REAL shipped data -- a stronger check than a synthetic fixture, and it
-  // would catch a future re-verification pass that widens or narrows the
-  // spread. AuditLab CITE-63 (2026-08-27) re-verified Guam and bumped its
-  // verified_date from 2026-07-31 to 2026-08-27, pushing its 180-day TTL
-  // out to 2027-02-23 -- 34 days out at the 2027-01-20 test point below,
-  // outside the 30-day window, so Guam-individual dropped out of the 110.
-  // MOB-12 (2026-09-19, AssetLab) did the same to Oklahoma-individual --
-  // its real re-verification (a genuine residency-trigger fix, not a
-  // defect) bumped verified_date to 2026-09-19, pushing its TTL out to
-  // 2027-03-18, also outside the window. RC-25 (2026-09-23, AssetLab,
-  // AuditLab-ruled) did the same to Michigan-individual -- its citation_url
-  // was pointed at the wrong MCL section (a real bug, unrelated to
-  // freshness), and fixing it re-verified both sides from primary,
-  // bumping verified_date to 2026-09-23 and pushing its TTL out to
-  // 2027-03-22, also outside the window. Michigan had shared the earliest
-  // expiry (2027-01-27) with Alabama; Alabama alone now holds that slot,
-  // so nearing[0]'s daysUntilExpiry/expiresOn below are unchanged even
-  // though which state they belong to changed. RC-31 (2026-09-23,
-  // AssetLab, AuditLab-ruled, reversing their own prior NO once the NMIAC
-  // PDF was found readable) did the same to Northern-Mariana-Islands-
-  // individual -- both sides read from primary that day too, bumping
-  // verified_date to 2026-09-23 and pushing its TTL out to 2027-03-22 as
-  // well (same date as Michigan's, coincidentally, since both were
-  // verified the same day). mobilityRowsNearingExpiry() reads EVERY
-  // mobility_rules.json record's verified_date as an "individual" row
-  // regardless of individual_practice_privilege's actual value (NMI's is
-  // null) -- NMI-FIRM is a separate row sourced from firm_mobility_rules.
-  // json's own verified_date and is unaffected by this bump. All four are
-  // legitimate re-verifications, not bugs -- this block's numbers are kept
-  // in sync with reality the same way the FRESH-3 block below it is (see
-  // that block's own 2026-09-19 comment for the general principle). Four
-  // of 110 rows (Guam-individual, Oklahoma-individual, Michigan-
-  // individual, Northern-Mariana-Islands-individual) now sit outside the
-  // window; 106 real rows should appear.
+  // Real bundled data, checked against an INDEPENDENTLY recomputed
+  // expectation (computeExpectedMobilityNearing() above), not a synthetic
+  // fixture and not a hardcoded count -- a stronger check than either: it
+  // still catches a real regression in mobilityRowsNearingExpiry()'s own
+  // wiring, but no longer breaks on a routine re-verification (which
+  // changes the DATA, not the CODE). Earliest expiry as of authorship was
+  // 2027-01-27 (matches AuditLab's own STALE-10 finding evidence exactly).
+  //
+  // History, for context (no longer load-bearing on this test passing):
+  // CITE-63 (2026-08-27, Guam), MOB-12 (2026-09-19, Oklahoma), RC-25
+  // (2026-09-23, Michigan) and RC-31 (2026-09-23, Northern Mariana
+  // Islands) each re-verified a record and legitimately shifted its TTL --
+  // real re-verifications, not bugs, and each one used to require a manual
+  // edit here. mobilityRowsNearingExpiry() reads EVERY mobility_rules.json
+  // record's verified_date as an "individual" row regardless of
+  // individual_practice_privilege's actual value (NMI's is null); a
+  // state's "firm" row is a separate record from firm_mobility_rules.json
+  // with its own independent verified_date.
 
   it("nothing is nearing expiry today (2026) -- the real window is 5 months out", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
@@ -5024,30 +5072,14 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
     expect(nearing).toEqual([]);
   });
 
-  it("rows ARE nearing expiry once inside the real 30-day warning window", async () => {
+  it("rows ARE nearing expiry once inside the real 30-day warning window, and exactly match an independently recomputed expectation", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
-    // 2027-01-20: earliest expiry (2027-01-27) is 7 days out -- inside the
-    // 30-day window, so every real row still within TTL at this point
-    // should appear (106 of the 110 total; Guam-individual, Oklahoma-
-    // individual, Michigan-individual and Northern-Mariana-Islands-
-    // individual's re-verified TTLs now expire 2027-02-23, 2027-03-18,
-    // 2027-03-22 and 2027-03-22 respectively, all outside the window --
-    // see the describe-block comment above). NMI-FIRM (a separate row,
-    // from firm_mobility_rules.json's own verified_date, untouched by
-    // RC-31) is unaffected and still appears.
-    const nearing = mobilityRowsNearingExpiry(new Date("2027-01-20T00:00:00Z"));
-    expect(nearing.length).toBe(106);
-    expect(nearing.some((r) => r.state === "Guam" && r.type === "individual")).toBe(false);
-    expect(nearing.some((r) => r.state === "Oklahoma" && r.type === "individual")).toBe(false);
-    expect(nearing.some((r) => r.state === "Michigan" && r.type === "individual")).toBe(false);
-    expect(nearing.some((r) => r.state === "Northern Mariana Islands" && r.type === "individual")).toBe(false);
-    // Sorted soonest-first.
-    for (let i = 1; i < nearing.length; i++) {
-      expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
-    }
-    expect(nearing[0]!.daysUntilExpiry).toBe(7);
-    expect(nearing[0]!.expiresOn).toBe("2027-01-27");
-    expect(nearing.every((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 30)).toBe(true);
+    const now = new Date("2027-01-20T00:00:00Z"); // earliest real expiry (2027-01-27) is 7 days out from here -- inside the 30-day window
+    const nearing = mobilityRowsNearingExpiry(now);
+    const expected = computeExpectedMobilityNearing(now);
+    expect(nearing).toEqual(expected); // full row-for-row match: length, sort order, and every field, all at once
+    expect(expected.length).toBeGreaterThan(0); // the comparison above is meaningless if both sides are trivially []
+    expect(nearing.every((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= MOBILITY_STALENESS_WARNING_DAYS)).toBe(true);
     expect(nearing.some((r) => r.type === "individual")).toBe(true);
     expect(nearing.some((r) => r.type === "firm")).toBe(true);
   });
@@ -5160,47 +5192,51 @@ describe("store.claimGatedDatasetStalenessAlertForDay (FRESH-3)", () => {
   });
 });
 
+// Same decoupling as computeExpectedMobilityNearing() above, for the
+// sibling gated-dataset (cpe_hours/reinstatement/renewal_fees) warning --
+// independently recomputed from the same 3 JSON files scheduler.ts itself
+// reads, using the real exported thresholds
+// (GATED_DATASET_STALENESS_THRESHOLD_DAYS, GATED_DATASET_STALENESS_
+// WARNING_DAYS), not by calling gatedDatasetRowsNearingExpiry() itself.
+function computeExpectedGatedDatasetNearing(now: Date): Array<{ dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }> {
+  const thresholdMs = (GATED_DATASET_STALENESS_THRESHOLD_DAYS + 1) * 86_400_000;
+  const rows: Array<{ dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }> = [];
+  const consider = (dataset: "cpe_hours" | "reinstatement" | "renewal_fees", id: unknown, state: unknown, verifiedDateStr: unknown) => {
+    if (typeof id !== "string" || typeof state !== "string" || typeof verifiedDateStr !== "string") return;
+    const verified = Date.parse(verifiedDateStr);
+    if (Number.isNaN(verified)) return;
+    const daysUntilExpiry = Math.ceil((verified + thresholdMs - now.getTime()) / 86_400_000);
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > GATED_DATASET_STALENESS_WARNING_DAYS) return;
+    rows.push({ dataset, id, state, daysUntilExpiry, expiresOn: new Date(verified + thresholdMs).toISOString().slice(0, 10) });
+  };
+  for (const raw of (cpeHoursDataForTest.records ?? []) as Record<string, unknown>[]) {
+    consider("cpe_hours", raw.id, raw.state, raw.verified_date);
+  }
+  for (const raw of (reinstatementDataForTest.records ?? []) as Record<string, unknown>[]) {
+    consider("reinstatement", raw.id, raw.state, raw.last_verified);
+  }
+  for (const raw of (renewalFeesDataForTest.records ?? []) as Record<string, unknown>[]) {
+    consider("renewal_fees", raw.id, raw.state, raw.verified_date);
+  }
+  rows.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  return rows;
+}
+
 describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRESH-3)", () => {
-  // Real bundled data, same "move the clock to a real date, check against
-  // the real shipped JSON" posture as the mobility describe block above --
-  // stronger than a synthetic fixture, and it catches a future
-  // re-verification pass that reshuffles the cohort spread. As of the
-  // 2026-09-12 remediation cascade (the original 74-record fix, the
-  // 2026-09-20 cliff, and 22 more single-digit cohorts through 2026-10-11,
-  // all closed the same day), every record across all three datasets
-  // carried a verified_date/last_verified of EXACTLY ONE of two dates:
-  // 2026-09-09 (39 records: 1 cpe_hours + 5 reinstatement + 33 renewal_fees)
-  // or 2026-09-12 (118 records, the remainder) -- maximum concentration,
-  // AuditLab's own "157-record wall" finding, landing 2026-10-10 and
-  // 2026-10-13 respectively.
-  //
-  // The wall has since chipped, exactly as a wall of re-verification dates
-  // should over time (2026-09-19, AssetLab, self-observed while chasing an
-  // unrelated vitest failure): louisiana-renewal-fee left the 09-09 cohort
-  // on 2026-09-13 (an earlier session's real fee resolution, predating this
-  // block's own authorship) and CITE-70/CITE-71 moved fl-cpe, ok-cpe, and
-  // oklahoma-reinstatement out of the 09-12 cohort on 2026-09-19 (real
-  // re-verifications, not a defect) -- neither event is a bug, and this
-  // block's numbers are updated to match rather than frozen at authorship
-  // time, the same maintenance TEST-10 (below) already established for
-  // this describe block. STALE-20 batch 1 (2026-09-22, AssetLab): 32 of
-  // the 38 records at 09-09 (the 1 cpe_hours + 5 reinstatement + 26 of the
-  // 32 renewal_fees) were re-verified against their real citation_url and
-  // CONFIRMED_UNCHANGED, bumping verified_date/last_verified to 2026-09-22
-  // -- a real re-verification pass, not a defect, that empties the 09-09
-  // cohort down to renewal_fees only. Current wall: 6 records at
-  // 2026-09-09 (0 cpe_hours + 0 reinstatement + 6 renewal_fees) and 115 at
-  // 2026-09-12 (48 cpe_hours + 45 reinstatement + 22 renewal_fees) -- the
-  // 09-12 cohort is untouched by STALE-20 batch 1 (it re-verified the
-  // OLDER 09-09 cohort first, oldest-first, per its own ordering).
-  // 2026-10-06 puts BOTH cohorts inside the 7-day warning window
-  // simultaneously (6 rows at 4 days out, 115 at 7) -- AuditLab TEST-10
-  // (LOW, 2026-09-12): an earlier pass at 2026-10-03 saw only the
-  // single-valued 39-row cohort, which cannot exercise sort order at all
-  // (every element carries the same daysUntilExpiry, so a broken sort
-  // would still pass) and dropped the block's only sort assertion along
-  // with it. 2026-10-06 is the actual multi-cohort scenario the alert
-  // exists for, and the only date that can catch a broken sort.
+  // Real bundled data, checked against an INDEPENDENTLY recomputed
+  // expectation (computeExpectedGatedDatasetNearing() above) -- same
+  // decoupling as the mobility describe block above, for the same reason:
+  // this cohort's composition has legitimately reshuffled many times
+  // (the original 74-record fix, a 2026-09-20 cliff, 22 more single-digit
+  // cohorts, CITE-70/CITE-71, STALE-20 batch 1, and more to come as
+  // STALE-20's remaining batches land) and hand-editing a count every time
+  // teaches "just edit the number." AuditLab's own "157-record wall"
+  // finding (2026-09-12) is the reason 2026-10-06 is the test point below
+  // -- two real cohorts land close enough together (originally 2026-10-10
+  // and 2026-10-13) that a date landing inside both windows is needed to
+  // exercise sort order at all (AuditLab TEST-10, LOW, 2026-09-12: a
+  // single-cohort window can't catch a broken sort, since every element
+  // would carry the same daysUntilExpiry).
 
   it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 28 days out", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
@@ -5208,27 +5244,17 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     expect(nearing).toEqual([]);
   });
 
-  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first", async () => {
+  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first, and exactly match an independently recomputed expectation", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
-    expect(nearing.length).toBe(121);
-    // STALE-20 batch 1 (2026-09-22) emptied cpe_hours and reinstatement out
-    // of the 09-09 cohort entirely -- both datasets still appear in the
-    // 09-12 cohort, which this window also covers, so this assertion stays
-    // true; only the 09-09-cohort-only assertions below changed.
-    expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
-    expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
-    expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
-    // Sorted soonest-first -- a real assertion here, not a degenerate one:
-    // the 6-row 2026-09-09 cohort (4 days out) must all precede the
-    // 115-row 2026-09-12 cohort (7 days out).
-    for (let i = 1; i < nearing.length; i++) {
-      expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
-    }
-    expect(nearing[0]!.daysUntilExpiry).toBe(4);
-    expect(nearing[0]!.expiresOn).toBe("2026-10-10");
-    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(6);
-    expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(115);
+    const now = new Date("2026-10-06T00:00:00Z"); // lands inside both of the two closest real cohorts at once -- see describe-block comment
+    const nearing = gatedDatasetRowsNearingExpiry(now);
+    const expected = computeExpectedGatedDatasetNearing(now);
+    expect(nearing).toEqual(expected); // full row-for-row match: length, sort order, and every field, all at once
+    expect(expected.length).toBeGreaterThan(0); // the comparison above is meaningless if both sides are trivially []
+    // Genuine multi-cohort coverage, not a degenerate single-value case --
+    // this is what makes the sort-order check above a real assertion.
+    const distinctDaysUntilExpiry = new Set(expected.map((r) => r.daysUntilExpiry));
+    expect(distinctDaysUntilExpiry.size).toBeGreaterThan(1);
   });
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
@@ -5261,9 +5287,19 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("runGatedDatasetStalenessAlertPass sends a correct, complete alert once approved, in the window, with a key -- and dedupes within the same UTC day", async () => {
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
+    const clockDate = new Date("2026-10-03T00:00:00Z");
+    // Independently derived, not hardcoded -- see the describe-block
+    // comment and computeExpectedGatedDatasetNearing() above. Which
+    // dataset names appear (and the cliff date in the subject) have both
+    // legitimately changed before (STALE-20 batch 1 emptied cpe_hours/
+    // reinstatement out of this exact cohort) and will again as STALE-20's
+    // remaining batches land.
+    const expected = computeExpectedGatedDatasetNearing(clockDate);
+    expect(expected.length).toBeGreaterThan(0); // this test asserts a SEND happened; a drained cohort would make that assertion vacuous
+    const expectedDatasets = new Set(expected.map((r) => r.dataset));
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
+      vi.setSystemTime(clockDate);
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
       try {
         const envWithConsent = {
@@ -5278,16 +5314,11 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
         const sentBody = JSON.parse(String(init.body));
         expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
         expect(sentBody.subject).toContain("expiring soon");
-        expect(sentBody.subject).toContain("2026-10-10");
+        expect(sentBody.subject).toContain(expected[0]!.expiresOn);
         const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
-        // 2026-10-03 + 7 days only reaches the 2026-10-10 cliff, i.e. only
-        // the 09-09 cohort -- STALE-20 batch 1 (2026-09-22) emptied that
-        // cohort's cpe_hours and reinstatement rows entirely, leaving only
-        // renewal_fees (see the describe-block comment above). A real
-        // re-verification pass, not a defect: asserting all three dataset
-        // names unconditionally was coupled to a cohort composition that
-        // has since legitimately changed.
-        expect(textContent).toContain("renewal_fees.json");
+        for (const dataset of expectedDatasets) {
+          expect(textContent).toContain(`${dataset}.json`);
+        }
         expect(textContent).toContain("HARD-BLOCKS ALL SHIPPING");
 
         // Same day, second tick -- must NOT send again.
