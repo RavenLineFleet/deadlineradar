@@ -206,6 +206,46 @@ consumption half. Guardrails, non-negotiable under this repo's
       a missing/mismatched/stale token refuses regardless of TTY. A
       refused apply prints why, writes zero dataset files, and the
       process exits non-zero.
+  17. APPLY-2 (LOW, same report as AUTO-11 below). "One-shot" was a
+      promise the code didn't keep -- no deletion primitive existed
+      anywhere, so a stale approval file could sit in the working
+      directory indefinitely (mitigated in practice, since the token is
+      content-derived and a stale file only re-authorizes a run whose
+      proposals hash identically, but the statement and the behavior
+      didn't match). Fixed: `check_apply_approval()` deletes a
+      MISMATCHED approval file the moment the mismatch is detected (it's
+      useless and would only cause confusion later); `main()` deletes a
+      MATCHED file once its approval is actually EXERCISED (a real apply
+      happens) -- a matched file that was refused on the TTY check is
+      deliberately left alone, since it's still a genuinely valid
+      approval, just not run interactively yet.
+  18. AUTO-11 (LOW-MED, same report). `cpa_deadlines.json` -- the LARGEST
+      dataset -- was excluded from anchoring on a stated reason ("no
+      citation-shaped field") that was false: all 89 records have one.
+      Excluding it silently made 36% of cited records (96/245 with the 7
+      stragglers elsewhere) structurally ineligible for auto-extend,
+      fail-safe but silent. Fixed the extractor FIRST, per the ruling's
+      own ordering ("do not just flip the allowlist"): two real records
+      (fl-firm, il-firm) had a "verified <date>" provenance-log stamp in
+      their citation prose that `extract_citation_anchor()` mistook for a
+      multi-part locator (a bare ISO date is not a locator -- it will
+      never sit in a heading, and if it ever matched something it would
+      match the wrong thing). `_looks_like_date()` now rejects that shape,
+      and `_first_non_date_match()` keeps searching past a date rather
+      than giving up the whole pattern (a citation could have both a date
+      AND a real locator). Found a THIRD real record with the identical
+      bug (`me-all`) that AuditLab's own report didn't enumerate, while
+      re-measuring their count against the fix -- confirms the fix is
+      general, not two special cases. `cpa_deadlines.json` added to
+      `claim_anchor_for_record()`'s allowlist; every existing guard
+      (AUTO-6 identity, baseline provenance, the 90-day ceiling, APPLY-1's
+      TTY+token) applies to it unchanged. The 6 records with no
+      extractable anchor (2 Alaska form-PDF citations with no statutory
+      locator at all, one New Hampshire colon-separated citation style
+      this extractor doesn't cover, plus the 3 date-bug records once
+      correctly rejected) stay manual-only, honestly. AuditLab re-checks
+      a sample of the real anchors against their live pages before any
+      `cpa_deadlines.json` record is ever proposed.
 
 STANDING RULES FOR --apply (_AAA_orchestrator_20260923_AUTO10_plus_
 apply_rules.md + APPLY-1's amendment above, until told otherwise):
@@ -344,6 +384,37 @@ def normalize_typography(s: str) -> str:
     return s
 
 
+_ANCHOR_PATTERN_PARENTHETICAL = re.compile(r"\b\d+[A-Za-z]?(?:[-.]\d[\w.\-]*)*(?:\([a-z0-9]+\))+")
+_ANCHOR_PATTERN_HYPHEN_DOT = re.compile(r"\b\d+[A-Za-z]?[-.]\d[\w.\-]*\b")
+_ANCHOR_PATTERN_SECTION_SIGN = re.compile(r"§\s*(\d{2,}[A-Za-z]?(?:\([a-z0-9]+\))?)")
+
+# AUTO-11 (LOW-MED, auditlab_20260923_APPLY1_CLOSED_plus_APPLY2_and_AUTO11.md):
+# a bare ISO-shaped date (e.g. "verified 2026-07-30" in a provenance-log
+# citation) matches the hyphenated-locator pattern by coincidence -- it is
+# not a locator, will never sit in a heading, and if it ever DID match
+# something on a page it would match the wrong thing. Measured on the
+# real cpa_deadlines.json false positives (fl-firm's "2026-07-30",
+# il-firm's "2026-07-17") before writing this, not guessed.
+_DATE_SHAPE_RE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+
+
+def _looks_like_date(token: str) -> bool:
+    return bool(_DATE_SHAPE_RE.match(token))
+
+
+def _first_non_date_match(pattern: re.Pattern[str], text: str) -> str | None:
+    """Like pattern.search(text).group(0), but skips a date-shaped match
+    and keeps looking rather than giving up entirely -- a citation can
+    have a provenance-log date AND a real locator in the same string
+    (measured: il-firm's citation has BOTH "2026-07-17"/"2026-07-30" dates
+    and no real locator at all today, but nothing about the pattern rules
+    that combination out for some future record)."""
+    for m in pattern.finditer(text):
+        if not _looks_like_date(m.group(0)):
+            return m.group(0)
+    return None
+
+
 def extract_citation_anchor(citation: str | None) -> str | None:
     """Pull a SPECIFIC section/subsection locator out of a free-text
     `citation` field, e.g. '...Rules, ch. 1, Sec 13(b) (eff. 10/28/2019)'
@@ -361,6 +432,8 @@ def extract_citation_anchor(citation: str | None) -> str | None:
          shape AUTO-3/AUTOEXTEND-1 showed matching bot-wall boilerplate
          by coincidence), so this is deliberately NOT the same risk as a
          bare code name like "4 CMC" (which has no § and is excluded).
+    A bare ISO-shaped date (AUTO-11) is never returned even if it would
+    otherwise match pattern 1 or 2 -- see _looks_like_date().
     Anything else (a bare number with no § and no punctuation, a bare
     code/agency name, nothing at all) returns None -- no anchor -- rather
     than guess. A record whose citation prose yields no extractable
@@ -378,13 +451,13 @@ def extract_citation_anchor(citation: str | None) -> str | None:
     # absorbs that prefix into the SAME match before the mandatory
     # parenthetical, so the anchor returned is always the FULL locator,
     # never a truncated tail of it.
-    m = re.search(r"\b\d+[A-Za-z]?(?:[-.]\d[\w.\-]*)*(?:\([a-z0-9]+\))+", normalized)
-    if m:
-        return m.group(0)
-    m = re.search(r"\b\d+[A-Za-z]?[-.]\d[\w.\-]*\b", normalized)
-    if m:
-        return m.group(0)
-    m = re.search(r"§\s*(\d{2,}[A-Za-z]?(?:\([a-z0-9]+\))?)", normalized)
+    candidate = _first_non_date_match(_ANCHOR_PATTERN_PARENTHETICAL, normalized)
+    if candidate:
+        return candidate
+    candidate = _first_non_date_match(_ANCHOR_PATTERN_HYPHEN_DOT, normalized)
+    if candidate:
+        return candidate
+    m = _ANCHOR_PATTERN_SECTION_SIGN.search(normalized)
     if m:
         return m.group(1)
     return None
@@ -396,12 +469,20 @@ def claim_anchor_for_record(dataset_filename: str, record: dict) -> str | None:
     (which AUTO-3 showed was too weak on its own). Anchors on the
     record's own `citation` prose -- present on 54/55 renewal_fees
     records per AuditLab's own count, and the same field cpe_hours.json/
-    reinstatement.json carry -- via extract_citation_anchor(). Datasets
-    with no `citation`-shaped field (cpa_deadlines.json, reg_change_
-    events.json's conflict records) return None until this function is
-    taught their own anchor source -- a real, stated gap, not silently
-    treated as "no check needed"."""
-    if dataset_filename in ("cpe_hours.json", "reinstatement.json", "renewal_fees.json"):
+    reinstatement.json/cpa_deadlines.json carry -- via
+    extract_citation_anchor(). AUTO-11 (auditlab_20260923_APPLY1_CLOSED_
+    plus_APPLY2_and_AUTO11.md): cpa_deadlines.json was excluded on a
+    stated reason ("no citation-shaped field") that was FALSE -- every
+    one of its 89 records has a non-empty `citation`, and 86 of them
+    extract a good anchor (the other 3 -- Alaska's form PDFs, New
+    Hampshire's multi-statute citation -- are honest non-anchors, not a
+    bug). Excluding the largest dataset silently made 36% of cited
+    records structurally ineligible for auto-extend, on top of 7
+    stragglers elsewhere (39.2% total) -- fail-safe, but silent.
+    reg_change_events.json's conflict records still have no `citation`-
+    shaped field and return None until taught their own anchor source --
+    a real, stated gap, not silently treated as "no check needed"."""
+    if dataset_filename in ("cpe_hours.json", "reinstatement.json", "renewal_fees.json", "cpa_deadlines.json"):
         return extract_citation_anchor(record.get("citation"))
     return None
 
@@ -1298,7 +1379,36 @@ def _selftest() -> None:
     # a wrong extraction). ------------------------------------------------
     assert claim_anchor_for_record("cpe_hours.json", {"citation": "Ala. Code § 34-1-7"}) == "34-1-7"
     assert claim_anchor_for_record("cpe_hours.json", {"citation": "Ala. Admin. Code r. 30-X-5-.02"}) is None, "documents a real, acknowledged extractor coverage gap -- letter mid-locator formats aren't handled yet, and returning None (not a guess) is the correct behavior for them"
-    assert claim_anchor_for_record("cpa_deadlines.json", {"citation": "Something 13(b)"}) is None, "SELFTEST FAILED: cpa_deadlines.json has no configured anchor source and must return None, not guess"
+    # AUTO-11: cpa_deadlines.json is now wired in (it was excluded on a
+    # stated reason -- "no citation-shaped field" -- that was false; every
+    # one of its 89 records has one). reg_change_events.json's conflict
+    # records still have no citation-shaped field at all and correctly
+    # stay unconfigured.
+    assert claim_anchor_for_record("cpa_deadlines.json", {"citation": "Something 13(b)"}) == "13(b)", "SELFTEST FAILED (AUTO-11): cpa_deadlines.json is now a configured anchor source, must extract like any other"
+    assert claim_anchor_for_record("reg_change_events.json", {"citation": "Something 13(b)"}) is None, "SELFTEST FAILED: reg_change_events.json genuinely has no citation-shaped field and must return None, not guess"
+
+    # --- AUTO-11: date-shaped tokens must never be returned as an anchor
+    # -- built from the REAL cpa_deadlines.json false positives this
+    # found (fl-firm, il-firm), both pure provenance-log prose with a
+    # "verified <date>" stamp and no real locator anywhere in the text. ---
+    fl_firm_citation = 'Confirmed via Florida DBPR public CPA license records (cpalicensedata20260709.xlsx, worksheet "CPA Firms"): 4,932 of 4,933 active firm licenses show expiration 12/31/2027 -- verified 2026-07-30.'
+    il_firm_citation = 'Confirmed via Illinois IDFPR\'s public open-data license register (data.illinois.gov, dataset pzzh-kp68): active "Public Accountant Firm License" records show expiration 11/30/2027, unchanged from the 2026-07-17 check and confirmed again 2026-07-30.'
+    # A THIRD real record with the identical shape, found independently
+    # while re-measuring AuditLab's "86 of 89" figure against the live
+    # allowlist fix -- their report named only fl-firm/il-firm, but
+    # me-all's citation is the same "verified <date>" provenance-log
+    # prose with no locator at all. Confirms the fix is general (pattern-
+    # based), not two special cases -- it catches a case AuditLab's own
+    # report didn't enumerate.
+    me_all_citation = 'Confirmed via Maine ALMS Online license-verification portal (Board of Accountancy, board code 4110): live individual and firm license records (CP9957, FM10001345, FMF10001174, FM10001299) all show expiration 09/30/2026 -- verified 2026-07-30.'
+    assert extract_citation_anchor(fl_firm_citation) is None, f"SELFTEST FAILED (AUTO-11): a bare ISO date must never be returned as an anchor -- got {extract_citation_anchor(fl_firm_citation)!r}"
+    assert extract_citation_anchor(il_firm_citation) is None, f"SELFTEST FAILED (AUTO-11): a bare ISO date must never be returned as an anchor (two dates in the same citation) -- got {extract_citation_anchor(il_firm_citation)!r}"
+    assert extract_citation_anchor(me_all_citation) is None, f"SELFTEST FAILED (AUTO-11): a third real 'verified <date>' record must also be rejected -- got {extract_citation_anchor(me_all_citation)!r}"
+    assert _looks_like_date("2026-07-30") is True and _looks_like_date("13(b)") is False and _looks_like_date("193A-5.3") is False, "SELFTEST FAILED (AUTO-11): _looks_like_date() must recognize an ISO date and NOT flag a real locator shape as one"
+    # Isolation control: a citation with BOTH a date AND a real locator
+    # must still extract the real locator, not give up entirely just
+    # because the first regex match happened to be the date.
+    assert extract_citation_anchor("Verified 2026-07-30, citation Ala. Code § 34-1-7") == "34-1-7", "SELFTEST FAILED (AUTO-11): a date earlier in the string must not block a real locator found later in the same citation"
 
     # --- AUTO-4 point 3: 0 records eligible on day one, asserted, not
     # just observed. Simulates today's REAL condition (every record
@@ -1398,53 +1508,76 @@ def _selftest() -> None:
 
             # 1. No token anywhere (env unset, no approval file) -> refused.
             os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
-            assert ok is False and reason, "SELFTEST FAILED (APPLY-1): no approval token anywhere must be refused"
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is False and reason and token_source is None, "SELFTEST FAILED (APPLY-1): no approval token anywhere must be refused"
 
             # 2. Wrong/stale token (a real token, but for a DIFFERENT
             # proposal set) -> refused. This is "a stale approval can't
             # authorize new proposals," proven directly, not assumed.
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = stale_tag
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
             assert ok is False, f"SELFTEST FAILED (APPLY-1): a stale token (for a different proposal set) must be refused, not accepted -- {reason}"
 
             # 3. Valid token (env) + NON-interactive -> refused. No bypass,
             # per the amendment -- this is the control it explicitly asked for.
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = real_tag
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=False)
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=False)
             assert ok is False, f"SELFTEST FAILED (APPLY-1): a valid token with a non-interactive (non-TTY) invocation must still be refused -- {reason}"
 
             # 4. Valid token (env) + interactive TTY -> approved.
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
-            assert ok is True, f"SELFTEST FAILED (APPLY-1): a valid token with an interactive TTY must be approved -- {reason}"
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is True and token_source == "env", f"SELFTEST FAILED (APPLY-1): a valid token with an interactive TTY must be approved -- {reason}"
 
             # 5. Valid token via the approval FILE (not env) + TTY -> approved.
             # This is the mechanism Orchestrator actually uses per the
-            # amendment ("take the token from an approval file").
+            # amendment ("take the token from an approval file"). The
+            # match alone does NOT consume the file -- check_apply_approval()
+            # only ever CHECKS; only main(), after the approval is actually
+            # EXERCISED (a real apply happens), consumes it (APPLY-2).
             os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
-            (apply_repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE).write_text(real_tag, encoding="utf-8")
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
-            assert ok is True, f"SELFTEST FAILED (APPLY-1): a valid approval FILE token with a TTY must be approved -- {reason}"
+            approval_file_path = apply_repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE
+            approval_file_path.write_text(real_tag, encoding="utf-8")
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is True and token_source == "file", f"SELFTEST FAILED (APPLY-1): a valid approval FILE token with a TTY must be approved -- {reason}"
+            assert approval_file_path.exists(), "SELFTEST FAILED (APPLY-2): a matched approval file must NOT be deleted by the check alone -- only by main() once the approval is actually exercised"
 
-            # 6. A stale FILE token (for a different proposal set) -> refused.
-            (apply_repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE).write_text(stale_tag, encoding="utf-8")
-            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            # 6. APPLY-2: a stale FILE token (for a different proposal set)
+            # is refused AND deleted -- "a stale file is useless and
+            # shouldn't linger" is the exact wording of the fix.
+            approval_file_path.write_text(stale_tag, encoding="utf-8")
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
             assert ok is False, "SELFTEST FAILED (APPLY-1): a stale approval FILE token must be refused too, not just a stale env token"
+            assert not approval_file_path.exists(), "SELFTEST FAILED (APPLY-2): a mismatched/stale approval file must be deleted by check_apply_approval() itself, not left to linger"
+
+            # 7. APPLY-2: the file IS consumed once the approval is
+            # actually exercised -- replicates the exact sequence main()
+            # runs (check, then unlink if token_source == "file" after a
+            # real apply happens).
+            approval_file_path.write_text(real_tag, encoding="utf-8")
+            ok, reason, token_source = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is True and token_source == "file"
+            if token_source == "file":
+                approval_file_path.unlink(missing_ok=True)
+            assert not approval_file_path.exists(), "SELFTEST FAILED (APPLY-2): the approval file must be gone once its approval was actually exercised -- 'one-shot' must be true, not just a comment"
     finally:
         if _apply1_env_backup is None:
             os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
         else:
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = _apply1_env_backup
 
-    print("  selftest (89 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (99 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
           "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-10 (x9: "
           "override-aware anchoring matching the live Wyoming case, single-fetch, regression baseline, "
-          "no-noise-on-normal-records), Stage B's apply_eligible_extends() (x9: field updates, "
+          "no-noise-on-normal-records), AUTO-11 (x6: cpa_deadlines.json wired in, 3 real date-bug "
+          "regressions incl. one AuditLab's own report didn't name, _looks_like_date() shape check, "
+          "date-then-real-locator isolation), Stage B's apply_eligible_extends() (x9: field updates, "
           "last_manual_verified_date/baseline untouched, history appended not overwritten, byte-identical "
           "copies, out-of-scope reporting, no-op safety), APPLY-1 (x6: no token, stale env token, valid "
-          "token + non-TTY, valid token + TTY, valid file token, stale file token), the original "
+          "token + non-TTY, valid token + TTY, valid file token, stale file token), APPLY-2 (x4: file "
+          "not consumed by a check alone, stale file deleted on mismatch, file consumed once its "
+          "approval is actually exercised), the original "
           "soft-404/bot-wall/baseline-poisoning trio, the PDF-branch content-shape/length controls, "
           "SecurityLab's site-B anchoring-path control, and build_manual_verification_update()'s "
           "single-fetch/stale-field controls (x14)): PASS")
@@ -1664,7 +1797,7 @@ def compute_proposals_tag(proposals: list[dict]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def check_apply_approval(repo_root: Path, proposals_tag: str, stdin_isatty: bool) -> tuple[bool, str]:
+def check_apply_approval(repo_root: Path, proposals_tag: str, stdin_isatty: bool) -> tuple[bool, str, str | None]:
     """Belt and braces, BOTH required: (1) an approval token -- from
     AUTO_EXTEND_APPLY_APPROVED (env) or a one-shot approval file -- must
     equal proposals_tag EXACTLY, granted by Orchestrator only after
@@ -1672,19 +1805,33 @@ def check_apply_approval(repo_root: Path, proposals_tag: str, stdin_isatty: bool
     TTY, since the standing rule is that --apply is run BY HAND ONLY,
     never from a scheduler/cron/loop/watchdog -- a leaked or copied token
     alone must not be enough to authorize a write from an unattended
-    process. Returns (True, "") only if both hold; otherwise (False,
-    reason) and the caller MUST NOT write anything."""
+    process. Returns (approved, reason, token_source) -- token_source is
+    "env"/"file"/None, so the caller (main()) knows whether to consume
+    the one-shot approval FILE after a successful apply (APPLY-2).
+
+    APPLY-2 (auditlab_20260923_APPLY1_CLOSED_plus_APPLY2_and_AUTO11.md):
+    "one-shot" used to be a promise the code didn't keep -- no deletion
+    primitive existed anywhere, so a stale approval file could sit in the
+    working directory indefinitely. A MISMATCHED file (present, but its
+    token doesn't equal proposals_tag) is deleted right here, the moment
+    the mismatch is detected -- it's useless and would only cause
+    confusion later. A file that matched but was refused on the TTY
+    check is deliberately NOT deleted here -- it's still a genuinely
+    valid approval, just not exercised in a non-interactive shell; the
+    file is only actually consumed by the caller once the approval it
+    grants is exercised (a real apply happens), see main()."""
     env_token = os.environ.get(AUTO_EXTEND_APPLY_APPROVED_ENV)
     token_matched = bool(env_token) and env_token == proposals_tag
     token_source = "env" if token_matched else None
 
-    if not token_matched:
-        approval_path = repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE
-        if approval_path.exists():
-            file_token = approval_path.read_text(encoding="utf-8").strip()
-            if file_token == proposals_tag:
-                token_matched = True
-                token_source = "file"
+    approval_path = repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE
+    if not token_matched and approval_path.exists():
+        file_token = approval_path.read_text(encoding="utf-8").strip()
+        if file_token == proposals_tag:
+            token_matched = True
+            token_source = "file"
+        else:
+            approval_path.unlink(missing_ok=True)
 
     if not token_matched:
         return False, (
@@ -1692,14 +1839,14 @@ def check_apply_approval(repo_root: Path, proposals_tag: str, stdin_isatty: bool
             f"{AUTO_EXTEND_APPLY_APPROVED_ENV} or write {AUTO_EXTEND_APPLY_APPROVED_FILE} with the "
             f"EXACT tag Orchestrator grants after AuditLab's PASS on this specific proposals file. "
             f"Refused, no dataset file touched."
-        )
+        ), None
     if not stdin_isatty:
         return False, (
             f"approval token matched (source={token_source}) but stdin is not a TTY -- --apply is run "
             f"BY HAND ONLY, never from a scheduler/cron/loop/watchdog, even with a valid token. "
             f"Refused, no dataset file touched."
-        )
-    return True, ""
+        ), token_source
+    return True, "", token_source
 
 
 def main() -> int:
@@ -1824,12 +1971,17 @@ def main() -> int:
     proposals_tag = compute_proposals_tag(proposals)
     apply_refused_reason: str | None = None
     if apply_mode and proposals:
-        approved, reason = check_apply_approval(repo_root, proposals_tag, sys.stdin.isatty())
+        approved, reason, token_source = check_apply_approval(repo_root, proposals_tag, sys.stdin.isatty())
         if not approved:
             apply_refused_reason = reason
             print(f"\nStage B: REFUSED (APPLY-1). {reason}")
         else:
             applied, out_of_scope = apply_eligible_extends(repo_root, proposals, today)
+            # APPLY-2: the approval is now actually EXERCISED -- consume
+            # the one-shot file so "one-shot" is true, not just a comment.
+            # An env-var token isn't a file, nothing to consume there.
+            if token_source == "file":
+                (repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE).unlink(missing_ok=True)
             print(f"\nStage B: applied {len(applied)} extend(s) to dataset files (verified_method=auto_source_unchanged, "
                   f"last_manual_verified_date untouched).")
             for a in applied:
