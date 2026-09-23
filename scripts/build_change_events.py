@@ -256,6 +256,20 @@ def build(today: date) -> tuple[list[dict], list[str]]:
 
         parsed = forward if (forward is not None and forward > today) else recent
 
+        # AuditLab RC-17 (HIGH, 2026-09-23): a dateless flux record used to
+        # become a "sources disagree" conflict card purely because `parsed
+        # is None` -- datelessness, not disagreement. Confirmed live-wrong
+        # for Puerto Rico and US Virgin Islands: both records' own flux_note
+        # explicitly says nothing disagrees (PR: "the act does NOT touch
+        # the mobility text quoted here"; USVI: "no PRIMARY evidence of a
+        # pending change exists"), yet the page told a reader "we found the
+        # conflict." Classification now requires an explicitly AUTHORED
+        # `source_conflict` field on the record -- never inferred from the
+        # presence/absence of a date, and never pattern-matched out of
+        # flux_note (that marker is a research convention, not a control;
+        # same reasoning as this file's other structured-fields-only rules).
+        is_conflict = parsed is None and r.get("source_conflict") is True
+
         # ID suffix mirrors whichever date actually produced `parsed` (or,
         # for a genuine no-date source conflict, the literal fallback) --
         # NOT simply "changes_on or fallback", which mislabelled a real,
@@ -275,10 +289,33 @@ def build(today: date) -> tuple[list[dict], list[str]]:
             "confidence": r.get("confidence"),
             # Synthesized, public-safe -- NEVER the raw flux_note/notes
             # prose. See _public_summary()'s docstring for why.
-            "summary_public": _public_summary(r, is_conflict=parsed is None),
+            "summary_public": _public_summary(r, is_conflict=is_conflict),
         }
 
-        if parsed is None:
+        if parsed is None and not is_conflict:
+            # Dateless AND not an authored conflict: this is not a rule
+            # change (no date to publish one with) and not a source
+            # disagreement (no authored basis for one). Orchestrator ruling
+            # 2026-09-22 (RC-17): drop from the conflict section rather than
+            # invent a third public bucket this data doesn't cleanly support
+            # -- a guessed "pending rulemaking watch" status would repeat
+            # the exact mistake (REGEN-1/REGEN-3, just above) of asserting a
+            # charter status label the structured fields don't back.
+            withheld_ambiguous.append({
+                "jurisdiction_slug": slug,
+                "jurisdiction": r.get("state") or slug,
+                "status": "UNDETERMINED",
+                "reason": ("rule_in_flux with no date and source_conflict is not True -- not a "
+                           "rule change (no date) and not an authored source conflict; withheld "
+                           "rather than defaulting to the conflict card with no basis"),
+                "has_citation_url": bool(citation_url),
+                "confidence": r.get("confidence"),
+                "next_action": "if this should publish, it needs either a rule_changes_on/"
+                               "last_changed_on date, or an authored source_conflict=true + "
+                               "conflict_summary in worker/src/mobility_rules.json",
+            })
+            continue
+        elif is_conflict:
             base.update({
                 "kind": KIND_CONFLICT,
                 "effective_date": None,
@@ -286,6 +323,10 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 # is not a law changing, it is our two sources disagreeing.
                 "status": "SOURCE_CONFLICT",
                 "needs_reverification": False,
+                # Authored basis for the classification (RC-17) -- internal
+                # field, not rendered on its own; _public_summary() already
+                # produces the public-safe sentence for this kind.
+                "conflict_summary": r.get("conflict_summary"),
             })
         elif not r.get("status"):
             # AuditLab REGEN-1/REGEN-3 (2026-08-26): every record in this
@@ -554,7 +595,84 @@ def _report_pending_clobber(new_events: list[dict], new_meta: dict) -> None:
           "fix upstream before re-running, or confirm the change is intentional.")
 
 
+def _selftest_rc17_no_conflict_without_authored_field() -> None:
+    """AuditLab RC-17's requested regression test: a dateless flux record
+    with no `source_conflict` field must not render the "sources disagree"
+    sentence. Runs `build()` against a small synthetic ruleset (not the
+    real data files) so this is a real exercise of the classifier, not a
+    restatement of its own condition. Runs unconditionally at the top of
+    main() -- not an opt-in flag -- so the next dateless record can't
+    silently reintroduce this the way PR/USVI did.
+    """
+    import tempfile
+
+    synthetic_records = [
+        {
+            # No rule_changes_on / last_changed_on, no source_conflict --
+            # the exact PR/USVI shape before this fix.
+            "state_slug": "test-no-conflict-field",
+            "state": "Test No Conflict Field",
+            "citation": "Test Code § 1",
+            "citation_url": "https://example.test/1",
+            "rule_in_flux": True,
+        },
+        {
+            "state_slug": "test-conflict-false",
+            "state": "Test Conflict False",
+            "citation": "Test Code § 2",
+            "citation_url": "https://example.test/2",
+            "rule_in_flux": True,
+            "source_conflict": False,
+        },
+        {
+            # The one shape that SHOULD still publish as a conflict.
+            "state_slug": "test-conflict-true",
+            "state": "Test Conflict True",
+            "citation": "Test Code § 3",
+            "citation_url": "https://example.test/3",
+            "rule_in_flux": True,
+            "source_conflict": True,
+        },
+    ]
+    synthetic_deadlines = [{"state_slug": r["state_slug"]} for r in synthetic_records]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = pathlib.Path(tmp)
+        rules_path = tmp_path / "mobility_rules.json"
+        deadlines_path = tmp_path / "cpa_deadlines.json"
+        rules_path.write_text(json.dumps({"records": synthetic_records}), encoding="utf-8")
+        deadlines_path.write_text(json.dumps({"records": synthetic_deadlines}), encoding="utf-8")
+
+        global RULES, DEADLINES
+        real_rules, real_deadlines = RULES, DEADLINES
+        RULES, DEADLINES = rules_path, deadlines_path
+        try:
+            events, _rejected, withheld = build(date.today())
+        finally:
+            RULES, DEADLINES = real_rules, real_deadlines
+
+    by_slug = {e["jurisdiction_slug"]: e for e in events}
+    withheld_slugs = {w["jurisdiction_slug"] for w in withheld}
+
+    assert "test-no-conflict-field" not in by_slug, (
+        "RC-17 REGRESSION: a dateless record with no source_conflict field published as an event"
+    )
+    assert "test-no-conflict-field" in withheld_slugs, (
+        "RC-17 REGRESSION: a dateless, non-conflict record should be withheld, not silently dropped"
+    )
+    assert "test-conflict-false" not in by_slug, (
+        "RC-17 REGRESSION: source_conflict=false must not publish as a conflict"
+    )
+    assert by_slug.get("test-conflict-true", {}).get("kind") == KIND_CONFLICT, (
+        "an explicit source_conflict=true record must still classify as a conflict"
+    )
+    assert "don't agree" not in json.dumps(withheld), (
+        "the conflict sentence must never appear anywhere in the withheld-queue output"
+    )
+
+
 def main() -> int:
+    _selftest_rc17_no_conflict_without_authored_field()
     today = date.today()
     mobility_events, rejected, _ = build(today)
     difflab_events, difflab_rejected = load_difflab_events(today)
