@@ -4268,35 +4268,44 @@ def _find_if_blocks(text: str) -> list[tuple[str, str]]:
     return results
 
 
-def _condition_guards_flag(cond: str, block: str, flag: str) -> bool:
+def _condition_guards_flag(
+    cond: str, block: str, flag: str, protected_substrings: tuple[str, ...] = ("sendViaSendGrid(",)
+) -> bool:
     """True if this `if (cond) { block }` (or bodyless `if (cond) stmt;`)
     genuinely keeps a firm/session where `flag` is true from reaching a
-    send, for any of the shapes this codebase actually uses (a standalone
-    early-exit, an if/else-if/else chain that sets a `reason` and skips
-    sending elsewhere, or a combined condition wrapping the send directly).
+    protected call (default `sendViaSendGrid(`; callers guarding a different
+    action -- e.g. a mutating `store.*(` call -- pass their own
+    `protected_substrings`), for any of the shapes this codebase actually
+    uses: a standalone early-exit, an if/else-if/else chain that sets a
+    `reason`/403s and skips the protected call elsewhere, or a combined
+    condition wrapping the protected call directly.
 
-    SecurityLab (2026-09-23, GATE send-exclusion polarity finding,
-    Orchestrator GO): the prior version required only that `flag`'s NAME
-    appear somewhere in a live (non-constant-false) if() condition, with no
-    regard for polarity or for whether that if is the one actually guarding
-    the send. Two real weakenings both passed clean: a dropped `!` in the
-    condition that directly wraps `sendViaSendGrid(` (inverts to "only
-    flagged firms receive") and an OR-true short-circuit
-    (`(session.firm.is_test_tenant || true)`, always enters regardless of
-    the flag).
-
-    The fix narrows scope to exactly the case that matters: when `block`
-    itself contains the `sendViaSendGrid(` call -- i.e. this condition IS
-    "the send condition" -- a bare positive mention is no longer enough;
-    only a genuine, non-neutralized NEGATION counts. Every other shape (an
-    early-exit whose block doesn't itself send, or a branch in an
-    if/else-if/else chain where the send lives in a DIFFERENT branch
-    entirely) is untouched -- those conditions were never "the send
-    condition" to begin with, so requiring a `!` there would be requiring
-    something the real, correct code doesn't and shouldn't have."""
-    if "sendViaSendGrid(" in block:
-        negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
+    SecurityLab (2026-09-23, GATE send-exclusion polarity finding) +
+    AuditLab GATE-25 (2026-09-23, two extensions, Orchestrator GO): the
+    prior version required only that `flag`'s NAME appear somewhere in a
+    live (non-constant-false) if() condition, with no regard for polarity or
+    for whether that if is the one actually guarding the protected call.
+    Real weakenings that passed clean: a dropped `!` in a condition that
+    directly wraps the protected call (inverts to "only flagged firms/rows
+    get through"); an OR-true short-circuit (`(is_test_tenant || true)`,
+    always enters regardless of the flag); and -- GATE-25's own new
+    evidence -- a stray `!` ADDED to a positive early-exit/403 guard
+    (`if (!session.firm.demo_locked) { 403 }`), which blocks REAL firms and
+    lets flagged ones through. That last shape is the dominant convention in
+    this codebase (11 of 13 email senders, 33 of 36 mutation guards) and the
+    original GO's literal "require negation" wording would have broken all
+    of them -- AuditLab's recommended fix, applied here, is
+    negation-IFF-containment: a NEGATED reference is required exactly when
+    `block` contains the protected call (this condition directly wraps it),
+    and a genuinely POSITIVE (non-negated) reference is required exactly
+    when it doesn't (this condition exits/blocks before the protected call,
+    reached elsewhere) -- both real conventions pass, either a dropped OR an
+    added `!` fails."""
+    negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
+    if any(marker in block for marker in protected_substrings):
         return negated and not _condition_is_constant_true(cond)
+    if negated:
+        return False
     return flag in cond and not _condition_is_constant_false(cond)
 
 
@@ -4599,6 +4608,19 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
         "handleChecklistItemCreate": "demo data-playground mutation (DEMO-3), same category as handleCpeEntryCreate -- a firm's renewal checklist is exactly the kind of thing a demo visitor should be able to try",
         "handleChecklistItemUpdate": "demo data-playground mutation (DEMO-3), same category as handleFirmLicenseRenew -- marking a checklist item complete/linking a document doesn't alter the roster or its permissions",
         "handleChecklistItemDelete": "demo data-playground mutation (DEMO-3), same category as handleDocumentDelete -- deleting a demo checklist item doesn't alter who can sign in or what they can do",
+        # GATE-25 (AuditLab, 2026-09-23): the OLD whole-function presence
+        # check accidentally passed these two because each function ALSO
+        # has a demo_locked-guarded EMAIL send later in the same body (see
+        # check_demo_locked_email_coverage()) -- that mention was never
+        # actually protecting the mutation below. The block-scoped fix
+        # correctly finds no guard on the mutation itself, which is by
+        # DESIGN, not a gap: both functions' own comments already invoke
+        # DEMO-4's "gate the send, not the edit" line (index.ts:7908-ish and
+        # :7996-ish) -- adding/editing a staff license row is the exact same
+        # data-playground category as handleFirmLicenseRenew immediately
+        # above, just via a different store.* function.
+        "handleFirmLicenseCreate": "demo data-playground mutation (DEMO-4's own 'gate the send, not the edit' line, stated in this function's own comment) -- adding a staff/license row, same category as handleFirmLicenseRenew; the EMAIL notification is separately demo_locked-gated (see check_demo_locked_email_coverage)",
+        "handleFirmLicensePatch": "demo data-playground mutation (DEMO-4's own 'gate the send, not the edit' line, stated in this function's own comment), same category as handleFirmLicenseCreate immediately above -- the EMAIL notification is separately demo_locked-gated",
     }
 
     index_src = index_ts.read_text(encoding="utf-8")
@@ -4620,9 +4642,20 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
         if not any(f"store.{fn}(" in body for fn in mutating_fns):
             continue
         candidates_found += 1
+        # AuditLab GATE-25 EXTENSION B (2026-09-23, Orchestrator GO): same
+        # presence-not-polarity blind spot as the email gate -- an ADDED `!`
+        # on this codebase's dominant positive-403-guard shape
+        # (`if (session.firm.demo_locked) { 403 }` -> `if (!session.firm
+        # .demo_locked) { 403 }`) blocks real firms and lets demo/test firms
+        # mutate, and the old presence check (blind to polarity in this
+        # branch) passed it clean. `_condition_guards_flag()`'s own
+        # negation-iff-containment rule applies identically here with the
+        # PROTECTED call swapped from sendViaSendGrid( to this handler's own
+        # mutating store.* call(s).
+        mutating_call_markers = tuple(f"store.{fn}(" for fn in mutating_fns)
         guarded = any(
-            "demo_locked" in cond and not _condition_is_constant_false(cond)
-            for cond, _, _ in _find_if_conditions(body)
+            _condition_guards_flag(cond, block, "demo_locked", protected_substrings=mutating_call_markers)
+            for cond, block in _find_if_blocks(body)
         )
         if guarded:
             continue
