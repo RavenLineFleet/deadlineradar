@@ -330,6 +330,7 @@
     {
       "state_slug": "oregon",
       "monitor_urls": [
+        "https://secure.sos.state.or.us/oard/view.action?ruleNumber=801-010-0345",
         "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
         "https://secure.sos.state.or.us/oard/viewSingleRule.action?ruleVrsnRsn=314982",
         "https://www.oregonlegislature.gov/bills_laws/ors/ors673.html",

@@ -352,14 +352,16 @@
       "citation": "ORS 673.153 (holders of licenses issued by other states); ORS 673.160 (registration of business organizations); ORS 673.455 (peer review); ORS 673.010(20) (\"Substantially equivalent\") -- all as amended by Or. Laws 2025 ch. 132 (SB 797), effective 2026-01-01; implementing rules OAR 801-005-0010, 801-010-0080, 801-010-0345, 801-050-0020 (BOA 1-2026, filed 01/29/2026, eff. 02/01/2026)",
       "citation_url": "https://www.oregonlegislature.gov/bills_laws/ors/ors673.html",
       "secondary_url": "https://www.oregon.gov/boa/pages/peer-review.aspx",
-      "verified_date": "2026-07-31",
+      "verified_date": "2026-09-23",
       "confidence": "dual_source",
       "summary_public": "Oregon's own primary legal sources don't agree with each other on this rule. Rather than guess, we found the conflict and are showing you exactly where it is below — read both citations yourself, or confirm directly with the Oregon board.",
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
       "needs_reverification": false,
-      "conflict_summary": "Oregon's compiled rule (OAR 801-010-0345(3)) requires out-of-state firm registration for a broader set of attest engagements (including SSARS reviews) than the statute (ORS 673.160) actually triggers, and the Board's own peer-review guidance page follows the narrower statutory reading rather than its own compiled rule."
+      "conflict_summary": "Oregon's compiled rule (OAR 801-010-0345(3)) requires out-of-state firm registration for a broader set of attest engagements (including SSARS reviews) than the statute (ORS 673.160) actually triggers, and the Board's own peer-review guidance page follows the narrower statutory reading rather than its own compiled rule.",
+      "last_manual_verified_date": "2026-09-23",
+      "verified_method": "manual"
     }
   ]
 }
