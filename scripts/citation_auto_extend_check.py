@@ -302,6 +302,30 @@ consumption half. Guardrails, non-negotiable under this repo's
       When NOT confirmed, `last_manual_verified_date` is left OUT of the
       returned dict entirely (never bumped, not even to today) so a walled
       or unconfirmed fetch can never silently reset the 90-day ceiling.
+  22. AUTO-13 (LOW-MED, _AAA_orchestrator_20260923_AUTO13.md, AuditLab's
+      real Iowa chapter-PDF measurement). `_heading_text()`'s 400-char
+      window only ever sees a multi-section chapter PDF's COVER heading;
+      the cited SECTION's own heading sits thousands of characters in
+      (measured on Iowa's real 19,969-char chapter PDF). Widening the
+      window would be wrong -- Iowa's first in-window occurrence of the
+      anchor is a prose cross-reference ("as provided in rule
+      481-1025.3(542)"), and widening would accept a mere mention, the
+      exact thing AUTO-6 forbids. Added `_has_structural_heading()`: finds
+      a section's own heading by SHAPE instead of position -- a line
+      where the locator starts the line (optionally after a bare
+      section-sign or "Rule"/"Section" label), followed by a title-like
+      caption, and not preceded by cross-reference prose ("provided in",
+      "see", "under", "pursuant to") on that line or the one immediately
+      before it. Bounded to exactly one line back, not an unbounded
+      window -- PDF text wraps at arbitrary character widths, not
+      sentence boundaries, so a cross-reference can legitimately land
+      with the locator starting an EXTRACTED line ("...as provided
+      in\nrule 481-1025.3(542)."), but an unbounded lookback window
+      self-caught a false rejection of a REAL heading that simply follows
+      an unrelated, already-terminated sentence earlier in the same
+      document. Additive only -- `_heading_text()`/the window are
+      untouched, this is a third, independent path in
+      `_anchor_proves_identity()`.
 
 STANDING RULES FOR --apply (_AAA_orchestrator_20260923_AUTO10_plus_
 apply_rules.md + APPLY-1's amendment above, until told otherwise):
@@ -688,12 +712,69 @@ def _heading_text(text: str) -> str:
     return tags + " " + text[:_HEADING_WINDOW_CHARS]
 
 
+# AUTO-13 (LOW-MED, _AAA_orchestrator_20260923_AUTO13.md, AuditLab's real
+# Iowa chapter-PDF measurement): a multi-section chapter PDF's extracted
+# text has no HTML tags for _HTML_HEADING_TAG_RE to find, and
+# _HEADING_WINDOW_CHARS only ever sees the CHAPTER's own cover heading --
+# the cited SECTION's own heading sits thousands of characters in, past
+# the window (measured: Iowa's real 19,969-char chapter PDF). Widening the
+# window would be wrong (Iowa's FIRST in-window occurrence of the anchor
+# is a prose cross-reference, "...as provided in rule 481-1025.3(542)."
+# -- widening would accept a mere mention, exactly what AUTO-6 forbids).
+# Detects a section's own heading STRUCTURALLY instead of positionally: a
+# line where the locator starts the line (optionally after a bare
+# section-sign or a "Rule"/"Section" label), immediately followed by a
+# title-like caption, and not preceded by cross-reference prose on that
+# line OR the one immediately before it -- one line back, not an
+# unbounded window, because PDF text extraction wraps at arbitrary
+# character widths, not sentence boundaries: Iowa's real cross-reference
+# could legitimately land with the locator at the very start of an
+# EXTRACTED line if the wrap point fell right before it ("...as provided
+# in\nrule 481-1025.3(542)." -- "rule " alone, immediately before the
+# match, would pass a same-line-only check). Bounded to exactly one line
+# back (not an arbitrary char count) so an unrelated, already-terminated
+# sentence one section earlier can't false-reject a real heading that
+# simply follows it in the document -- measured: an unbounded char window
+# did exactly that against this file's own realistic test text.
+_STRUCTURAL_HEADING_LEAD_LABEL_RE = re.compile(r"^\s*(?:§\s*|Rule\s+|Section\s+)?$", re.IGNORECASE)
+_STRUCTURAL_HEADING_PROSE_PRECEDER_RE = re.compile(
+    r"\bprovided\s+in\b|\bsee\b|\bunder\b|\bpursuant\s+to\b", re.IGNORECASE
+)
+
+
+def _looks_like_structural_heading_occurrence(text: str, match_start: int, match_end: int) -> bool:
+    line_start = text.rfind("\n", 0, match_start) + 1  # 0 if no prior newline
+    if not _STRUCTURAL_HEADING_LEAD_LABEL_RE.match(text[line_start:match_start]):
+        return False
+    prose_scan_start = line_start
+    if line_start > 0:
+        prose_scan_start = text.rfind("\n", 0, line_start - 1) + 1  # one line further back
+    if _STRUCTURAL_HEADING_PROSE_PRECEDER_RE.search(text[prose_scan_start:match_start]):
+        return False
+    caption = text[match_end:match_end + 80]
+    newline_pos = caption.find("\n")
+    if newline_pos != -1:
+        caption = caption[:newline_pos]
+    return bool(caption.strip(" .:-—\t"))
+
+
+def _has_structural_heading(text: str, anchor: str) -> bool:
+    return any(
+        _looks_like_structural_heading_occurrence(text, m.start(), m.end())
+        for m in re.finditer(re.escape(anchor), text)
+    )
+
+
 def _anchor_proves_identity(anchor: str, text: str, cited_value: str | None) -> bool:
     """AUTO-6's core check. True only if the anchor sits in a heading/
-    title position, OR the record's cited value is co-located with a
-    genuine occurrence of the anchor. False for a mid-body mention with no
-    value nearby -- a cross-reference, not the document itself."""
+    title position (the window/HTML-tag check, or AUTO-13's structural
+    line detector for a section heading past the window), OR the record's
+    cited value is co-located with a genuine occurrence of the anchor.
+    False for a mid-body mention with no value nearby and no structural
+    heading shape -- a cross-reference, not the document itself."""
     if anchor in _heading_text(text):
+        return True
+    if _has_structural_heading(text, anchor):
         return True
     if cited_value:
         for m in re.finditer(re.escape(anchor), text):
@@ -1518,6 +1599,72 @@ def _selftest() -> None:
     )
     assert v.eligible is False and v.failed_check == "claim_anchor", f"SELFTEST FAILED (AUTO-7 amendment, ma-firm base guard): a stripped anchor too short/plain to trust ('2' from '2(a)') must never be attempted, even when it coincidentally sits in a heading -- {v}"
 
+    # --- AUTO-13 (_AAA_orchestrator_20260923_AUTO13.md, AuditLab's real
+    # Iowa chapter-PDF measurement): the structural heading detector.
+    # Shaped from AuditLab's own real-PDF findings -- a chapter cover
+    # heading in the first 400 chars (the window sees it, but it's the
+    # CHAPTER's heading, not the cited SECTION's), a prose cross-reference
+    # ("as provided in rule ...") that must still reject even after
+    # AUTO-13, and the section's own heading past the window that AUTO-13
+    # exists to find. Uses real newlines (PDF-extraction-shaped, unlike
+    # this file's other synthetic HTML bodies, which are deliberately
+    # single-line and so never exercise this new line-based path at all --
+    # this is the control that actually does). -----------------------
+    auto13_pdf_text = (
+        "CHAPTER 1025\nLICENSURE STATUS AND RENEWAL OF CERTIFICATES AND LICENSES\n"
+        "[Prior to 7/13/88, see Accountancy, Board of[10]]\n"
+        + ("Preamble filler text about the chapter's scope and history follows here in full. " * 6) + "\n"
+        "481-1025.1(542) Definitions\n"
+        "General definitions applicable to this chapter follow here in complete detail for reference.\n"
+        "481-1025.2(542) Application Procedures\n"
+        "Applicants must submit forms as prescribed by the board before any license issues.\n"
+        "A licensee's active status is conditioned on periodic renewal as provided in\n"
+        "rule 481-1025.3(542).\n"
+        "481-1025.3(542) Continuing Education Requirements\n"
+        "A licensee shall complete the continuing education described in the following subsections.\n"
+    )
+    assert len(auto13_pdf_text[:_HEADING_WINDOW_CHARS]) == _HEADING_WINDOW_CHARS, "test setup error: the synthetic text must be long enough that the real section heading sits past the window"
+    assert "481-1025.3(542)" not in auto13_pdf_text[:_HEADING_WINDOW_CHARS], "test setup error: the cited section's heading must sit PAST the window, or this doesn't isolate AUTO-13 at all"
+
+    # The wrapped cross-reference ("rule\n481-1025.3(542).") must still
+    # reject -- proves the prose-preceder check spans the newline/wrap
+    # point, not just the same line as a naive check would.
+    assert _has_structural_heading(auto13_pdf_text, "481-1025.3(542)") is True, "test setup error: the real section heading must be found somewhere -- if this fails, the positive case below is meaningless"
+    # Gives the wrapped locator a real title-like caption too ("requires
+    # annual renewal") -- so the caption check alone would PASS this if it
+    # were the only guard, isolating that the PROSE check specifically is
+    # what must reject it, not a coincidental caption-shape failure.
+    wrapped_crossref_only = "A licensee's active status is conditioned on periodic renewal as provided in\nrule 481-1025.3(542) requires annual renewal.\n"
+    assert _has_structural_heading(wrapped_crossref_only, "481-1025.3(542)") is False, "SELFTEST FAILED (AUTO-13): a cross-reference wrapped so the locator starts an EXTRACTED line ('rule\\n481-1025.3(542)') must still reject -- the prose-preceder check must look further back than just the same line"
+
+    # Full identity check: the anchor's ONLY occurrence within the window
+    # is the chapter cover heading (doesn't contain the anchor at all, so
+    # the window path fails); AUTO-13's structural detector is what makes
+    # this pass.
+    assert _anchor_proves_identity("481-1025.3(542)", auto13_pdf_text, None) is True, "SELFTEST FAILED (AUTO-13): the real section heading, past the 400-char window, must be found structurally"
+
+    # Isolation control: WITHOUT AUTO-13 (heading-text/window path alone),
+    # this exact text must fail -- proves AUTO-13 is doing the work, not
+    # some other path accidentally covering for it.
+    assert "481-1025.3(542)" not in _heading_text(auto13_pdf_text), "test setup error: the window/HTML-tag path must NOT already find this on its own, or AUTO-13 isn't isolated by this control"
+
+    # Only the cross-reference exists (no real section heading anywhere in
+    # the text) -- must still reject overall, proving AUTO-13 doesn't
+    # accept a cross-reference just because it's LOOKING harder.
+    auto13_crossref_only_text = (
+        "CHAPTER 1025\nLICENSURE STATUS AND RENEWAL OF CERTIFICATES AND LICENSES\n"
+        + ("Preamble filler text about the chapter's scope and history follows here in full. " * 6) + "\n"
+        "A licensee's active status is conditioned on periodic renewal as provided in rule 481-1025.3(542).\n"
+    )
+    assert _anchor_proves_identity("481-1025.3(542)", auto13_crossref_only_text, None) is False, "SELFTEST FAILED (AUTO-13): a document containing ONLY the cross-reference, no real section heading, must still reject -- AUTO-13 must not create a backdoor"
+
+    # Caption check: a bare locator with clean lead/prose but NOTHING
+    # title-like following it (e.g. the last line of an extracted
+    # fragment) must still reject -- starting a clean line isn't enough
+    # on its own, there has to be an actual caption after it too.
+    auto13_bare_locator_no_caption = "Some unrelated preamble text.\n481-1025.3(542)\n"
+    assert _has_structural_heading(auto13_bare_locator_no_caption, "481-1025.3(542)") is False, "SELFTEST FAILED (AUTO-13): a bare locator with no title-like caption after it must reject -- a clean lead alone isn't sufficient"
+
     # --- AUTO-6 POSITIVE controls: the identity check must not just
     # reject everything -- proves both paths genuinely work, not just the
     # negative side. --------------------------------------------------
@@ -2130,7 +2277,7 @@ def _selftest() -> None:
         else:
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = _apply1_env_backup
 
-    print("  selftest (131 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (139 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
           "specifically), AUTO-7 (x7: the real Iowa em-dash + wrong-parenthetical shape resolves via the "
@@ -2138,6 +2285,11 @@ def _selftest() -> None:
           "specifically fired, a no-backdoor guard proving the retry never fires when the full anchor is "
           "mentioned but fails identity, the amendment's base-quality guard proving the real ma-firm '2(a)' "
           "-> '2' case is rejected outright rather than coincidentally matching a heading date), "
+          "AUTO-13 (x8: the real section heading found structurally past the 400-char window, the "
+          "wrapped cross-reference correctly still rejects even with the locator starting an extracted "
+          "line, an isolation control proving the window/HTML-tag path alone does NOT already cover it, "
+          "a cross-reference-only document with no real heading anywhere still rejects overall, and a "
+          "bare locator with no title-like caption following it still rejects), "
           "AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-11 (x6: "
           "cpa_deadlines.json wired in, 3 real date-bug regressions incl. one AuditLab's own report "
           "didn't name, _looks_like_date() shape check, date-then-real-locator isolation), AUTO-12 (x15: "
