@@ -1546,6 +1546,46 @@ def check_deadline_currency(data_path: Path) -> list[str]:
     return errors
 
 
+def check_gap_reason_date_consistency(repo_root: Path) -> list[str]:
+    """STALE-21 (LOW-MED, auditlab_20260923_batch2_revert_VERIFIED_32of32_
+    plus_STALE21.md): scripts/citation_auto_extend_check.py's DATE-8 fix
+    protects `last_manual_verified_date` (AUTO-1's ceiling field) from
+    moving on an unconfirmed STALE-20 pass, but `build_manual_
+    verification_update()` never returns `verified_date` at all in any
+    case -- whoever runs the batch sets that field by hand, with only
+    `manual_verify_gap_reason` as a signal. That is exactly what the
+    original batch-2 ship got wrong: every gap reason was present and
+    correctly worded, and `verified_date` moved anyway. A record whose
+    `manual_verify_gap_reason` is non-None (this pass did NOT confirm the
+    cited claim) must never carry a `verified_date`/`last_verified` newer
+    than its own `last_manual_verified_date` -- mechanically checkable
+    from the data alone, no network needed, and would have caught batch 2
+    before it shipped."""
+    errors: list[str] = []
+    for filename in ("cpa_deadlines.json", "cpe_hours.json", "reinstatement.json", "renewal_fees.json"):
+        path = repo_root / "data" / filename
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for r in data.get("records", []):
+            gap_reason = r.get("manual_verify_gap_reason")
+            if gap_reason is None:
+                continue
+            verified_date = r.get("verified_date") or r.get("last_verified")
+            last_manual = r.get("last_manual_verified_date")
+            if not verified_date or not last_manual:
+                continue  # nothing to compare -- can't meaningfully flag from data alone
+            if verified_date > last_manual:
+                rid = r.get("id") or r.get("state_slug") or "?"
+                errors.append(
+                    f"[STALE-21][{filename}:{rid}] verified_date={verified_date!r} is newer than "
+                    f"last_manual_verified_date={last_manual!r}, but manual_verify_gap_reason is set "
+                    f"({str(gap_reason)[:120]!r}) -- this pass did NOT confirm the claim, so the public "
+                    f"freshness date must never move past the last genuinely CONFIRMED pass"
+                )
+    return errors
+
+
 def check_clock_kind_consistency(repo_root: Path) -> list[str]:
     """GATE-18 (AuditLab, 2026-08-29): the general version of
     check_sitewide_freshness_stat_uses_wall_clock() below. That check only
@@ -6326,6 +6366,7 @@ def main():
     all_errors += check_data_manifest_consistency(data_path, docs_dir)
     all_errors += check_cpe_hours_manifest_consistency(repo_root)
     all_errors += check_deadline_currency(data_path)
+    all_errors += check_gap_reason_date_consistency(repo_root)
     all_errors += check_self_rolling_dates_rendered_correctly(repo_root, data_path)
     all_errors += check_birth_month_table_currency(html_files)
     all_errors += check_hidden_display_override(html_files, docs_dir)
