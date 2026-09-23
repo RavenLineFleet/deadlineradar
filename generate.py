@@ -1117,6 +1117,11 @@ PAGE_CSS = """
   .rc-detail { margin: 0.4rem 0; font-size: 0.92rem; line-height: 1.5; }
   .rc-cite { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
   .rc-conf { color: var(--muted); }
+  /* AuditLab RC-19 (2026-09-23): the "Sources disagree" cards' verified_date,
+     previously not rendered at all -- same small-caption treatment as
+     .rc-cite just above, on its own line since it follows the citation
+     links rather than sitting beside them. */
+  .rc-verified { font-size: 0.8rem; color: var(--muted); margin: 0.3rem 0 0; }
   .rc-empty { color: var(--muted); font-style: italic; margin: 0.4rem 0 1.2rem; }
   /* ---- THE CENTERPIECE: citation-first fact sheet, per the approved concept's .sheet/.frow ---- */
   .sheet {
@@ -9391,13 +9396,39 @@ def _rule_change_card_html(e: dict) -> str:
 
 
 def _rule_conflict_card_html(e: dict) -> str:
+    # AuditLab RC-18 (MEDIUM, 2026-09-23): the section intro and every card
+    # body tell the reader to "read both citations yourself," but only
+    # citation_url was ever rendered -- secondary_url sat in the data,
+    # unused, on 5 of 6 records. Render it as a second link when present.
+    # NMI's secondary_url is null (no working second source was found for
+    # its NMIAC citation -- see its own data_gap_note) -- that card still
+    # renders one link; a real, unfixed data gap, not a template bug.
+    _secondary_url = e.get("secondary_url")
+    _has_secondary = isinstance(_secondary_url, str) and _secondary_url.startswith(("http://", "https://"))
+    secondary_html = (
+        f' <a href="{http_href(_secondary_url)}">{esc(e.get("secondary_citation") or "Second source")}</a>'
+        if _has_secondary else ""
+    )
+    # AuditLab RC-19 (2026-09-23): these cards had no visible date at all --
+    # Guam's was 26 days old, the other 5 were 53 days old, with nothing on
+    # the page or in a gate surfacing it. verified_date was already in the
+    # data (every event carries it); conflict_events_staleness_check.py
+    # (same commit) is the gate half of this fix.
+    _verified = e.get("verified_date")
+    verified_html = ""
+    if isinstance(_verified, str) and _verified:
+        try:
+            verified_html = f'<p class="rc-verified">Verified {esc(fmt_date(date.fromisoformat(_verified)))}</p>'
+        except ValueError:
+            pass
     return f"""<div class="rc-card rc-conflict">
   <div class="rc-head">
     <span class="rc-jurisdiction">{esc(e.get("jurisdiction") or e.get("jurisdiction_slug", ""))}</span>
     <span class="rc-badge rc-badge-conflict">Sources disagree</span>
   </div>
   <p class="rc-detail">{esc(e.get("summary_public") or "Our two primary sources for this jurisdiction don't agree with each other on this rule. Rather than guess, we're showing you exactly where they conflict below.")}</p>
-  <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a></p>
+  <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a>{secondary_html}</p>
+  {verified_html}
 </div>"""
 
 
