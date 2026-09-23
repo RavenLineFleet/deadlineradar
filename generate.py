@@ -9399,10 +9399,10 @@ def _rule_conflict_card_html(e: dict) -> str:
     # AuditLab RC-18 (MEDIUM, 2026-09-23): the section intro and every card
     # body tell the reader to "read both citations yourself," but only
     # citation_url was ever rendered -- secondary_url sat in the data,
-    # unused, on 5 of 6 records. Render it as a second link when present.
-    # NMI's secondary_url is null (no working second source was found for
-    # its NMIAC citation -- see its own data_gap_note) -- that card still
-    # renders one link; a real, unfixed data gap, not a template bug.
+    # unused. Render it as a second link when present. RC-31 (2026-09-23)
+    # filled in the last gap: NMI's second source was already sitting in
+    # citation_urls_for_difflab_manifest.json's own monitor list the whole
+    # time -- all 4 conflict cards now render two links.
     _secondary_url = e.get("secondary_url")
     _has_secondary = isinstance(_secondary_url, str) and _secondary_url.startswith(("http://", "https://"))
     secondary_html = (
