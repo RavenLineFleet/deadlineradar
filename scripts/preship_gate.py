@@ -3562,6 +3562,110 @@ def check_json_copies_identical(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_citation_manifest_coverage(repo_root: Path) -> list[str]:
+    """AuditLab RC-29 (LOW-MED, 2026-09-23, ruled together with CITE-76):
+    citation_urls_for_difflab_manifest.json (DiffLab's capture target list)
+    had no gate ensuring it actually covers every dataset citation_url/
+    secondary_url. RC-27 (Michigan's citation repoint going unmonitored for
+    a full commit) went unnoticed until AuditLab caught it by hand --
+    exactly the class of silent miss this check exists to catch going
+    forward.
+
+    NOT a naive string-equality superset check. AuditLab wrote one, ran it
+    against HEAD, and found it flags 4 non-defects: NMI's citation_url
+    (cnmilaw.gov) and the manifest's monitor URL (cnmilaw.org) are a host
+    alias that resolves to the byte-identical PDF, and Wyoming's 3 Drive
+    citations were deliberately repointed (CITE-75) from the manifest's raw-
+    PDF download form to a reader-facing viewer form -- syncing the manifest
+    to match would swap monitoring the RULE'S BYTES for monitoring GOOGLE'S
+    JS VIEWER SHELL, a real downgrade. A gate that would have forced either
+    "fix" is worse than no gate.
+
+    Coverage rule per in-scope URL:
+      1. PASS if the exact string is in that jurisdiction's own manifest
+         entry (monitor_urls).
+      2. PASS if a monitor_url_overrides entry maps this exact dataset URL
+         to a manifest URL that IS present in that jurisdiction's entry --
+         a documented, deliberate divergence, not a silent one. Each
+         override carries its own `reason` and `verified` field; it is a
+         live claim to be re-confirmed if the underlying pages change
+         shape, not a standing exemption.
+      3. Otherwise: FAIL. Either a real regression (RC-27's shape -- fix by
+         regenerating the manifest in the same commit as the citation
+         change) or a legitimate new divergence that needs its own override
+         entry with a stated reason, never a silent pass either way.
+
+    An override whose own `monitor_url` is NOT actually in the manifest is
+    ALSO a failure (override drift) -- the override claims coverage that
+    doesn't exist.
+
+    Content-hash monitoring of what these citations currently resolve to
+    (CITE-76, ruled together with this) is a separate mechanism -- DiffLab's
+    own capture-side concern, coordinated directly, not built here. This
+    check only answers "is DiffLab's capture list watching the right
+    documents," not "did any of them change."
+    """
+    manifest_path = repo_root / "citation_urls_for_difflab_manifest.json"
+    if not manifest_path.exists():
+        # Scratch/partial checkouts won't have this repo-root-only file --
+        # same skip convention as check_json_copies_identical above.
+        return []
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    monitor_by_state: dict[str, set[str]] = {
+        s["state_slug"]: set(s.get("monitor_urls", [])) for s in manifest.get("states", [])
+    }
+    override_by_key: dict[tuple[str, str], str] = {
+        (o["state_slug"], o["dataset_url"]): o["monitor_url"] for o in manifest.get("monitor_url_overrides", [])
+    }
+
+    errors: list[str] = []
+
+    def check_url(state_slug: str, url: object, source: str) -> None:
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            return
+        monitored = monitor_by_state.get(state_slug, set())
+        if url in monitored:
+            return
+        override_target = override_by_key.get((state_slug, url))
+        if override_target is not None:
+            if override_target in monitored:
+                return
+            errors.append(
+                f"[MANIFEST][{state_slug}] monitor_url_overrides claims {url!r} is covered by "
+                f"{override_target!r}, but that URL is NOT actually in the manifest's monitor_urls for "
+                f"{state_slug} -- override drift, not real coverage. ({source})"
+            )
+            return
+        errors.append(
+            f"[MANIFEST][{state_slug}] {source} citation {url!r} is not in "
+            f"citation_urls_for_difflab_manifest.json for {state_slug}, and no monitor_url_overrides "
+            f"entry covers it -- DiffLab's capture never sees changes to this document. Regenerate the "
+            f"manifest in the same commit as the citation change (RC-20/RC-27's precedent), or, if this "
+            f"is a deliberate divergence, add a monitor_url_overrides entry with a stated reason instead "
+            f"of syncing the string."
+        )
+
+    for filename in ("cpa_deadlines.json", "cpe_hours.json", "reinstatement.json", "renewal_fees.json"):
+        path = repo_root / "data" / filename
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for r in data.get("records", []):
+            check_url(r.get("state_slug", ""), r.get("citation_url"), filename)
+
+    events_path = repo_root / "data" / "reg_change_events.json"
+    if events_path.exists():
+        events = json.loads(events_path.read_text(encoding="utf-8"))
+        for e in events.get("events", []):
+            if e.get("kind") != "source_conflict":
+                continue
+            slug = e.get("jurisdiction_slug", "")
+            check_url(slug, e.get("citation_url"), "reg_change_events.json source_conflict citation_url")
+            check_url(slug, e.get("secondary_url"), "reg_change_events.json source_conflict secondary_url")
+
+    return errors
+
+
 SITE_BASE_URL_RE = re.compile(r'<loc>(https?://[^<]+)</loc>')
 
 
@@ -6191,6 +6295,7 @@ def main():
     all_errors += check_sms_cron_hour_matches_wrangler(repo_root)
     all_errors += check_pricing_matches_tiers(repo_root)
     all_errors += check_json_copies_identical(repo_root)
+    all_errors += check_citation_manifest_coverage(repo_root)
     all_errors += check_terms_version_sync(repo_root)
     all_errors += check_sms_consent_version_sync(repo_root)
     all_errors += check_cpe_cycle_window_sync(repo_root)
