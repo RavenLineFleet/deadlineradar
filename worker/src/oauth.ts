@@ -104,6 +104,16 @@ export interface ConfiguredProvider extends OauthProvider {
  * secrets at build time.
  */
 export function getConfiguredProvider(env: Env, providerId: string): ConfiguredProvider | null {
+  // SecurityLab (LOW, 2026-09-23): providerId is request-derived, and a
+  // plain-object index (PROVIDERS[providerId]) treats "__proto__",
+  // "constructor", etc. as truthy hits (Object.prototype), not `undefined`
+  // -- it failed closed today only incidentally, since the resulting
+  // provider.clientIdVar/clientSecretVar are themselves undefined and
+  // env[undefined] is never configured. Own-property check first, same
+  // convention this repo already uses elsewhere (index.ts's
+  // DEMO_LOGIN_DESTINATIONS lookups) rather than trusting the incidental
+  // fail-closed path.
+  if (!Object.prototype.hasOwnProperty.call(PROVIDERS, providerId)) return null;
   const provider = PROVIDERS[providerId];
   if (!provider) return null;
   const clientId = env[provider.clientIdVar] as string | undefined;
