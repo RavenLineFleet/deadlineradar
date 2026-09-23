@@ -2475,10 +2475,16 @@ def main() -> int:
           f"approved.")
 
     if not apply_mode:
-        print("\nThis is a REPORT ONLY (Stage A, no --apply passed). Every candidate above is REJECTED today "
-              "because no record has a manual-anchored baseline (last_manual_verified_date + "
-              "manual_verified_raw_hash/length) yet -- that's the correct, honest state until the STALE-20 "
-              "batches start recording one via validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
+        if eligible:
+            print(f"\nThis is a REPORT ONLY (Stage A, no --apply passed). {len(eligible)} candidate(s) above "
+                  f"ARE eligible (a manual-anchored baseline exists and this re-check passed) -- nothing was "
+                  f"written; re-run with --apply, per the standing rules in this file's own module docstring, "
+                  f"to actually extend them.")
+        else:
+            print("\nThis is a REPORT ONLY (Stage A, no --apply passed). Every candidate above is REJECTED today "
+                  "because no record has a manual-anchored baseline (last_manual_verified_date + "
+                  "manual_verified_raw_hash/length) yet -- that's the correct, honest state until the STALE-20 "
+                  "batches start recording one via validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
 
     return 1 if apply_refused_reason else 0
 
