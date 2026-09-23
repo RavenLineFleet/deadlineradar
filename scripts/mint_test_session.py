@@ -38,6 +38,12 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# Same Windows-console-encoding fix as provision_test_tenant.py -- see its
+# own comment for why.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKER_DIR = REPO_ROOT / "worker"
 STATE_FILE = REPO_ROOT / "scripts" / ".test_tenant_b_state.json"
@@ -62,6 +68,8 @@ def wrangler_query(sql: str) -> list[dict]:
         cwd=WORKER_DIR,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         shell=True,
     )
     if result.returncode != 0:
@@ -77,6 +85,8 @@ def wrangler_exec(sql: str) -> None:
         cwd=WORKER_DIR,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         shell=True,
     )
     print(result.stdout)
