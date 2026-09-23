@@ -5877,6 +5877,30 @@ def print_cpa_deadlines_staleness_advisory(repo_root: Path) -> None:
         pass
 
 
+def print_conflict_events_staleness_advisory(repo_root: Path) -> None:
+    """Surfaces conflict_events_staleness_check.py (AuditLab RC-19,
+    2026-09-23) as part of the normal pre-ship run, same treatment as every
+    sibling staleness advisory here -- printed, never affects exit code.
+
+    The "Sources under active disagreement" cards had NO staleness
+    mechanism at all before this: no visible date, no gate, no script.
+    Confirmed live at the time RC-19 was filed: Guam's card was 26 days
+    old, the other 5 were 53 days old, with nothing surfacing it -- this
+    is the fix, plus the visible verified_date generate.py's
+    _rule_conflict_card_html() now renders on the card itself."""
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import conflict_events_staleness_check as cesc
+    except ImportError:
+        print("  (skipping conflict-events-staleness advisory -- conflict_events_staleness_check.py not importable)")
+        return
+    print("\n--- conflict-events-staleness advisory (does not affect gate exit code) ---")
+    try:
+        cesc.main()
+    except SystemExit:
+        pass
+
+
 def print_reinstatement_staleness_advisory(repo_root: Path) -> None:
     """Surfaces reinstatement_staleness_check.py (AuditLab REIN-1, 2026-08-05)
     as part of the normal pre-ship run, same treatment as the CPE-hours
@@ -6203,6 +6227,7 @@ def main():
         print_deployed_rule_change_staleness_advisory(repo_root)
         print_rule_change_ingestion_lag_advisory(repo_root)
         print_dated_change_staleness_advisory(repo_root)
+        print_conflict_events_staleness_advisory(repo_root)
         print_firm_mobility_internal_notes_advisory(repo_root)
         print_guide_review_staleness_advisory(repo_root)
         print_changelog_staleness_advisory(repo_root)
@@ -6223,6 +6248,7 @@ def main():
     print_deployed_rule_change_staleness_advisory(repo_root)
     print_rule_change_ingestion_lag_advisory(repo_root)
     print_dated_change_staleness_advisory(repo_root)
+    print_conflict_events_staleness_advisory(repo_root)
     print_firm_mobility_internal_notes_advisory(repo_root)
     print_guide_review_staleness_advisory(repo_root)
     print_changelog_staleness_advisory(repo_root)
