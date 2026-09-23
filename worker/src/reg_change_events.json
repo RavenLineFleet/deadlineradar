@@ -1,15 +1,15 @@
 {
   "_meta": {
     "purpose": "Publishable rule-change events for the public changes feed.",
-    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (14 currently promoted; 1 event permanently excluded by policy -- orchestrator ruling 2026-09-19: individual CPA disciplinary/enforcement actions against a named person are out of scope for this feed, full stop, not a case-by-case call. DiffLab is adding a classifier to filter this event class before it ever reaches this file; until then, exclude by hand.)",
+    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (14 currently promoted).",
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
     "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'.",
-    "as_of": "2026-09-19",
+    "as_of": "2026-09-22",
     "changes_published": 14,
     "changes_upcoming": 4,
     "changes_recent": 10,
-    "source_conflicts_published": 6,
+    "source_conflicts_published": 4,
     "live_monitoring_count": 14
   },
   "events": [
@@ -160,10 +160,10 @@
       "topic": "CPA regulatory/statutory change",
       "citation": "Fla. Admin. Code r. 61H1-33.003",
       "citation_url": "https://flrules.org/gateway/ruleno.asp?id=61H1-33.003",
-      "secondary_url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=31362348&type=1&file=61H1-33.003.doc",
-      "verified_date": "2026-09-19",
-      "confidence": "dual_source",
-      "summary_public": "The Florida Board of Accountancy finalized amendments to Rule 61H1-33.003 (Continuing Professional Education / re-establishment of professional knowledge and competency): the CPE reporting deadline moves from July 31 to December 31, effective September 30, 2026, superseding the prior 10/26/2023 version. This is a reporting-date change only -- the underlying 80-hour/2-year CPE requirement itself is unchanged.",
+      "secondary_url": null,
+      "verified_date": "2026-09-17",
+      "confidence": "single_source",
+      "summary_public": "The Florida Board of Accountancy finalized amendments to Rule 61H1-33.003 (Continuing Professional Education / re-establishment of professional knowledge and competency), moving the rule from Proposed to Final/Adopted status with a new effective date of September 30, 2026, superseding the prior 10/26/2023 version.",
       "kind": "rule_change",
       "effective_date": "2026-09-30",
       "status": "ADOPTED_RULE",
@@ -267,7 +267,8 @@
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
+      "needs_reverification": false,
+      "conflict_summary": "Guam's codified statute (22 GCA § 35122(a)) says the practice privilege is automatic, with no notice or fee required; the Board's own notice form and its administrative rule (25 GAR § 2103(d)(2)) instead require a notarized notice within 30 days and impose registration fees. Both trace to the same enacting act, P.L. 33-193 (2016)."
     },
     {
       "event_id": "idaho-regwatch-3189d3f2b9ba",
@@ -277,9 +278,9 @@
       "citation": "IDAPA 24.30.01 (Idaho Accountancy Rules), Docket No. 24-3001-2601",
       "citation_url": "https://dopl.idaho.gov/boa/boa-statutes-rules-and-guidance/",
       "secondary_url": "https://proddfmmainsa.blob.core.windows.net/dfm-admin-website/bulletin/2026/08.pdf",
-      "verified_date": "2026-08-28",
-      "confidence": "dual_source",
-      "summary_public": "A proposed rulemaking would: (1) create a new pathway to licensure for candidates and make minor adjustments to accommodate statutory changes in line with HB 563 from 2026; (2) transition renewal dates from a fixed June 30 date to birthdate-based renewals with an expanded window to accommodate peak tax season; and (3) remove outdated rule language. Outcome is not yet settled -- the public hearing was held August 13, 2026 and the public comment period closed August 26, 2026; not yet adopted.",
+      "verified_date": "2026-08-07",
+      "confidence": "single_source",
+      "summary_public": "A proposed rulemaking would: (1) create a new pathway to licensure for candidates and make minor adjustments to accommodate statutory changes in line with HB 563 from 2026; (2) transition renewal dates from a fixed June 30 date to birthdate-based renewals with an expanded window to accommodate peak tax season; and (3) remove outdated rule language. Outcome is not yet settled -- a public hearing is scheduled, not yet adopted.",
       "kind": "rule_change",
       "effective_date": null,
       "status": "PROPOSED",
@@ -323,7 +324,8 @@
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
+      "needs_reverification": false,
+      "conflict_summary": "Michigan's CURRENT LARA 'CPA Firms' page (live in the Board's own navigation) still states a firm needs a Michigan license if it performs certain engagements for a client whose home office is in Michigan -- the pre-2018 rule. The current statute, MCL 339.728(1), removed that home-office trigger; a license is required only when the firm itself establishes or maintains a Michigan office."
     },
     {
       "event_id": "northern-mariana-islands-mobility-source-conflict",
@@ -331,7 +333,7 @@
       "jurisdiction": "Northern Mariana Islands",
       "topic": "practice privilege (mobility)",
       "citation": "4 CMC §§ 3401-3440 (Accountancy Act of 2002, PL 13-52), esp. 4 CMC § 3401 (definitions), § 3422 (issuance/renewal of certificates), § 3423 (firm permits to practice); NMIAC §§ 1-10-801 (interstate practice), 1-10-2301 to 1-10-2310 (substantial equivalency/notification), 1-10-1605 (fees)",
-      "citation_url": "https://cnmilaw.gov/commonwealth-code/3743",
+      "citation_url": "https://cnmilaw.gov/commonwealth-code/3742",
       "secondary_url": null,
       "verified_date": "2026-07-31",
       "confidence": "single_source",
@@ -339,7 +341,8 @@
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
+      "needs_reverification": false,
+      "conflict_summary": "NMI's own administrative rule (NMIAC § 1-10-801) repeatedly cites a 'substantial equivalency' standard under 'section 6 of the Act [4 CMC § 3422]' as the basis for a discretionary practice privilege, but the codified § 3422 (Issuance and Renewal of Certificates) contains no such standard -- it covers reciprocal certificate issuance, not a mobility/equivalency test."
     },
     {
       "event_id": "oregon-mobility-source-conflict",
@@ -355,39 +358,8 @@
       "kind": "source_conflict",
       "effective_date": null,
       "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
-    },
-    {
-      "event_id": "puerto-rico-mobility-source-conflict",
-      "jurisdiction_slug": "puerto-rico",
-      "jurisdiction": "Puerto Rico",
-      "topic": "practice privilege (mobility)",
-      "citation": "Ley Núm. 293 de 15 de mayo de 1945, según enmendada (\"Ley de Contabilidad Pública de 1945\"), Sec. 4 (20 L.P.R.A. § 775) [privilegio de ejercer / equivalencia sustancial]; Sec. 5 (20 L.P.R.A. § 778) [registro de firmas]; Sec. 6 (20 L.P.R.A. § 779) [licencias]; Sec. 18(12) (20 L.P.R.A. § 772) [definición de \"Práctica de la Contabilidad Pública\"]; as last amended by Ley Núm. 174-2025 (P. del S. 642, approved 19 Dec 2025)",
-      "citation_url": "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
-      "secondary_url": "https://www.estado.pr.gov/juntas-examinadoras/contadores-publicos-autorizados",
-      "verified_date": "2026-07-31",
-      "confidence": "single_source",
-      "summary_public": "Puerto Rico's own primary legal sources don't agree with each other on this rule. Rather than guess, we found the conflict and are showing you exactly where it is below — read both citations yourself, or confirm directly with the Puerto Rico board.",
-      "kind": "source_conflict",
-      "effective_date": null,
-      "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
-    },
-    {
-      "event_id": "us-virgin-islands-mobility-source-conflict",
-      "jurisdiction_slug": "us-virgin-islands",
-      "jurisdiction": "US Virgin Islands",
-      "topic": "practice privilege (mobility)",
-      "citation": "27 V.I.C. ch. 5A sec. 250q (Substantial Equivalency); firm permits at 27 V.I.C. ch. 5A sec. 250d, enacted by the Public Accountancy Act of 2014, Act No. 7596 (Bill No. 30-0279, 30th Legislature)",
-      "citation_url": "https://billtracking.legvi.org/view-pdf/?pdf_path=RTpcaW5ldHB1Ylx3d3dyb290XEJpbGxUcmFja2luZzIwMnhCYWNrZW5kXEJpbGxUcmFja2luZ1BERlxBY3RcNzU5Ni5wZGY=",
-      "secondary_url": "https://dlca.vi.gov/aboutcpa/",
-      "verified_date": "2026-07-31",
-      "confidence": "single_source",
-      "summary_public": "US Virgin Islands's own primary legal sources don't agree with each other on this rule. Rather than guess, we found the conflict and are showing you exactly where it is below — read both citations yourself, or confirm directly with the US Virgin Islands board.",
-      "kind": "source_conflict",
-      "effective_date": null,
-      "status": "SOURCE_CONFLICT",
-      "needs_reverification": false
+      "needs_reverification": false,
+      "conflict_summary": "Oregon's compiled rule (OAR 801-010-0345(3)) requires out-of-state firm registration for a broader set of attest engagements (including SSARS reviews) than the statute (ORS 673.160) actually triggers, and the Board's own peer-review guidance page follows the narrower statutory reading rather than its own compiled rule."
     }
   ]
 }
