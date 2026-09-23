@@ -94,6 +94,16 @@ scripts/_codified_audit_result.json
 # local-only, same pattern as the Cloudflare/GitHub token files.
 scripts/run_freshness_sweep.bat
 
+# APPLY-1 (2026-09-23): the auto-extend --apply one-shot approval token
+# file -- Orchestrator writes the proposals-file sha256 here after
+# AuditLab's PASS on that specific proposals file. A per-run authorization
+# artifact, not something that belongs in the public repo (it would let a
+# reader replay a stale approval's tag against a future proposals set with
+# the same content, though compute_proposals_tag() already refuses a
+# mismatch on its own -- excluded on the same "authorization material
+# stays local" principle as the Stripe/Cloudflare/GitHub token files).
+auto_extend_proposals/.apply_approved
+
 # Real firm rosters (scripts/firm_admin_report.py, 2026-07-10 Wave-1 B2B tool) and
 # the admin-status reports generated from them both contain real staff PII (names,
 # emails) -- never commit either, only the fake .example.csv template is tracked.

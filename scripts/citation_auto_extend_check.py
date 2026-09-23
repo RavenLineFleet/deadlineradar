@@ -189,14 +189,34 @@ consumption half. Guardrails, non-negotiable under this repo's
       `manual_verify_fetched_url` records which URL the anchor actually
       came from -- set ONLY when an override was used, so it never adds
       noise to the other ~297 normal records.
+  16. APPLY-1 (SecurityLab, orchestrator-ruled HIGH, amended 04:50,
+      _AAA_orchestrator_20260923_APPLY1_code_enforce.md). Rule 1 below
+      used to be a COMMENT ONLY -- this repo's own 08-18 admin-digest
+      incident proved that doesn't hold (a "HELD pending review" comment
+      ran on every cron tick for 8 days because nothing in the code
+      actually checked it). `--apply` now fails closed in code:
+      `check_apply_approval()` requires BOTH (a) an approval token --
+      `AUTO_EXTEND_APPLY_APPROVED` env var, or the one-shot file
+      `auto_extend_proposals/.apply_approved` -- that matches
+      `compute_proposals_tag()` (sha256 of THIS run's exact proposal set)
+      EXACTLY, granted by Orchestrator only after AuditLab's PASS on that
+      specific proposals file, AND (b) an interactive TTY. NO bypass
+      either way: a non-interactive invocation refuses even with a valid
+      token (a cron can export an env var as easily as pass a flag), and
+      a missing/mismatched/stale token refuses regardless of TTY. A
+      refused apply prints why, writes zero dataset files, and the
+      process exits non-zero.
 
 STANDING RULES FOR --apply (_AAA_orchestrator_20260923_AUTO10_plus_
-apply_rules.md, until told otherwise):
-  1. No scheduler, cron, loop, or watchdog may call --apply. Run by hand
-     only.
+apply_rules.md + APPLY-1's amendment above, until told otherwise):
+  1. No scheduler, cron, loop, or watchdog may call --apply -- NOW CODE-
+     ENFORCED (APPLY-1, item 16 above), not just a standing rule.
   2. The FIRST --apply run with more than 0 proposals: stop after the
      write, BEFORE commit/deploy. Send AuditLab the proposals JSON plus
      the diff to check against live sources. Commit only on its PASS.
+     (Procedural -- not mechanically enforceable in this script, per
+     AuditLab's own correction: it's about not committing prematurely,
+     not a per-record cap.)
   3. Every applied run is exactly one commit, so any run can be reverted.
 
 THIS SCRIPT NEVER WRITES TO A DATASET FILE UNLESS RUN WITH --apply.
@@ -212,6 +232,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -1356,16 +1377,77 @@ def _selftest() -> None:
         empty_applied, empty_out_of_scope = apply_eligible_extends(Path(tmp) / "does-not-exist", [], today)
         assert empty_applied == [] and empty_out_of_scope == [], "SELFTEST FAILED (Stage B): an empty proposals list must return empty results"
 
-    print("  selftest (82 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    # --- APPLY-1 (SecurityLab, orchestrator-ruled HIGH, amended 04:50):
+    # check_apply_approval() -- BOTH a matching per-run token AND an
+    # interactive TTY are required, no bypass either way. The 4 controls
+    # the amended ruling asks for explicitly: no token -> refused;
+    # wrong/stale token -> refused; valid token + non-TTY -> refused;
+    # valid token + TTY -> approved. env var and approval FILE both
+    # tested as token sources. os.environ is saved/restored around every
+    # case so this control can't leak state into anything else. ----------
+    _apply1_env_backup = os.environ.get(AUTO_EXTEND_APPLY_APPROVED_ENV)
+    try:
+        fake_proposals = [{"dataset_filename": "cpe_hours.json", "record_id": "x"}]
+        real_tag = compute_proposals_tag(fake_proposals)
+        stale_tag = compute_proposals_tag([{"dataset_filename": "cpe_hours.json", "record_id": "y"}])
+        assert real_tag != stale_tag, "test setup error: two different proposal sets must hash differently"
+
+        with tempfile.TemporaryDirectory() as apply_tmp:
+            apply_repo_root = Path(apply_tmp)
+            (apply_repo_root / "auto_extend_proposals").mkdir()
+
+            # 1. No token anywhere (env unset, no approval file) -> refused.
+            os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is False and reason, "SELFTEST FAILED (APPLY-1): no approval token anywhere must be refused"
+
+            # 2. Wrong/stale token (a real token, but for a DIFFERENT
+            # proposal set) -> refused. This is "a stale approval can't
+            # authorize new proposals," proven directly, not assumed.
+            os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = stale_tag
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is False, f"SELFTEST FAILED (APPLY-1): a stale token (for a different proposal set) must be refused, not accepted -- {reason}"
+
+            # 3. Valid token (env) + NON-interactive -> refused. No bypass,
+            # per the amendment -- this is the control it explicitly asked for.
+            os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = real_tag
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=False)
+            assert ok is False, f"SELFTEST FAILED (APPLY-1): a valid token with a non-interactive (non-TTY) invocation must still be refused -- {reason}"
+
+            # 4. Valid token (env) + interactive TTY -> approved.
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is True, f"SELFTEST FAILED (APPLY-1): a valid token with an interactive TTY must be approved -- {reason}"
+
+            # 5. Valid token via the approval FILE (not env) + TTY -> approved.
+            # This is the mechanism Orchestrator actually uses per the
+            # amendment ("take the token from an approval file").
+            os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
+            (apply_repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE).write_text(real_tag, encoding="utf-8")
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is True, f"SELFTEST FAILED (APPLY-1): a valid approval FILE token with a TTY must be approved -- {reason}"
+
+            # 6. A stale FILE token (for a different proposal set) -> refused.
+            (apply_repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE).write_text(stale_tag, encoding="utf-8")
+            ok, reason = check_apply_approval(apply_repo_root, real_tag, stdin_isatty=True)
+            assert ok is False, "SELFTEST FAILED (APPLY-1): a stale approval FILE token must be refused too, not just a stale env token"
+    finally:
+        if _apply1_env_backup is None:
+            os.environ.pop(AUTO_EXTEND_APPLY_APPROVED_ENV, None)
+        else:
+            os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = _apply1_env_backup
+
+    print("  selftest (89 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
           "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-10 (x9: "
           "override-aware anchoring matching the live Wyoming case, single-fetch, regression baseline, "
           "no-noise-on-normal-records), Stage B's apply_eligible_extends() (x9: field updates, "
           "last_manual_verified_date/baseline untouched, history appended not overwritten, byte-identical "
-          "copies, out-of-scope reporting, no-op safety), the original soft-404/bot-wall/baseline-poisoning "
-          "trio, the PDF-branch content-shape/length controls, SecurityLab's site-B anchoring-path control, "
-          "and build_manual_verification_update()'s single-fetch/stale-field controls (x14)): PASS")
+          "copies, out-of-scope reporting, no-op safety), APPLY-1 (x6: no token, stale env token, valid "
+          "token + non-TTY, valid token + TTY, valid file token, stale file token), the original "
+          "soft-404/bot-wall/baseline-poisoning trio, the PDF-branch content-shape/length controls, "
+          "SecurityLab's site-B anchoring-path control, and build_manual_verification_update()'s "
+          "single-fetch/stale-field controls (x14)): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
@@ -1553,13 +1635,80 @@ def apply_eligible_extends(repo_root: Path, proposals: list[dict], today: date) 
     return applied, out_of_scope
 
 
-def main() -> None:
+# ---------------------------------------------------------------------------
+# APPLY-1 (SecurityLab, orchestrator-ruled HIGH,
+# _AAA_orchestrator_20260923_APPLY1_code_enforce.md): --apply must fail
+# closed in CODE, not just in a standing-rules comment. This repo's own
+# 08-18 admin-digest incident proved a comment-only "HELD pending review"
+# doesn't hold -- it ran on every cron tick for 8 days anyway, because
+# nothing in the code actually checked it (worker/src/env.ts's own
+# docstring). Same shape of fix as requireSendApproval() on the Worker
+# side, adapted for a local script (SecurityLab's own refinement: an
+# env-var allowlist alone doesn't transfer -- a cron entry can export a
+# var exactly as easily as it can pass --apply; a LOCAL script's only
+# real signal that a human is present is an interactive TTY).
+# ---------------------------------------------------------------------------
+
+AUTO_EXTEND_APPLY_APPROVED_ENV = "AUTO_EXTEND_APPLY_APPROVED"
+AUTO_EXTEND_APPLY_APPROVED_FILE = "auto_extend_proposals/.apply_approved"
+
+
+def compute_proposals_tag(proposals: list[dict]) -> str:
+    """A tamper-evident tag for THIS run's exact proposal set -- sha256 of
+    its canonical (sorted-keys) JSON serialization. A stale approval
+    token, granted for an earlier/different proposal set, will not match
+    a changed one even if the record COUNT happens to be identical --
+    "A stale approval can't authorize new proposals" (the ruling's exact
+    requirement)."""
+    canonical = json.dumps(proposals, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def check_apply_approval(repo_root: Path, proposals_tag: str, stdin_isatty: bool) -> tuple[bool, str]:
+    """Belt and braces, BOTH required: (1) an approval token -- from
+    AUTO_EXTEND_APPLY_APPROVED (env) or a one-shot approval file -- must
+    equal proposals_tag EXACTLY, granted by Orchestrator only after
+    AuditLab's PASS on this specific proposals file; (2) stdin must be a
+    TTY, since the standing rule is that --apply is run BY HAND ONLY,
+    never from a scheduler/cron/loop/watchdog -- a leaked or copied token
+    alone must not be enough to authorize a write from an unattended
+    process. Returns (True, "") only if both hold; otherwise (False,
+    reason) and the caller MUST NOT write anything."""
+    env_token = os.environ.get(AUTO_EXTEND_APPLY_APPROVED_ENV)
+    token_matched = bool(env_token) and env_token == proposals_tag
+    token_source = "env" if token_matched else None
+
+    if not token_matched:
+        approval_path = repo_root / AUTO_EXTEND_APPLY_APPROVED_FILE
+        if approval_path.exists():
+            file_token = approval_path.read_text(encoding="utf-8").strip()
+            if file_token == proposals_tag:
+                token_matched = True
+                token_source = "file"
+
+    if not token_matched:
+        return False, (
+            f"no approval token matches this run's proposals (tag={proposals_tag[:16]}...) -- set "
+            f"{AUTO_EXTEND_APPLY_APPROVED_ENV} or write {AUTO_EXTEND_APPLY_APPROVED_FILE} with the "
+            f"EXACT tag Orchestrator grants after AuditLab's PASS on this specific proposals file. "
+            f"Refused, no dataset file touched."
+        )
+    if not stdin_isatty:
+        return False, (
+            f"approval token matched (source={token_source}) but stdin is not a TTY -- --apply is run "
+            f"BY HAND ONLY, never from a scheduler/cron/loop/watchdog, even with a valid token. "
+            f"Refused, no dataset file touched."
+        )
+    return True, ""
+
+
+def main() -> int:
     print("Running mandatory selftest (positive controls) before anything else...")
     _selftest()
 
     args = sys.argv[1:]
     if "--selftest-only" in args:
-        return
+        return 0
     apply_mode = "--apply" in args
     positional = [a for a in args if not a.startswith("--")]
     repo_root = Path(positional[0]) if positional else Path(__file__).resolve().parent.parent
@@ -1575,7 +1724,7 @@ def main() -> None:
     capture = _load_latest_capture(repo_root)
     if capture is None:
         print("\nNo citation_freshness capture found (Orchestrator/reg_change_events/citation_freshness_citfresh_*.json) -- nothing to evaluate.")
-        return
+        return 0
 
     records_by_url = _load_citation_records(repo_root, today=today)
     print(f"\nUsing capture {capture['_source_file']} ({capture.get('checked_at', '?')}), {len(capture['results'])} URLs, {len(records_by_url)} in-scope citations known locally.")
@@ -1667,35 +1816,44 @@ def main() -> None:
 
     # Stage B (AUTO-8/9 ruling): apply, ONLY behind --apply. Default run
     # stays Stage-A-only -- report, no writes -- matching this whole
-    # feature's every prior default.
+    # feature's every prior default. APPLY-1: even with --apply and a
+    # non-empty proposal set, nothing is written without a matching,
+    # per-run approval token AND an interactive TTY (check_apply_approval).
     applied: list[dict] = []
     out_of_scope: list[dict] = []
+    proposals_tag = compute_proposals_tag(proposals)
+    apply_refused_reason: str | None = None
     if apply_mode and proposals:
-        applied, out_of_scope = apply_eligible_extends(repo_root, proposals, today)
-        print(f"\nStage B: applied {len(applied)} extend(s) to dataset files (verified_method=auto_source_unchanged, "
-              f"last_manual_verified_date untouched).")
-        for a in applied:
-            print(f"  APPLIED  {a['dataset_filename']}:{a['record_id']}  {a['old_public_verified_date_field']} "
-                  f"{a['old_public_verified_date_value']} -> {today.isoformat()}")
-        if out_of_scope:
-            print(f"  {len(out_of_scope)} eligible proposal(s) OUT OF STAGE-B SCOPE (not a hand-maintained "
-                  f"dataset -- reg_change_events.json is a build output, never hand-edited): " +
-                  ", ".join(f"{o['dataset_filename']}:{o['record_id']}" for o in out_of_scope))
+        approved, reason = check_apply_approval(repo_root, proposals_tag, sys.stdin.isatty())
+        if not approved:
+            apply_refused_reason = reason
+            print(f"\nStage B: REFUSED (APPLY-1). {reason}")
+        else:
+            applied, out_of_scope = apply_eligible_extends(repo_root, proposals, today)
+            print(f"\nStage B: applied {len(applied)} extend(s) to dataset files (verified_method=auto_source_unchanged, "
+                  f"last_manual_verified_date untouched).")
+            for a in applied:
+                print(f"  APPLIED  {a['dataset_filename']}:{a['record_id']}  {a['old_public_verified_date_field']} "
+                      f"{a['old_public_verified_date_value']} -> {today.isoformat()}")
+            if out_of_scope:
+                print(f"  {len(out_of_scope)} eligible proposal(s) OUT OF STAGE-B SCOPE (not a hand-maintained "
+                      f"dataset -- reg_change_events.json is a build output, never hand-edited): " +
+                      ", ".join(f"{o['dataset_filename']}:{o['record_id']}" for o in out_of_scope))
 
-        if applied:
-            print("\nRegenerating docs/ from the updated dataset(s) (generate.py)...")
-            gen = subprocess.run([sys.executable, str(repo_root / "generate.py")], cwd=repo_root, capture_output=True, text=True)
-            print(f"generate.py exit={gen.returncode}")
-            if gen.returncode != 0:
-                print(gen.stdout[-4000:])
-                print(gen.stderr[-4000:])
+            if applied:
+                print("\nRegenerating docs/ from the updated dataset(s) (generate.py)...")
+                gen = subprocess.run([sys.executable, str(repo_root / "generate.py")], cwd=repo_root, capture_output=True, text=True)
+                print(f"generate.py exit={gen.returncode}")
+                if gen.returncode != 0:
+                    print(gen.stdout[-4000:])
+                    print(gen.stderr[-4000:])
 
-            print("\nRunning preship_gate.py to confirm the applied changes are still green...")
-            gate = subprocess.run([sys.executable, str(repo_root / "scripts" / "preship_gate.py")], cwd=repo_root, capture_output=True, text=True)
-            print(f"preship_gate.py exit={gate.returncode}")
-            if gate.returncode != 0:
-                print(gate.stdout[-4000:])
-                print(gate.stderr[-4000:])
+                print("\nRunning preship_gate.py to confirm the applied changes are still green...")
+                gate = subprocess.run([sys.executable, str(repo_root / "scripts" / "preship_gate.py")], cwd=repo_root, capture_output=True, text=True)
+                print(f"preship_gate.py exit={gate.returncode}")
+                if gate.returncode != 0:
+                    print(gate.stdout[-4000:])
+                    print(gate.stderr[-4000:])
     elif apply_mode:
         print("\nStage B: --apply passed, but 0 proposals this run -- nothing to apply, no dataset file touched.")
 
@@ -1713,6 +1871,7 @@ def main() -> None:
         "candidate_total": len(candidates),
         "proposal_count": len(proposals),
         "proposals": proposals,
+        "proposals_tag": proposals_tag,
         "rejection_summary": rejection_summary,
         "coverage": {
             "by_dataset": dataset_coverage,
@@ -1721,10 +1880,12 @@ def main() -> None:
         },
         "stage_b_applied_count": len(applied),
         "stage_b_out_of_scope_count": len(out_of_scope),
+        "stage_b_refused_reason": apply_refused_reason,
     }, indent=2), encoding="utf-8")
-    print(f"\nWrote {proposals_path} (proposals + rejection_summary + coverage, AUTO-9). This is the only "
-          f"report artifact this run writes; dataset writes (if any) happened only via Stage B above, "
-          f"exactly {len(applied)} record(s), only when --apply was passed.")
+    print(f"\nWrote {proposals_path} (proposals + rejection_summary + coverage + proposals_tag, AUTO-9/"
+          f"APPLY-1). This is the only report artifact this run writes; dataset writes (if any) happened "
+          f"only via Stage B above, exactly {len(applied)} record(s), only when --apply was passed AND "
+          f"approved.")
 
     if not apply_mode:
         print("\nThis is a REPORT ONLY (Stage A, no --apply passed). Every candidate above is REJECTED today "
@@ -1732,6 +1893,8 @@ def main() -> None:
               "manual_verified_raw_hash/length) yet -- that's the correct, honest state until the STALE-20 "
               "batches start recording one via validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
 
+    return 1 if apply_refused_reason else 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
