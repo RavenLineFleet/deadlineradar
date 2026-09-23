@@ -92,7 +92,13 @@ describe("recentAssistantChatLatencyStats -- p95/max computation and self-trimmi
     expect(stats.p95Ms).toBe(26000);
     expect(stats.maxMs).toBe(26000);
     expect(stats.totalN).toBe(1000); // but the 429 volume is still visible
-  });
+    // AssetLab (2026-09-23): 1000 real sequential DB-writing calls (seedSamples
+    // awaits store.logAssistantChatLatency() one at a time, no batching) --
+    // ~1.7s isolated, but timed out at the 15000ms global default under
+    // full-79-file-suite contention (same class of slowdown as the CPE
+    // rate-limit tests in worker.spec.ts, just 10x the write volume). Explicit
+    // timeout rather than a global bump big enough to cover this one outlier.
+  }, 60000);
 
   it("MON-4: an all-429 window (zero successes) reports null p95/max, not 0 -- never mistaken for 'fast and healthy'", async () => {
     const now = 5_600_000;
@@ -233,7 +239,9 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     } finally {
       fetchSpy.mockRestore();
     }
-  });
+    // AssetLab (2026-09-23): same 1000-real-write shape as the sibling test
+    // above -- see its comment.
+  }, 60000);
 
   it("approved, p95 threshold breached without any single sample over 30s -- still sends", async () => {
     const captured: string[] = [];
