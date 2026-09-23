@@ -515,6 +515,15 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # snake_case, by design, every time) -- confirmed by an actual run
     # before excluding them, not assumed.
     "renewal_fees.json": ["fee_notes", "citation"],
+    # reg_change_events.json (2026-09-23, orchestrator_20260919_promote_
+    # shape_rule_and_gate_reg_change_events.md item 2): summary_public is
+    # rendered to /api/assistant/rule-changes and was the source field for
+    # the 09-19 REG-1 leak -- it had never been in this list at all, only
+    # incidental coverage from the HTML prose-leak check, which 10 of 20
+    # current events (6 source_conflict-kind) never reach because they
+    # render to no page. topic/citation are the other two fields that
+    # endpoint serves verbatim. Loaded via {"events": [...]}, handled above.
+    "reg_change_events.json": ["summary_public", "topic", "citation"],
 }
 
 
@@ -526,11 +535,18 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
             errors.append(f"[SHAPE] {path} not found -- assistant.ts imports this dataset, this check can't verify it")
             continue
         data = json.loads(path.read_text(encoding="utf-8"))
-        records = data.get("records", data if isinstance(data, list) else [])
+        # reg_change_events.json is {"events": [...]}, not {"records": [...]}
+        # like the other four -- confirmed by reading its actual shape (the
+        # 09-19 ruling flagged this as worth confirming before wiring it in,
+        # not blocking) rather than assuming .get("records", ...) covers it.
+        if "events" in data:
+            records = data.get("events", [])
+        else:
+            records = data.get("records", data if isinstance(data, list) else [])
         for r in records:
             if not isinstance(r, dict):
                 continue
-            record_id = r.get("id") or r.get("state_slug") or "?"
+            record_id = r.get("id") or r.get("state_slug") or r.get("event_id") or "?"
             for field in fields:
                 val = r.get(field)
                 if not isinstance(val, str) or not val:
@@ -647,8 +663,26 @@ def collect_firm_mobility_internal_note_candidates(repo_root: Path) -> list[str]
     return findings
 
 
+def check_firm_mobility_verification_marker_leak(repo_root: Path) -> list[str]:
+    """LEAK-5's marker promoted from advisory to hard gate (2026-09-23,
+    orchestrator_20260919_promote_shape_rule_and_gate_reg_change_events.md
+    item 1). AuditLab measured this before asking: 0 hits across the 4
+    already-hard-gated datasets (both data/ and worker/src/ copies), 0
+    hits across all 246 rendered docs/**/index.html files, 0 hits on
+    firm_mobility_rules.json post-fix -- promoting breaks nothing today.
+    Scoped to JUST this one pattern out of the 7
+    collect_firm_mobility_internal_note_candidates() checks -- the other
+    6 (editorial-history phrasing, finding-ID shapes, tracker refs,
+    snake_case, dated-parentheticals, embedded URLs) keep their own
+    measured ~1/16 false-positive rate and stay advisory-only until each
+    is individually triaged the way this one was."""
+    return [f for f in collect_firm_mobility_internal_note_candidates(repo_root) if "ALLCAPS-word+date verification marker" in f]
+
+
 def print_firm_mobility_internal_notes_advisory(repo_root: Path) -> None:
-    print("\n--- firm-mobility-internal-notes advisory (does not affect gate exit code) ---")
+    print("\n--- firm-mobility-internal-notes advisory (the verification-marker pattern is now a HARD "
+          "gate above -- see check_firm_mobility_verification_marker_leak(); the other 6 patterns "
+          "below still don't affect gate exit code) ---")
     findings = collect_firm_mobility_internal_note_candidates(repo_root)
     if not findings:
         print("PASS -- no internal-marker candidates found in worker/src/firm_mobility_rules.json's notes fields.")
@@ -6279,6 +6313,7 @@ def main():
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
+    all_errors += check_firm_mobility_verification_marker_leak(repo_root)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_no_untracked_secret_looking_files(repo_root)
