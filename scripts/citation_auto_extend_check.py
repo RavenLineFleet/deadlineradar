@@ -387,6 +387,16 @@ def normalize_typography(s: str) -> str:
 _ANCHOR_PATTERN_PARENTHETICAL = re.compile(r"\b\d+[A-Za-z]?(?:[-.]\d[\w.\-]*)*(?:\([a-z0-9]+\))+")
 _ANCHOR_PATTERN_HYPHEN_DOT = re.compile(r"\b\d+[A-Za-z]?[-.]\d[\w.\-]*\b")
 _ANCHOR_PATTERN_SECTION_SIGN = re.compile(r"§\s*(\d{2,}[A-Za-z]?(?:\([a-z0-9]+\))?)")
+# AUTO-12 item 2: strips trailing subsection parenthetical(s) off a
+# candidate to get its "base" for matching against citation_url -- see
+# claim_anchor_for_record()'s own docstring for why (a URL almost never
+# encodes a subsection even when it correctly names the base section).
+_ANCHOR_TRAILING_PARENTHETICAL_RE = re.compile(r"(?:\([a-z0-9]+\))+$")
+# A base shorter than this is too likely to appear in a URL by pure
+# coincidence to trust (self-caught: "2" from "2(a)" is a substring of
+# almost any URL with a "2" in it anywhere, including the very citation
+# it correctly belongs to).
+_MIN_URL_MATCH_BASE_LEN = 3
 
 # AUTO-11 (LOW-MED, auditlab_20260923_APPLY1_CLOSED_plus_APPLY2_and_AUTO11.md):
 # a bare ISO-shaped date (e.g. "verified 2026-07-30" in a provenance-log
@@ -397,21 +407,39 @@ _ANCHOR_PATTERN_SECTION_SIGN = re.compile(r"§\s*(\d{2,}[A-Za-z]?(?:\([a-z0-9]+\
 # il-firm's "2026-07-17") before writing this, not guessed.
 _DATE_SHAPE_RE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
 
+# AUTO-12 (orchestrator anchor-precision ruling, _AAA_orchestrator_20260923_
+# anchor_precision.md): a plausible-year range (e.g. "1977-2026" from prose
+# like "issue dates spanning 1977-2026") is NOT fail-safe the way a bare
+# ISO date is -- a date is specific enough that it essentially never
+# appears verbatim on an unrelated page, but a year range is generic text
+# (a copyright notice, a "years in business" blurb, anything spanning two
+# plausible years) that CAN coincidentally appear on a page that isn't the
+# cited document, weakening the identity check rather than just failing it
+# outright. Measured on the real cpa_deadlines.json false positives this
+# found (co-individual's "1977-2026", co-firm's "1971-2026").
+_YEAR_RANGE_RE = re.compile(r"^(?:19|20)\d{2}-(?:19|20)\d{2}$")
+
 
 def _looks_like_date(token: str) -> bool:
     return bool(_DATE_SHAPE_RE.match(token))
 
 
-def _first_non_date_match(pattern: re.Pattern[str], text: str) -> str | None:
-    """Like pattern.search(text).group(0), but skips a date-shaped match
-    and keeps looking rather than giving up entirely -- a citation can
-    have a provenance-log date AND a real locator in the same string
-    (measured: il-firm's citation has BOTH "2026-07-17"/"2026-07-30" dates
-    and no real locator at all today, but nothing about the pattern rules
-    that combination out for some future record)."""
+def _looks_like_year_range(token: str) -> bool:
+    return bool(_YEAR_RANGE_RE.match(token))
+
+
+def _first_specific_match(pattern: re.Pattern[str], text: str) -> str | None:
+    """Like pattern.search(text).group(0), but skips a date-shaped or
+    year-range-shaped match and keeps looking rather than giving up
+    entirely -- a citation can have a provenance-log date/range AND a
+    real locator in the same string (measured: il-firm's citation has
+    BOTH "2026-07-17"/"2026-07-30" dates and no real locator at all
+    today, but nothing about the pattern rules that combination out for
+    some future record)."""
     for m in pattern.finditer(text):
-        if not _looks_like_date(m.group(0)):
-            return m.group(0)
+        token = m.group(0)
+        if not _looks_like_date(token) and not _looks_like_year_range(token):
+            return token
     return None
 
 
@@ -432,8 +460,9 @@ def extract_citation_anchor(citation: str | None) -> str | None:
          shape AUTO-3/AUTOEXTEND-1 showed matching bot-wall boilerplate
          by coincidence), so this is deliberately NOT the same risk as a
          bare code name like "4 CMC" (which has no § and is excluded).
-    A bare ISO-shaped date (AUTO-11) is never returned even if it would
-    otherwise match pattern 1 or 2 -- see _looks_like_date().
+    A bare ISO-shaped date (AUTO-11) or a plausible-year range (AUTO-12,
+    e.g. "1977-2026") is never returned even if it would otherwise match
+    pattern 1 or 2 -- see _looks_like_date()/_looks_like_year_range().
     Anything else (a bare number with no § and no punctuation, a bare
     code/agency name, nothing at all) returns None -- no anchor -- rather
     than guess. A record whose citation prose yields no extractable
@@ -451,16 +480,48 @@ def extract_citation_anchor(citation: str | None) -> str | None:
     # absorbs that prefix into the SAME match before the mandatory
     # parenthetical, so the anchor returned is always the FULL locator,
     # never a truncated tail of it.
-    candidate = _first_non_date_match(_ANCHOR_PATTERN_PARENTHETICAL, normalized)
+    candidate = _first_specific_match(_ANCHOR_PATTERN_PARENTHETICAL, normalized)
     if candidate:
         return candidate
-    candidate = _first_non_date_match(_ANCHOR_PATTERN_HYPHEN_DOT, normalized)
+    candidate = _first_specific_match(_ANCHOR_PATTERN_HYPHEN_DOT, normalized)
     if candidate:
         return candidate
     m = _ANCHOR_PATTERN_SECTION_SIGN.search(normalized)
     if m:
         return m.group(1)
     return None
+
+
+def _all_specific_candidates(citation: str) -> list[str]:
+    """Every specific-locator candidate in a citation, not just the FIRST
+    one -- used only by claim_anchor_for_record()'s citation_url
+    preference (AUTO-12 item 2, below), never by extract_citation_anchor()
+    itself, which keeps its existing single-best-match contract (pattern-1
+    text unchanged for the 82 other records that only ever had one
+    candidate to begin with).
+
+    Deliberately excludes _ANCHOR_PATTERN_SECTION_SIGN (self-caught
+    regression during testing): that pattern's whole purpose is "last
+    resort, a bare number after §, only when patterns 1/2 found nothing"
+    -- extract_citation_anchor() only ever reaches it when neither
+    structured pattern matched at all. Letting its bare, unstructured
+    number compete for a citation_url substring match let a SHORT token
+    (e.g. "440" from "§ 440.08(2)(a)1.") spuriously "match" almost any
+    URL containing those digits anywhere (measured live: wi-individual's
+    citation_url path segment "/440/" collided with the bare number "440"
+    -- and matching regressed the anchor from the correct, specific
+    "440.08(2)(a)" down to a near-useless "440"). Patterns 1/2 never
+    produce that kind of bare token -- each requires either a mandatory
+    parenthetical or a mandatory hyphen/dot -- so restricting to them
+    keeps every candidate here already structurally specific."""
+    normalized = normalize_typography(citation)
+    candidates: list[str] = []
+    for pattern in (_ANCHOR_PATTERN_PARENTHETICAL, _ANCHOR_PATTERN_HYPHEN_DOT):
+        for m in pattern.finditer(normalized):
+            token = m.group(0)
+            if not _looks_like_date(token) and not _looks_like_year_range(token) and token not in candidates:
+                candidates.append(token)
+    return candidates
 
 
 def claim_anchor_for_record(dataset_filename: str, record: dict) -> str | None:
@@ -473,18 +534,68 @@ def claim_anchor_for_record(dataset_filename: str, record: dict) -> str | None:
     extract_citation_anchor(). AUTO-11 (auditlab_20260923_APPLY1_CLOSED_
     plus_APPLY2_and_AUTO11.md): cpa_deadlines.json was excluded on a
     stated reason ("no citation-shaped field") that was FALSE -- every
-    one of its 89 records has a non-empty `citation`, and 86 of them
-    extract a good anchor (the other 3 -- Alaska's form PDFs, New
-    Hampshire's multi-statute citation -- are honest non-anchors, not a
-    bug). Excluding the largest dataset silently made 36% of cited
-    records structurally ineligible for auto-extend, on top of 7
-    stragglers elsewhere (39.2% total) -- fail-safe, but silent.
+    one of its 89 records has a non-empty `citation`, and 83 of them
+    extract a good anchor (measured directly, not AuditLab's original 86
+    -- see AUTO-11's own commit message). The other 6 (2 Alaska form-PDF
+    citations with no statutory locator, one New Hampshire colon-
+    separated citation style this extractor doesn't cover, and 3 real
+    "verified <date>" provenance-log records the date-bug fix correctly
+    rejects) are honest non-anchors, not a bug. Excluding the largest
+    dataset silently made 36% of cited records structurally ineligible
+    for auto-extend, on top of 7 stragglers elsewhere (39.2% total) --
+    fail-safe, but silent.
     reg_change_events.json's conflict records still have no `citation`-
     shaped field and return None until taught their own anchor source --
-    a real, stated gap, not silently treated as "no check needed"."""
-    if dataset_filename in ("cpe_hours.json", "reinstatement.json", "renewal_fees.json", "cpa_deadlines.json"):
-        return extract_citation_anchor(record.get("citation"))
-    return None
+    a real, stated gap, not silently treated as "no check needed".
+
+    AUTO-12 item 2 (orchestrator anchor-precision ruling, low priority,
+    fail-safe today): when a citation bundles SEVERAL locators for
+    different facts (wa-individual: "WAC 4-30-094 (renewals); RCW
+    18.04.215 (three-year license period); WAC 4-30-133(1) (CPE reporting
+    period)"), extract_citation_anchor()'s plain first-match still just
+    grabs whichever comes first in the text, which may have nothing to do
+    with what `citation_url` actually serves -- here it grabbed the CPE
+    locator while citation_url serves the renewals page. Prefer whichever
+    candidate literally appears IN citation_url (a WAC/RCW number the URL
+    itself names) when more than one candidate exists; fall back to
+    extract_citation_anchor()'s ordinary single-best match otherwise --
+    unchanged behavior for every record with only one real candidate.
+
+    Matches on the candidate's BASE (any trailing subsection
+    parenthetical stripped) against citation_url, not the candidate
+    verbatim -- a URL almost never encodes a subsection even when it
+    correctly names the section a fuller candidate refers to (self-caught
+    regression: wa-firm's own citation "WAC 4-30-114(2)" produces BOTH
+    "4-30-114(2)" (pattern 1) and "4-30-114" (pattern 2) as separate
+    candidates for the SAME section; matching the shorter one verbatim
+    would have silently thrown away the "(2)" AUTO-6 requires). Takes the
+    FIRST URL-matching candidate in _all_specific_candidates()'s own
+    order -- pattern 1 (parenthetical-bearing, more specific) is always
+    collected before pattern 2 (bare hyphen/dot), so a fuller candidate
+    for the same section is always checked, and returned, before a
+    shorter one for that same section ever gets the chance (verified:
+    tried preferring the longest URL-matching candidate instead of the
+    first one and it produced IDENTICAL results on every real record --
+    kept the simpler rule since the extra complexity had no real case
+    left to justify it). A base shorter than _MIN_URL_MATCH_BASE_LEN
+    never counts as a match at all -- defense in depth on top of
+    excluding pattern 3 above: even a structured pattern-1/2 candidate
+    can have a short, low-information base (e.g. "2(a)"'s base "2"), and
+    a 1-2 character base is far too likely to appear coincidentally
+    anywhere in a URL to trust as a real correspondence."""
+    if dataset_filename not in ("cpe_hours.json", "reinstatement.json", "renewal_fees.json", "cpa_deadlines.json"):
+        return None
+    citation = record.get("citation")
+    if not citation:
+        return None
+    default_anchor = extract_citation_anchor(citation)
+    citation_url = record.get("citation_url")
+    if isinstance(citation_url, str) and citation_url:
+        for candidate in _all_specific_candidates(citation):
+            base = _ANCHOR_TRAILING_PARENTHETICAL_RE.sub("", candidate)
+            if len(base) >= _MIN_URL_MATCH_BASE_LEN and base in citation_url:
+                return candidate
+    return default_anchor
 
 
 # ---------------------------------------------------------------------------
@@ -1410,6 +1521,79 @@ def _selftest() -> None:
     # because the first regex match happened to be the date.
     assert extract_citation_anchor("Verified 2026-07-30, citation Ala. Code § 34-1-7") == "34-1-7", "SELFTEST FAILED (AUTO-11): a date earlier in the string must not block a real locator found later in the same citation"
 
+    # --- AUTO-12 (orchestrator anchor-precision ruling,
+    # _AAA_orchestrator_20260923_anchor_precision.md): a plausible-year
+    # range is NOT fail-safe the way a bare date is -- generic text that
+    # CAN coincidentally appear on an unrelated page (unlike a specific
+    # date), weakening identity rather than just failing it. Built from
+    # the REAL cpa_deadlines.json false positives this found
+    # (co-individual, co-firm). --------------------------------------
+    co_individual_citation = 'Confirmed via Colorado Information Marketplace open-data register (data.colorado.gov, dataset jzq6-fyp7, "CPA All Status"): sampled active individual licenses with issue dates spanning 1977-2026 uniformly show expiration 11/30/2027 -- verified 2026-07-30.'
+    co_firm_citation = "Confirmed via Colorado Information Marketplace open-data register (data.colorado.gov, dataset 7s5z-vewr), aggregate query against the full active-firm register: what determines the cohort is each firm's own last-renewed date, not its issue/registration year -- issue year does not predict the cohort at all (every issue year 1971-2026 has members in both)."
+    assert extract_citation_anchor(co_individual_citation) is None, f"SELFTEST FAILED (AUTO-12): a plausible-year range must never be returned as an anchor -- got {extract_citation_anchor(co_individual_citation)!r}"
+    assert extract_citation_anchor(co_firm_citation) is None, f"SELFTEST FAILED (AUTO-12): a plausible-year range must never be returned as an anchor -- got {extract_citation_anchor(co_firm_citation)!r}"
+    assert _looks_like_year_range("1977-2026") is True and _looks_like_year_range("1971-2026") is True, "SELFTEST FAILED (AUTO-12): _looks_like_year_range() must recognize a real plausible-year range"
+    assert _looks_like_year_range("13(b)") is False and _looks_like_year_range("193A-5.3") is False and _looks_like_year_range("1-10-801") is False, "SELFTEST FAILED (AUTO-12): _looks_like_year_range() must NOT flag a real locator shape as a year range"
+    # A year range is a DIFFERENT shape than a bare ISO date -- confirm
+    # the two checks are independent, not accidentally the same guard
+    # under two names.
+    assert _looks_like_date("1977-2026") is False, "SELFTEST FAILED (AUTO-12): a year range is not ISO-date-shaped and _looks_like_date() must not (accidentally) also catch it"
+    assert _looks_like_year_range("2026-07-30") is False, "SELFTEST FAILED (AUTO-12): a real ISO date is not a year-range shape and _looks_like_year_range() must not (accidentally) also catch it"
+    # Isolation control: a citation with BOTH a year range AND a real
+    # locator must still extract the real locator.
+    assert extract_citation_anchor("Issue years spanning 1977-2026, citation Ala. Code § 34-1-7") == "34-1-7", "SELFTEST FAILED (AUTO-12): a year range earlier in the string must not block a real locator found later in the same citation"
+
+    # --- AUTO-12 item 2: claim_anchor_for_record() prefers whichever
+    # locator, of several bundled in one citation, actually matches
+    # citation_url. Built from the REAL wa-individual record. ------------
+    wa_individual_record = {
+        "citation": "WAC 4-30-094 (renewals); RCW 18.04.215 (three-year license period); WAC 4-30-133(1) (CPE reporting period)",
+        "citation_url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-094",
+    }
+    assert extract_citation_anchor(wa_individual_record["citation"]) == "4-30-133(1)", "test setup error: the plain (no-URL-preference) extraction must still grab the first bundled locator, for contrast"
+    assert claim_anchor_for_record("cpa_deadlines.json", wa_individual_record) == "4-30-094", f"SELFTEST FAILED (AUTO-12 item 2): must prefer the locator matching citation_url over the first-in-text one -- got {claim_anchor_for_record('cpa_deadlines.json', wa_individual_record)!r}"
+
+    # Self-caught regression control (found and fixed before shipping):
+    # a citation with a SINGLE real locator carrying a subsection --
+    # matching the URL-preference logic must NOT throw away the
+    # subsection AUTO-6 requires by preferring a shorter, subsection-less
+    # candidate for the SAME section just because it also happens to
+    # match citation_url textually. Built from the REAL wa-firm record.
+    wa_firm_record = {
+        "citation": "WAC 4-30-114(2) (renewal and maintenance of a CPA firm license)",
+        "citation_url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-114",
+    }
+    assert claim_anchor_for_record("cpa_deadlines.json", wa_firm_record) == "4-30-114(2)", f"SELFTEST FAILED (AUTO-12 item 2 regression): a single-locator citation must keep its FULL subsection, not get silently truncated to the shorter URL-matching prefix -- got {claim_anchor_for_record('cpa_deadlines.json', wa_firm_record)!r}"
+
+    # Self-caught false-positive control (found and fixed before
+    # shipping): a bare short number (from the now-excluded § pattern)
+    # must never "match" a citation_url by pure coincidence of digits.
+    # Built from the REAL wi-individual record -- its own citation_url
+    # path segment "/440/" would spuriously "match" a bare "440" if the
+    # weak, last-resort § pattern were allowed into the candidate pool.
+    wi_individual_record = {
+        "citation": "Wis. Stat. § 440.08(2)(a)1.",
+        "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
+    }
+    assert claim_anchor_for_record("cpe_hours.json", wi_individual_record) == "440.08(2)(a)", f"SELFTEST FAILED (AUTO-12 item 2 regression): a coincidental short-number URL collision must not override the real, specific anchor -- got {claim_anchor_for_record('cpe_hours.json', wi_individual_record)!r}"
+    assert _all_specific_candidates(wi_individual_record["citation"]) == ["440.08(2)(a)", "440.08"], f"SELFTEST FAILED (AUTO-12): the weak § pattern must be excluded from the URL-preference candidate pool entirely -- got {_all_specific_candidates(wi_individual_record['citation'])!r}"
+
+    # Second self-caught false-positive control -- excluding pattern 3
+    # was NOT enough on its own: a structured pattern-1 candidate can
+    # STILL carry a dangerously short, low-information base. Built from
+    # the REAL minnesota-renewal-fee record -- "subds. 2(a), 5(b)(2)..."
+    # produces "2(a)" as pattern 1's FIRST match, base "2", which is a
+    # substring of "326A.04" itself (the correct answer's OWN url) by
+    # sheer coincidence -- proving this needs its own explicit minimum-
+    # length guard, not just the pattern-3 exclusion.
+    mn_renewal_fee_record = {
+        "citation": "Minn. Stat. § 326A.04, subds. 2(a), 5(b)(2), 5(b)(4), 5(b)(5), 5(b)(6), 5(b)(16)",
+        "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
+    }
+    assert extract_citation_anchor(mn_renewal_fee_record["citation"]) == "2(a)", "test setup error: the plain (no-URL-preference) extraction must grab the bare subsection, for contrast"
+    assert claim_anchor_for_record("renewal_fees.json", mn_renewal_fee_record) == "326A.04", f"SELFTEST FAILED (AUTO-12 item 2 regression): a single-digit base ('2' from '2(a)') coincidentally inside the correct URL must not win over the real section number -- got {claim_anchor_for_record('renewal_fees.json', mn_renewal_fee_record)!r}"
+    assert len(_ANCHOR_TRAILING_PARENTHETICAL_RE.sub("", "2(a)")) < _MIN_URL_MATCH_BASE_LEN, "test setup error: '2(a)' stripped to '2' must be shorter than the minimum match length for this control to actually exercise the guard"
+
     # --- AUTO-4 point 3: 0 records eligible on day one, asserted, not
     # just observed. Simulates today's REAL condition (every record
     # manual, none with a manual-anchored baseline) and confirms the
@@ -1565,14 +1749,16 @@ def _selftest() -> None:
         else:
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = _apply1_env_backup
 
-    print("  selftest (99 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (114 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
-          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-10 (x9: "
-          "override-aware anchoring matching the live Wyoming case, single-fetch, regression baseline, "
-          "no-noise-on-normal-records), AUTO-11 (x6: cpa_deadlines.json wired in, 3 real date-bug "
-          "regressions incl. one AuditLab's own report didn't name, _looks_like_date() shape check, "
-          "date-then-real-locator isolation), Stage B's apply_eligible_extends() (x9: field updates, "
+          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-11 (x6: "
+          "cpa_deadlines.json wired in, 3 real date-bug regressions incl. one AuditLab's own report "
+          "didn't name, _looks_like_date() shape check, date-then-real-locator isolation), AUTO-12 (x15: "
+          "year-range rejection, citation_url preference on the real wa-individual case, plus THREE "
+          "self-caught-and-fixed regressions -- a subsection silently dropped, a bare short number from "
+          "the weak section-sign pattern spuriously URL-matching, and a second short-base collision even "
+          "after excluding that pattern), Stage B's apply_eligible_extends() (x9: field updates, "
           "last_manual_verified_date/baseline untouched, history appended not overwritten, byte-identical "
           "copies, out-of-scope reporting, no-op safety), APPLY-1 (x6: no token, stale env token, valid "
           "token + non-TTY, valid token + TTY, valid file token, stale file token), APPLY-2 (x4: file "
