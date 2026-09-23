@@ -9435,12 +9435,25 @@ def _rule_conflict_card_html(e: dict) -> str:
                 f'<p class="rc-verified verified-badge" data-verified="{esc(_verified)}">'
                 f'Verified {_verified_human}</p>'
             )
+    # AuditLab RC-30 (MEDIUM, 2026-09-23): the section intro and every card
+    # promise "we're showing you exactly where they disagree," but only the
+    # generic summary_public sentence (identical wording on all 4 cards,
+    # differing only by jurisdiction name) ever rendered -- conflict_summary,
+    # the per-record field that actually states the substance of the
+    # disagreement, sat in the data with 0 renderers. build_change_events.py
+    # already refuses to publish a conflict without one (see its own
+    # RC-17-era gating), so this is always present for a card that reaches
+    # here; no fallback text needed the way summary_public/citation have one.
+    conflict_summary_html = ""
+    _conflict_summary = e.get("conflict_summary")
+    if isinstance(_conflict_summary, str) and _conflict_summary:
+        conflict_summary_html = f'\n  <p class="rc-detail rc-conflict-summary">{esc(_conflict_summary)}</p>'
     return f"""<div class="rc-card rc-conflict">
   <div class="rc-head">
     <span class="rc-jurisdiction">{esc(e.get("jurisdiction") or e.get("jurisdiction_slug", ""))}</span>
     <span class="rc-badge rc-badge-conflict">Sources disagree</span>
   </div>
-  <p class="rc-detail">{esc(e.get("summary_public") or "Our two primary sources for this jurisdiction don't agree with each other on this rule. Rather than guess, we're showing you exactly where they conflict below.")}</p>
+  <p class="rc-detail">{esc(e.get("summary_public") or "Our two primary sources for this jurisdiction don't agree with each other on this rule. Rather than guess, we're showing you exactly where they conflict below.")}</p>{conflict_summary_html}
   <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a>{secondary_html}</p>
   {verified_html}
 </div>"""
