@@ -246,6 +246,41 @@ consumption half. Guardrails, non-negotiable under this repo's
       correctly rejected) stay manual-only, honestly. AuditLab re-checks
       a sample of the real anchors against their live pages before any
       `cpa_deadlines.json` record is ever proposed.
+  19. AUTO-12 (_AAA_orchestrator_20260923_anchor_precision.md). Two fixes
+      to `extract_citation_anchor()`/`claim_anchor_for_record()`, shared by
+      all 4 datasets: (a) a plausible-year range ("1977-2026" in issue-date
+      prose) matched the hyphenated-locator pattern the same way a real
+      date bug did in AUTO-11 -- `_looks_like_year_range()` rejects it the
+      same way. (b) when a citation bundles several locator candidates,
+      `claim_anchor_for_record()` now prefers whichever one's base matches
+      `citation_url`'s own path/query (`_all_specific_candidates()` +
+      `_MIN_URL_MATCH_BASE_LEN`), instead of always taking the first one in
+      the text -- self-caught two regressions before shipping (excluding
+      the weak section-sign pattern from the URL-match candidate pool; a
+      minimum base length so a short structured-pattern base can't
+      coincidentally collide) -- see the 2026-09-23 ship report for both.
+      15/245 records' anchors changed, all verified against a clean
+      pre-change baseline diff.
+  20. AUTO-7 (_AAA_orchestrator_20260923_next_queue_AUTO7_A11Y24.md,
+      amended 07:05 same day). `resolve_anchor_identity()`: normalizes
+      BOTH the claim-anchor and the page text (AuditLab's Iowa measurement
+      -- an em-dash on the real page vs. a hyphen in the citation), and
+      retries ONCE with the trailing subsection parenthetical stripped
+      when the full anchor is never mentioned on the page in ANY form
+      (Iowa's real chapter page pairs every section heading with its
+      AUTHORIZING statute in parens, never the record's cited subsection).
+      The retry is held to the exact same AUTO-6 identity bar, never a
+      bare mention, and never fires when the full anchor WAS mentioned but
+      failed identity (that would reopen AUTO-6's cross-reference hole).
+      **Amendment**: AuditLab's all-81 live census of `cpa_deadlines.json`
+      found 6 of 13 raw rescues were coincidences on a bare fragment
+      (ma-firm's "2(a)" -> "2" matching a heading date; de-all's "108",
+      al-all's "05", ma-individual's "87B" likewise) -- added
+      `_looks_like_specific_retry_base()`: the stripped form must be >=5
+      chars with both a digit and a separator, or the retry is never even
+      attempted. Verified live against all 245 cited records (140
+      fetchable, non-PDF, anchored): 18 genuine rescues, zero regressions,
+      and the 4 named false-rescue cases all correctly still reject.
 
 STANDING RULES FOR --apply (_AAA_orchestrator_20260923_AUTO10_plus_
 apply_rules.md + APPLY-1's amendment above, until told otherwise):
@@ -647,6 +682,128 @@ def _anchor_proves_identity(anchor: str, text: str, cited_value: str | None) -> 
     return False
 
 
+def _strip_trailing_parenthetical(anchor: str) -> str | None:
+    """AUTO-7's retry input: the anchor with its trailing subsection
+    parenthetical(s) removed (e.g. "481-1025.3(1)" -> "481-1025.3"), or
+    None if there's nothing to strip (a bare hyphen/dot anchor, or a bare
+    §-anchored number, never had one)."""
+    stripped = _ANCHOR_TRAILING_PARENTHETICAL_RE.sub("", anchor)
+    return stripped if stripped != anchor else None
+
+
+# AUTO-7 AMENDMENT (07:05, auditlab_20260923_cpa_deadlines_anchor_identity_
+# census_ALL_81.md): AuditLab's full 81-record census found the stripped
+# retry rescues 13 records with no base-quality guard, but 6 of those are
+# coincidences on a bare fragment that happens to sit in a heading
+# elsewhere on the page: ma-firm's "2(a)" strips to "2" (matched a heading
+# DATE, not its own section), de-all's "108", al-all's "05", ma-individual's
+# "87B" -- none are specific enough to trust even after clearing the AUTO-6
+# identity bar. Reuses AUTO-12's "a short base is coincidence, not
+# specificity" principle (_MIN_URL_MATCH_BASE_LEN), but tuned stricter for
+# this context: identity is being decided here, not just a URL-match
+# preference among several already-real candidates, so a bare short number
+# or letter-digit fragment (no separator) must never qualify -- only a
+# multi-part locator shape, the same "digit + punctuation" AUTO-3 already
+# requires of extract_citation_anchor()'s own patterns.
+_MIN_STRIPPED_RETRY_BASE_LEN = 5
+
+
+def _looks_like_specific_retry_base(base: str) -> bool:
+    """True only if the parenthetical-stripped retry form is still
+    specific enough to trust as an identity anchor: at least
+    _MIN_STRIPPED_RETRY_BASE_LEN chars, containing both a digit and a
+    separator (-/.). Measured against AuditLab's real false-rescue cases
+    above: "2", "108", "05", "87B" all fail (too short, or digits with no
+    separator); the real Iowa rescue "481-1025.3" passes."""
+    if len(base) < _MIN_STRIPPED_RETRY_BASE_LEN:
+        return False
+    if not any(c.isdigit() for c in base):
+        return False
+    if not any(c in "-." for c in base):
+        return False
+    return True
+
+
+def resolve_anchor_identity(
+    claim_anchor: str,
+    text: str,
+    cited_value: str | None,
+) -> tuple[bool, str | None, str, str | None]:
+    """AUTO-7 (_AAA_orchestrator_20260923_next_queue_AUTO7_A11Y24.md,
+    from AuditLab's real-page measurement against Iowa's own chapter
+    PDF): the single entry point both evaluate_candidate() and
+    validate_fetch_for_anchoring() call for the claim-anchor + identity
+    check together, replacing their previous two separate steps
+    (mention, then identity) with one retry-aware check.
+
+    Normalizes BOTH sides explicitly -- AuditLab's exact finding was
+    that the raw comparison could be False while
+    `normalize_typography(anchor) in normalize_typography(heading)` was
+    True for the SAME real page (Iowa prints an em-dash, "481—1025.3",
+    where the citation records a hyphen). Both callers already
+    normalize `text` themselves before calling this, but normalizing it
+    again here too (idempotent) means this function's own contract
+    never silently depends on caller behavior.
+
+    Tries the FULL anchor first (mention, then AUTO-6 identity). If the
+    full anchor is not MENTIONED anywhere on the page AT ALL, retries
+    ONCE with the trailing subsection parenthetical stripped -- Iowa's
+    real, second compounding problem AuditLab measured: every rule
+    heading Iowa prints pairs the section number with its AUTHORIZING
+    STATUTE in parens ("481-1025.3(542)"), never the record's cited
+    SUBSECTION ("481-1025.3(1)"), so the full anchor never appears on
+    the page in ANY form -- normalization alone cannot fix Iowa, only
+    the retry can. The stripped retry is held to the EXACT SAME AUTO-6
+    identity bar (heading/title position or cited-value co-location),
+    never a bare mention -- a record whose FULL anchor is mentioned but
+    fails identity (a genuine cross-reference, e.g. NMIAC citing "4 CMC
+    § 3422") is NOT retried with a shorter anchor; that would reopen the
+    exact hole AUTO-6 closed, trading a specific anchor for a weaker one
+    as a backdoor around a failed identity check, rather than as a
+    genuine "the full form never appears" fallback.
+
+    Returns (passed, anchor_used, reason, failed_check) -- anchor_used
+    is whichever form (full or the stripped retry) actually passed, or
+    None if neither did; failed_check is the SAME machine-readable code
+    the pre-AUTO-7 two-step check used ("claim_anchor" for not-
+    mentioned-in-any-form, "identity" for mentioned-but-not-identity-
+    proven), so every existing caller/test keeps its exact prior
+    diagnostic shape -- the retry is invisible on success and reported
+    honestly on both failure paths."""
+    normalized_anchor = normalize_typography(claim_anchor)
+    normalized_text = normalize_typography(text)
+
+    if normalized_anchor in normalized_text:
+        if _anchor_proves_identity(normalized_anchor, normalized_text, cited_value):
+            return True, normalized_anchor, "", None
+        return False, None, (
+            f"claim-anchor {normalized_anchor!r} appears on the page but not as its own heading/title, and "
+            f"the record's cited value is not co-located with it -- this proves the page MENTIONS the "
+            f"locator, not that it IS the cited document (AUTO-6)"
+        ), "identity"
+
+    stripped = _strip_trailing_parenthetical(normalized_anchor)
+    # AUTO-7 amendment: a stripped form too short/plain to trust (no
+    # digit+separator, or under _MIN_STRIPPED_RETRY_BASE_LEN) is treated as
+    # if there were nothing to strip at all -- never attempted, not even as
+    # a mention, so it can't coincidentally clear the identity bar either.
+    usable_stripped = stripped if stripped and _looks_like_specific_retry_base(stripped) else None
+    if usable_stripped and usable_stripped in normalized_text:
+        if _anchor_proves_identity(usable_stripped, normalized_text, cited_value):
+            return True, usable_stripped, "", None
+        return False, None, (
+            f"the parenthetical-stripped retry {usable_stripped!r} (from {normalized_anchor!r}) appears on the "
+            f"page but not as its own heading/title, and the record's cited value is not co-located with "
+            f"it -- AUTO-7's retry still requires identity, never a bare mention"
+        ), "identity"
+
+    return False, None, (
+        f"claim-anchor check failed: normalized fetched page does not contain {normalized_anchor!r}"
+        + (f" (or its parenthetical-stripped retry {usable_stripped!r})" if usable_stripped else "")
+        + " -- a bot wall, soft-404, or wrong page would fail this even with a byte-identical baseline"
+    ), "claim_anchor"
+
+
 def cited_value_for_record(dataset_filename: str, record: dict) -> str | None:
     """AUTO-6's second identity path: the record's own cited VALUE (a fee
     amount or an hours count), which -- unlike the locator number itself --
@@ -776,27 +933,19 @@ def evaluate_candidate(
                 failed_check="no_anchor",
             )
         text = normalize_typography(_decode_best_effort(result.body))
-        if claim_anchor not in text:
-            return CandidateVerdict(
-                url, owner, False, None,
-                f"claim-anchor check failed: normalized fetched page does not contain {claim_anchor!r} -- "
-                f"a bot wall, soft-404, or wrong page would fail this even with a byte-identical baseline",
-                failed_check="claim_anchor",
-            )
-        # AUTO-6: mentioning the anchor is not enough -- legal documents
-        # cross-reference each other constantly (NMIAC T01-10 cites
-        # "4 CMC § 3422" five times while being a different document). The
-        # anchor must prove the page IS the cited document: a heading/
-        # title position, or the record's own cited value co-located with
-        # the match.
-        if not _anchor_proves_identity(claim_anchor, text, cited_value):
-            return CandidateVerdict(
-                url, owner, False, None,
-                f"claim-anchor {claim_anchor!r} appears on the page but not as its own heading/title, and the "
-                f"record's cited value is not co-located with it -- this proves the page MENTIONS the locator, "
-                f"not that it IS the cited document (AUTO-6)",
-                failed_check="identity",
-            )
+        # AUTO-6/AUTO-7: mentioning the anchor is not enough -- legal
+        # documents cross-reference each other constantly (NMIAC T01-10
+        # cites "4 CMC § 3422" five times while being a different
+        # document). The anchor must prove the page IS the cited
+        # document: a heading/title position, or the record's own cited
+        # value co-located with the match -- with one retry (AUTO-7) if
+        # the full anchor isn't mentioned at all, using the
+        # parenthetical-stripped form (Iowa's real shape: the page pairs
+        # the section with its authorizing statute in parens, never the
+        # record's cited subsection).
+        identity_ok, _resolved_anchor, identity_reason, identity_failed_check = resolve_anchor_identity(claim_anchor, text, cited_value)
+        if not identity_ok:
+            return CandidateVerdict(url, owner, False, None, identity_reason, failed_check=identity_failed_check)
 
     actual_length = len(result.body)
     if actual_length != manual_baseline_length:
@@ -852,14 +1001,10 @@ def validate_fetch_for_anchoring(
     if not anchor:
         return False, "no specific claim anchor available for this record"
     text = normalize_typography(_decode_best_effort(result.body))
-    if anchor not in text:
-        return False, f"fetched page does not contain the claim anchor {anchor!r} -- this fetch cannot be used to anchor a baseline"
     cited_value = cited_value_for_record(dataset_filename, record)
-    if not _anchor_proves_identity(anchor, text, cited_value):
-        return False, (
-            f"claim anchor {anchor!r} appears on the page but not as its own heading/title, and the record's "
-            f"cited value is not co-located with it (AUTO-6) -- this fetch cannot be used to anchor a baseline"
-        )
+    identity_ok, _resolved_anchor, identity_reason, _identity_failed_check = resolve_anchor_identity(anchor, text, cited_value)
+    if not identity_ok:
+        return False, identity_reason + " (AUTO-6/AUTO-7) -- this fetch cannot be used to anchor a baseline"
     return True, ""
 
 
@@ -1210,6 +1355,105 @@ def _selftest() -> None:
         today=today, fetch=_fake_fetch(200, cn_body, "text/html"),
     )
     assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-6, cnmilaw sibling path): a sibling section serving a repeal cross-reference to the requested locator was not caught by the identity check -- {v}"
+
+    # --- AUTO-7 (_AAA_orchestrator_20260923_next_queue_AUTO7_A11Y24.md,
+    # from AuditLab's real-page measurement against Iowa's own chapter
+    # PDF): resolve_anchor_identity()'s normalize + parenthetical-
+    # stripped retry. Built from the REAL ia-individual citation and
+    # AuditLab's own measured real-page shape (an em-dash where the
+    # citation records a hyphen, AND a DIFFERENT parenthetical -- the
+    # authorizing statute, not the record's cited subsection -- so the
+    # full anchor never appears on the page in ANY dash form). -----------
+    ia_citation = "Iowa Admin. Code r. 481-1025.3(1) (formerly 193A-5.3(1))"
+    ia_anchor = extract_citation_anchor(ia_citation)
+    assert ia_anchor == "481-1025.3(1)", f"test setup error: expected the real ia-individual anchor -- got {ia_anchor!r}"
+    ia_body = (
+        "<html><head><title>481—1025.3(542) Continuing Education Requirements</title></head>"
+        "<body><h1>481—1025.3(542) Continuing Education Requirements</h1>"
+        "<p>Rule text follows.</p></body></html>"
+    ).encode("utf-8")
+    v = evaluate_candidate(
+        "https://www.legis.iowa.gov/docs/iac/chapter/481.1025-selftest-html-variant", "selftest:AUTO-7-iowa-real-shape",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(ia_body).hexdigest(), manual_baseline_length=len(ia_body),
+        claim_anchor=ia_anchor, cited_value=None,
+        today=today, fetch=_fake_fetch(200, ia_body, "text/html"),
+    )
+    assert v.eligible is True, f"SELFTEST FAILED (AUTO-7, real Iowa shape): the em-dash + parenthetical-stripped retry must resolve on Iowa's own real page shape -- {v.reason}"
+
+    # Guard (the ruling's explicit ask): a stripped anchor that only
+    # appears as a CROSS-REFERENCE, never as the page's own heading and
+    # never co-located with a cited value, must still REJECT -- the
+    # retry is not a backdoor around AUTO-6's identity requirement.
+    ia_crossref_filler = ("This chapter establishes procedures for continuing education requirements within the state. " * 6)
+    ia_crossref = "See also 481-1025.3 for the general continuing education framework referenced elsewhere in this title."
+    ia_crossref_body = (
+        "<html><head><title>Unrelated Chapter Heading</title></head><body><h1>Unrelated Chapter Heading</h1>"
+        f"<p>{ia_crossref_filler}</p><p>{ia_crossref}</p></body></html>"
+    ).encode("utf-8")
+    v = evaluate_candidate(
+        "https://www.legis.iowa.gov/docs/iac/chapter/481.1025-selftest-crossref-guard", "selftest:AUTO-7-stripped-crossref-guard",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(ia_crossref_body).hexdigest(), manual_baseline_length=len(ia_crossref_body),
+        claim_anchor=ia_anchor, cited_value=None,
+        today=today, fetch=_fake_fetch(200, ia_crossref_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-7 guard): a stripped anchor mentioned only as a cross-reference must still be rejected by identity, not accepted as a backdoor -- {v}"
+
+    # Confirm the retry genuinely depends on the strip -- without it, the
+    # SAME Iowa page must fail (full anchor "481-1025.3(1)" is never
+    # mentioned on this page in any form; only the stripped "481-1025.3"
+    # is), proving this control isn't accidentally passing via the
+    # non-retry path.
+    ok, used, reason, fc = resolve_anchor_identity(ia_anchor, _decode_best_effort(ia_body), None)
+    assert ok is True and used == "481-1025.3", f"SELFTEST FAILED (AUTO-7): expected the retry to resolve via the stripped form specifically -- got ok={ok}, used={used!r}"
+    assert ia_anchor not in normalize_typography(_decode_best_effort(ia_body)), "test setup error: the FULL anchor must genuinely be absent from the Iowa page for this to isolate the retry path, not the non-retry path"
+
+    # No-backdoor guard: the retry must NEVER fire when the FULL anchor
+    # IS mentioned but fails identity (a genuine cross-reference) -- only
+    # when the full anchor isn't mentioned AT ALL. Page whose OWN heading
+    # is the STRIPPED form ("481-1025.3"), with the FULL anchor
+    # ("481-1025.3(1)") mentioned only as a cross-reference deep in the
+    # body. If the retry incorrectly fired here too, it would find the
+    # stripped form in the heading and wrongly certify a page that's
+    # about the section in general, not specifically the cited
+    # subsection -- exactly the AUTO-6 hole a permissive retry would
+    # reopen.
+    ia_backdoor_body = (
+        "<html><head><title>481-1025.3 Continuing Education Requirements</title></head>"
+        "<body><h1>481-1025.3 Continuing Education Requirements</h1>"
+        f"<p>{'General filler text about the chapter. ' * 8}</p>"
+        "<p>See also 481-1025.3(1) for the specific subsection cross-referenced elsewhere in this title.</p>"
+        "</body></html>"
+    ).encode("utf-8")
+    ok, used, reason, fc = resolve_anchor_identity(ia_anchor, _decode_best_effort(ia_backdoor_body), None)
+    assert ok is False and fc == "identity", f"SELFTEST FAILED (AUTO-7 no-backdoor guard): the retry must not fire when the full anchor IS mentioned but fails identity -- got ok={ok}, used={used!r}, failed_check={fc!r}"
+
+    # --- AUTO-7 AMENDMENT (07:05, auditlab_20260923_cpa_deadlines_anchor_
+    # identity_census_ALL_81.md): the real ma-firm case -- citation "Mass.
+    # Gen. Laws ch. 112, 87B1/2(a)" extracts anchor "2(a)", which strips to
+    # a bare "2". Without the base-quality guard, a page whose own heading
+    # merely CONTAINS a "2" (any date does) would wrongly pass identity --
+    # exactly AuditLab's measured false rescue. Guarded: the retry must
+    # never even be attempted with a base this short/plain. -------------
+    ma_firm_citation = "Mass. Gen. Laws ch. 112, 87B1/2(a)"
+    ma_firm_anchor = extract_citation_anchor(ma_firm_citation)
+    assert ma_firm_anchor == "2(a)", f"test setup error: expected the real ma-firm anchor -- got {ma_firm_anchor!r}"
+    ma_firm_body = (
+        "<html><head><title>Firm License Renewal Schedule, Updated June 2, 2026</title></head>"
+        "<body><h1>Firm License Renewal Schedule, Updated June 2, 2026</h1>"
+        "<p>General licensing information follows, unrelated to the specific subsection cited.</p>"
+        "</body></html>"
+    ).encode("utf-8")
+    v = evaluate_candidate(
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B%201~2-selftest-mafirm-guard",
+        "selftest:AUTO-7-mafirm-base-guard",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(ma_firm_body).hexdigest(), manual_baseline_length=len(ma_firm_body),
+        claim_anchor=ma_firm_anchor, cited_value=None,
+        today=today, fetch=_fake_fetch(200, ma_firm_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "claim_anchor", f"SELFTEST FAILED (AUTO-7 amendment, ma-firm base guard): a stripped anchor too short/plain to trust ('2' from '2(a)') must never be attempted, even when it coincidentally sits in a heading -- {v}"
 
     # --- AUTO-6 POSITIVE controls: the identity check must not just
     # reject everything -- proves both paths genuinely work, not just the
@@ -1749,10 +1993,15 @@ def _selftest() -> None:
         else:
             os.environ[AUTO_EXTEND_APPLY_APPROVED_ENV] = _apply1_env_backup
 
-    print("  selftest (114 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (121 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
-          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-11 (x6: "
+          "specifically), AUTO-7 (x7: the real Iowa em-dash + wrong-parenthetical shape resolves via the "
+          "stripped retry, a stripped-anchor-as-cross-reference guard, isolation proving the retry path "
+          "specifically fired, a no-backdoor guard proving the retry never fires when the full anchor is "
+          "mentioned but fails identity, the amendment's base-quality guard proving the real ma-firm '2(a)' "
+          "-> '2' case is rejected outright rather than coincidentally matching a heading date), "
+          "AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-11 (x6: "
           "cpa_deadlines.json wired in, 3 real date-bug regressions incl. one AuditLab's own report "
           "didn't name, _looks_like_date() shape check, date-then-real-locator isolation), AUTO-12 (x15: "
           "year-range rejection, citation_url preference on the real wa-individual case, plus THREE "
