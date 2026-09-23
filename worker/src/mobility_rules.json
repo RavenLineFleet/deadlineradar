@@ -69,7 +69,8 @@
       "notes": "Current scheme (Act 2009-620, in force until 2026-09-30): pure open-mobility. Any CPA licensed in ANY state with principal place of business outside Alabama gets all practice privileges -- no notice, no fee, no registration, no substantial-equivalency or NASBA state-level test (hence equivalence_test='other': open CPA=CPA; becomes individual_criteria 2026-10-01 under HB59). Firms: Alabama firm registration (34-1-6/34-1-10) and annual permits (34-1-11) apply to firms with Alabama offices; Ala. Admin. Code r. 30-X-3-.04(1) states flatly that no firm or office not located in the state must register, and the board's mobility page agrees. Attest: 34-1-16(12) requires attest services to be performed in a firm holding an Alabama permit EXCEPT for a person/individual practicing pursuant to 34-1-7 -- so out-of-state CPAs/firms without an Alabama office may perform attest for Alabama clients without firm registration. Peer review: conditions renewal of the Alabama firm/individual permit (34-1-11(a)(3) compilation; 34-1-16(13)b), NOT the out-of-state practice privilege -- so false for mobility practice; a firm that opens an Alabama office and registers would face it. Out-of-state practitioners/firms are deemed to consent to board jurisdiction, Alabama law compliance, cease-practice-if-home-license-invalid, and service-of-process agency (34-1-7(b); rule 30-X-3-.04(2)). NOTE: starting hint 'HB 277 (2025)' appears wrong -- no such Alabama CPA bill found; the operative act is HB59, 2026 Regular Session. Board mobility page miscites its own rule as 30-X-7-.13 (actually 'Return of Certificate'); the real mobility rule is 30-X-3-.04. UPDATE (verifier - quote correction): the peer-review quote previously captured included STRICKEN enrolled-act text; the operative amended text (enrolled HB59 p.17) reads: \"The board, by rule, shall require as a condition for renewal of a permit that any permit holder who performs compilation services for the public other than through a CPA or PA firm undergo, not more frequently than once every three years, a peer review.\" Cite as 34-1-11(a)(2) (current, through 2026-09-30) / 34-1-11(a)(3) (as renumbered by HB59 from 2026-10-01). peer_review_required=false for out-of-state privilege firms stands on the corrected reading.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Alaska",
@@ -93,7 +94,8 @@
       "notes": "INDIVIDUAL: AS 08.04.420(a) grants a practice privilege to any individual who is not licensed in Alaska, IS licensed to practice public accounting in another state, and whose principal place of business is in that other state. As amended by HB 121 sec. 4 the subsection contains NO equivalency, education, exam or experience condition — the old substantial-equivalency test was struck in its entirety. That is open CPA=CPA mobility, hence equivalence_test = 'other' rather than nasba_state_level or individual_criteria. AS 08.04.420(c) expressly removes any notice, fee or documentation obligation, for firms as well as individuals, and permits practice by mail, telephone, electronic means or in person. AS 08.04.422 imposes the usual non-registration conditions (consent to board jurisdiction and discipline, agreement to comply with AS 08.04 and board regulations, cessation if the home-state license lapses, and appointment of the home-state board as agent for service of process). RESIDUAL EQUIVALENCY HOOK — flag this to users: 12 AAC 04.251(b) still provides that the board 'may request' that someone practicing under AS 08.04.420 verify good standing, that the principal place of business matches the state of licensure, OR that 'substantial equivalency qualifications required under 12 AAC 04.285 have been met'; 12 AAC 04.285 defines substantial equivalency by NASBA National Qualification Appraisal Service determination at both the state level (a) and the individual level (b). This reads as a discretionary verification power rather than a precondition on the statutory privilege — the statute grants the privilege unconditionally — but it is an unconformed pre-HB-121 rule (12 AAC 04.251 was last amended effective 2025-07-26, before HB 121 took effect) and a CPA could be asked for NASBA SE evidence. 180-DAY TRAP: 12 AAC 04.251(a) provides that an individual who ESTABLISHES a principal place of business in Alaska may practice without an Alaska license for only 180 days and must then apply for licensure by examination, reciprocity, or temporary military courtesy license. Mobility depends on keeping the PPB out of state. FIRM — TAX/NON-ATTEST: clean false. AS 08.04.420(d) gives a practice privilege to a firm that is more than one-half owned by CPAs in good standing (Alaska or another state), has its PPB in another state, and has no Alaska office. 12 AAC 04.245(a) requires a firm permit in only three cases — an office in the state, attest without an office (the disputed (a)(2)), or use of the CPA/PA title, and the title trigger is expressly excepted for a firm 'operating under the requirements of practice privilege'. AS 08.04.510(2) and 08.04.530(2) likewise let a firm use the CPA/PA designation while practising under a practice privilege. So a purely tax/advisory out-of-state firm with no Alaska office registers nothing. This is exactly the case where attest and tax genuinely diverge in Alaska — do not collapse them. FIRM — ATTEST: recorded TRUE conservatively only because of the unconformed 12 AAC 04.245(a)(2). The statutory position is the opposite and is unambiguous: AS 08.04.240(k) (the old out-of-state attest permit, which itself carried an AS 08.04.426 peer-review condition) was repealed by HB 121 sec. 22, AS 08.04.240(a) now issues permits only to 'a firm with an office in the state', and AS 08.04.565 as amended permits attest through a firm that 'is engaging in the practice of public accounting under a practice privilege'. The BOARD'S OWN CURRENT MATERIALS AGREE WITH THE STATUTE, NOT THE RULE: its December 2025 rule-change flyer says 'Effective January 1, 2026 - AK will have firm mobility for firms with a principal place of business outside of AK and no office in AK' (no attest carve-out), and its CPA Firm Permit Initial Application, Rev. 05/13/2026 — i.e. drafted five months AFTER the change — offers the checkbox 'Principal place of business is outside of Alaska and no office in Alaska - Firm permit is optional.' A product should surface the conflict and the optional-permit route rather than assert either extreme. PEER REVIEW: recorded TRUE as a condition OF THE FIRM PERMIT, not of the practice privilege — this is the distinction the field asks about. AS 08.04.426(f) makes peer review a condition of renewal of a firm permit, and 12 AAC 04.600(a) requires a permit holder that issued audit or review reports in the concluding permit period to certify a peer review within the preceding three years (12 AAC 04.620 exempts permit holders that issued no audit/review reports). The board's out-of-state firm permit application requires the firm to certify it 'will comply with the requirements of AS 08.04.426 (Peer Review)'. Nothing in AS 08.04.420 or AS 08.04.422 conditions the no-registration practice privilege itself on peer review; so if the 12 AAC 04.245(a)(2) conflict is resolved in favour of the statute, the correct values for both firm_registration_attest and peer_review_required become FALSE. OTHER: the individual pathway also changed — HB 121 sec. 1 repealed the 150-semester-hour requirement, leaving a baccalaureate with an accounting concentration plus two years of experience (AS 08.04.120(a)). Alaska is a single-tier state for practice purposes: AS 08.04.100 says a certificate alone does not authorise practice without a current license or permit. No other accountancy bill was introduced in the 34th Legislature (2025-2026).",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Arizona",
@@ -118,7 +120,8 @@
       "notes": "Arizona grants individual mobility via the 'limited reciprocity privilege' (A.R.S. 32-725): a nonresident CPA whose principal place of business is outside Arizona, with no Arizona office and no suspension/revocation/relinquishment, has 'all of the privileges of registrants... without obtaining a registration, certificate or license,' and 'A notice, fee or other submission is not required' (32-725(D)) — so no notice AND no fee. FIRMS: under 32-725(G) an out-of-state firm may practice accounting in Arizona 'including the provision of attest services, without having to register as a firm' if 6 conditions are met (owned by/employs a privilege holder, good standing at home, holder's principal place of business is a recognized firm office, no Arizona office or representation of one, active firm permit in another jurisdiction, work performed by/under direct supervision of a privilege holder). Because 32-725(G) covers the whole 'practice of accounting' and 32-731(A) registration applies '[e]xcept as provided in section 32-725, subsection G' and only to firms that have 'an office in this state,' firm_registration is false for BOTH attest and tax/non-attest for firms without an Arizona office (a firm opening an Arizona office loses the exemption and must register biennially). EQUIVALENCE TEST = 'other': a state-specific codified scheme, not NASBA/NQAS reliance — current in-force test checks whether the LICENSING JURISDICTION requires 150 hrs + baccalaureate + passed uniform CPA exam + 1 yr verified experience (UAA-style '3E' written directly into statute, no NASBA reference), with an individual-criteria fallback (32-721(C)); from 2027-01-01 it becomes individual-criteria (meets 32-721(A) or 32-4302) or a grandfather (valid active license held as of 2024-12-31). Attest/compilation reports must be signed by an Arizona certificate holder or a 32-725(G)-qualified person (32-731(B)). Non-qualifying out-of-state/foreign CPAs may still provide expert-witness services, teaching/lecturing, or other board-approved services (32-725(F)).",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Arkansas",
@@ -157,7 +160,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration if the firm meets A.C.A. section 17-12-507 qualifications, performs the work through an individual with section 17-12-311 practice privileges, and meets section 17-12-508 peer review (peer review is effectively vacuous for a compilation-only firm per section 17-12-508(a)(2), but substantive for SSARS-review/other-SSAE firms).",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "California",
@@ -181,7 +185,8 @@
       "notes": "Individual: BPC 5096(a)-(b) (current text, eff. 2026-01-01) grants a practice privilege to any individual whose principal place of business is outside California holding a current, active license from another state; 'a notice, fee, or other requirement shall not be imposed.' Conditions: no California office (except as employee of a registered firm), report criminal charges within 30 days, cease practice on home-state discipline or SEC/PCAOB bar, and perform BPC 5096(c) attest services (audit/review of financial statements, compilations where third-party use expected and independence not disclaimed, examinations of prospective financial information, for entities headquartered in California) only through a firm registered with the CBA. Per BPC 5096(h) (statutory basis verifier-confirmed) and the CBA's pp_reporting page: individuals with specified disciplinary/criminal events in the previous 7 years must submit a Pre-Notification Form and obtain CBA approval BEFORE practicing - a live exception to the no-notice rule. Firm: an out-of-state firm with no California office may practice through privilege holders WITHOUT registration (5096.12(a)); registration (Form PP-13, no fee, renewable every two years at no fee) is required only to perform 5096(c) attest services for California-headquartered entities (5096.12(c)) - tax and other non-attest services trigger no CBA firm registration (Secretary of State foreign-qualification rules may apply separately for intrastate business, per the CBA form notice). Equivalence test: 'other' = open mobility, no equivalency screening at all (neither NASBA state-level nor individual criteria); board retains state-by-state withdrawal power (5096.21/5096.22). Pre-2026 rules (substantial equivalency; no-notice no-fee since 2013-07-01) remain visible on stale CBA pages.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Colorado",
@@ -213,7 +218,8 @@
       "individual_criteria_grandfather_note": "Out-of-state CPAs who held Colorado practice privileges as of December 31, 2024 continue to have those privileges without meeting the new individual-criteria requirements.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Colorado's Board Rule 1.14 (3 CCR 705-1, version effective 12/15/2024) still states the superseded NASBA-NQAS state-level substantial-equivalency test; conforming board rulemaking is pending (COCPA reports the notice-comment-hearing phase is next). The enacted statute (SB 26-076, effective 2026-08-12) controls regardless -- its effective-date clause carries no condition on rule adoption -- but a CPA relying on the board's own current rule text alone would see the OLD test described. Confirm directly with the Colorado Board before relying on this if in doubt.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-16"
     },
     {
       "state": "Connecticut",
@@ -251,7 +257,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": true,
       "firm_registration_attest_split_conditions": "Compilation is exempt from firm registration under Conn. Gen. Stat. section 20-281e(h) if the firm meets the quality-review qualifications in section 20-281 and performs the work through an individual with a section 20-281n practice privilege. SSARS review's treatment is NOT resolved here -- section 20-281e(h) reads it as conditionally exempt, but section 20-281n(d) reads it as requiring a permit with no carve-out; this dataset withholds a definitive answer for SSARS review specifically pending legal review of that conflict.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Delaware",
@@ -283,7 +290,8 @@
       "individual_criteria_grandfather_note": "Individuals who held a valid CPA license from any state and already had Delaware practice privileges as of December 31, 2024 continue to have those privileges without meeting the new individual-criteria requirements.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Delaware's board rule still describes the old test (verifying your home STATE) even though the law itself has already switched to testing your own individual credentials. Until the board updates its rule, we can't confirm which one actually governs in practice. Confirm directly with the Delaware Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "District of Columbia",
@@ -316,7 +324,8 @@
       "individual_criteria_grandfather_date": "2026-08-10",
       "individual_criteria_grandfather_note": "An out-of-state CPA in good standing who held DC practice privileges immediately before the August 10, 2026 changeover keeps them regardless of whether they meet the new individual-criteria test (D.C. Official Code § 47-2853.49(b)).",
       "individual_criteria_confirmed": true,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-14"
     },
     {
       "state": "Florida",
@@ -340,7 +349,8 @@
       "notes": "IMPORTANT SCOPE: firm_registration_attest=false means no Florida firm license is required ONLY IF the out-of-state firm (with no Florida office) meets ALL of 473.3101(1)(c)1.a-d: (a) complies with s.473.309 firm qualifications (ownership), (b) is enrolled in a peer review program per s.473.3125(4), (c) performs through an individual with 473.3141 practice privileges, and (d) lawfully performs the services in the privileged individual's home state. A firm failing any condition MUST hold a Florida firm license to perform 473.302(8)(a) attest-type services for a client having its home office in Florida. Practice-privilege individuals may perform 473.302(8)(a) services only through a firm licensed under or authorized by 473.3101 (473.3141(4)). Privilege applies only to individuals with no office in Florida; establishing a Florida office requires full licensure. Equivalence test is state-level substantial equivalency to UAA s.5 as determined by the board or its designee (NASBA/CPAverify model; DBPR lists all 50 states plus territories as substantially equivalent), with an individual-verification fallback under 473.3141(1)(b) for CPAs from non-approved states. Fallback route: individuals not qualifying for substantial-equivalency privileges (e.g., certificate-only holders from two-tier states; post-2012 NY/OH legacy-pathway licensees per DBPR asterisks) may use a temporary license (Fla. Stat. 473.314; Rule 61H1-29.002 F.A.C.). LEGISLATIVE WATCH: SB 160/HB 133 (2025) - new licensure pathways plus enhanced automatic mobility - died June 2025. SB 364 (2026) passed the Senate 35-0 (2026-01-29) but Died in Messages in the House 2026-03-13; companion HB 333 never received a House committee hearing; a separate 2026 measure to eliminate the Board of Accountancy (HB 607) also failed. FICPA has signaled it will refile; expect a 2027-session bill touching 473.3141. Compiled 473.3141 last amended by ch. 2012-212, consistent with no enacted change.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Georgia",
@@ -372,7 +382,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Georgia's new law lets the state board decide the specific education and experience requirements, but the board hasn't adopted those requirements yet. Until it does, there's no settled list of qualifying pathways to check you against. Confirm directly with the Georgia Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Guam",
@@ -404,7 +415,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": true,
       "firm_registration_attest_split_conditions": "SSARS review and compilation are exempt from a Guam firm permit under 22 GCA section 35107(a)(2) if the firm meets the ownership/competency qualifications in section 35107(d) and the peer-review standard in section 35107(i), and performs the work through an individual with section 35122 practice privileges. \"Other SSAE\" engagements do NOT qualify for this exemption in Guam -- they require a permit like the core tier.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-09-23"
     },
     {
       "state": "Hawaii",
@@ -428,7 +440,8 @@
       "notes": "HAWAII GRANTS NO PRACTICE PRIVILEGE / NO SUBSTANTIAL EQUIVALENCY -- it remains a hard non-mobility jurisdiction, and the starting hint that HRS 466-5.5 was a practice-privilege section is WRONG (it was an education section, now repealed). There is no practice-privilege provision anywhere in HRS ch. 466 or HAR 16-71; the words 'privilege', 'substantial equivalency' and 'mobility' do not appear in the compiled rules at all. HRS 466-5(a) and 466-7(a) both require a Hawaii license AND permit to practice public accountancy.\n\nINDIVIDUAL ROUTE: the ONLY route short of full Hawaii licensure is a discretionary TEMPORARY PERMIT under HRS 466-7(c) -- board-granted, effective 'for a period not exceeding three months', and available only where the work is 'Incidental to the person's practice in such other state or country.' HAR 16-71-8 defines 'incidental' as 'services rendered in this State by a non-licensee for work performed for a client outside the State' (e.g., auditing a Hawaii subsidiary of an out-of-state parent). Board form CPA-13 makes the consequence explicit: 'Is the work that you will be temporarily doing in Hawaii for a client that is located outside the State of Hawaii? ... (If \"NO\", you do not qualify for a temporary permit to practice).' PRACTICAL UPSHOT: an out-of-state CPA generally CANNOT serve a Hawaii-domiciled client at all without full Hawaii licensure plus a Hawaii firm permit.\n\nnotice_required / fee_required = TRUE describe this permit requirement, NOT a privilege notification (no privilege exists). HAR 16-71-27 and form CPA-13 require the application to be filed 'not later than sixty days prior to the commencement of the period covered by the application', and CPA-13 charges a total fee of $269 ($25 application + $194 permit + $50 Compliance Resolution Fund). Each 90-day period needs a new application. CPE rules do not apply to temporary permits (HAR 16-71-48).\n\nFIRM REGISTRATION (attest AND tax both TRUE): HRS 466-7(d) 'All firms shall obtain a permit to practice.' HAR 16-71-24(b)(1)(C) provides 'The Hawaii business operations of a foreign or multi-state firm shall constitute a \"firm\" for purposes of the firm permit to practice under section 466-7, HRS,' and (b)(4) requires every foreign/multi-state firm engaged in public accounting practice in Hawaii to have at least one Hawaii-licensed CPA/PA principal holding a current individual permit. There is NO attest/non-attest exemption anywhere in the statute, the rules, or the board's forms. The firm must also supply a Hawaii general excise tax license number or attest it will have no Hawaii gross income (HAR 16-71-24(b)(2)). Firm permit fees: $89-$121 sole proprietorship, $230-$345 partnership/LLP/corporation/LLC. Notably, a firm permit is a PRECONDITION to an individual temporary permit -- CPA-13 instruction 3: 'Pursuant to Hawaii Revised Statutes section 466-7, your CPA firm must hold a current Hawaii firm permit to practice.'\n\nPEER REVIEW = a condition of the FIRM PERMIT (not of any no-registration privilege, since none exists). HRS 466-34(a) requires every firm required to obtain a firm permit -- 'including the Hawaii offices and Hawaii engagements of foreign or multistate firms' -- to undergo peer review every three years, and (i) states 'An out-of-state firm performing Hawaii attest work shall comply with this part.' IMPORTANT CARVE-OUT: HRS 466-34(d) -- 'A firm that does not perform Hawaii attest work shall be exempt from the peer review process.' So a tax-only out-of-state firm still needs the FIRM PERMIT but is exempt from PEER REVIEW. Separately, HRS 466-7(b)(5) conditions renewal of an INDIVIDUAL permit on proof of having undergone the peer review process. 'Hawaii attest work' is itself a defined term in HRS 466-3 keyed to Hawaii-resident/Hawaii-domiciled clients and Hawaii subsidiaries with stand-alone financial statements.\n\nequivalence_test = 'other': Hawaii applies NO substantial-equivalency test (neither NASBA state-level nor an individual-criteria privilege test) because it grants no privilege. Its scheme is a discretionary board-approved temporary permit conditioned on (i) a valid CPA/PA license from another state or a recognized foreign qualification, (ii) age 18+ and a history of competence/trustworthiness/fair dealing, (iii) the engagement being incidental to out-of-state practice, and (iv) the firm holding a Hawaii firm permit. A separate ten-year/five-year experience waiver of the education requirement for full licensure exists at HRS 466-5(c)(2) -- that is a reciprocity-style licensure path, not mobility.\n\nSTALE SECONDARY GOVERNMENT ARTIFACTS (disclosed, but they do NOT contradict any recorded field): (a) the DCCA-hosted HRS 466 PDF at files.hawaii.gov/dcca/pvl/pvl/hrs/hrs_pvl_466.pdf still prints the pre-Act-14 text of 466-5 and the full repealed § 466-5.5 -- do not cite it; (b) HAR 16-71 (compiled 11/27/2021, and the board labels its posted copy 'Unofficial Version') still cross-references repealed § 466-5.5 in three places. Both defects concern EDUCATION requirements only; neither touches mobility, temporary permits, firm permits, or peer review, so this is not a mobility-field source disagreement. The board's own statute/rules page correctly links to the live capitol.hawaii.gov HRS ch. 466.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Idaho",
@@ -462,7 +475,8 @@
       "individual_criteria_grandfather_note": "Out-of-state CPAs who held a valid active license and already had Idaho practice privileges under the prior version of section 54-227 as of December 31, 2024 continue to have those privileges without needing to meet the new 54-207/54-209 individual education-and-experience criteria.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Illinois",
@@ -487,7 +501,8 @@
       "notes": "Scheme as of 2026-07-31: Illinois grants automatic practice privilege - no license, notice, or fee - to an individual CPA whose principal place of business is out of state if the issuing state's requirements are equivalent to 225 ILCS 450/14; otherwise the individual must first obtain a Committee equivalency determination. Firm mobility: an out-of-state CPA firm has full privileges without license or notice if it complies with Sections 14.4 and 16 (including peer review) through enhanced mobility of its licensed state (5.2(a-5)); this covers attest and non-attest alike, but audits/attestation engagements for Illinois-headquartered entities may only be performed through a licensed or privileged CPA firm (5.2(d)-(e)). Tax/non-attest by an out-of-state firm with no Illinois office triggers none of the Section 13 licensure prongs. Peer review (3-year cycle, Section 16; 68 IAC 1420.75) is a condition of firm license renewal for firms performing 8.05(a)(1) attest activities and is incorporated into firm mobility via the Section 16 compliance condition. Caution: an IDFPR reinstatement form states 'The firm cannot advertise or offer any professional services in Illinois without a valid CPA Firm license' - in context it addresses lapsed Illinois firm licenses, not privileged out-of-state firms, but the tension is logged in the evidence open_questions.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Indiana",
@@ -512,7 +527,8 @@
       "notes": "Indiana is a UAA-pattern no-notice mobility state, unchanged in statute since 2007: IC 25-2.1-4-10 gives an individual whose principal place of business is outside Indiana all privileges of an Indiana CPA certificate holder, with substantial equivalency determined at the STATE level by 'the board or its designee' (NASBA/NQAS pattern) or, as fallback, via the individual's own qualifications — hence equivalence_test=nasba_state_level with an individual-criteria fallback; the 2025 non-rule policy overlays pathway-based individual criteria (exam + one of three education/experience pathways) for both mobility and reciprocity. Privilege conditions (IC 25-2.1-4-10(c)): consent to board jurisdiction, compliance with IC 25-2.1 and 872 IAC, cease practice if home license lapses, home-state board as agent for service of process. Firms: no firm mobility; firm permit (IC 25-2.1-5, $30 fee per board packet, 3-year cycle expiring June 30, 2027 this cycle) required for any firm providing attest services or using the CPA title (IC 25-2.1-12-5); peer review not more than once every 3 years is a statutory condition of permit renewal (IC 25-2.1-5-8) implemented by 872 IAC 1-6-9 (renewal certification; amended version filed 2025-03-21); board: all firms performing ANY attest functions (audits, reviews, compilations, AUPs) must have peer review every 3 years — peer review attaches to the firm permit, not to any no-registration privilege. Board = Indiana Board of Accountancy (Indiana Professional Licensing Agency, PLA).",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Iowa",
@@ -536,7 +552,8 @@
       "notes": "equivalence_test='other': as of 2026-07-01 Iowa is effectively CPA=CPA — the only individual test is a valid, unexpired license in good standing in the state of principal place of business, licensed there for all services rendered in Iowa (542.20(1)), plus the 542.20(7)-(8) conduct/consent conditions (new (7)(e): comply with chapter and board rules); no NASBA state-level or individual equivalency determination remains in the statute. (The pre-2026-07-01 scheme, still echoed in stale rule 193A—20.2(2), was a disjunctive 542.19(1)(a) state-standards / (b) individual-qualifications / (c) 4-of-10-years test — also not cleanly 'nasba_state_level'.) FIRMS: a permit under 542.7 is required ONLY if the firm has an office in Iowa using the CPA title (542.7(1)(a)); a no-Iowa-office firm practices attest AND tax/non-attest under 542.20(5) with no firm license, no notice, no fee (rule 193A—21.6(1) same), so firm_registration_attest and firm_registration_tax are both false. peer_review_required=true attaches to the NO-REGISTRATION PRIVILEGE, not to a registration: 542.20(5)(e) requires privilege firms to 'comply with the ownership and peer review requirements of section 542.7', and rule 193A—21.5 repeats it for attest/compilation; for Iowa-licensed firms peer review is a permit-renewal condition (542.7(8)). Individuals performing attest in Iowa or for a client with an Iowa home office must practice through a 542.7-licensed firm or an out-of-state firm meeting 542.7 ownership/peer-review (542.20(6)(c), unchanged by H.F. 778); compilations per 542.20(6)(d). CPA-title use: privilege individual may not have an Iowa office using the title except through a permitted/exempt firm office (542.20(6)(b)). State agencies/clients may still demand Iowa licensure for certain engagements (542.20(2), e.g. Iowa Code ch. 11 audits). Accounting Today's 'House Bill 177' bill number is wrong — the act is H.F. 778.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Kansas",
@@ -570,7 +587,8 @@
       "individual_criteria_grandfather_note": "Out-of-state CPAs who already held Kansas practice privileges as of 2025-12-31 retain them without needing to meet the new individual-criteria pathways.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Kentucky",
@@ -607,7 +625,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration under KRS 325.301(2) if the firm meets the 51%+ CPA-ownership rule in section 325.301(3)(a), completes peer review under section 325.301(10), and performs the work through an individual with a section 325.282 practice privilege.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Louisiana",
@@ -643,7 +662,8 @@
       "individual_criteria_grandfather_note": "Preserves practice privileges for any individual licensed as of December 31, 2024 who already held Louisiana practice privileges on that date.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Louisiana's new law (effective August 1, 2026) is clear about the qualifying pathways, but the board's own rules haven't been updated to match it yet. Confirm directly with the Louisiana Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-01"
     },
     {
       "state": "Maine",
@@ -667,7 +687,8 @@
       "notes": "INDIVIDUALS (32 M.R.S. § 12232): Maine grants a full no-notice, no-registration, no-fee practice privilege to an out-of-state CPA whose principal place of business is outside Maine. § 12232(2) is emphatic: 'no notice or other submission may be required of any such individual.' Conditions are consent-based only, not filing-based: § 12232(3) requires the individual AND the employing firm to consent to the Board's personal and subject-matter jurisdiction and disciplinary authority, to comply with ch. 113 and board rules, and to cease practice if the home-state license lapses. Note the interlock at § 12232(4): an individual with the privilege may perform § 12201(3-A) ATTEST services for a Maine home-office entity only THROUGH a firm that either holds a § 12252 license or is exempt under § 12252(1)(A)(3) or (1)(B) — i.e. the individual privilege alone does not authorize attest work; the firm-side gate must also be cleared.\\n\\nEQUIVALENCE TEST: recorded 'nasba_state_level' because the primary test in § 12232(1)(A) is whether the CPA's licensing STATE has been verified by the Board to be in substantial equivalence with NASBA/AICPA (UAA) requirements, and the Board's own page operationalizes this by pointing to the NASBA National Qualification Appraisal Service list of substantially equivalent states. There is a genuine INDIVIDUAL-criteria fallback in § 12232(1)(B) for CPAs licensed in a non-SE state, which the Board routes through NASBA CredentialNet; § 12232(1)(B) also lets the Board exempt a CPA who passed the Uniform CPA Exam and held a valid license from any other state before January 1, 2012 from the § 12228(3)(B) education requirement. Maine has NOT moved to CPA=CPA / individual-criteria mobility — it kept the classic state-level SE model, which is now a minority position after the 2025-26 wave.\\n\\nFIRMS - ATTEST: recorded false (no registration/permit required) on the statute + compiled rule, but READ THE CONDITIONS. An out-of-state firm with NO Maine office performing § 12201(3-A) paragraph A (SAS audits), C (SSAE prospective financial information) or D (PCAOB engagements) for a client with its home office in Maine escapes the § 12252 license ONLY via one of two routes: (a) § 12252(1)(A)(3)(a) — the firm must itself qualify for a Maine firm license under § 12252(3) (simple-majority CPA ownership) AND § 12252(8) (peer review) and must perform through an individual holding § 12232 practice privileges; or (b) § 12252(1)(A)(3)(b) / § 12253 — the firm holds a valid CPA-firm license from a state the Board has verified to be in substantial equivalence (or the Board individually determines the firm's qualifications are substantially equivalent). Route (b) is expressly no-notice, no-submission, no-fee (§ 12253(2)) and carries the same consent conditions as individuals (§ 12253(3)). Paragraph B (SSARS reviews and COMPILATIONS) and paragraph F (other SSAE examination/review/AUP) are handled separately by § 12252(1)(B), which permits the work plus use of the 'CPA'/'CPA firm' title without a license on the same two routes. A firm that opens an OFFICE in Maine, or that uses 'CPA'/'CPA firm' at a Maine office, must be licensed outright — § 12252(1)(A)(1)-(2), no exceptions. § 12275(14)(C) separately protects title use by an unlicensed, no-office firm that complies with § 12252(1)(A)(3), (1)(B) or (1)(C).\\n\\nFIRMS - TAX / NON-ATTEST: recorded false and verified INDEPENDENTLY of the attest analysis. Tax return preparation and tax advice are NOT within the § 12201(3-A) 'attest service' definition (which is limited to SAS, SSARS, SSAE and PCAOB engagements). § 12202 expressly provides that 'Anyone may practice accounting and engage in services which involve accounting or auditing skills, including management advisory or consulting services, the preparation of tax returns and the furnishing of advice on tax matters,' subject only to not holding out as a licensee and not issuing a § 12201(10-A) report. The residual firm provision § 12252(1)(C) confirms no license is needed for non-attest services; it imposes conditions only on USE OF THE 'CPA'/'CPA firm' TITLE while doing them (meet § 12253, or perform through an individual with § 12232 privileges AND have legal authority to perform the services in that individual's principal-place-of-business state). No registration, notice or fee in either case. The Board's own CPA FAQ confirms: 'You do not need to be licensed to prepare tax returns.'\\n\\nPEER REVIEW: recorded true. It is (i) a condition of GRANTING/RENEWING a Maine firm license — § 12252(8) requires any CPA firm providing an attest service other than compilations to complete a peer review within 18 months of initial licensure and every 3 years thereafter, with an annual written no-attest certification available to firms that do none (implemented by 02-280 ch. 6 § 3, which also requires On-Site review where the attest work includes audits and permits Off-Site review otherwise); AND (ii) a condition of the NO-REGISTRATION attest privilege under route (a), § 12252(1)(A)(3)(a), which requires the out-of-state firm to 'qualif[y] for a firm license pursuant to subsections 3 and 8' — subsection 8 being peer review. It is NOT expressly stated as a condition of the § 12253 route (b); see open_questions.\\n\\nFEES/CONTEXT: a Maine firm license is $35 annually (expiring September 30) with a $50 late fee; an individual Maine CPA license is $35 plus a $21 criminal background check. Those are LICENSURE fees and do not attach to the practice privilege. Maine still requires 150 semester hours for LICENSURE; PL 2025, c. 297 lowered only the hours needed to SIT for the exam to 120.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Maryland",
@@ -691,7 +712,8 @@
       "notes": "Individual: §2-321 grants a true no-notice, no-fee practice privilege ('without any notice, fee, or other submission to the Board') to any out-of-state CPA whose principal place of business is outside MD, holding a valid license obtained after being required to pass the Uniform CPA Exam. equivalence_test='other': statutory deemed-substantial-equivalency (near open CPA=CPA with an exam condition) — NOT NASBA state-level list, NOT individual education/experience criteria. Conditions: individual and employing firm consent to Board jurisdiction, compliance with MD law, home-state board as agent for service, and must cease if home license lapses. A practice-privilege sole practitioner may perform attest services only through a firm holding a §2-401 permit. Firms: a firm with NO MD office may perform attest services for a client in the State WITHOUT a permit if it '(1) meets the application and peer review requirements under §§ 2-402, 2-402.1, and 2-403 ... and § 2-4A-02; and (2) performs services through an individual with a practice privilege under § 2-321' (firm mobility law eff. 2019-10-01). Caveat: the phrase 'meets the application ... requirements' is ambiguous (qualify-as-if-applying vs. must file something); the Board's firm-mobility page reads it as no permit required. Non-attest/tax: a firm not meeting permit requirements may still perform non-attest professional services using the 'CPA'/'CPA firm' title without a permit if performed through a practice-privileged individual — so firm_registration_tax=false. peer_review_required=true is a condition OF THE NO-PERMIT ATTEST PRIVILEGE (via §2-4A-02: peer review at least every 3 years, AICPA-standard or Board-approved program), not of a registration — no registration exists for no-office firms. UPDATE (verifier): the 2025 mobility rewrite was a dual enactment - Ch. 406 (SB 51) and Ch. 407 (HB 887, cross-file). The 2-401(b)(2)/(d)(2) no-permit exemption carries a trailing condition the quotes truncate: the firm performs services \"in the state where the individual with a practice privilege retains a principal place of business\" - changes no boolean but is part of the operative conditions.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Massachusetts",
@@ -716,7 +738,8 @@
       "notes": "Massachusetts is a full-mobility state since St. 2020 c. 319 (approved 2021-01-11), which struck former 87B(h)(1) -- the board calls it removing 'the last barrier to mobility'. Individuals: out-of-state CPAs with principal place of business outside MA practice (including attest) with no license, no notice, no fee, under 87B(h)(2); current codified test is NASBA NQAS state-level substantial-equivalence verification (individual NQAS verification as fallback), and the board states all states have been deemed substantially equivalent. Firms: out-of-state firms with NO physical office or principal place of business in MA may provide services (attest and non-attest) without a MA firm license per board guidance; firms WITH a MA office/PPB must be licensed (87B1/2, 87D(e)). An out-of-state firm that does seek a MA license uses 87B1/2(k), which conditions issuance on compliance with firm ownership AND peer review requirements; 252 CMR 2.15 makes completed quality review (within 3 years) a firm-license renewal condition and requires firms newly undertaking audit/attest to undergo review within 18 months. peer_review_required=true refers to the FIRM LICENSE, not the no-registration mobility privilege -- the privilege itself is not peer-review-conditioned on the face of the statute or board guidance. Tax/non-attest: 87D(a) restricts only report issuance; tax return preparation and non-attest services are expressly outside the prohibition, and board guidance draws no attest/non-attest distinction for no-office out-of-state firms.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-17"
     },
     {
       "state": "Michigan",
@@ -743,7 +766,8 @@
       "notes": "INDIVIDUAL: 727a grants out-of-state CPAs (principal place of business elsewhere) 'all the privileges of licensees' with no certificate, license, permit, notice, fee, or submission; conditions of exercise are consent to board jurisdiction etc. under 734a. Equivalence test operates at the licensing-JURISDICTION level (does the other jurisdiction require 150 semester hours + uniform CPA exam + 1 year experience), with an individual substantial-equivalency fallback in 727a(1)(b) for licensees of non-equivalent jurisdictions (pre-2012-exam licensees exempt from the education element). Statute does NOT name NASBA/NQAS -- classified nasba_state_level because the primary test is jurisdiction-level UAA-style equivalency; note the individual fallback. A temporary practice permit ($100, max 1 yr, per-engagement info) exists under 724(b) ONLY for out-of-state accountants who do NOT meet 727a. FIRMS: licensure required only if the firm 'establishes or maintains an office in this state' (728(1)); $300 initial/2-yr, $200 renewal per board guide rev 2026-01-26. A firm with NO Michigan office may perform review/SSAE engagements/compilations (728(4)) and full attest or ANY other professional services incl. tax while using the CPA-firm title (728(5)) WITHOUT a Michigan license, if it (a) works through a 727a-privileged individual, (b) is authorized for those services in that individual's home jurisdiction, and (c) meets 728(2)(a) CPA-majority ownership, 728(2)(b) licensed-CPA supervision of attest/compilation, and 729(2) peer review. So firm_registration_attest = false (no registration/permit, but substantive conditions incl. peer review apply) and firm_registration_tax = false (same no-license route; tax = 'any other professional services'). PEER REVIEW: true -- it is a condition of the no-registration out-of-state practice route (728(4)(a) and 728(5)(c) both incorporate 729(2)), not of a registration, and 729(2) itself obligates only firms performing audits, reviews, or compilations relied on by third parties; a tax-only out-of-state firm would not trigger the peer-review program. For Michigan-licensed firms peer review is a renewal condition (proof within preceding 3 years, 729(3)).",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-09-23"
     },
     {
       "state": "Minnesota",
@@ -775,7 +799,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-21"
     },
     {
       "state": "Mississippi",
@@ -811,7 +836,8 @@
       "firm_registration_attest_ssars_review": false,
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration if the firm meets Miss. Code Ann. section 73-33-1(3)(b)'s conditions (the subsection (4) ownership qualifications, peer review per board rule, and performance through an individual with Section 73-33-17 practice privileges).",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Missouri",
@@ -846,7 +872,8 @@
       "individual_criteria_grandfather_note": "An individual who held a valid, unrestricted CPA license from any state and had Missouri practice privileges under the prior test as of December 31, 2024 continues to have those privileges without meeting the new individual-criteria requirements (RSMo 326.283.1(1)(b)).",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Missouri's Board Rule 20 CSR 2010-2.022 (last amended effective 2012-06-30) still states the superseded test in its own words -- practice privilege turns on whether the individual's home state's licensing requirements, or the individual's own qualifications per NASBA NQAS, are 'substantially equivalent' to Missouri's. It also lists a third path (4 years' experience in the preceding 10, bachelor's degree, exam passed) that does not appear in the amended statute at all. SB 1233's new individual-criteria test controls once effective (2026-08-28) regardless -- its effective-date clause carries no condition on board rulemaking -- but a CPA relying on the board's own current rule text alone would see a different, additional test described. No conforming rulemaking was pending on the board's proposed-rules page as of this verification. Confirm directly with the Missouri Board before relying on this if in doubt.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-08-17"
     },
     {
       "state": "Montana",
@@ -870,7 +897,8 @@
       "notes": "INDIVIDUAL: MCA 37-50-325(1)(a) grants a nonresident CPA whose principal place of business is outside Montana, holding a valid license from a state NASBA/NQAS has verified as substantially equivalent, 'all the privileges of persons holding a license of this state without the need to obtain a license under 37-50-302,' and (1)(b) states 'no notice, fee, or other submission is required.' Subsection (2) supplies an INDIVIDUAL-criteria fallback for CPAs licensed in a non-verified state: they get the same privilege if they personally obtain NQAS verification that their own CPA qualifications are substantially equivalent (with a pre-2012 licensure education grandfather in (2)(b)). equivalence_test is therefore recorded as nasba_state_level because that is the primary/default test (and ARM 24.201.531(2): 'The board has determined that all jurisdictions approved by NASBA are deemed to be \"substantially equivalent.\"'), with an individual-NQAS alternate route. Note the fee/notice caveat in 37-50-325(2)(c): 'no notice, fee, or other submission is required unless the person is required to register pursuant to 37-50-335' -- i.e., firm registration duties still attach to firms that establish or maintain an office in Montana. Conditions of the privilege (37-50-325(3)): consent to board jurisdiction and discipline, compliance with chapter 37-50 and board rules, cease practice if the home-state license lapses, and appointment of the home-state board as agent for service of process. FIRMS: 37-50-335(1) requires ANNUAL registration only of 'All firms that establish or maintain offices in this state for the practice of public accounting'; 37-50-335(2) allows a fee for that annual registration. An out-of-state firm with NO Montana office needs no registration for either attest or non-attest work: 37-50-335(4) lets it 'use the title \"CPA\" or \"CPA firm\" in this state without registering' and (a) render attest services and compilations if it complies with Montana peer review and firm ownership qualifications, works through an individual with 37-50-325 practice privileges, and holds home-state privileges covering attest/compilation; or (b) perform non-attest professional services if it works through a person with 37-50-325 practice privileges and holds home-state privileges for those services. Both firm_registration_attest and firm_registration_tax are therefore false FOR FIRMS WITHOUT A MONTANA OFFICE; a Montana office triggers registration for either service type. Attest work for a Montana-home-office client must still be done through a firm complying with 37-50-335 (37-50-325(4)). PEER REVIEW: peer_review_required = true and it is a condition of the NO-REGISTRATION ATTEST PRIVILEGE, not of a firm permit -- 37-50-335(4)(a)(i) conditions the out-of-state firm's attest/compilation privilege on complying with 'the state's peer review and firm ownership qualifications.' Importantly, ARM 24.201.1108(1)(a) exempts from the Montana peer review requirement 'out-of-state firms that do not have a physical location in this state, but perform attest or compilation services in this state, and have a peer review in the state in which they are located, and are otherwise qualified for practice privileges' -- so the condition is satisfied by a home-state peer review, not by enrolling in Montana's program. Peer review is NOT a condition of the non-attest (tax) firm privilege under 37-50-335(4)(b). Registered Montana firms must enroll in a board-approved peer review program if they perform audits, reviews, compilations, SSAE engagements, or non-issuer PCAOB-standard engagements (ARM 24.201.1103(1)); the program is currently administered for Montana by the Nevada Society of CPAs. FIRM OWNERSHIP: 37-50-330(1)(b) requires that 'a simple majority of ownership in the firm, in terms of equity and voting rights, is held by accountants' licensed in Montana or in a substantially equivalent jurisdiction or qualifying for practice privilege.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Nebraska",
@@ -904,7 +932,8 @@
       "individual_criteria_grandfather_note": "Individuals who already held Nebraska practice privileges as of 2024-12-31 keep them under 288 NAC 7-001.02B without meeting the new individual-criteria pathways.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Nevada",
@@ -928,7 +957,8 @@
       "notes": "Nevada is an open CPA=CPA mobility state for BOTH individuals and firms -- unusual: NRS 628.315(1) deems a natural person with a valid CPA license in good standing from any other state, AND a CPA firm holding a valid registration in good standing from any other state, to be a Nevada CPA/CPA firm 'for all purposes under the laws of this State other than this chapter.' No substantial-equivalency/NASBA test appears anywhere, hence equivalence_test='other'. NRS 628.315(2) expressly waives the certificate (628.190), permit (628.380), and firm registration (628.335); no notice filing and no fee exist. NRS 628.335(2) requires firm registration only for firms 'with an office in this State,' for attest, compilation, public accounting practice, or CPA-styled naming -- so firm_registration_attest and firm_registration_tax are both false for firms with no Nevada office (a firm opening a Nevada office must register regardless of service line). Conditions of the privilege (NRS 628.315(3)): consent to Board jurisdiction/discipline, compliance with ch. 628 and Board regulations (which pulls in the NAC practice-monitoring requirement for attest-type work), cessation if the principal-place-of-business license/registration lapses, and appointment of the home-state board as agent for service of process. Board's out-of-state page matches the statute verbatim in substance and cites cpamobility.org. Board web guidance is NOT stale.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "New Hampshire",
@@ -962,7 +992,8 @@
       "individual_criteria_grandfather_note": "Anyone who, as of 2026-04-22, already held New Hampshire practice privileges under the state's prior substantial-equivalency provisions keeps those privileges without meeting the new individual-criteria pathways.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "New Hampshire's new law applies only going forward -- CPAs who already had privileges here under the OLD rules keep them under a separate grandfather clause, so which test actually applies to you can depend on when you were first licensed. Confirm directly with the New Hampshire Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "New Jersey",
@@ -999,7 +1030,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": true,
       "firm_registration_attest_split_conditions": "Only compilation is exempt from firm registration in New Jersey -- SSARS review and every other SSAE engagement require registration here, unlike most other states. Compilation is exempt under N.J.S.A. 45:2B-54(a)(2) if the firm can lawfully render the service where its practice-privileged individual has their principal place of business, and performs it through an individual with a section 45:2B-50.1 practice privilege.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "New Mexico",
@@ -1035,7 +1067,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "New York",
@@ -1060,7 +1093,8 @@
       "notes": "Framework: out-of-state CPAs (principal place of business outside NY) practice under Educ. Law 7406(2) with no license, no notice, and no fee. EXCEPTION: a CPA with discipline, pending charges, or license denial within the preceding 7 years must notify the department on a prescribed form and receive written permission BEFORE practicing. Service-type split is statutory: services under 7401 subds. 1-2 (attest and compilation) may be performed only through a firm registered under 7408; services under 7401 subd. 3 (tax, advisory, other non-attest) may be performed through an out-of-state firm holding a valid license/registration/permit in another state with no NY registration. CAVEAT on firm_registration_tax=false: 7408 independently requires registration of any firm that uses 'CPA'/'CPA firm' (or 'PA') in its title - a non-attest out-of-state firm holding itself out under a CPA firm name in NY may still trigger title-based registration; no NYSED guidance found on this intersection. Peer review of attest services at least every 3 years (7410; first review within 18 months of initial attest service) is a condition of firm registration - 7408 lists failure to undergo peer review as a ground against registration, and NYSED requires peer review documents each time the firm registers. An out-of-state CPA whose principal place of business is IN New York gets no privilege and must obtain a NY license. Privilege-holders are automatically subject to NYSED regulatory oversight as if NY-licensed. Note: prior hint referenced '7406-a' - no such section exists; the privilege is 7406(2).",
       "home_state_substantially_equivalent": null,
       "home_state_substantially_equivalent_note": "NASBA Legacy Pathway carve-out: an individual licensed here via the alternative post-2012 pathway is NOT eligible for mobility practice privileges in other substantially-equivalent states. This dataset has no way to know which pathway a given license came from, so this stays unverified rather than assumed true. Source: https://nasba.org/licensure/substantialequivalency/ (checked 2026-08-08).",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "North Carolina",
@@ -1084,7 +1118,8 @@
       "notes": "NC is an automatic-mobility state (since S.L. 2009-347). Individuals: G.S. 93-10(a) grants out-of-state CPAs (principal place of business outside NC) the privilege to practice in NC 'without notice to the Board, the submission of any other documentation, or the payment of any fee' if they (1) hold a valid unrevoked CPA certificate from another US jurisdiction, (2) hold a valid unrevoked license/permit, (3) passed the Uniform CPA Examination, and (4) have no felony or dishonesty/deceit/fraud conviction (unless home jurisdiction determined no effect on license). No substantial-equivalency test — the former equivalency conditions (a)(5),(6) were repealed in 2009 — hence equivalence_test='other' (open CPA=CPA-style with good-standing/exam/no-felony conditions). Firms: G.S. 93-10(c) grants out-of-state firms with no NC office the same privilege for ALL services (attest and non-attest/tax) without registration, documentation, or fee; the only obligation is a NO-FEE notice to the Board ('Notice of Intent to Practice' per the Board) before/when performing (c)(3) services: a. financial statement audits (SAS), b. examinations of prospective financial information (SSAE), c. PCAOB-standard engagements. So firm_registration_attest=false (no registration/permit — but the no-fee (c)(3) notice IS required for those engagements) and firm_registration_tax=false (nothing at all for tax/non-attest). Peer review: TRUE as a condition of the no-registration attest privilege (not of any registration — none exists): 21 NCAC 08M .0105(f) requires a CPA firm without NC offices that provided G.S. 93-10(c)(3) services to NC clients to enroll in a peer review program (AICPA Peer Review Program or substantially compliant program per .0105(d)). Both privileges carry deemed consent to NC law and Board jurisdiction (93-10(b),(c)(1)-(2)). S.L. 2025-35 (eff. 2026-01-01) changed NC's own licensure pathways only — inbound mobility is unaffected.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "North Dakota",
@@ -1108,7 +1143,8 @@
       "notes": "INDIVIDUAL: NDCC 43-02.2-04.1(1) is the classic UAA sec. 23 substantial-equivalency practice privilege - an individual whose principal place of business is not in ND has all privileges of ND certificate holders with no ND certificate or permit, based on holding a CPA license from a state that NASBA's National Qualification Appraisal Service has VERIFIED to be substantially equivalent (state-level test), with a fallback where the individual obtains individual NQAS verification. Because the primary trigger is the NASBA/NQAS state-level determination, equivalence_test = nasba_state_level; ND has NOT moved to an individual-criteria or open CPA=CPA test. Subsection (2) expressly states 'no notice, fee, or other submission shall be provided' -> notice_required = false, fee_required = false. Conditions attach instead through automatic consent under subsection (3) (ND jurisdiction, compliance with chapter and board rules, cessation if home license lapses, appointment of home board as agent for service). N.D. Admin. Code 3-03-01-04 also provides that nonresident accountants practicing public accountancy in ND must meet the public-practice CPE requirements of their home jurisdiction - a substantive condition, not a filing or fee. FIRMS: ND's firm-permit trigger is OFFICE-BASED ONLY, not attest-based. NDCC 43-02.2-06(1)(a) requires a permit only for a firm 'with an office in this state' that practices public accountancy or uses CPA/LPA titles. NDCC 43-02.2-06(1)(b) lets any firm without an ND office perform professional services within the practice of public accountancy and use the CPA/CPA-firm title in ND with NO permit, provided (i) it performs those services through an individual with ND practice privileges under 43-02.2-04.1(1) and (ii) it can lawfully do so in that individual's principal-place-of-business state. NDCC 43-02.2-12(1) and (3) confirm the exemption by referring to firms 'otherwise exempt from the firm permit requirement' and by cross-referencing 43-02.2-06(1)(b). ND therefore does NOT have the UAA sec. 7(a)(1) attest trigger that most states use, so firm_registration_attest = false as well as firm_registration_tax = false - both rest on the same office-based test, and neither was inferred from the other. Note that under the 43-02.2-02(8) definition, tax-return preparation IS 'practice of public accountancy' when provided by a CPA/LPA firm, so tax work is squarely inside 43-02.2-06(1)(b)'s no-permit exemption rather than outside the statute. PEER REVIEW: recorded true, and it is a condition of the FIRM PERMIT, not of the no-permit out-of-state privilege. NDCC 43-02.2-06(7) authorizes the board to require practice reviews no more often than every three years 'as a condition to renewal of permits under this section'; the board implemented that in N.D. Admin. Code 3-01-03-03 (Law Implemented: NDCC 43-02.2-06), and the board's Firms page ties it to attest work ('audits, reviews and compilations') on a three-year cycle. A firm with no ND office that holds no ND permit has no ND permit to renew; see data_gap_note. 2025-26 WAVE: North Dakota is an outlier - it did NOT change its mobility or pathway law. The only 2025 accountancy enactment was HB 1156 (69th Legislative Assembly, ch. 381), which created NDCC 43-02.2-06.1 and amended 43-02.2-06(3) to permit firm ownership by a qualified plan/ESOP; passed 91-0 House and 47-0 Senate, signed and filed 2025-03-24, NO emergency clause, so effective 2025-08-01 under NDCC 1-02-13, and already reflected in the compiled code. It has no mobility or pathway content. The board's 2025 rule package (effective 2026-01-01) likewise touched only firm ownership (3-01-03-02) and retired/inactive status (3-02-02-05) - no mobility, no education pathway. The official 2025 'NDCC Sections Affected by Bill' table shows only 43-02.2-06(3) and 43-02.2-06.1 touched in chapter 43-02.2. ND's legislature is biennial (odd years) and the 69th Assembly has adjourned; there is no 2026 regular session, and no pending board rulemaking on mobility was found. Secondary reporting (lead only, not relied on) says ND intends to draft pathway legislation for the 2027 session; that is not introduced legislation, so rule_in_flux is false as of 2026-07-31 - but ND is a high-probability 2027 changer and should be re-checked when the 70th Assembly convenes in January 2027.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Northern Mariana Islands",
@@ -1143,7 +1179,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "The Commonwealth's own law doesn't actually contain a practice-privilege provision for out-of-state CPAs -- only the board's own rule describes one, on a discretionary, case-by-case basis. We can't treat this as a settled, as-of-right privilege. Confirm directly with the CNMI Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-09-23"
     },
     {
       "state": "Ohio",
@@ -1175,7 +1212,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Oklahoma",
@@ -1202,7 +1240,8 @@
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
       "verification_history": "2026-09-19 (MOB-12 fix, AuditLab finding): the prior data_gap_note said OAC 10:15 admin rules were 'reviewed via unofficial LII only; no contradiction found' -- that source predates and cannot show a 2026-09-15 amendment, so the clearance was never capable of catching this. AuditLab diffed the Board's own December-2025 vs. September-2026 OAB Statutes and Rules PDFs section by section and found OAC 10:15-21-1(b) gained a residency sentence effective 2026-09-15: an individual who resides in Oklahoma must obtain an Oklahoma certificate regardless of their firm office location. Neither `individual_practice_privilege` nor any other structured field changes -- practice privilege via 15.12A is still correctly scoped to principal place of business for the PRACTICE-PRIVILEGE question; the new sentence is a SEPARATE, additional trigger (physical residency) this record hadn't previously captured at all. Added to notes rather than a new boolean field since the interactive mobility checker (worker/src/mobility.ts) doesn't currently ask a residency question for any state -- this is a prose-level fix to stop the live blog page and this record's own notes from misleading a relocating CPA, not a checker-logic change. Removed the now-false LII clearance sentence from data_gap_note rather than layering a correction on top of it.\n\n2026-09-19 (CITE-72 fix, AuditLab finding, same day): the MOB-12 fix above mis-cited the 120-day rule as OAC 10:15-21-1(a) -- AuditLab read the September-2026 edition subsection by subsection: (a) is only the reciprocal applicant's documentation list, no 120-day rule anywhere in it; the 120-day rule AND the residency sentence are both in (b), the same subsection the notes field was at pains to treat as two different provisions. Also, the restated 120-day trigger (\"if your firm's principal place of business actually relocates\") was narrower than the rule text (\"employment with a public accounting firm located in this state OR engaging in the practice of public accounting in Oklahoma\") -- an individual who takes a job with an Oklahoma-located firm starts the 120-day clock with no firm relocating anywhere, an under-warning error in the same direction as the original MOB-12 defect. Both fixed: citation corrected to (b), trigger restated to match the rule's actual OR condition.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-09-19"
     },
     {
       "state": "Oregon",
@@ -1234,7 +1273,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration under ORS 673.160(3)(a) if the firm meets the ownership qualifications in ORS 673.160(5) and performs the work through an ORS 673.153-authorized individual -- but registration-exempt is NOT peer-review-exempt: ORS 673.455(2) still requires peer-review participation even when registration itself isn't required.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Pennsylvania",
@@ -1267,7 +1307,8 @@
       "individual_criteria_grandfather_note": "Preserves practice privileges for out-of-state CPAs whose licenses were already valid to practice in Pennsylvania as of the June 30, 2025 effective date.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Puerto Rico",
@@ -1294,7 +1335,8 @@
       "notes": "STRUCTURE: Puerto Rico DOES grant an individual practice privilege, in Sección 4(a)(1) (20 L.P.R.A. § 775), on the classic pre-2025 UAA model, and it is expressly a no-notice, no-registration privilege ('sin necesidad de registro o notificación a la Junta'). But PR layers TWO conditions most states do not: (1) Sec. 4(a)(1)(ii) requires that the licensing state/jurisdiction 'tenga reciprocidad con Puerto Rico' -- a reciprocity precondition ON TOP of substantial equivalency; and (2) Sec. 4(d) is a hard carve-out: every report issued in PR must be signed by a natural person licensed by the PR Board, and out-of-jurisdiction CPAs practicing under the privilege 'no podrán suscribir informes a menos que obtengan una licencia por reciprocidad expedida por la Junta de Contabilidad de Puerto Rico.' So the privilege exists but does NOT include signing reports. Practitioners should be warned prominently.\n\nEQUIVALENCE_TEST = nasba_state_level: Sec. 4(a)(1)(iii) keys the privilege to a license from a jurisdiction that NASBA's National Qualification Appraisal Service has determined substantially equivalent to the UAA. Sec. 4(a)(1)(iv) supplies the standard individual fallback (a NASBA verification that the individual's own qualifications are substantially equivalent) -- that is the ordinary UAA two-track design, not a state-specific 'individual_criteria' scheme, so nasba_state_level is the correct primary classification. Sec. 18(15) separately defines 'equivalencia sustancial' as a determination by the Board or its designee. Grandfather: anyone who passed the Uniform CPA Exam and held a valid license from another US jurisdiction before 2000-01-01 is exempt from the Sec. 3(e) education requirement for purposes of Sec. 4.\n\nCONDITIONS OF THE PRIVILEGE (Sec. 4(a)(2)): by exercising it, the individual and any firm employing them consent to the Board's jurisdiction and disciplinary authority, agree to comply with the Act and Board rules, agree to cease practice if the home-state license lapses, and appoint the home-state board as agent for service of process.\n\nFIRMS -- attest = TRUE and unusually restrictive: Sec. 5 (§ 778) requires ANY firm or juridical person engaging in Puerto Rico in the 'práctica de la contabilidad pública' (defined at Sec. 18(12) as attest: SAS audits, SSARS reviews/compilations, SSAE engagements, PCAOB audits, plus other Board-adopted standards) to register with the Board as a CPA firm, and Sec. 6 (§ 779) then issues a 3-year license for a fee. Sec. 4(a)(3) reinforces this: a privileged individual performing Sec. 18(12) services for any entity headquartered ('con sede') in Puerto Rico may do so ONLY through a firm holding a Sec. 6 permit. There is NO UAA-style out-of-state firm mobility exemption in this Act. Worse for out-of-territory firms, Sec. 5(a)(1) requires at least one partner/member/owner/shareholder to be a PR-licensed CPA who is a bona fide Puerto Rico resident for US IRC purposes; Sec. 5(a)(2) requires every PR-resident accountant owner to be a PR CPA; Sec. 5(a)(3) requires anyone who personally signs reports in PR to be a PR CPA; and Sec. 5(a)(4) requires each resident manager of a PR office to be PR-licensed. Practical effect: a mainland firm generally cannot perform or sign attest work for PR clients without registering AND standing up a PR-resident PR-licensed CPA owner.\n\nPEER REVIEW = FALSE: a full-text search of the compiled Act for 'pares', 'peer', 'revisión entre', 'control de calidad' and 'inspección de calidad' returns zero hits. Sec. 5(a) states firms 'deberá cumplir con los siguientes requisitos' and then gives a closed four-item list, none of which is peer review; Sec. 6(b) conditions renewal only on continuing education. The Board publishes no peer-review reglamento. (Lead only, not cited: the Colegio de CPA de PR states the Junta does not require quality-program membership for license renewal; AICPA/Yellow Book/COSSEC peer review obligations are separate and non-Board.)\n\nINTERNAL DRAFTING DEFECTS IN THE COMPILED TEXT (worth surfacing to AssetLab, but they do not change any answer): Sec. 4(a)(3) cross-references 'el inciso (12) de la Sección 19' while the definitions are in Sección 18 and Sección 19 is the severability clause -- Sec. 14 and Sec. 3 both correctly cite 'el inciso (12) de la Sección 18', so this is a renumbering typo. Sec. 11(f)-(h) cite 'los incisos (11) y (12) de la Sección 18' where inciso (11) is 'Sede', probably intending (12) 'Práctica' and (13) 'Compilación'. Also, Sec. 6(a) says the Board issues licenses to 'toda persona o firma registrada bajo las Secciones 4, 5 y 6' -- read against the express 'sin necesidad de registro o notificación a la Junta' in Sec. 4(a)(1), the Sec. 4 registrants referred to are the foreign-country registrants of Sec. 4(c), not US substantially-equivalent privilege holders; this is why fee_required is recorded as false, but the tension is noted.\n\nADMINISTRATION: NASBA is the contracted administrator of PR CPA licensing and renewals (the Board's listed Executive Administrator is NASBA staff). A Board notice states NASBA is migrating to a new licensing system: last day to file in the current system 2026-07-11, no filings 2026-07-12 to 2026-08-02, new system opens 2026-08-03, and every PR CPA must create a new account. This is operational, not a rule change, but it will disrupt any reciprocity-license filings in that window.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Rhode Island",
@@ -1328,7 +1370,8 @@
       "individual_criteria_grandfather_note": "Preserves practice privileges for individuals who held an active out-of-state license in good standing and already had Rhode Island practice privileges as of December 31, 2024.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Rhode Island's law describes the education and experience pathways but doesn't clearly restate whether passing the CPA exam is a separate requirement. Confirm directly with the Rhode Island Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "South Carolina",
@@ -1352,7 +1395,8 @@
       "notes": "INDIVIDUAL: Out-of-state CPAs with principal place of business outside SC get full practice privileges with no license, notice, fee, or submission (§ 40-2-245(A)-(C)). EQUIVALENCE TEST = 'other': since 2025-06-30 the test is effectively open CPA=CPA — passed exam + active license from ANY state + good standing; no NASBA state-level equivalency lookup and no individual education/experience evaluation (same shape as CA AB 1175). FIRMS: § 40-2-40(B)(3) makes registration the default trigger for a no-SC-office firm performing attest (§ 40-2-20(2)) or compilation (§ 40-2-20(6)) services for an SC client, UNLESS exempt under § 40-2-30(I). The § 40-2-30(I)(2) exemption (firm mobility, enacted 2022 Act 174) lets a qualifying firm perform attest without registration if it (a) meets § 40-2-40(C) ownership qualifications AND § 40-2-255(C) peer review, (b) works through an individual with § 40-2-245 privileges, and (c) can lawfully perform the services in the privileged individual's home state — so firm_registration_attest=false is CONDITIONAL: firms not meeting those conditions must register (board Form: Initial Out-of-State Firm Registration, $60 fee, peer-review report required). TAX/NON-ATTEST: § 40-2-30(I)(3) allows other professional services (incl. tax) with no registration, through privileged individuals lawful in their home state — firm_registration_tax=false. PEER REVIEW: conditions BOTH paths — it is a qualification for the no-registration attest privilege (§ 40-2-30(I)(2)(a) incorporating § 40-2-255(C)) and a renewal condition for registered firms; the board's out-of-state registration form demands proof of peer-review enrollment/report. CAUTION: whether the § 40-2-30(I)(2) exemption reaches compilation-only engagements (compilations are defined separately at § 40-2-20(6) and Act 34 added them to the § 40-2-40(B)(3) trigger) is unresolved — a compilation-only out-of-state firm should conservatively assume registration is required. Board's old URL llr.sc.gov/cpa/ is a 404; current board home is llr.sc.gov/acct/.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "South Dakota",
@@ -1386,7 +1430,8 @@
       "individual_criteria_grandfather_note": "Preserves privileges for practitioners already exercising South Dakota practice privileges under the prior statute on or before December 31, 2024.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Tennessee",
@@ -1418,7 +1463,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Texas",
@@ -1452,7 +1498,8 @@
       "individual_criteria_grandfather_note": "Individuals who, as of December 31, 2024, held an out-of-state license and were already practicing under Texas's practice privilege retain it without meeting the new SB 522 individual criteria.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "US Virgin Islands",
@@ -1484,7 +1531,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "SSARS review and compilation are exempt from a firm permit under 27 V.I.C. section 250d(a)(2) if the firm meets the qualifications in section 250d(c) and (h) (including peer review) and performs the work through a section 250q practice-privilege individual. Other SSAE engagements are also exempt, but via a separate, lighter catch-all (section 250d(a)(3)) that requires only performance through a practice-privileged individual, without the explicit peer-review gate.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Utah",
@@ -1508,7 +1556,8 @@
       "notes": "Individual mobility: Utah Code 58-26a-305(1)(a) + (2)(a) grants out-of-state CPAs full practice privilege with 'no notice, fee, or other submission' -- conditions are a valid license/permit in good standing from another state, evidence (at time of original licensure) of passing the equivalent qualifying examinations, and statutory consents (Utah jurisdiction/discipline, cease practice if home license becomes invalid, home board as agent for service of process). equivalence_test = 'other': since 2026-07-01 Utah applies no NASBA/substantial-equivalency screen; it is a near-CPA=CPA regime conditioned only on good standing + exam passage (before 2026-07-01 it was NASBA NQAS state-level or individual verification). Rule R156-26a-305(2) adds that a mobility CPA may only perform the same level of services (attest or non-attest) permitted in the home jurisdiction. Firm side: registration under 58-26a-302(3) requires simple-majority CPA ownership, a designated responsible Utah licensee, and separate registration per in-state location; peer review is a renewal condition (58-26a-303(2)(b); R156-26a-303a: firms practicing public accounting must undergo peer review at least every three years, scope commensurate with practice -- effectively reaching firms issuing attest/compilation reports per the 58-26a-102(14)/(20) definitions). Peer review is ALSO a condition of the rule's no-registration firm-mobility privilege (R156-26a-305(3)(c)) -- i.e., it conditions both the registration route and the exemption route. Board web guidance is thin (navigation hub only); the substantive board-side source is DOPL's own administrative rule and rulemaking filings.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Vermont",
@@ -1542,7 +1591,8 @@
       "individual_criteria_grandfather_note": "Anyone who held a valid active out-of-state CPA license and had Vermont practice privileges as of December 31, 2024 retains those privileges without meeting the new Act 119 individual criteria.",
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Virginia",
@@ -1566,7 +1616,8 @@
       "notes": "Virginia moved to open CPA=CPA mobility on 2025-07-01: any person holding a license in good standing from any state/territory/DC who has passed the CPA exam gets practice privilege 'without notice to the Board or payment of any fees' (54.1-4411(A)) — the former NASBA-style substantial-equivalency test was stricken. equivalence_test='other' because there is no equivalency test, but 54.1-4411(E) gives the Board a guard-rail power to revoke privileges state-wide if another state licenses without minimum acceptable qualifications (such individuals can still qualify individually). FIRMS: a Virginia firm license is required only for firms whose PRINCIPAL PLACE OF BUSINESS IS IN VIRGINIA providing attest/compilation/financial-statement-preparation services (54.1-4412.1(B)); an out-of-state firm 'is not required to obtain a Virginia license' for those services if it (1) is licensed where headquartered, (2) complies with subsection D, and (3/4) staffs the engagement with Virginia licensees or privilege-compliant CPAs or supervision by same (54.1-4412.1(C)). So firm_registration_attest=false (privilege with conditions, no registration/permit/notice mechanism exists). peer_review_required=true AS A CONDITION OF THAT NO-REGISTRATION PRIVILEGE: subsection C.2 requires compliance with subsection D, whose item 6 requires enrollment in the AICPA practice-monitoring (peer review) program if the firm's services are within its scope, plus FSBA participation. Tax/non-attest: the firm licensing requirement attaches only to attest/compilation/FSP services, so no registration for tax work (firm_registration_tax=false); an out-of-state firm may even use the CPA title in Virginia on its home-state license per 54.1-4412.1(F). Chapter 539 (SB 1042) is the identical Senate companion. Passage votes: House 99-0 (2025-02-03), Senate 39-0 (2025-02-17); approved by Governor 2025-03-24. UPDATE (verifier): House passage was 98-0 first vote, reconsidered and repassed 99-0 on 2025-02-03 - 99-0 is the operative final vote as recorded.",
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Washington",
@@ -1598,7 +1649,8 @@
       "individual_criteria_grandfather_note": null,
       "individual_criteria_confirmed": true,
       "individual_criteria_ambiguity_note": null,
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "West Virginia",
@@ -1637,7 +1689,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": null,
       "firm_registration_attest_split_conditions": "Exempt from firm registration if the firm meets W. Va. Code section 30-9-17(c)'s ownership/peer-review conditions and performs the work through a practice-privileged individual (this condition applies to the SSARS-review and compilation tiers; \"other SSAE\" (E) engagements are unresolved by statute -- see data_gap_note).",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Wisconsin",
@@ -1669,7 +1722,8 @@
       "individual_criteria_grandfather_note": "Anyone who had Wisconsin practice privileges under the 2023 statutes as of April 3, 2026 (the day before Act 166 took effect) retains those privileges without meeting the new individual-criteria test.",
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "Wisconsin's law points to a cross-referenced statute for the specific qualifying pathways rather than spelling them out directly, and no board guidance yet confirms the full list. Confirm directly with the Wisconsin Board before relying on this.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     },
     {
       "state": "Wyoming",
@@ -1698,7 +1752,8 @@
       "firm_registration_attest_compilation": false,
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration under W.S. 33-3-118(b)(xiv) if the firm meets the CPA-ownership rule in section 33-3-118(b)(xvi), stays compliant with the peer-review regime under section 33-3-132 (Board Rule ch. 9 sec. 3(a) requires enrollment at least every 3.5 years), and performs the work through an individual with section 33-3-116(a) practice privileges.",
-      "verified_method": "manual"
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-07-31"
     }
   ]
 }

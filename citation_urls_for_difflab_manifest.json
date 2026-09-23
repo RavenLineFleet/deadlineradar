@@ -467,28 +467,32 @@
       "dataset_url": "https://cnmilaw.gov/docs/public_laws/13/pl13-52.pdf",
       "monitor_url": "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
       "reason": "Host alias, not a coverage gap. AuditLab (2026-09-23) confirmed both resolve to the same final URL and the identical 90,236 B PDF. The .org host soft-404s (200 + an HTML listing) on a garbage path while .gov gives a real 404, so .gov is the technically better canonical target, but nothing is currently wrong -- not worth a churn-only sync.",
-      "verified": "2026-09-23 by AuditLab (RC-29)"
+      "verified": "2026-09-23 by AuditLab (RC-29)",
+      "verified_date": "2026-09-23"
     },
     {
       "state_slug": "wyoming",
       "dataset_url": "https://drive.google.com/file/d/1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5/view?usp=sharing",
       "monitor_url": "https://drive.google.com/uc?export=download&id=1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5",
       "reason": "Deliberate divergence, not a coverage gap. CITE-75 (2026-09-23) repointed the DATASET's citation_url from the download form to the Board's own viewer form, because a reader clicking a citation should land on a page, not trigger a file download. But the viewer form (.../file/d/<id>/view) serves Google's JS viewer SHELL (133,432 B, text/html) -- monitoring it for changes would detect Google's app churn, not the rule. The download form (.../uc?export=download) serves the actual PDF bytes (93,741 B, application/octet-stream) -- a strictly better change-detection target for the same document. Syncing the manifest to the reader-facing URL would be a downgrade.",
-      "verified": "2026-09-23 by AuditLab (RC-29)"
+      "verified": "2026-09-23 by AuditLab (RC-29)",
+      "verified_date": "2026-09-23"
     },
     {
       "state_slug": "wyoming",
       "dataset_url": "https://drive.google.com/file/d/1_PXSjRL7bujzlYPfR4-srukZSptY2Saa/view?usp=sharing",
       "monitor_url": "https://drive.google.com/uc?export=download&id=1_PXSjRL7bujzlYPfR4-srukZSptY2Saa",
       "reason": "Same as the wy-cpe override above (viewer-shell-vs-raw-PDF), for wyoming-reinstatement's citation.",
-      "verified": "2026-09-23 by AuditLab (RC-29)"
+      "verified": "2026-09-23 by AuditLab (RC-29)",
+      "verified_date": "2026-09-23"
     },
     {
       "state_slug": "wyoming",
       "dataset_url": "https://drive.google.com/file/d/17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj/view?usp=sharing",
       "monitor_url": "https://drive.google.com/uc?export=download&id=17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj",
       "reason": "Same as the wy-cpe override above (viewer-shell-vs-raw-PDF), for wyoming-renewal-fee's citation.",
-      "verified": "2026-09-23 by AuditLab (RC-29)"
+      "verified": "2026-09-23 by AuditLab (RC-29)",
+      "verified_date": "2026-09-23"
     }
   ]
 }
