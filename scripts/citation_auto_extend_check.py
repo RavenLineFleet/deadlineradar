@@ -538,6 +538,40 @@ def _selftest() -> None:
     )
     assert v.eligible is False and v.failed_check == "claim_anchor", f"SELFTEST FAILED (AUTO-4 core scenario): a wall page whose hash/length/baseline all match itself was not caught by the claim-anchor check -- {v}"
 
+    # --- guardrail 6b (SecurityLab residual on AUTOEXTEND-1's fix,
+    # _AAA_orchestrator_20260923_pdf_poison_control.md): the SAME
+    # poisoning-at-source scenario as guardrail 6 above, but for a PDF
+    # citation. Every poisoned-baseline control up to this point uses a
+    # non-PDF URL, so the %PDF- magic-byte check (only reachable via the
+    # is_pdf_citation branch) was never exercised by any of them --
+    # removing it stayed green. A PDF-expected URL whose fetch AND
+    # self-matching baseline are both the bot-wall body: only the %PDF-
+    # check can catch this, since hash/length are satisfied by
+    # construction and this branch has no claim-anchor check at all. ----
+    v = evaluate_candidate(
+        "https://example.test/poisoned-baseline.pdf", "selftest:pdf-baseline-poisoned-at-source",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=bot_wall_hash, manual_baseline_length=len(bot_wall_body),
+        today=today, fetch=_fake_fetch(200, bot_wall_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "content_shape", f"SELFTEST FAILED (SecurityLab PDF-branch residual): a PDF-expected URL fetching a bot-wall body, with a self-matching poisoned baseline, was not caught by the %PDF- magic-byte check -- {v}"
+
+    # --- length control (same ruling, "add a length control too if
+    # cheap"): a real %PDF- fetch whose byte length disagrees with the
+    # manual baseline. The length check runs BEFORE the hash check (see
+    # evaluate_candidate's docstring on check order), so this must fail
+    # specifically via "length", not "hash" -- proving the length check
+    # is load-bearing on its own, not just redundant with the hash check
+    # that follows it. ----------------------------------------------------
+    short_pdf_bytes = b"%PDF-1.4\n" + b"x" * 100
+    v = evaluate_candidate(
+        "https://example.test/drifted-length.pdf", "selftest:pdf-length-mismatch",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=real_hash, manual_baseline_length=real_len,
+        today=today, fetch=_fake_fetch(200, short_pdf_bytes, "application/pdf"),
+    )
+    assert v.eligible is False and v.failed_check == "length", f"SELFTEST FAILED: a real PDF fetch with a byte length mismatched against the manual baseline was not caught by the length check specifically -- {v}"
+
     # --- AUTO-2/no-anchor-configured: an HTML citation with NO claim
     # anchor at all (extract_citation_anchor found nothing specific).
     # MUST be unverifiable, never a silent pass on hash+length alone. ---
@@ -681,8 +715,9 @@ def _selftest() -> None:
             day_one_eligible += 1
     assert day_one_eligible == 0, "SELFTEST FAILED (AUTO-4 point 3): a record with no manual-anchored baseline was somehow eligible -- day one must be 0"
 
-    print("  selftest (31 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
-          "AUTO-4 (x3), AUTO-5 (x4), plus the original soft-404/bot-wall/baseline-poisoning trio): PASS")
+    print("  selftest (33 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+          "AUTO-4 (x3), AUTO-5 (x4), the original soft-404/bot-wall/baseline-poisoning trio, and the "
+          "PDF-branch content-shape/length controls from SecurityLab's residual): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
