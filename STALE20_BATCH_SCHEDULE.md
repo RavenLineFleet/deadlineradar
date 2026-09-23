@@ -48,19 +48,29 @@ re-verification pass must ALSO record its anchor baseline, not just bump `verifi
 `last_verified` the way batch 1 did.
 
 For each record, on the SAME fetch used for the field-level comparison, call
-`build_manual_verification_update(url, dataset_filename, record, today=..., fetch=...)` in
+`build_manual_verification_update(url, dataset_filename, record, today=..., fetch=..., overrides=_load_overrides(repo_root))` in
 `scripts/citation_auto_extend_check.py` -- fetch exactly ONCE and reuse those bytes for both the
 comparison and this call, never a second network round-trip. Apply the returned dict's fields to the
 record:
 - `last_manual_verified_date` -- always set, regardless of outcome (a verifier DID look).
 - If the source qualifies (`validate_fetch_for_anchoring()` approves): also
   `manual_verified_raw_hash`, `manual_verified_raw_byte_length`, `manual_verified_anchor` (audit-trail
-  snapshot of the anchor confirmed this pass).
+  snapshot of the anchor confirmed this pass), and `manual_verify_fetched_url` if an override applied.
 - If not (walled, no extractable anchor, wrong document): those three are explicitly `None` -- clears
   any stale value from an earlier pass -- and `manual_verify_gap_reason` records why. The record still
   gets its `last_manual_verified_date`/`verified_date` bump and stays manual-only; this is an expected,
   honest outcome, not a batch failure. Oregon's OAR and Colorado's board-email source (both already
   flagged below) are expected to land here.
+
+**AUTO-10, batch 2 MUST pass `overrides`:** RC-29's four override records (`wyoming-renewal-fee`,
+`wyoming-reinstatement`, `wy-cpe`, `northern-mariana-islands-all`) have a `citation_url` that is a
+viewer shell carrying no fetchable `%PDF-` bytes and no claim anchor -- passing `overrides` (from
+`_load_overrides(repo_root)`) makes `build_manual_verification_update()` anchor against the override's
+real `monitor_url` instead, which is what actually carries the document. Without `overrides`, these 4
+records would record every baseline field as `None` with a misleading "unverifiable" gap reason, even
+though the source is fine. Batch 2 includes all 6 of the 09-09 cohort's records; confirm whether any of
+these 4 fall in that cohort before running (recompute at execution time per the note below) and pass
+`overrides` either way -- it's a no-op for records with no matching override.
 
 32 + 31 + 31 + 31 = 125. ✓ 26 + 31 + 31 + 27 = 115 (all of the 09-12 cohort). ✓
 
@@ -88,3 +98,13 @@ records this file exists to protect on day one.
 
 Update this file's "Current wall" table and mark each batch DONE (with commit hash + real result
 counts, same as batch 1's own report) as it ships -- do not let it go stale itself.
+
+## Standing rules for auto-extend's --apply (2026-09-23, until told otherwise)
+
+Once STALE-20 batches start recording manual anchors, auto-extend's `--apply` flag becomes able to
+produce real proposals. Per `_AAA_orchestrator_20260923_AUTO10_plus_apply_rules.md`:
+1. No scheduler, cron, loop, or watchdog may call `--apply`. Run by hand only.
+2. The FIRST `--apply` run with more than 0 proposals: stop after the write, BEFORE commit/deploy.
+   Send AuditLab the proposals JSON plus the diff to check against live sources. Commit only on its
+   PASS.
+3. Every applied run is exactly one commit, so any run can be reverted.

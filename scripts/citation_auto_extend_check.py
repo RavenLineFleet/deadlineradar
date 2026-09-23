@@ -170,6 +170,34 @@ consumption half. Guardrails, non-negotiable under this repo's
       and `coverage` (by_dataset, by_jurisdiction,
       zero_coverage_jurisdictions) in the same JSON, so a reviewer can
       verify a zero reconciles without re-running anything.
+  15. AUTO-10 (_AAA_orchestrator_20260923_AUTO10_plus_apply_rules.md).
+      RC-29's four override records anchor to a URL that can't carry
+      their baseline: batch 2 was headed to fetch each record's own
+      `citation_url` -- a Google Drive viewer shell for Wyoming's 3, an
+      alias for the NMI one -- which carries no `%PDF-` bytes and no
+      claim anchor, so `build_manual_verification_update()` would record
+      every baseline field `None` with a gap reason that reads as "this
+      source is unverifiable" when the real document is sitting at the
+      override target. Verified live against the real Wyoming record:
+      anchoring by `citation_url` -> every field `None`; anchoring by the
+      override's `monitor_url` -> a real hash/length/anchor that matches
+      AuditLab's own independently-recorded CITE-76 baseline exactly.
+      Fixed: `build_manual_verification_update()` takes an `overrides`
+      list (pass `_load_overrides(repo_root)`); when a
+      `monitor_url_overrides` entry's `dataset_url` matches the URL
+      passed in, its `monitor_url` is fetched and anchored instead, and
+      `manual_verify_fetched_url` records which URL the anchor actually
+      came from -- set ONLY when an override was used, so it never adds
+      noise to the other ~297 normal records.
+
+STANDING RULES FOR --apply (_AAA_orchestrator_20260923_AUTO10_plus_
+apply_rules.md, until told otherwise):
+  1. No scheduler, cron, loop, or watchdog may call --apply. Run by hand
+     only.
+  2. The FIRST --apply run with more than 0 proposals: stop after the
+     write, BEFORE commit/deploy. Send AuditLab the proposals JSON plus
+     the diff to check against live sources. Commit only on its PASS.
+  3. Every applied run is exactly one commit, so any run can be reverted.
 
 THIS SCRIPT NEVER WRITES TO A DATASET FILE UNLESS RUN WITH --apply.
 Without that flag (the default), its only write is Stage A's proposals
@@ -177,7 +205,7 @@ JSON, a report artifact, never data/*.json or worker/src/*.json.
 
 Usage:
     python scripts/citation_auto_extend_check.py [repo_root]              # Stage A only, never writes a dataset
-    python scripts/citation_auto_extend_check.py [repo_root] --apply      # Stage A + Stage B apply
+    python scripts/citation_auto_extend_check.py [repo_root] --apply      # Stage A + Stage B apply -- BY HAND ONLY, see standing rules above
     python scripts/citation_auto_extend_check.py --selftest-only
 """
 from __future__ import annotations
@@ -637,6 +665,7 @@ def build_manual_verification_update(
     record: dict,
     today: date | None = None,
     fetch: FetchFn = _real_fetch,
+    overrides: list[dict] | None = None,
 ) -> dict:
     """Called by whoever runs a STALE-20 manual re-verification pass, on
     the SAME fetch they just read (fetched exactly ONCE here and reused
@@ -645,6 +674,19 @@ def build_manual_verification_update(
     actually looked at, never two separate network round-trips that could
     silently diverge). Returns the field updates to apply to the record;
     never writes to a file itself.
+
+    AUTO-10: if `overrides` (pass `_load_overrides(repo_root)`) contains a
+    `monitor_url_overrides` entry whose `dataset_url` equals `url`, the
+    OVERRIDE's `monitor_url` is fetched and anchored instead of `url`
+    itself. For RC-29's four targets (Wyoming's 3 Drive forms,
+    cnmilaw.org's alias) the citation_url is a viewer page that carries no
+    fetchable `%PDF-` bytes and no claim anchor -- measured live,
+    AuditLab's shipped-function repro: anchoring by citation_url yields
+    every baseline field `None` with gap_reason "fetched page does not
+    contain the claim anchor", which reads as "this source is
+    unverifiable" when the real document is sitting at the override
+    target. Makes the override map authoritative in both directions --
+    owner lookup (AUTO-8) and anchoring (AUTO-10), not just the gate.
 
     Always sets `last_manual_verified_date` = today -- a verifier DID read
     this page right now, regardless of whether it can be anchored for
@@ -655,7 +697,12 @@ def build_manual_verification_update(
     snapshot of the specific identity anchor confirmed at verification
     time -- eligibility checks always recompute the anchor fresh from the
     record's own `citation` text; this snapshot is never itself trusted as
-    a substitute).
+    a substitute). When an override was used, also sets
+    `manual_verify_fetched_url` to the URL actually fetched -- so an
+    override-anchored record visibly says which URL its baseline came
+    from, rather than silently implying it was `citation_url`. Left out
+    entirely for the (overwhelming majority) normal case, so it never adds
+    noise to a record that never needed an override.
 
     If the fetch does NOT qualify (walled, no anchor available, wrong
     document), the three baseline fields are explicitly set to `None` --
@@ -664,12 +711,20 @@ def build_manual_verification_update(
     `manual_verify_gap_reason` carries why, so 'recorded as manual-only'
     is visible in the data, not just implied by absence."""
     _today = today or date.today()
-    update: dict = {"last_manual_verified_date": _today.isoformat()}
+    actual_url = url
+    for o in (overrides or []):
+        if o.get("dataset_url") == url:
+            actual_url = o.get("monitor_url") or url
+            break
 
-    result = fetch(url)  # the ONE fetch -- reused below, never re-fetched
+    update: dict = {"last_manual_verified_date": _today.isoformat()}
+    if actual_url != url:
+        update["manual_verify_fetched_url"] = actual_url
+
+    result = fetch(actual_url)  # the ONE fetch -- reused below, never re-fetched
     cached_fetch: FetchFn = lambda _url: result
 
-    ok, reason = validate_fetch_for_anchoring(url, dataset_filename, record, fetch=cached_fetch)
+    ok, reason = validate_fetch_for_anchoring(actual_url, dataset_filename, record, fetch=cached_fetch)
     if ok and result.body is not None:
         update["manual_verified_raw_hash"] = hashlib.sha256(result.body).hexdigest()
         update["manual_verified_raw_byte_length"] = len(result.body)
@@ -1118,6 +1173,56 @@ def _selftest() -> None:
     assert update3["manual_verified_raw_hash"] is None, "SELFTEST FAILED (build_manual_verification_update): a now-unanchorable source must CLEAR a stale hash from a prior pass, not leave it"
     assert update3["manual_verified_raw_byte_length"] is None
 
+    # --- AUTO-10 (auditlab_20260923_anchor_tooling_reviewed_plus_AUTO10.md):
+    # build_manual_verification_update() must anchor against a
+    # monitor_url_overrides entry's monitor_url, not the record's own
+    # citation_url, when one exists for it -- RC-29's four targets
+    # (Wyoming's 3 Drive forms, cnmilaw.org's alias) have a citation_url
+    # that's a viewer shell carrying no fetchable %PDF- bytes and no claim
+    # anchor; the real document is at the override's monitor_url. This
+    # control is shaped exactly like the real Wyoming case (verified
+    # separately against the LIVE record -- same hash/length/anchor
+    # AuditLab's own independent CITE-76 baseline recorded). ---------------
+    def _url_aware_fetch(url_to_body: dict[str, tuple[int, bytes, str]]):
+        calls: dict = {"n": 0, "urls": []}
+        def _f(u: str) -> FetchResult:
+            calls["n"] += 1
+            calls["urls"].append(u)
+            status, body, ct = url_to_body.get(u, (404, b"", "text/html"))
+            return FetchResult(ok=(status < 400), status=status, body=body if status < 400 else None, content_type=ct)
+        return _f, calls
+
+    wyo_viewer_url = "https://drive.google.com/file/d/WYOTEST/view?usp=sharing"
+    wyo_download_url = "https://drive.google.com/uc?export=download&id=WYOTEST"
+    wyo_viewer_body = b"<html><body>Google Drive preview shell -- no document content, just chrome</body></html>"
+    wyo_pdf_bytes = b"%PDF-1.4\n" + b"Wyo. Bd. of Certified Public Accountants Rules content " + b"x" * 400
+    wyo_record = {"citation": "Wyo. Bd. of Certified Public Accountants Rules, ch. 1, Sec 13(b) (eff. 10/28/2019)"}
+    wyo_overrides = [{"state_slug": "wyoming", "dataset_url": wyo_viewer_url, "monitor_url": wyo_download_url, "verified_date": today.isoformat()}]
+
+    fetch10, calls10 = _url_aware_fetch({
+        wyo_viewer_url: (200, wyo_viewer_body, "text/html"),
+        wyo_download_url: (200, wyo_pdf_bytes, "application/pdf"),
+    })
+    update10 = build_manual_verification_update(wyo_viewer_url, "renewal_fees.json", wyo_record, today=today, fetch=fetch10, overrides=wyo_overrides)
+    assert calls10["n"] == 1, f"SELFTEST FAILED (AUTO-10): expected exactly 1 fetch call, got {calls10['n']}"
+    assert calls10["urls"] == [wyo_download_url], f"SELFTEST FAILED (AUTO-10): expected the override's monitor_url to be fetched, not the citation_url viewer page -- got {calls10['urls']}"
+    assert update10["manual_verify_fetched_url"] == wyo_download_url, f"SELFTEST FAILED (AUTO-10): manual_verify_fetched_url must record which URL the anchor actually came from -- got {update10.get('manual_verify_fetched_url')!r}"
+    assert update10["manual_verified_raw_hash"] == hashlib.sha256(wyo_pdf_bytes).hexdigest()
+    assert update10["manual_verified_raw_byte_length"] == len(wyo_pdf_bytes)
+    assert update10["manual_verified_anchor"] == "13(b)"
+    assert update10["manual_verify_gap_reason"] is None, f"SELFTEST FAILED (AUTO-10): an override-anchored record must not carry a gap reason -- {update10['manual_verify_gap_reason']!r}"
+
+    # Regression baseline: the SAME record/url WITHOUT overrides passed
+    # must reproduce AuditLab's exact pre-fix measurement (every baseline
+    # field None, a gap reason naming the citation_url's own shortfall) --
+    # proves this control isn't accidentally passing for an unrelated
+    # reason, and that overrides=None (the old call shape) is still safe,
+    # not a crash.
+    fetch10b, _ = _url_aware_fetch({wyo_viewer_url: (200, wyo_viewer_body, "text/html")})
+    update10b = build_manual_verification_update(wyo_viewer_url, "renewal_fees.json", wyo_record, today=today, fetch=fetch10b, overrides=None)
+    assert update10b["manual_verified_raw_hash"] is None and update10b["manual_verify_gap_reason"], "SELFTEST FAILED (AUTO-10 regression baseline): without overrides, the viewer-shell citation_url must still fail to anchor (reproducing the pre-fix bug) -- if this now passes, the test setup itself is wrong"
+    assert "manual_verify_fetched_url" not in update10b, "SELFTEST FAILED (AUTO-10): the normal (no-override) case must not carry manual_verify_fetched_url at all -- it should never add noise to a record that never needed an override"
+
     # --- AUTO-5: override re-confirmation, same fail-closed ceiling. ----
     assert override_needs_reconfirmation({"verified_date": "2026-06-24"}, today) is True   # 91 days
     assert override_needs_reconfirmation({"verified_date": "2026-06-26"}, today) is False  # 89 days
@@ -1251,15 +1356,16 @@ def _selftest() -> None:
         empty_applied, empty_out_of_scope = apply_eligible_extends(Path(tmp) / "does-not-exist", [], today)
         assert empty_applied == [] and empty_out_of_scope == [], "SELFTEST FAILED (Stage B): an empty proposals list must return empty results"
 
-    print("  selftest (73 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (82 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
-          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), Stage B's "
-          "apply_eligible_extends() (x9: field updates, last_manual_verified_date/baseline untouched, "
-          "history appended not overwritten, byte-identical copies, out-of-scope reporting, no-op safety), "
-          "the original soft-404/bot-wall/baseline-poisoning trio, the PDF-branch content-shape/length "
-          "controls, SecurityLab's site-B anchoring-path control, and build_manual_verification_update()'s "
-          "single-fetch/stale-field controls (x14)): PASS")
+          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), AUTO-10 (x9: "
+          "override-aware anchoring matching the live Wyoming case, single-fetch, regression baseline, "
+          "no-noise-on-normal-records), Stage B's apply_eligible_extends() (x9: field updates, "
+          "last_manual_verified_date/baseline untouched, history appended not overwritten, byte-identical "
+          "copies, out-of-scope reporting, no-op safety), the original soft-404/bot-wall/baseline-poisoning "
+          "trio, the PDF-branch content-shape/length controls, SecurityLab's site-B anchoring-path control, "
+          "and build_manual_verification_update()'s single-fetch/stale-field controls (x14)): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
