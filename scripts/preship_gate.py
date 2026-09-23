@@ -4469,15 +4469,6 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         "handleAssistantTicket": "2026-09-01 assistant support-ticket walkthrough -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address only (same category as sendSignupNotification above); the visitor-supplied address is the reply-to, never the recipient, and it is public/no-session by design like handleSubscribe. The one demo_locked interaction (a demo-firm session's placeholder member email being used as that reply-to) is closed inside optionalVisitorEmail(), which resolves a demo_locked firm's session to null so the visitor is asked for a real address",
         "runStripePriceParityAlertPass": "AuditLab BILL-17 -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runMobilityStalenessAlertPass/runAssistantLatencyAlertPass above; also structurally not firm-scoped at all (reads Stripe Price objects directly via STRIPE_PRICE_FIRM_* env vars, fires from scheduled(), not any firm's own session)",
         "runGatedDatasetStalenessAlertPass": "FRESH-3 (AuditLab, 2026-09-12) -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runMobilityStalenessAlertPass/runAssistantLatencyAlertPass/runStripePriceParityAlertPass above; also structurally not firm-scoped at all (reads cpe_hours.json/reinstatement.json/renewal_fees.json directly, fires from scheduled(), not any firm's own session)",
-        # TEMPORARY -- Resend cutover test send (Orchestrator GO, 2026-09-23).
-        # The ONLY naked sendViaSendGrid() call inline in routeRequest()'s own
-        # body (every other call site lives in a named handle*/run* function
-        # already covered above) -- a one-off diagnostic route gated behind a
-        # high-entropy token, hardcoded recipient (dlhall86@gmail.com, not
-        # attacker-controlled), same category as sendSignupNotification
-        # above. Remove this entry together with the temp route in index.ts
-        # once the test send is confirmed and reverted.
-        "routeRequest": "TEMPORARY, Resend cutover test send only -- hardcoded recipient dlhall86@gmail.com, token-gated, not attacker-controlled; remove with the temp route",
     }
 
     errors = []

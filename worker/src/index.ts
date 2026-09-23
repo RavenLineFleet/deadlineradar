@@ -10512,35 +10512,6 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
-      // TEMPORARY, ONE-OFF -- Resend cutover test send (Orchestrator GO,
-      // 2026-09-23, _AAA_orchestrator_20260923_RESEND_CUTOVER_GO_do_first.md,
-      // step 3: "ONE test send through the REAL sendViaSendGrid() path
-      // (Resend transport) to dlhall86@gmail.com only"). Goes through the
-      // actual production sendViaSendGrid() (not a raw fetch to Resend's API
-      // like the prior SendGrid diagnostic) so this exercises the real
-      // resendApiKey branch end to end. Fresh token, not the one from the
-      // 09-22/09-23 SendGrid diagnostic. TO BE REVERTED immediately after one
-      // use -- do not leave this in production.
-      if (url.pathname === "/dr-resend-cutover-check-8f2a") {
-        if (url.searchParams.get("token") !== "Lt1GdBNSt7mAPQRc5gWosG2HOWor43qT") {
-          return errorPage(404, "Not found.");
-        }
-        if (!env.RESEND_API_KEY) {
-          return jsonResponse(200, { resend_api_key_present: false });
-        }
-        if (!env.SENDGRID_API_KEY) {
-          return jsonResponse(200, { sendgrid_api_key_present: false });
-        }
-        const built = {
-          subject: "DeadlineRadar Resend cutover -- test send",
-          textBody: "One-off test send, 2026-09-23, confirming the Resend transport works end to end through the real sendViaSendGrid() path. Safe to ignore/delete.",
-          htmlBody: "<p>One-off test send, 2026-09-23, confirming the Resend transport works end to end through the real sendViaSendGrid() path. Safe to ignore/delete.</p>",
-          headers: {},
-        };
-        const sent = await sendViaSendGrid(env.SENDGRID_API_KEY, "dlhall86@gmail.com", built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
-        return jsonResponse(200, { resend_api_key_present: true, sent });
-      }
-
       if (ACTION_PATHS.has(url.pathname)) {
         const allowed = await checkRateLimit(env.DB, ip, "action", RATE_LIMIT_ACTION);
         if (!allowed) return errorPage(429, "Too many requests. Please try again later.");
