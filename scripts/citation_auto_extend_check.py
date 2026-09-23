@@ -108,8 +108,21 @@ consumption half. Guardrails, non-negotiable under this repo's
       exact shape of a cross-reference -- satisfies neither and fails.
       Records that can't satisfy either path stay manual-only; that is an
       acceptable, honest gap, not a bug to work around.
+  11. WRITE PATH, STAGED (_AAA_orchestrator_20260923_write_path_GO_staged.md,
+      AuditLab round-3 sign-off). Stage A -- THIS is Stage A, the only
+      stage built so far -- emits `auto_extend_proposals/
+      auto_extend_proposals_<date>.json` (dataset, record id, URL, old
+      verified date, proposed new date, which checks passed, the anchor
+      matched) for every ELIGIBLE verdict, and changes NOTHING else.
+      AuditLab spot-checks the first real proposal list against the live
+      sources before Stage B (actually applying an extend) is built.
+      Every run also logs per-dataset AND per-jurisdiction eligible/total
+      coverage, so a silent zero-coverage dataset or jurisdiction shows up
+      instead of being buried in a long per-URL list.
 
-THIS SCRIPT NEVER WRITES TO A DATASET FILE.
+THIS SCRIPT NEVER WRITES TO A DATASET FILE. Its only write, Stage A's
+proposals JSON, is a report artifact, never data/*.json or
+worker/src/*.json.
 
 Usage:
     python scripts/citation_auto_extend_check.py [repo_root]
@@ -1030,6 +1043,29 @@ def _load_overrides(repo_root: Path) -> list[dict]:
     return manifest.get("monitor_url_overrides", [])
 
 
+def _public_verified_date_for_record(record: dict) -> str | None:
+    """The human-facing 'as of' date this record shows today -- field name
+    varies by dataset (`verified_date` vs `last_verified`). Report-only
+    (Stage A's proposal 'old date' column); never used by eligibility
+    logic itself, which reads `last_manual_verified_date` exclusively
+    (AUTO-1)."""
+    return record.get("verified_date") or record.get("last_verified")
+
+
+def _checks_passed_for_eligible(url: str, claim_anchor: str | None) -> list[str]:
+    """Stage A's proposal report: the ordered list of guardrails an
+    ELIGIBLE verdict passed, matching evaluate_candidate()'s actual check
+    order for this citation's shape (PDF vs HTML)."""
+    checks = ["ceiling", "baseline_presence", "fetch_200"]
+    if _expected_pdf(url):
+        checks.append("content_shape_pdf_magic_bytes")
+    else:
+        checks.append("claim_anchor_present")
+        checks.append("identity_heading_or_value")
+    checks += ["length_match", "hash_match"]
+    return checks
+
+
 def main() -> None:
     print("Running mandatory selftest (positive controls) before anything else...")
     _selftest()
@@ -1062,24 +1098,62 @@ def main() -> None:
 
     eligible: list[CandidateVerdict] = []
     rejected: list[CandidateVerdict] = []
+    proposals: list[dict] = []
+    # Coverage honesty (item 3 of the write-path staging ruling): per-
+    # dataset AND per-jurisdiction eligible/total counts, so a silent
+    # zero-coverage dataset or state shows up instead of being buried in a
+    # long per-URL list.
+    dataset_coverage: dict[str, dict[str, int]] = {}
+    state_coverage: dict[str, dict[str, int]] = {}
+    failed_check_counts: dict[str, int] = {}
+
     for r in candidates:
         url = r["url"]
         owner_info = records_by_url.get(url)
         if owner_info is None:
-            rejected.append(CandidateVerdict(url, "(not in current dataset scope)", False, None, "orphaned or manifest-only URL, no owning record found", failed_check="no_owner"))
+            v = CandidateVerdict(url, "(not in current dataset scope)", False, None, "orphaned or manifest-only URL, no owning record found", failed_check="no_owner")
+            rejected.append(v)
+            failed_check_counts["no_owner"] = failed_check_counts.get("no_owner", 0) + 1
             continue
         dataset_filename, record = owner_info
+        state_slug = record.get("state_slug") or record.get("jurisdiction_slug") or "(no state_slug)"
         owner = f"{dataset_filename}:{record.get('id') or record.get('jurisdiction_slug') or '?'}"
+        claim_anchor = claim_anchor_for_record(dataset_filename, record)
         verdict = evaluate_candidate(
             url, owner,
             last_manual_verified_date=record.get("last_manual_verified_date"),
             manual_baseline_hash=record.get("manual_verified_raw_hash"),
             manual_baseline_length=record.get("manual_verified_raw_byte_length"),
-            claim_anchor=claim_anchor_for_record(dataset_filename, record),
+            claim_anchor=claim_anchor,
             cited_value=cited_value_for_record(dataset_filename, record),
             today=today,
         )
-        (eligible if verdict.eligible else rejected).append(verdict)
+
+        dcov = dataset_coverage.setdefault(dataset_filename, {"total": 0, "eligible": 0})
+        dcov["total"] += 1
+        scov = state_coverage.setdefault(state_slug, {"total": 0, "eligible": 0})
+        scov["total"] += 1
+
+        if verdict.eligible:
+            eligible.append(verdict)
+            dcov["eligible"] += 1
+            scov["eligible"] += 1
+            # Stage A: proposal file only, changes NOTHING. No open(...,'w'),
+            # no dataset write anywhere in this branch -- just a report row.
+            proposals.append({
+                "dataset_filename": dataset_filename,
+                "record_id": record.get("id") or record.get("jurisdiction_slug") or "?",
+                "state_slug": state_slug,
+                "url": url,
+                "old_verified_date": _public_verified_date_for_record(record),
+                "proposed_verified_date": today.isoformat(),
+                "proposed_verified_method": "auto_source_unchanged",
+                "checks_passed": _checks_passed_for_eligible(url, claim_anchor),
+                "anchor_matched": claim_anchor,
+            })
+        else:
+            rejected.append(verdict)
+            failed_check_counts[verdict.failed_check or "?"] = failed_check_counts.get(verdict.failed_check or "?", 0) + 1
 
     print(f"\nIndependently re-verified: {len(eligible)} ELIGIBLE, {len(rejected)} rejected on independent re-check.")
     for v in eligible:
@@ -1087,10 +1161,39 @@ def main() -> None:
     for v in rejected:
         print(f"  REJECTED [{v.failed_check}]  {v.owner}  {v.url}\n            {v.reason}")
 
-    print("\nThis is a REPORT ONLY. No dataset file was written. The write path (an actual verified_date "
-          "bump gated on an ELIGIBLE verdict here) does not exist yet -- it ships only after AuditLab signs "
-          "off on this version. Every candidate above is REJECTED today because no record has a "
-          "manual-anchored baseline (last_manual_verified_date + manual_verified_raw_hash/length) yet -- "
+    print("\nCoverage honesty (per dataset):")
+    for dataset_filename in sorted(dataset_coverage):
+        c = dataset_coverage[dataset_filename]
+        flag = "  <-- ZERO COVERAGE" if c["eligible"] == 0 and c["total"] > 0 else ""
+        print(f"  {dataset_filename}: {c['eligible']}/{c['total']} eligible{flag}")
+
+    zero_coverage_states = sorted(s for s, c in state_coverage.items() if c["eligible"] == 0 and c["total"] > 0)
+    print(f"\nCoverage honesty (per jurisdiction): {len(state_coverage)} jurisdictions with in-scope candidates this run, "
+          f"{len(zero_coverage_states)} at ZERO eligible coverage.")
+    if zero_coverage_states:
+        print("  ZERO-COVERAGE JURISDICTIONS: " + ", ".join(zero_coverage_states))
+
+    print("\nRejection reasons (failed_check counts): " + ", ".join(f"{k}={v}" for k, v in sorted(failed_check_counts.items())))
+
+    # Stage A: emit the proposal file. This is the ONLY file this script
+    # writes -- it is a report artifact, never data/*.json or
+    # worker/src/*.json. No dataset was touched by this run.
+    proposals_dir = repo_root / "auto_extend_proposals"
+    proposals_dir.mkdir(exist_ok=True)
+    proposals_path = proposals_dir / f"auto_extend_proposals_{today.isoformat()}.json"
+    proposals_path.write_text(json.dumps({
+        "generated_at": today.isoformat(),
+        "capture_source_file": capture["_source_file"],
+        "proposal_count": len(proposals),
+        "proposals": proposals,
+    }, indent=2), encoding="utf-8")
+    print(f"\nStage A: wrote {len(proposals)} proposal(s) to {proposals_path} -- this is the ONLY file this run "
+          f"touched. No dataset file was written.")
+
+    print("\nThis is a REPORT ONLY (Stage A). The write path's Stage B (an actual verified_date bump applying "
+          "an ELIGIBLE proposal above) does not exist yet -- it ships only after AuditLab spot-checks a real "
+          "proposal list against the live sources. Every candidate above is REJECTED today because no record "
+          "has a manual-anchored baseline (last_manual_verified_date + manual_verified_raw_hash/length) yet -- "
           "that's the correct, honest state until the STALE-20 batches start recording one via "
           "validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
 
