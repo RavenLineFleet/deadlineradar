@@ -6081,6 +6081,19 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_CHAT_TIMEOUT_MS);
   try {
+    // SecurityLab (2026-08-29, corroborated by AuditLab; re-flagged
+    // 2026-09-23 as stale-comments-plus-fail-open): CF-Connecting-IP below
+    // is only a trustworthy rate-limit key once the droplet can tell THIS
+    // Worker's call apart from a direct, forged one. The droplet side
+    // (ShopLab's repo) has ENFORCED this shared secret since 2026-08-30 --
+    // it is not optional or inert. Fail LOUD, not open: an unset/rotated
+    // secret used to silently omit the header, send the request anyway, and
+    // let the droplet's own 401 surface as an unexplained outage with no
+    // code-level signal of the cause. Refuse the call instead.
+    if (!env.ASSISTANT_DROPLET_SHARED_SECRET) {
+      console.log("[assistant-secret-missing] ASSISTANT_DROPLET_SHARED_SECRET is unset -- refusing to call the droplet unauthenticated");
+      return { ok: false, status: 503, error: ASSISTANT_CHAT_GENERIC_UNAVAILABLE, rateLimited: false };
+    }
     // Forward the real visitor IP to the droplet's own Caddy, which now
     // trusts this header (scoped to DeadlineRadar's site block only) and
     // passes it on as request.client.host for the droplet's per-visitor
@@ -6088,17 +6101,11 @@ async function callAssistantDroplet(message: string, sessionId: string | undefin
     // still sent rather than omitted -- an omitted header would make Caddy
     // fall back to seeing this Worker's own shared egress IP again, the
     // exact bug this exists to fix.
-    //
-    // SecurityLab (2026-08-29): CF-Connecting-IP above is only a trustworthy
-    // rate-limit key once the droplet can tell THIS Worker's call apart from
-    // a direct, forged one -- it currently cannot, since the droplet is
-    // reachable off-Cloudflare with no shared secret. This header is that
-    // secret's Worker-side half; it is inert (the droplet ignores an unknown
-    // header) until the droplet side is configured to require it.
-    const headers: Record<string, string> = { "Content-Type": "application/json", "CF-Connecting-IP": ip };
-    if (env.ASSISTANT_DROPLET_SHARED_SECRET) {
-      headers["X-Assistant-Shared-Secret"] = env.ASSISTANT_DROPLET_SHARED_SECRET;
-    }
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "CF-Connecting-IP": ip,
+      "X-Assistant-Shared-Secret": env.ASSISTANT_DROPLET_SHARED_SECRET,
+    };
     const resp = await fetch(ASSISTANT_CHAT_DROPLET_URL, {
       method: "POST",
       headers,
