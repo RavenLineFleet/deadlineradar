@@ -36,6 +36,14 @@ async function createFirmWithSession(name: string, adminEmail: string): Promise<
 // exceed the bucket's max, no matter how many attempts are made. Interleaved
 // transient 400s can't break that assertion; a genuinely missing rate limit
 // still fails it loudly (40 attempts -> 40 successes > 30).
+// AssetLab (2026-09-23): every `it()` below already carries its own
+// explicit timeout (not vitest's 5s default) for exactly this file's own
+// documented reason above -- 35-40 real sequential D1-writing requests.
+// Bumped 20000 -> 60000 after two of these timed out under full-79-file-
+// suite load (same genuine parallel-load contention already root-caused
+// and fixed elsewhere in this suite -- see worker.spec.ts's CPE rate-
+// limit tests and vitest.config.mts's global testTimeout comment). Not a
+// per-test logic problem; every one of these passes in ~1-2s isolated.
 const DISMISS_BUCKET_MAX = 30; // RATE_LIMIT_FIRM_DISMISS.max
 async function hammerAndCountSuccesses(fn: () => Promise<Response>, tries: number): Promise<number> {
   let successes = 0;
@@ -58,7 +66,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
       40
     );
     expect(successes).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
-  }, 20000);
+  }, 60000);
 
   it("POST /firm/onboarding-checklist/dismiss", async () => {
     const { cookie } = await createFirmWithSession("SEC1 Onboarding Firm", `sec1-onb-${Date.now()}@example.com`);
@@ -71,7 +79,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
       40
     );
     expect(successes).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
-  }, 20000);
+  }, 60000);
 
   it("POST /firm/product-tour/dismiss", async () => {
     const { cookie } = await createFirmWithSession("SEC1 Tour Firm", `sec1-tour-${Date.now()}@example.com`);
@@ -84,7 +92,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
       40
     );
     expect(successes).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
-  }, 20000);
+  }, 60000);
 
   it("POST /firm/questionnaire (submit)", async () => {
     const { cookie } = await createFirmWithSession("SEC1 Q Submit Firm", `sec1-qs-${Date.now()}@example.com`);
@@ -98,7 +106,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
       40
     );
     expect(successes).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
-  }, 20000);
+  }, 60000);
 
   it("DELETE /firm/documents/:id -- a nonexistent id still consumes the bucket", async () => {
     const { cookie } = await createFirmWithSession("SEC1 Doc Firm", `sec1-doc-${Date.now()}@example.com`);
@@ -115,7 +123,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
       if (resp.status === 404) past++;
     }
     expect(past).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
-  }, 20000);
+  }, 60000);
 
   // AuditLab LOGOUT-1 (2026-08-17): SEC-1's ORIGINAL fix gated the row
   // deletion on the rate-limit bucket, same as every other endpoint in this
@@ -151,7 +159,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
     // above it. >= proves the bucket genuinely filled without assuming the
     // implementation never changes to keep counting past the cap.
     expect(bucketHits?.n, "the rate-limit counter should still be recorded even though it no longer gates the deletion").toBeGreaterThanOrEqual(30);
-  }, 20000);
+  }, 60000);
 
   it("/subscriber/logout: deletes the session row even once the IP's bucket is exhausted", async () => {
     const email = `sec1-sublogout-${Date.now()}@example.com`;
@@ -175,7 +183,7 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
     // above it. >= proves the bucket genuinely filled without assuming the
     // implementation never changes to keep counting past the cap.
     expect(bucketHits?.n, "the rate-limit counter should still be recorded even though it no longer gates the deletion").toBeGreaterThanOrEqual(30);
-  }, 20000);
+  }, 60000);
 
   it("a legitimate single dismiss still succeeds (the fix didn't break normal use)", async () => {
     const { firmId, cookie } = await createFirmWithSession("SEC1 Normal Firm", `sec1-normal-${Date.now()}@example.com`);
