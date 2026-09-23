@@ -848,7 +848,7 @@ async function sendSignupNotification(
     const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
     if (!underCap) return;
     const built = buildSignupNotificationEmail(kind, details);
-    await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
   } catch {
     // Best-effort, same posture as every other send in this file -- never
     // let a notification failure affect the real signup/login it's about.
@@ -901,7 +901,7 @@ async function notifyOperatorOfStaleData(env: Env, guardMessage: string): Promis
     const freshness = dataFreshnessInfo(new Date());
     const ageDays = freshness.age_days === -1 ? null : freshness.age_days;
     const built = buildStaleDataAlertEmail(ageDays, guardMessage);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
     if (!ok) {
       await store.unclaimStaleDataAlertForToday(env.DB, day);
       console.log(`[stale-data-alert] send returned false for ${day}`);
@@ -1411,7 +1411,7 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
               existing.first_name,
               existing.user_deadline ? fmtDate(new Date(`${existing.user_deadline}T00:00:00Z`)) : null
             );
-            await sendViaSendGrid(env.SENDGRID_API_KEY, existing.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+            await sendViaSendGrid(env.SENDGRID_API_KEY, existing.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
             await store.recordResend(env.DB, existing.id);
           }
         }
@@ -1473,7 +1473,7 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
           record.first_name,
           record.user_deadline ? fmtDate(new Date(`${record.user_deadline}T00:00:00Z`)) : null
         );
-        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Swallow -- the signup is stored; a confirmation-email failure is not
@@ -1569,7 +1569,7 @@ async function handleNewsletterSubscribe(request: Request, env: Env, ip: string)
         const confirmUrl = `${actionBaseUrl(env)}/newsletter/confirm?token=${encodeURIComponent(record.confirm_token)}`;
         const unsubscribeUrl = `${actionBaseUrl(env)}/newsletter/unsubscribe?token=${encodeURIComponent(record.unsubscribe_token)}`;
         const built = buildNewsletterConfirmationEmail(confirmUrl, unsubscribeUrl);
-        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Swallow -- same reasoning as handleSubscribe(): the signup is
@@ -1931,7 +1931,7 @@ async function issueAndSendFirmLoginLink(
     // and then landing on a password screen is the same class of mismatch as
     // the bug this fixes, just pointed the other way.
     const built = buildFirmLoginEmail(loginUrl, purpose === "password_reset", adminName);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, adminEmail, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, adminEmail, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
     // AuditLab DROP-2 (MEDIUM, 2026-08-21): the return value used to be
     // discarded here -- a clean `false` (SendGrid refused the send) was
     // indistinguishable from success, on the ONE path where a failure locks
@@ -1987,7 +1987,7 @@ async function issueAndSendFirmMemberInviteEmail(
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
     const built = buildFirmMemberInviteEmail(loginUrl, firmName, roleLabel, inviterName);
-    await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
   } catch {
     // Swallow -- same reasoning as issueAndSendFirmLoginLink() above.
   }
@@ -2745,7 +2745,7 @@ export async function sendBackupCodeRedeemedNotice(env: Env, firm: store.FirmRow
     if (underCap) {
       const remaining = await store.countUnusedFirmMemberBackupCodes(env.DB, member.id);
       const built = buildFirmBackupCodeRedeemedEmail(firm.name, new Date().toISOString(), remaining, member.name);
-      await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+      await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
     }
   } catch {
     // Intentionally swallowed -- best-effort, must never fail the sign-in.
@@ -3913,7 +3913,7 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
           refundCents,
           cancelFailed,
         });
-        await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Non-fatal -- see above.
@@ -4305,7 +4305,7 @@ async function issueAndSendSubscriberLoginLink(env: Env, email: string): Promise
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
     const built = buildSubscriberLoginEmail(loginUrl);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
     if (!ok) console.log(`[subscriber-login-link] send returned false for token ${tokenId}`);
   } catch (err) {
     // Swallow -- same best-effort posture as every other send in this file.
@@ -4599,7 +4599,7 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
       let noticeSent = false;
       if (noticeUnderCap) {
         const noticeEmail = buildSubscriberEmailChangeRequestedNoticeEmail(newEmailRaw, new Date().toISOString());
-        noticeSent = await sendViaSendGrid(env.SENDGRID_API_KEY, session.emailNormalized, noticeEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        noticeSent = await sendViaSendGrid(env.SENDGRID_API_KEY, session.emailNormalized, noticeEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
       // AuditLab SEC-3 (MEDIUM, 2026-08-09): the ordering above only
       // protected against budget starvation (checkAndCountActionSend's own
@@ -4617,7 +4617,7 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
         if (confirmUnderCap) {
           const confirmUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
           const confirmEmail = buildSubscriberEmailChangeConfirmEmail(confirmUrl);
-          await sendViaSendGrid(env.SENDGRID_API_KEY, newEmailRaw, confirmEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+          await sendViaSendGrid(env.SENDGRID_API_KEY, newEmailRaw, confirmEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
         }
       }
     } catch {
@@ -5503,7 +5503,7 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
         const { rawToken } = await store.createSubscriberLoginToken(env.DB, staffRow.email);
         const loginUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
         const built = buildStaffCpeReminderEmail(loginUrl, session.firm.name, stateNameFromSlug(staffRow.state_slug));
-        sent = await sendViaSendGrid(env.SENDGRID_API_KEY, staffRow.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        sent = await sendViaSendGrid(env.SENDGRID_API_KEY, staffRow.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
         if (!sent) reason = "Something went wrong sending the email. Please try again.";
       }
     } catch {
@@ -5738,7 +5738,7 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
         unsubscribeUrl,
         topicRaw || undefined
       );
-      const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, target.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+      const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, target.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       if (ok) sent++;
       else skipped++;
     }
@@ -6323,7 +6323,7 @@ async function handleAssistantTicket(request: Request, env: Env, ip: string): Pr
     return jsonResponse(503, { error: "We can't send that right now -- please email support@deadline-radar.com directly." });
   }
   const built = buildAssistantTicketEmail({ visitorEmail, description, sessionId, autoTriggered });
-  const sent = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, visitorEmail);
+  const sent = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, visitorEmail, env.RESEND_API_KEY);
   if (!sent) {
     return jsonResponse(503, { error: "We couldn't send that right now -- please email support@deadline-radar.com directly." });
   }
@@ -6463,7 +6463,7 @@ async function handleRoadmapNotifySignup(request: Request, env: Env, ip: string)
       if (underCap) {
         const confirmUrl = `${actionBaseUrl(env)}/roadmap/notify-confirm?token=${encodeURIComponent(signup.rawToken)}`;
         const built = buildFeatureIdeaNotifyConfirmEmail(idea.title, confirmUrl);
-        sent = await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        sent = await sendViaSendGrid(env.SENDGRID_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } else {
       // Already confirmed for this idea -- nothing to (re-)send, but this
@@ -7932,7 +7932,7 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
           unsubscribeUrl,
           reminderThresholds
         );
-        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, record.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Best-effort, same posture as handleSubscribe() -- the record is
@@ -8234,7 +8234,7 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
           updated.user_deadline ? fmtDate(new Date(`${updated.user_deadline}T00:00:00Z`)) : null,
           reminderThresholds
         );
-        await sendViaSendGrid(env.SENDGRID_API_KEY, updated.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, updated.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Best-effort -- the record is already updated regardless.
@@ -9238,7 +9238,7 @@ async function handleUnsubscribe(env: Env, token: string | null): Promise<Respon
               stateNameFromSlug(subscriber.state_slug),
               firm.admin_name
             );
-            await sendViaSendGrid(env.SENDGRID_API_KEY, firm.admin_email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+            await sendViaSendGrid(env.SENDGRID_API_KEY, firm.admin_email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
           }
         }
       }
@@ -9385,7 +9385,7 @@ async function handleRenewed(env: Env, token: string | null): Promise<Response> 
           unsubscribeUrl,
           subscriber.first_name
         );
-        confirmationEmailSent = await sendViaSendGrid(env.SENDGRID_API_KEY, subscriber.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        confirmationEmailSent = await sendViaSendGrid(env.SENDGRID_API_KEY, subscriber.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Swallow -- the reminders are already stopped; a follow-up email
@@ -10512,6 +10512,35 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
+      // TEMPORARY, ONE-OFF -- Resend cutover test send (Orchestrator GO,
+      // 2026-09-23, _AAA_orchestrator_20260923_RESEND_CUTOVER_GO_do_first.md,
+      // step 3: "ONE test send through the REAL sendViaSendGrid() path
+      // (Resend transport) to dlhall86@gmail.com only"). Goes through the
+      // actual production sendViaSendGrid() (not a raw fetch to Resend's API
+      // like the prior SendGrid diagnostic) so this exercises the real
+      // resendApiKey branch end to end. Fresh token, not the one from the
+      // 09-22/09-23 SendGrid diagnostic. TO BE REVERTED immediately after one
+      // use -- do not leave this in production.
+      if (url.pathname === "/dr-resend-cutover-check-8f2a") {
+        if (url.searchParams.get("token") !== "Lt1GdBNSt7mAPQRc5gWosG2HOWor43qT") {
+          return errorPage(404, "Not found.");
+        }
+        if (!env.RESEND_API_KEY) {
+          return jsonResponse(200, { resend_api_key_present: false });
+        }
+        if (!env.SENDGRID_API_KEY) {
+          return jsonResponse(200, { sendgrid_api_key_present: false });
+        }
+        const built = {
+          subject: "DeadlineRadar Resend cutover -- test send",
+          textBody: "One-off test send, 2026-09-23, confirming the Resend transport works end to end through the real sendViaSendGrid() path. Safe to ignore/delete.",
+          htmlBody: "<p>One-off test send, 2026-09-23, confirming the Resend transport works end to end through the real sendViaSendGrid() path. Safe to ignore/delete.</p>",
+          headers: {},
+        };
+        const sent = await sendViaSendGrid(env.SENDGRID_API_KEY, "dlhall86@gmail.com", built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+        return jsonResponse(200, { resend_api_key_present: true, sent });
+      }
+
       if (ACTION_PATHS.has(url.pathname)) {
         const allowed = await checkRateLimit(env.DB, ip, "action", RATE_LIMIT_ACTION);
         if (!allowed) return errorPage(429, "Too many requests. Please try again later.");
@@ -11127,7 +11156,7 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
         // change is that teammate's own security event, not necessarily
         // something every other member should be emailed about.
         const built = buildFirmPasswordChangedEmail(firm.name, new Date().toISOString(), member.name);
-        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Intentionally swallowed -- see above.
@@ -11367,7 +11396,7 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (underCap) {
         const built = buildFirmTwoFactorChangedEmail(firm.name, true, new Date().toISOString(), member.name);
-        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Intentionally swallowed -- see above.
@@ -11501,7 +11530,7 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (underCap) {
         const built = buildFirmTwoFactorChangedEmail(firm.name, false, new Date().toISOString(), member.name);
-        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Intentionally swallowed -- see above.
@@ -11588,7 +11617,7 @@ async function handleFirmSignOutOtherDevices(request: Request, env: Env): Promis
         const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
         if (underCap) {
           const built = buildFirmSessionsEndedEmail(signoutFirm.name, new Date().toISOString(), endedSessions, member.name);
-          await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+          await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
         }
       } catch {
         // Intentionally swallowed -- see above.
@@ -11781,7 +11810,7 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
           new Date().toISOString(),
           member.name
         );
-        noticeSent = await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, noticeEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        noticeSent = await sendViaSendGrid(env.SENDGRID_API_KEY, member.email, noticeEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
       // AuditLab SEC-3 (MEDIUM, 2026-08-09): the ordering above only
       // protected against budget starvation -- a plain SEND FAILURE
@@ -11801,7 +11830,7 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
         if (confirmUnderCap) {
           const confirmUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
           const confirmEmail = buildFirmEmailChangeConfirmEmail(confirmUrl, member.name);
-          await sendViaSendGrid(env.SENDGRID_API_KEY, newEmailRaw, confirmEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+          await sendViaSendGrid(env.SENDGRID_API_KEY, newEmailRaw, confirmEmail, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
         }
       }
     } catch {
@@ -12094,7 +12123,7 @@ async function handleOauthCallback(request: Request, env: Env, ip: string, provi
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (underCap) {
         const built = buildFirmOauthLinkedEmail(firm.name, provider.displayName, claims.email, new Date().toISOString(), firm.admin_name);
-        await sendViaSendGrid(env.SENDGRID_API_KEY, firm.admin_email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+        await sendViaSendGrid(env.SENDGRID_API_KEY, firm.admin_email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
       }
     } catch {
       // Intentionally swallowed -- see above.
