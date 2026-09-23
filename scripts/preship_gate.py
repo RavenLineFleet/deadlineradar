@@ -3604,11 +3604,34 @@ def check_citation_manifest_coverage(repo_root: Path) -> list[str]:
     own capture-side concern, coordinated directly, not built here. This
     check only answers "is DiffLab's capture list watching the right
     documents," not "did any of them change."
+
+    RC-32 (LOW, 2026-09-23, SecurityLab, confirmed by AuditLab): the
+    original `if not manifest_path.exists(): return []` was a truly silent
+    skip, same GATE-19 shape 9 other checks in this file already learned
+    the hard way -- delete or rename the manifest and RC-27's whole
+    regression class goes back to unguarded with zero gate output. My own
+    RC-29 review read that skip and never mutation-tested it; SecurityLab
+    did. Fixed with the same discriminator those 9 siblings use: the 4 base
+    datasets should ALWAYS exist by the time this runs (main() itself
+    FATALs before this point if they don't) -- if any of them is present
+    and the manifest is not, that is the repo-problem case and fails loud;
+    only skip silently in a genuine scratch/partial checkout where the
+    datasets are absent too.
     """
     manifest_path = repo_root / "citation_urls_for_difflab_manifest.json"
+    dataset_paths = [
+        repo_root / "data" / name
+        for name in ("cpa_deadlines.json", "cpe_hours.json", "reinstatement.json", "renewal_fees.json")
+    ]
     if not manifest_path.exists():
-        # Scratch/partial checkouts won't have this repo-root-only file --
-        # same skip convention as check_json_copies_identical above.
+        if any(p.exists() for p in dataset_paths):
+            return [
+                f"[GATE-19] {manifest_path} not found, but dataset file(s) are present -- this file "
+                f"should always exist alongside the datasets it covers; check_citation_manifest_coverage() "
+                f"is measuring nothing without it (RC-32)"
+            ]
+        # Genuine scratch/partial checkout (no datasets either) -- same
+        # skip convention as check_json_copies_identical above.
         return []
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     monitor_by_state: dict[str, set[str]] = {
