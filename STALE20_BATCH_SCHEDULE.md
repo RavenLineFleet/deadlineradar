@@ -28,7 +28,7 @@ Batch 1 (32 records: 1 cpe_hours + 5 reinstatement + 26 renewal_fees, all origin
 already shipped 2026-09-22, `CONFIRMED_UNCHANGED` 32/32 — see HANDOFF's 2026-09-22 ~12:00 MDT
 entry.
 
-**Batch 2 (32 records attempted, commit `229d85b80`, corrected 2026-09-23 per DATE-1 --
+**Batch 2 (32 records attempted, commit `229d85b80`, corrected 2026-09-23 per DATE-8 --
 `_AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md`): only 8 genuinely re-confirmed
 (ak-cpe, ct-cpe, il-cpe, la-cpe, md-cpe, mi-cpe, virginia-renewal-fee, washington-renewal-fee) --
 their `verified_date`/`last_manual_verified_date` bump and anchor baseline are legitimate.** The
@@ -40,8 +40,19 @@ re-verification pass (batch-1 method: PDF text extraction or an agent reading it
 cliff**, folded into batch 3 alongside its own new records. Auto-extend's proposals recomputed:
 only the 8 genuinely confirmed can ever be eligible.
 
-**Batches 3-5 are PAUSED** until AuditLab verifies this correction against the live site (per the
-amended ruling). Do not start batch 3 before that clears.
+**Batches 3-5 UNPAUSED 2026-09-23** -- AuditLab independently verified the revert 32/32 against their
+own per-record target list (0 mismatches), confirmed live, and confirmed the tooling fix is
+mutation-proven and stricter than asked (withholds on any unconfirmed fetch, not just a failed one).
+See `auditlab_20260923_batch2_revert_VERIFIED_32of32_plus_STALE21.md`.
+
+**STALE-21 (LOW-MED, same report, open)**: `build_manual_verification_update()` never returns
+`verified_date` in any case -- its DATE-8 protection is entirely on `last_manual_verified_date`
+(correctly, since that's AUTO-1's ceiling field). The public `verified_date` is still set by whoever
+runs the batch by hand, with only `manual_verify_gap_reason` as a signal -- exactly what went wrong
+in the original batch-2 ship (the gap reasons were all correct; the dates moved anyway). Suggested
+fix: a `preship_gate.py` check that a record with a non-`None manual_verify_gap_reason` may not carry
+a `verified_date` newer than its `last_manual_verified_date` -- mechanically checkable from the data
+alone. Not yet implemented; fail-safe (process gap, not a live defect) so not blocking batch 3.
 
 ## Batches 2–5
 
@@ -51,8 +62,8 @@ must clear before the 2026-10-09 cliff, since that's the earliest hard block. Th
 
 | Batch | Target ship date | Records | Composition | Method |
 |---|---|---|---|---|
-| **2 (DONE + corrected, 2026-09-23, `229d85b80` + DATE-1 fix)** | by 2026-09-27 | 32 attempted, 8 confirmed | all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cohort (all landed in cpe_hours.json by file-iteration order); only 8 genuinely re-confirmed the cited value, 24 need a real re-pass | real citation_url fetch + field-level comparison (cited fee/hours figure ACTUALLY confirmed, not just fetched) + anchor recording, gated by DATE-1 |
-| **3 (PAUSED)** | by 2026-10-01 | 31 new + the 24 needing re-verification from batch 2 | re-derive the oldest-N of the 09-12/09-09 cohort at execution time; prioritize the 4 remaining 09-09 records (nearest cliff) and the 20 reverted 09-12 cpe_hours records over fresh ones | batch-1 method for anything landing on a PDF (real text extraction or an agent read) -- a magic-bytes-only fetch can never confirm a PDF per DATE-1 |
+| **2 (DONE + corrected, 2026-09-23, `229d85b80` + DATE-8 fix)** | by 2026-09-27 | 32 attempted, 8 confirmed | all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cohort (all landed in cpe_hours.json by file-iteration order); only 8 genuinely re-confirmed the cited value, 24 need a real re-pass | real citation_url fetch + field-level comparison (cited fee/hours figure ACTUALLY confirmed, not just fetched) + anchor recording, gated by DATE-8 |
+| **3** | by 2026-10-01 | 31 new + the 24 needing re-verification from batch 2 | re-derive the oldest-N of the 09-12/09-09 cohort at execution time; prioritize the 4 remaining 09-09 records (nearest cliff) and the 20 reverted 09-12 cpe_hours records over fresh ones | batch-1 method for anything landing on a PDF (real text extraction or an agent read) -- a magic-bytes-only fetch can never confirm a PDF per DATE-8 |
 | **4** | by 2026-10-05 | ~31 | re-derive at execution time | " |
 | **5** | by 2026-10-08 (day before the first cliff) | remainder + the 1 09-13 + all 3 09-19 | re-derive at execution time | " |
 
@@ -63,12 +74,12 @@ records until MANUAL anchors exist for it to compare against, so from batch 2 on
 re-verification pass must ALSO record its anchor baseline, not just bump `verified_date`/
 `last_verified` the way batch 1 did.
 
-**DATE-1 correction (HIGH, `_AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md`, amended):
+**DATE-8 correction (HIGH, `_AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md`, amended):
 batch 2's first version of this instruction was wrong** -- it said "always set
 `last_manual_verified_date`, regardless of outcome." A fetch succeeding is not the same as the
 claim being re-confirmed: 24 of batch 2's 32 records got a live "Verified" date bump (and their
 30-day cliff clock reset) with nothing behind it -- 12 PDFs whose text was never read, 2 fetches
-that 403'd, several anchor/identity misses. Corrected 2026-09-23, commit TBD-fill-in-on-ship.
+that 403'd, several anchor/identity misses. Corrected 2026-09-23, commit `baf264597`.
 
 For each record, on the SAME fetch used for the field-level comparison, call
 `build_manual_verification_update(url, dataset_filename, record, today=..., fetch=..., overrides=_load_overrides(repo_root), pdf_value_manually_confirmed=...)`
@@ -77,7 +88,7 @@ comparison and this call, never a second network round-trip. **A verified date m
 pass actually re-confirmed the record's own `cited_value_for_record()` figure** (a non-PDF page
 literally contains it, or a human/agent read the PDF text directly and passes
 `pdf_value_manually_confirmed=True` -- this function cannot search PDF bytes as text, and a
-coincidental raw-byte match is not evidence, per DATE-1). Apply the returned dict's fields to the
+coincidental raw-byte match is not evidence, per DATE-8). Apply the returned dict's fields to the
 record EXACTLY as returned, field by field -- do not invent a bump the function didn't return:
 - If confirmed: `last_manual_verified_date` IS in the returned dict -- set it, and ALSO bump
   `verified_date`/`last_verified` to the same date (the caller's own responsibility, this function

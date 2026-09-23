@@ -281,7 +281,7 @@ consumption half. Guardrails, non-negotiable under this repo's
       attempted. Verified live against all 245 cited records (140
       fetchable, non-PDF, anchored): 18 genuine rescues, zero regressions,
       and the 4 named false-rescue cases all correctly still reject.
-  21. DATE-1 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_
+  21. DATE-8 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_
       overclaimed.md, amended). STALE-20 batch 2's first version of
       `build_manual_verification_update()` bumped `last_manual_verified_
       date` on ANY successful fetch, treating "the source could be
@@ -1149,7 +1149,7 @@ def build_manual_verification_update(
     target. Makes the override map authoritative in both directions --
     owner lookup (AUTO-8) and anchoring (AUTO-10), not just the gate.
 
-    DATE-1 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md):
+    DATE-8 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_overclaimed.md):
     batch 2's first version of this function bumped `last_manual_verified_date`
     on every fetch that merely SUCCEEDED, regardless of whether the record's
     cited value was actually re-confirmed -- "a fetch happened" is not "a
@@ -1218,7 +1218,7 @@ def build_manual_verification_update(
         value_reason = (
             None if value_confirmed else
             f"the cited value {cited_value!r} was not independently re-confirmed -- this is a PDF, "
-            f"whose text this function cannot search (DATE-1); pass pdf_value_manually_confirmed=True "
+            f"whose text this function cannot search (DATE-8); pass pdf_value_manually_confirmed=True "
             f"only after a human/agent has actually read the extracted PDF text and confirmed the figure"
         )
     else:
@@ -1811,7 +1811,7 @@ def _selftest() -> None:
     assert update["manual_verified_anchor"] == "34-1-7"
     assert update["manual_verify_gap_reason"] is None, f"SELFTEST FAILED (build_manual_verification_update): an anchorable fetch left a gap reason -- {update['manual_verify_gap_reason']!r}"
 
-    # Non-anchorable case (bot wall): DATE-1 -- last_manual_verified_date
+    # Non-anchorable case (bot wall): DATE-8 -- last_manual_verified_date
     # must NOT be set (a fetch happened, but nothing was confirmed; a
     # walled page earns no new trust). Baseline fields are explicitly
     # None, not left stale, and a gap reason is recorded. Still exactly
@@ -1823,7 +1823,7 @@ def _selftest() -> None:
         today=today, fetch=counting2,
     )
     assert calls2["n"] == 1, f"SELFTEST FAILED (build_manual_verification_update): expected exactly 1 fetch call for the non-anchorable case too, got {calls2['n']}"
-    assert "last_manual_verified_date" not in update2, "SELFTEST FAILED (DATE-1): a walled fetch confirmed nothing and must NOT bump last_manual_verified_date"
+    assert "last_manual_verified_date" not in update2, "SELFTEST FAILED (DATE-8): a walled fetch confirmed nothing and must NOT bump last_manual_verified_date"
     assert update2["manual_verified_raw_hash"] is None
     assert update2["manual_verified_raw_byte_length"] is None
     assert update2["manual_verified_anchor"] is None
@@ -1841,7 +1841,7 @@ def _selftest() -> None:
     assert update3["manual_verified_raw_hash"] is None, "SELFTEST FAILED (build_manual_verification_update): a now-unanchorable source must CLEAR a stale hash from a prior pass, not leave it"
     assert update3["manual_verified_raw_byte_length"] is None
 
-    # --- DATE-1 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_
+    # --- DATE-8 (HIGH, _AAA_orchestrator_20260923_HIGH_batch2_dates_
     # overclaimed.md, amended): a verified date must move ONLY when this
     # pass actually re-confirmed the record's cited value, never merely
     # because a fetch succeeded and the anchor sat in a heading. Real
@@ -1860,11 +1860,11 @@ def _selftest() -> None:
         today=today, fetch=_fake_fetch(200, date1_html_body, "text/html"),
     )
     assert "last_manual_verified_date" not in update_date1_html, (
-        "SELFTEST FAILED (DATE-1): anchor identity passed via heading position alone, but the record's "
+        "SELFTEST FAILED (DATE-8): anchor identity passed via heading position alone, but the record's "
         "own cited total_hours ('120') never appeared on the page -- must NOT confirm or bump the date"
     )
     assert update_date1_html["manual_verified_anchor"] is None
-    assert "120" in (update_date1_html["manual_verify_gap_reason"] or ""), f"SELFTEST FAILED (DATE-1): gap reason should name the unconfirmed cited value -- got {update_date1_html['manual_verify_gap_reason']!r}"
+    assert "120" in (update_date1_html["manual_verify_gap_reason"] or ""), f"SELFTEST FAILED (DATE-8): gap reason should name the unconfirmed cited value -- got {update_date1_html['manual_verify_gap_reason']!r}"
 
     # Positive control -- same shape, but the cited value IS on the page:
     # must confirm and bump normally, proving the gate isn't just always-off.
@@ -1878,7 +1878,7 @@ def _selftest() -> None:
         "https://example.test/1105.3100", "cpe_hours.json", date1_cpe_record,
         today=today, fetch=_fake_fetch(200, date1_html_body_ok, "text/html"),
     )
-    assert update_date1_html_ok["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-1 positive control): the cited value IS on the page -- must confirm and bump"
+    assert update_date1_html_ok["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-8 positive control): the cited value IS on the page -- must confirm and bump"
     assert update_date1_html_ok["manual_verified_anchor"] == "1105.3100"
 
     # PDF case: even though the anchor is only magic-bytes-checked (no text
@@ -1892,7 +1892,7 @@ def _selftest() -> None:
         today=today, fetch=_fake_fetch(200, date1_pdf_bytes, "application/pdf"),
     )
     assert "last_manual_verified_date" not in update_date1_pdf_default, (
-        "SELFTEST FAILED (DATE-1): a PDF's cited value must NEVER auto-confirm from a coincidental raw-"
+        "SELFTEST FAILED (DATE-8): a PDF's cited value must NEVER auto-confirm from a coincidental raw-"
         "byte match -- pdf_value_manually_confirmed defaults to False and must be honored"
     )
     assert update_date1_pdf_default["manual_verified_anchor"] is None
@@ -1902,17 +1902,17 @@ def _selftest() -> None:
         today=today, fetch=_fake_fetch(200, date1_pdf_bytes, "application/pdf"),
         pdf_value_manually_confirmed=True,
     )
-    assert update_date1_pdf_confirmed["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-1): pdf_value_manually_confirmed=True (a real agent/human read) must confirm and bump"
+    assert update_date1_pdf_confirmed["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-8): pdf_value_manually_confirmed=True (a real agent/human read) must confirm and bump"
     assert update_date1_pdf_confirmed["manual_verified_anchor"] == "236-1203"
 
     # No-cited-value dataset (cpa_deadlines.json has none wired): this gate
-    # must be a no-op, behaving exactly as the pre-DATE-1 identity-only
+    # must be a no-op, behaving exactly as the pre-DATE-8 identity-only
     # check -- a real anchorable fetch still confirms normally.
     update_date1_no_value = build_manual_verification_update(
         "https://example.test/real.pdf", "cpa_deadlines.json", {"citation": "Ala. Code § 34-1-7"},
         today=today, fetch=_fake_fetch(200, real_pdf_bytes, "application/pdf"),
     )
-    assert update_date1_no_value["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-1): a dataset with no cited_value wired must not be blocked by this gate"
+    assert update_date1_no_value["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (DATE-8): a dataset with no cited_value wired must not be blocked by this gate"
 
     # --- AUTO-10 (auditlab_20260923_anchor_tooling_reviewed_plus_AUTO10.md):
     # build_manual_verification_update() must anchor against a
@@ -2304,7 +2304,7 @@ def _selftest() -> None:
           "approval is actually exercised), the original "
           "soft-404/bot-wall/baseline-poisoning trio, the PDF-branch content-shape/length controls, "
           "SecurityLab's site-B anchoring-path control, build_manual_verification_update()'s "
-          "single-fetch/stale-field controls (x14), and DATE-1 (x10: a verified date must not move "
+          "single-fetch/stale-field controls (x14), and DATE-8 (x10: a verified date must not move "
           "without an actual cited-value re-confirmation -- heading-identity-only HTML case blocked + "
           "its positive control, a PDF never auto-confirms from a coincidental raw-byte match even with "
           "pdf_value_manually_confirmed defaulting False + the explicit-True case, and a no-cited-value "
