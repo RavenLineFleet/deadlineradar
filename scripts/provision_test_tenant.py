@@ -227,11 +227,22 @@ def cmd_teardown() -> None:
     if typed != firm_id:
         raise SystemExit("Confirmation did not match -- aborted, nothing deleted.")
 
+    # SecurityLab (2026-09-23, migration 0079 tooling review, Orchestrator
+    # GO): the confirmation prompt above guards against a WRONG firm_id
+    # typo, but nothing previously stopped this script from deleting a REAL
+    # firm's rows if the (gitignored, hand-editable) state file's firm_id
+    # were ever wrong or stale. is_test_tenant exists precisely to mark
+    # "safe to delete" -- gate every DELETE on it directly, not just on the
+    # firm_id match, so a non-test firm_id can never be torn down by this
+    # script even if the state file is. Child tables have no is_test_tenant
+    # column of their own, so they gate via a subquery against firms;
+    # firms' own DELETE gates directly.
+    is_test_tenant_firm = f"(SELECT id FROM firms WHERE id = {sql_str(firm_id)} AND is_test_tenant = 1)"
     statements = [
-        f"DELETE FROM firm_sessions WHERE firm_id = {sql_str(firm_id)};",
-        f"DELETE FROM subscribers WHERE firm_id = {sql_str(firm_id)};",
-        f"DELETE FROM firm_members WHERE firm_id = {sql_str(firm_id)};",
-        f"DELETE FROM firms WHERE id = {sql_str(firm_id)};",
+        f"DELETE FROM firm_sessions WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
+        f"DELETE FROM subscribers WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
+        f"DELETE FROM firm_members WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
+        f"DELETE FROM firms WHERE id = {sql_str(firm_id)} AND is_test_tenant = 1;",
     ]
     run_wrangler_sql("\n".join(statements), label="teardown Test Firm B")
     STATE_FILE.unlink()
