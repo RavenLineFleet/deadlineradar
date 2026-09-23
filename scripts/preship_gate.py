@@ -17,6 +17,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+from typing import NamedTuple
 
 MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
@@ -4201,20 +4202,106 @@ def _find_if_conditions(text: str) -> list[tuple[str, int, int]]:
     return results
 
 
-def _condition_is_constant_true(cond: str) -> bool:
-    """Sibling to `_condition_is_constant_false()`: True if `cond` is
-    trivially true because of a bare `true`/`1` OR'd in somewhere (e.g.
-    `is_test_tenant || true`), which would neutralize a negation elsewhere
-    in the same condition regardless of the flag's real value. Same
-    literal-vs-comparison care as the false-sibling (`=== true`/`!== true`
-    stays legitimate, only a bare `true`/`1` counts)."""
-    stripped = re.sub(r"[=!]==?\s*true\b", "", cond)
-    stripped = re.sub(r"\btrue\s*[=!]==?", "", stripped)
-    if re.search(r"\btrue\b", stripped):
-        return True
-    if re.search(r"(?<![\w.])1(?![\w.])\s*(\|\||$)", cond.strip()):
-        return True
-    return False
+def _split_top_level(cond: str, operator: str) -> list[str]:
+    """Split `cond` on every occurrence of `operator` (`&&` or `||`) that
+    sits at paren/bracket/brace depth 0 -- a sub-expression's own use of the
+    OTHER operator, one level deeper, is never split on. `(!x || y) && z`
+    split on `&&` yields `["(!x || y)", " z"]`, never touching the `||`
+    inside the group."""
+    parts: list[str] = []
+    depth = 0
+    i = 0
+    n = len(cond)
+    start = 0
+    op_len = len(operator)
+    while i < n:
+        ch = cond[i]
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        elif depth == 0 and cond[i : i + op_len] == operator:
+            parts.append(cond[start:i])
+            i += op_len
+            start = i
+            continue
+        i += 1
+    parts.append(cond[start:])
+    return parts
+
+
+def _strip_enclosing_parens(s: str) -> str:
+    """Repeatedly strips a single balanced paren pair that wraps the ENTIRE
+    string (`(!x.y)` -> `!x.y`, `((a))` -> `a`), never a pair that merely
+    happens to open at the start and close at the end without spanning the
+    whole thing (`(a) && (b)` is not touched -- that string doesn't even
+    reach here as one fragment, but this guards the same mistake for a
+    single fragment like `(a).b(c)`, where the first `(` closes long before
+    the final `)`)."""
+    s = s.strip()
+    while s.startswith("(") and s.endswith(")"):
+        depth = 0
+        wraps_whole = True
+        for idx, ch in enumerate(s):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0 and idx != len(s) - 1:
+                    wraps_whole = False
+                    break
+        if not wraps_whole:
+            break
+        s = s[1:-1].strip()
+    return s
+
+
+# SecurityLab N2 (2026-09-23, GATE-25 residual gap): the object a
+# demo_locked/is_test_tenant negation is checked ON must be one of the
+# objects this codebase actually uses for the FIRM BEING SENT TO --
+# otherwise `!otherFirm.is_test_tenant` (right flag, wrong object) passes a
+# check that protects nothing. Enumerated from the real call sites (every
+# function in worker/src that both calls sendViaSendGrid( and has a live
+# demo_locked/is_test_tenant condition), not guessed: `firm`/`session.firm`
+# in index.ts, `firmInfo` (optional-chained) in scheduler.ts. No call site
+# uses a `sub`-rooted path today -- if one is added later for a genuinely
+# new principal type, add it here explicitly rather than widening the
+# pattern to accept any identifier.
+_GUARD_OBJECT_ALLOWLIST = ("firm", "session.firm", "firmInfo")
+
+
+def _is_pure_negation_atom(fragment: str, flag: str) -> bool:
+    """True if `fragment` -- one top-level `&&` conjunct of a send
+    condition -- is NOTHING BUT a negated reference to `flag` on an
+    allowlisted firm object, with no top-level `||` surviving inside it once
+    enclosing parens are stripped.
+
+    SecurityLab N1/N3 (2026-09-23): `_condition_guards_flag()` used to
+    presence-test the `!` anywhere in the whole condition string, so
+    `(!is_test_tenant || is_admin)` and `(!is_test_tenant || 2)` both read as
+    "negation present" even though the disjunction means the send fires
+    whenever the OTHER side is truthy, regardless of the flag. A negation
+    only genuinely blocks the send when it is ANDed at the top level with
+    everything else (AND requires every conjunct true, so `!flag` being one
+    of them forces flag=false whenever the whole condition is true) -- an OR
+    provides no such guarantee. This checks exactly that, structurally, with
+    no literal-truthiness enumeration (`_condition_is_constant_true()`'s old
+    job, now unnecessary and removed: ANY top-level `||` inside the
+    conjunct is disqualifying, whatever is on its other side).
+
+    SecurityLab N2: the object the negation is checked on must be the one
+    the send actually goes out for -- see `_GUARD_OBJECT_ALLOWLIST`."""
+    atom = _strip_enclosing_parens(fragment)
+    if len(_split_top_level(atom, "||")) > 1:
+        return False
+    m = re.fullmatch(r"!\s*\(*\s*([\w$]+(?:\??\.[\w$]+)*)\s*\)*", atom)
+    if not m:
+        return False
+    path = m.group(1)
+    if path != flag and not path.endswith("." + flag):
+        return False
+    obj = path[: -(len(flag) + 1)].rstrip("?") if path != flag else ""
+    return obj in _GUARD_OBJECT_ALLOWLIST
 
 
 def _find_if_blocks(text: str) -> list[tuple[str, str]]:
@@ -4300,10 +4387,20 @@ def _condition_guards_flag(
     and a genuinely POSITIVE (non-negated) reference is required exactly
     when it doesn't (this condition exits/blocks before the protected call,
     reached elsewhere) -- both real conventions pass, either a dropped OR an
-    added `!` fails."""
-    negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
+    added `!` fails.
+
+    SecurityLab N1-N3 (2026-09-23, residual gaps in the fix above): the
+    direct-wrap branch's negation check was still a bare presence test
+    anywhere in `cond`, so `(!is_test_tenant || is_admin)`,
+    `!otherFirm.is_test_tenant`, and `(!is_test_tenant || 2)` all read as
+    "negated" while none of them actually stop the send. Replaced with
+    `_is_pure_negation_atom()` per top-level `&&` conjunct -- see its own
+    docstring for why AND (not OR) is the only shape that structurally
+    guarantees the flag is false whenever the condition is true, and why the
+    object matters (N2)."""
     if any(marker in block for marker in protected_substrings):
-        return negated and not _condition_is_constant_true(cond)
+        return any(_is_pure_negation_atom(c, flag) for c in _split_top_level(cond, "&&"))
+    negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
     if negated:
         return False
     return flag in cond and not _condition_is_constant_false(cond)
@@ -4407,6 +4504,145 @@ def _strip_ts_comments(text: str) -> str:
     text = re.sub(r"/\*[\s\S]*?\*/", "", text)
     text = re.sub(r"(?<!:)//.*", "", text)
     return text
+
+
+_EMAIL_TRANSPORT_SCOPE_MARKERS: tuple[str, ...] = (
+    "api.sendgrid.com",
+    "api.resend.com",
+    "sendViaSendGridTransport(",
+    "sendViaResendTransport(",
+)
+
+
+def check_email_transport_scope(repo_root: Path) -> list[str]:
+    """SecurityLab SEND-1 (LOW-MED, 2026-09-23): every send-exclusion gate in
+    this file (`check_demo_locked_email_coverage()` and its mutation
+    sibling) finds senders by the literal string `sendViaSendGrid(` --
+    invisible to a code path that calls a transport API directly. Live
+    proof, not hypothetical: `bf8bd300b` (a Devin-approved, token-gated,
+    single-recipient diagnostic route, deployed and reverted within a
+    minute) called `fetch("https://api.sendgrid.com/v3/mail/send", ...)`
+    straight from `index.ts`, bypassing `demo_locked`/`is_test_tenant`
+    exclusion, `EMAIL_ALLOWLIST`, and the daily send cap entirely -- and
+    both send-exclusion gates scored it 0 errors.
+
+    `sendViaSendGrid()` in `worker/src/sender.ts` is the ONLY place allowed
+    to reach either provider: assert that no OTHER file under `worker/src`
+    contains the literal provider host or either private transport
+    function's name. This is deliberately a blunt, file-scoped assertion
+    (not a call-graph analysis) -- cheap and decidable, which is the same
+    tradeoff every sibling gate in this file makes, and it is exactly what
+    would have caught `bf8bd300b` pre-ship (see the selftest control in
+    `main()`/the test harness that exercises this function with a fixture
+    matching that commit's shape).
+
+    Deliberately searches the RAW, unstripped source -- no comment removal
+    and no string blanking. Two reasons, both proven while building this
+    check, not assumed: (1) `_blank_strings_and_comments()` blanks the
+    CONTENTS of string literals, and `bf8bd300b`'s own leak lived entirely
+    inside one (`fetch("https://api.sendgrid.com/...")`) -- blanking
+    strings first erases the exact evidence this check exists to find; (2) a
+    naive standalone block-comment-stripping regex, tried first
+    here, silently swallowed a 195KB span of REAL code in `index.ts`
+    including a freshly-injected `bf8bd300b`-shaped fixture -- the same
+    string/comment-ambiguity failure `_blank_strings_and_comments()`'s own
+    docstring describes, just reproduced in a second, simpler function
+    instead of avoided. Confirmed no other file under `worker/src` mentions
+    any of these markers even in a comment today (verified by grep before
+    shipping this check), so scanning raw text carries no live
+    false-positive risk; if a future comment ever legitimately names one of
+    these markers in prose, that is a one-line rewording, not a reason to
+    reach for either broken alternative."""
+    worker_src = repo_root / "worker" / "src"
+    if not worker_src.exists():
+        print("  (skipping email-transport-scope check -- worker/ tree not present in this checkout)")
+        return []
+    errors = []
+    for ts_file in sorted(worker_src.glob("*.ts")):
+        if ts_file.name == "sender.ts":
+            continue
+        body = ts_file.read_text(encoding="utf-8")
+        for marker in _EMAIL_TRANSPORT_SCOPE_MARKERS:
+            if marker in body:
+                line_no = body[: body.index(marker)].count("\n") + 1
+                errors.append(
+                    f"[SEND-1][{ts_file.name}:{line_no}] '{marker}' appears outside "
+                    "worker/src/sender.ts -- only sendViaSendGrid() (sender.ts) may reach "
+                    "an email provider. A direct call here bypasses demo_locked/"
+                    "is_test_tenant exclusion, EMAIL_ALLOWLIST, and the daily send cap "
+                    "entirely, invisible to check_demo_locked_email_coverage(). Route the "
+                    "send through sendViaSendGrid() instead."
+                )
+    return errors
+
+
+class TempExemption(NamedTuple):
+    """SecurityLab TEMP-1 (LOW-MED, 2026-09-23): every `allowlisted = {name:
+    reason}` dict in this file (send-exclusion, mutation-exclusion, rate-
+    limit) is PERMANENT by construction -- there was no way to add an
+    entry that expires, so this session's own temporary Resend-cutover-
+    test-send exemption (`ff49b26c7`, keyed to `routeRequest`, the
+    1052-line top-level dispatcher) had to rely on a human remembering to
+    remove it later, same shape as the 2026-08-18 admin-digest incident
+    (`worker/src/env.ts`'s own comment: a "HELD pending review" prose note
+    "ran on every cron tick for 8 days anyway, because nothing in the code
+    actually checked it"). The reverse-direction stale-allowlist check
+    below (an entry for a function that no longer exists) does NOT catch
+    this shape either: `routeRequest` itself never goes away, so an entry
+    keyed to it survives forever regardless of whether the route inside it
+    is still there.
+
+    A dict value that is a plain `str` is a PERMANENT entry (unchanged
+    behavior). A value that is a `TempExemption` is honored only through
+    `expires` (`YYYY-MM-DD`, inclusive) -- once real wall-clock `date.today()`
+    passes it, `_allowlist_covers()` below stops treating the entry as
+    covering anything, and the gate fails with a message naming exactly
+    what expired and why, rather than silently granting the exemption
+    forever. Use this for any entry added for a specific, time-bounded
+    reason (a live test, a migration window) -- a permanent structural
+    exemption (front-door-gated, hardcoded operator recipient, etc.) stays
+    a plain string."""
+
+    reason: str
+    expires: str
+
+
+def _allowlist_covers(
+    allowlisted: dict[str, "str | TempExemption"], name: str, today: date | None = None
+) -> tuple[bool, str | None]:
+    """Shared by every `allowlisted = {name: reason}` gate in this file
+    (SecurityLab TEMP-1). Returns `(True, None)` when `name` permanently or
+    still-validly covers the finding it would otherwise raise; `(False,
+    None)` when `name` simply isn't in the allowlist at all (the caller's
+    existing not-covered message applies unchanged); `(False, error)` when
+    `name` IS in the allowlist but its `TempExemption` has expired (or its
+    `expires` string doesn't even parse as a date) -- the caller should
+    raise `error` instead of its normal message, so an expired temporary
+    exemption fails loudly and specifically, not as an ordinary missing-
+    coverage finding that could read as "nobody ever exempted this."""
+    if name not in allowlisted:
+        return False, None
+    entry = allowlisted[name]
+    if isinstance(entry, str):
+        return True, None
+    if today is None:
+        today = date.today()
+    try:
+        expiry = date.fromisoformat(entry.expires)
+    except ValueError:
+        return False, (
+            f"[TEMP-EXPIRY] allowlist entry for {name!r} has an unparseable expiry "
+            f"{entry.expires!r} (must be YYYY-MM-DD) -- fix the date or make this a permanent "
+            "string entry if that's what's actually meant"
+        )
+    if today > expiry:
+        return False, (
+            f"[TEMP-EXPIRY] allowlist entry for {name!r} expired on {entry.expires} "
+            f"({entry.reason}) -- it no longer exempts anything. Remove the exemption together "
+            "with whatever it was covering for, or if it's still genuinely needed, extend "
+            "`expires` deliberately (never let it pass silently by not noticing)"
+        )
+    return True, None
 
 
 def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
@@ -4517,7 +4753,11 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             )
             if demo_locked_guarded and test_tenant_guarded:
                 continue
-            if name in allowlisted:
+            covered, expiry_error = _allowlist_covers(allowlisted, name)
+            if covered:
+                continue
+            if expiry_error:
+                errors.append(f"[DEMO-EMAIL] {expiry_error}")
                 continue
             missing = []
             if not demo_locked_guarded:
@@ -4659,7 +4899,11 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
         )
         if guarded:
             continue
-        if name in allowlisted:
+        covered, expiry_error = _allowlist_covers(allowlisted, name)
+        if covered:
+            continue
+        if expiry_error:
+            errors.append(f"[DEMO-MUTATION] {expiry_error}")
             continue
         errors.append(
             f"[DEMO-MUTATION] {name}() is gated by an existing firm session and calls a mutating "
@@ -5153,7 +5397,11 @@ def check_write_endpoint_rate_limits(repo_root: Path) -> list[str]:
         candidates_found += 1
         if "checkRateLimit(" in body:
             continue
-        if name in allowlisted:
+        covered, expiry_error = _allowlist_covers(allowlisted, name)
+        if covered:
+            continue
+        if expiry_error:
+            errors.append(f"[RATELIMIT] {expiry_error}")
             continue
         errors.append(
             f"[RATELIMIT] {name}() calls a mutating store.* function but has no checkRateLimit() "
@@ -6556,6 +6804,7 @@ def main():
     all_errors += check_retention_coverage(repo_root)
     all_errors += check_snoozed_until_cleared_on_cycle_bump(repo_root)
     all_errors += check_sitemap_completeness(html_files, docs_dir)
+    all_errors += check_email_transport_scope(repo_root)
     all_errors += check_demo_locked_email_coverage(repo_root)
     all_errors += check_demo_locked_mutation_coverage(repo_root)
     all_errors += check_write_endpoint_rate_limits(repo_root)
