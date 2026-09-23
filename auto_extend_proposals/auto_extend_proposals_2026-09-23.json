@@ -2,23 +2,150 @@
   "generated_at": "2026-09-23",
   "capture_source_file": "citation_freshness_citfresh_20260923c.json",
   "candidate_total": 58,
-  "proposal_count": 0,
-  "proposals": [],
-  "proposals_tag": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "proposal_count": 7,
+  "proposals": [
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "hi-cpe",
+      "state_slug": "hawaii",
+      "url": "https://cca.hawaii.gov/pvl/files/2013/08/HAR-16-71-C_1121.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "16-71-2"
+    },
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "dc-cpe",
+      "state_slug": "dc",
+      "url": "https://dlcp.dc.gov/sites/default/files/dc/sites/DLCP/publication/attachments/Accountancy%20Continuing%20Education%20Reporting%20Form.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "2530.1"
+    },
+    {
+      "dataset_filename": "renewal_fees.json",
+      "record_id": "wyoming-renewal-fee",
+      "state_slug": "wyoming",
+      "url": "https://drive.google.com/uc?export=download&id=17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "13(b)"
+    },
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "ks-cpe",
+      "state_slug": "kansas",
+      "url": "https://ksboa.kansas.gov/wp-content/uploads/Article-4.-April-26-2024.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "74-4-7"
+    },
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "ia-cpe",
+      "state_slug": "iowa",
+      "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1030.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "481-1030.5(542)"
+    },
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "me-cpe",
+      "state_slug": "maine",
+      "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "02-280"
+    },
+    {
+      "dataset_filename": "cpe_hours.json",
+      "record_id": "mo-cpe",
+      "state_slug": "missouri",
+      "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+      "old_verified_date": "2026-09-23",
+      "proposed_verified_date": "2026-09-23",
+      "proposed_verified_method": "auto_source_unchanged",
+      "checks_passed": [
+        "ceiling",
+        "baseline_presence",
+        "fetch_200",
+        "content_shape_pdf_magic_bytes",
+        "length_match",
+        "hash_match"
+      ],
+      "anchor_matched": "2010-4.010(1)"
+    }
+  ],
+  "proposals_tag": "da835f05cd62fa55c45423f3bad6f81f9f6d140a6cafb9f43eab2732f859ad17",
   "rejection_summary": {
     "ceiling": 17,
-    "no_baseline": 39,
+    "no_baseline": 32,
     "no_owner": 2
   },
   "coverage": {
     "by_dataset": {
       "renewal_fees.json": {
         "total": 19,
-        "eligible": 0
+        "eligible": 1
       },
       "cpe_hours.json": {
         "total": 12,
-        "eligible": 0
+        "eligible": 6
       },
       "cpa_deadlines.json": {
         "total": 14,
@@ -64,7 +191,7 @@
       },
       "hawaii": {
         "total": 2,
-        "eligible": 0
+        "eligible": 1
       },
       "northern-mariana-islands": {
         "total": 2,
@@ -84,11 +211,11 @@
       },
       "dc": {
         "total": 1,
-        "eligible": 0
+        "eligible": 1
       },
       "wyoming": {
         "total": 4,
-        "eligible": 0
+        "eligible": 1
       },
       "georgia": {
         "total": 2,
@@ -96,7 +223,7 @@
       },
       "kansas": {
         "total": 2,
-        "eligible": 0
+        "eligible": 1
       },
       "arkansas": {
         "total": 1,
@@ -140,11 +267,11 @@
       },
       "iowa": {
         "total": 4,
-        "eligible": 0
+        "eligible": 1
       },
       "maine": {
         "total": 1,
-        "eligible": 0
+        "eligible": 1
       },
       "mississippi": {
         "total": 1,
@@ -160,7 +287,7 @@
       },
       "missouri": {
         "total": 2,
-        "eligible": 0
+        "eligible": 1
       },
       "texas": {
         "total": 1,
@@ -173,19 +300,13 @@
       "arkansas",
       "california",
       "colorado",
-      "dc",
       "georgia",
       "guam",
-      "hawaii",
       "idaho",
-      "iowa",
-      "kansas",
       "kentucky",
-      "maine",
       "maryland",
       "michigan",
       "mississippi",
-      "missouri",
       "nebraska",
       "new-jersey",
       "new-mexico",
@@ -199,8 +320,7 @@
       "us-virgin-islands",
       "utah",
       "vermont",
-      "west-virginia",
-      "wyoming"
+      "west-virginia"
     ]
   },
   "stage_b_applied_count": 0,
