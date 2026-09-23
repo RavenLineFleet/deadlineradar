@@ -682,7 +682,11 @@ describe("POST /assistant/chat -- real visitor IP forwarded to the droplet (Shop
       const parsed = (await resp.json()) as { error: string; escalate: boolean };
       expect(parsed.escalate).toBe(true);
       expect(parsed.error).toBe("The assistant is temporarily unavailable. Please try again shortly.");
-      expect(logs.filter((l) => l.includes("[assistant-secret-missing]")).length).toBe(2); // both attempts log it
+      // SecurityLab nit (2026-09-23): a missing secret is deterministic, same
+      // as a 429 -- retrying cannot change the outcome, so the retry is now
+      // short-circuited. Exactly ONE attempt, exactly one log line (was
+      // "both attempts log it" before that fix).
+      expect(logs.filter((l) => l.includes("[assistant-secret-missing]")).length).toBe(1);
     } finally {
       fetchSpy.mockRestore();
       logSpy.mockRestore();

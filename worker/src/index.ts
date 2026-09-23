@@ -6028,6 +6028,18 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
     await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "rate_limited");
     return jsonResponse(429, { error: attempt1.error, escalate: true });
   }
+  // SecurityLab nit (LOW, 2026-09-23): same principle as the 429 short-
+  // circuit just above -- a missing ASSISTANT_DROPLET_SHARED_SECRET is a
+  // deterministic configuration state, not a transient failure, so a
+  // second attempt fails identically (status 503 is unique to that guard
+  // in callAssistantDroplet() -- every other failure path there returns
+  // 502/504/429). Retrying burns the visitor's ASSISTANT_CHAT_RETRY_DELAY_MS
+  // wait for an outcome that cannot change, and doubles the
+  // [assistant-secret-missing] log line for no diagnostic benefit.
+  if (!attempt1.ok && attempt1.status === 503) {
+    await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), "error");
+    return jsonResponse(503, { error: attempt1.error, escalate: true });
+  }
   // LAT-1 (AuditLab, 2026-09-09): a >40s success used to be explainable
   // only after the fact, by reasoning about the code -- logAssistantChatLatency
   // records just the final elapsed_ms/status, so which attempt actually
