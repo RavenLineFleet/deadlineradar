@@ -83,23 +83,27 @@ describe("provider configuration gating", () => {
   });
 
   it("SecurityLab (LOW, 2026-09-23): a request-derived providerId cannot hit Object.prototype -- __proto__/constructor/toString all return null via the deliberate own-property guard", () => {
-    // Not a regression test in the usual sense -- confirmed by hand (see
-    // the fix's own comment) that the OLD code returned null for these
-    // same inputs too, just by accident: PROVIDERS[id] resolves to an
-    // Object.prototype MEMBER (a function/the Object constructor), whose
-    // own .clientIdVar is undefined, so env[undefined] (== env["undefined"])
-    // was never actually configured. This locks in the correct behavior via
-    // the DELIBERATE guard now, so it stops depending on that coincidence
-    // (which breaks the moment Env ever gains a literal "undefined" key, or
-    // this function's shape changes) -- same class of fix as SEC-5's
-    // literal-name guard elsewhere in this repo.
+    // AuditLab OAUTH-3 (2026-09-23): the first version of this test was
+    // vacuous -- it asserted null for these ids, but the PRE-FIX code also
+    // returned null for them (via the incidental env[undefined] route, see
+    // the source fix's own comment), so deleting the hasOwnProperty guard
+    // left this test green (proven by AuditLab's own mutation: guard
+    // removed, 30/30 still passed). Fixed by giving env a literal
+    // "undefined" key -- this removes the incidental path entirely, so
+    // ONLY the deliberate guard can produce null here. AuditLab proved
+    // this discriminates correctly both ways before it shipped: PASS
+    // against the guarded code, FAIL (returns a populated, secret-bearing
+    // object) against the guard removed.
     const envWithSecrets = {
       GOOGLE_OAUTH_CLIENT_ID: "x",
       GOOGLE_OAUTH_CLIENT_SECRET: "y",
+      undefined: "leaked", // removes the incidental env[undefined] fail-closed path
     } as unknown as Env;
     for (const id of ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"]) {
       expect(getConfiguredProvider(envWithSecrets, id)).toBeNull();
     }
+    // Positive control -- the test above can't pass by rejecting everything.
+    expect(getConfiguredProvider(envWithSecrets, "google")).not.toBeNull();
   });
 
   it("requests identity-only scopes (broader scopes would trigger Google's verification review)", () => {
