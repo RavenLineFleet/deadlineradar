@@ -87,6 +87,27 @@ consumption half. Guardrails, non-negotiable under this repo's
      through the hash check by accident, so the mechanism they were named
      for could be deleted with the suite still green) -- one mutation-
      provable control per guardrail 3/4/5/6/8 above.
+  10. IDENTITY, NOT MENTION (AUTO-6, MEDIUM, round 3 --
+      `_AAA_orchestrator_20260923_ruling_AUTO6.md`). The claim-anchor
+      check (guardrail 5) proves the page CONTAINS the locator string; it
+      does not prove the page IS the cited document -- legal documents
+      cross-reference each other constantly. AuditLab measured this on a
+      REAL case: NMIAC T01-10 cites "4 CMC § 3422" five times while being
+      an entirely different document. Also fixed in the same round: the
+      extractor's subsection-parenthetical pattern used to match only the
+      trailing parenthetical of a multi-part locator (Iowa's
+      "193A-5.3(2)" extracted as just "3(2)"), which made the anchor even
+      thinner than intended. Fixed: `extract_citation_anchor()` now keeps
+      the FULL locator, and `evaluate_candidate()`/
+      `validate_fetch_for_anchoring()` both require, in addition to the
+      anchor's presence, that it prove IDENTITY -- either (a) the anchor
+      sits in the page's own heading/title position (an HTML <title>/
+      <h1>/<h2>, or the page's own opening window), or (b) the record's
+      own cited VALUE (a fee amount or an hours count) is co-located with
+      the anchor match. A mid-body mention with no value nearby -- the
+      exact shape of a cross-reference -- satisfies neither and fails.
+      Records that can't satisfy either path stay manual-only; that is an
+      acceptable, honest gap, not a bug to work around.
 
 THIS SCRIPT NEVER WRITES TO A DATASET FILE.
 
@@ -234,7 +255,14 @@ def extract_citation_anchor(citation: str | None) -> str | None:
     if not citation:
         return None
     normalized = normalize_typography(citation)
-    m = re.search(r"\b\d+[A-Za-z]?(?:\([a-z0-9]+\))+", normalized)
+    # AUTO-6 (round 3): a subsection parenthetical stacked directly onto a
+    # multi-part hyphenated/dotted prefix -- e.g. Iowa's "193A-5.3(2)" --
+    # used to match only the trailing "3(2)", losing the "193A-5." that
+    # makes the locator specific. The optional (?:[-.]\d[\w.\-]*)* group
+    # absorbs that prefix into the SAME match before the mandatory
+    # parenthetical, so the anchor returned is always the FULL locator,
+    # never a truncated tail of it.
+    m = re.search(r"\b\d+[A-Za-z]?(?:[-.]\d[\w.\-]*)*(?:\([a-z0-9]+\))+", normalized)
     if m:
         return m.group(0)
     m = re.search(r"\b\d+[A-Za-z]?[-.]\d[\w.\-]*\b", normalized)
@@ -260,6 +288,74 @@ def claim_anchor_for_record(dataset_filename: str, record: dict) -> str | None:
     if dataset_filename in ("cpe_hours.json", "reinstatement.json", "renewal_fees.json"):
         return extract_citation_anchor(record.get("citation"))
     return None
+
+
+# ---------------------------------------------------------------------------
+# AUTO-6: identity, not mention. A claim anchor proves the page CONTAINS
+# the locator string; it does not prove the page IS the cited document --
+# legal documents cross-reference each other constantly (AuditLab's
+# measured case: NMIAC T01-10 cites "4 CMC § 3422" five times while being
+# a different document entirely). Two ways a fetched page can prove
+# identity rather than mere mention:
+#   1. the anchor sits in a heading/title position -- an HTML <title>/
+#      <h1>/<h2>, or within the first _HEADING_WINDOW_CHARS characters of
+#      the page (the plain-text/no-markup equivalent of "this is the
+#      document's own opening heading", not a paragraph deep in its body).
+#   2. the record's own cited VALUE (a fee amount, an hours count) appears
+#      within a short window of the anchor match -- a coincidence a real
+#      cross-reference essentially never shares, unlike the locator number
+#      itself, which appears in every citation TO the document as well as
+#      every citation OF it.
+# A page satisfying neither -- the anchor mentioned once, mid-body, with
+# no value nearby -- fails. That is the exact shape of a cross-reference.
+# ---------------------------------------------------------------------------
+
+_HEADING_WINDOW_CHARS = 400
+_VALUE_PROXIMITY_CHARS = 150
+_HTML_HEADING_TAG_RE = re.compile(r"<(title|h1|h2)[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL)
+
+
+def _heading_text(text: str) -> str:
+    """Best-effort (regex, no HTML parser dependency) extraction of
+    <title>/<h1>/<h2> contents, plus the page's own opening window -- the
+    two positions AUTO-6 treats as "this is the document's own heading",
+    as opposed to anywhere else in the body."""
+    tags = " ".join(m.group(2) for m in _HTML_HEADING_TAG_RE.finditer(text))
+    return tags + " " + text[:_HEADING_WINDOW_CHARS]
+
+
+def _anchor_proves_identity(anchor: str, text: str, cited_value: str | None) -> bool:
+    """AUTO-6's core check. True only if the anchor sits in a heading/
+    title position, OR the record's cited value is co-located with a
+    genuine occurrence of the anchor. False for a mid-body mention with no
+    value nearby -- a cross-reference, not the document itself."""
+    if anchor in _heading_text(text):
+        return True
+    if cited_value:
+        for m in re.finditer(re.escape(anchor), text):
+            window = text[max(0, m.start() - _VALUE_PROXIMITY_CHARS): m.end() + _VALUE_PROXIMITY_CHARS]
+            if cited_value in window:
+                return True
+    return False
+
+
+def cited_value_for_record(dataset_filename: str, record: dict) -> str | None:
+    """AUTO-6's second identity path: the record's own cited VALUE (a fee
+    amount or an hours count), which -- unlike the locator number itself --
+    is unlikely to also appear near a mere cross-reference to that locator.
+    Only wired for datasets with a single unambiguous numeric value;
+    returns None (no second identity path available, heading position
+    becomes the record's ONLY path) for anything else -- a real, stated
+    gap, not a guess."""
+    if dataset_filename == "cpe_hours.json":
+        value = record.get("total_hours")
+    elif dataset_filename == "renewal_fees.json":
+        value = record.get("fee_usd")
+    elif dataset_filename == "reinstatement.json":
+        value = record.get("reinstatement_fee_usd")
+    else:
+        value = None
+    return None if value is None else str(value)
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +409,7 @@ def evaluate_candidate(
     manual_baseline_hash: str | None,
     manual_baseline_length: int | None,
     claim_anchor: str | None = None,
+    cited_value: str | None = None,
     today: date | None = None,
     fetch: FetchFn = _real_fetch,
 ) -> CandidateVerdict:
@@ -378,6 +475,20 @@ def evaluate_candidate(
                 f"a bot wall, soft-404, or wrong page would fail this even with a byte-identical baseline",
                 failed_check="claim_anchor",
             )
+        # AUTO-6: mentioning the anchor is not enough -- legal documents
+        # cross-reference each other constantly (NMIAC T01-10 cites
+        # "4 CMC § 3422" five times while being a different document). The
+        # anchor must prove the page IS the cited document: a heading/
+        # title position, or the record's own cited value co-located with
+        # the match.
+        if not _anchor_proves_identity(claim_anchor, text, cited_value):
+            return CandidateVerdict(
+                url, owner, False, None,
+                f"claim-anchor {claim_anchor!r} appears on the page but not as its own heading/title, and the "
+                f"record's cited value is not co-located with it -- this proves the page MENTIONS the locator, "
+                f"not that it IS the cited document (AUTO-6)",
+                failed_check="identity",
+            )
 
     actual_length = len(result.body)
     if actual_length != manual_baseline_length:
@@ -435,6 +546,12 @@ def validate_fetch_for_anchoring(
     text = normalize_typography(_decode_best_effort(result.body))
     if anchor not in text:
         return False, f"fetched page does not contain the claim anchor {anchor!r} -- this fetch cannot be used to anchor a baseline"
+    cited_value = cited_value_for_record(dataset_filename, record)
+    if not _anchor_proves_identity(anchor, text, cited_value):
+        return False, (
+            f"claim anchor {anchor!r} appears on the page but not as its own heading/title, and the record's "
+            f"cited value is not co-located with it (AUTO-6) -- this fetch cannot be used to anchor a baseline"
+        )
     return True, ""
 
 
@@ -627,6 +744,134 @@ def _selftest() -> None:
     )
     assert v.eligible is True, f"SELFTEST FAILED (AUTO-3 normalization): an em-dash section number on the real page did not match a hyphenated anchor -- {v.reason}"
 
+    # --- AUTO-6 (round 3, _AAA_orchestrator_20260923_ruling_AUTO6.md):
+    # full-locator extraction fix. A subsection parenthetical stacked onto
+    # a multi-part hyphenated/dotted prefix used to match only the
+    # trailing parenthetical -- Iowa's real "193A-5.3(2)" extracted as
+    # just "3(2)", losing the "193A-5." that makes it specific. ----------
+    assert extract_citation_anchor("Iowa Admin. Code r. 193A-5.3(2)") == "193A-5.3(2)", f"SELFTEST FAILED (AUTO-6): expected the FULL locator, got {extract_citation_anchor('Iowa Admin. Code r. 193A-5.3(2)')!r}"
+    assert extract_citation_anchor("25 GAR § 2103(d)(2)") == "2103(d)(2)", "SELFTEST FAILED (AUTO-6 regression): a parenthetical-only locator with no hyphenated prefix must still extract correctly"
+
+    # --- AUTO-6: identity, not mention. A claim anchor proves the page
+    # CONTAINS the locator; it does not prove the page IS the cited
+    # document -- legal documents cross-reference each other constantly.
+    # Three controls built from AuditLab's real, measured cases. Each uses
+    # a SELF-MATCHING poisoned baseline (same pattern as guardrail 6) so
+    # ceiling/baseline/length/hash cannot be what rejects them -- ONLY the
+    # identity check can. -------------------------------------------------
+
+    # Case 1 (NMIAC): NMIAC T01-10 cites "4 CMC § 3422" five times in
+    # running prose while being an entirely different document -- the
+    # exact case AuditLab measured against the real body.
+    nmiac_heading = "NMIAC Title 1, Chapter 10 - Board of Accountancy"
+    nmiac_filler = ("This chapter establishes procedures for professional licensing and renewal within the Commonwealth. " * 8)
+    nmiac_crossref = "Substantial equivalence (see section 6 of the Act [4 CMC § 3422]) requires that an applicant demonstrate equivalent qualifications before licensure is granted."
+    nmiac_body = f"<html><head><title>{nmiac_heading}</title></head><body><h1>{nmiac_heading}</h1><p>{nmiac_filler}</p><p>{nmiac_crossref}</p></body></html>".encode("utf-8")
+    nmiac_anchor = extract_citation_anchor("4 CMC § 3422 (CPE Requirements)")
+    assert nmiac_anchor == "3422"
+    v = evaluate_candidate(
+        "https://www.cnmilaw.org/nmiac/title01/chapter10", "selftest:AUTO-6-nmiac-crossref",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(nmiac_body).hexdigest(), manual_baseline_length=len(nmiac_body),
+        claim_anchor=nmiac_anchor, cited_value=cited_value_for_record("cpe_hours.json", {"total_hours": 40}),
+        today=today, fetch=_fake_fetch(200, nmiac_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-6, NMIAC cross-reference): a document that only MENTIONS the cited locator mid-body was not caught by the identity check -- {v}"
+
+    # Case 2 (Washington, CITE-66): a real, documented failure shape -- a
+    # host serves the PARENT CHAPTER at 200 for a missing/renumbered
+    # section, and the specific section appears only in a table-of-
+    # contents-style list, never as its own heading.
+    wa_heading = "Chapter 4-30 WAC—Public Accountants"
+    wa_filler = ("This chapter contains the rules adopted by the Washington State Board of Accountancy governing licensure, renewal, and continuing education for certified public accountants. " * 6)
+    wa_toc = "Sections in this chapter include 4-30-130, 4-30-131, 4-30-132, 4-30-133, 4-30-134(3), and 4-30-135, each governing a distinct aspect of licensure."
+    wa_body = f"<html><head><title>{wa_heading}</title></head><body><h1>{wa_heading}</h1><p>{wa_filler}</p><p>{wa_toc}</p></body></html>".encode("utf-8")
+    wa_anchor = extract_citation_anchor("Wash. Admin. Code 4-30-134(3)")
+    assert wa_anchor == "4-30-134(3)"
+    v = evaluate_candidate(
+        "https://apps.leg.wa.gov/wac/default.aspx?cite=4-30-134", "selftest:AUTO-6-washington-parent-chapter",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(wa_body).hexdigest(), manual_baseline_length=len(wa_body),
+        claim_anchor=wa_anchor, cited_value=cited_value_for_record("renewal_fees.json", {"fee_usd": 100}),
+        today=today, fetch=_fake_fetch(200, wa_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-6, Washington parent-chapter): a parent-chapter page listing the section only in a TOC was not caught by the identity check -- {v}"
+
+    # Case 3 (cnmilaw sibling path, RC-20): the host serves an adjacent
+    # section (§ 3742) at the URL for a different one (§ 3743), mentioning
+    # the requested locator only as a repeal cross-reference.
+    cn_heading = "§ 3742. Continuing Education Requirements."
+    cn_filler = ("This section governs the continuing education requirements applicable to licensees prior to the 2019 amendments to the Commonwealth Code. " * 6)
+    cn_crossref = "This section has been repealed and replaced by § 3743, effective January 1, 2020."
+    cn_body = f"<html><head><title>{cn_heading}</title></head><body><h1>{cn_heading}</h1><p>{cn_filler}</p><p>{cn_crossref}</p></body></html>".encode("utf-8")
+    cn_anchor = extract_citation_anchor("4 CMC § 3743")
+    assert cn_anchor == "3743"
+    v = evaluate_candidate(
+        "https://www.cnmilaw.org/pdf/public_laws/13/pl13-3743", "selftest:AUTO-6-cnmilaw-sibling-path",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(cn_body).hexdigest(), manual_baseline_length=len(cn_body),
+        claim_anchor=cn_anchor, cited_value=cited_value_for_record("reinstatement.json", {"reinstatement_fee_usd": 75}),
+        today=today, fetch=_fake_fetch(200, cn_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-6, cnmilaw sibling path): a sibling section serving a repeal cross-reference to the requested locator was not caught by the identity check -- {v}"
+
+    # --- AUTO-6 POSITIVE controls: the identity check must not just
+    # reject everything -- proves both paths genuinely work, not just the
+    # negative side. --------------------------------------------------
+    # Path 1 (heading/title): the anchor legitimately IS the page's own
+    # section heading.
+    pos_heading = "§ 3422. Substantial Equivalence."
+    pos_body_text = "This section establishes the standard for substantial equivalence applicable to out-of-state licensees seeking reciprocal recognition within the Commonwealth."
+    pos_heading_body = f"<html><head><title>{pos_heading}</title></head><body><h1>{pos_heading}</h1><p>{pos_body_text}</p></body></html>".encode("utf-8")
+    v = evaluate_candidate(
+        "https://www.cnmilaw.org/nmiac/title04/chapter30/section3422", "selftest:AUTO-6-positive-heading",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(pos_heading_body).hexdigest(), manual_baseline_length=len(pos_heading_body),
+        claim_anchor="3422", cited_value=None,
+        today=today, fetch=_fake_fetch(200, pos_heading_body, "text/html"),
+    )
+    assert v.eligible is True, f"SELFTEST FAILED (AUTO-6 positive, heading path): a page whose own <title>/<h1> IS the cited section was incorrectly rejected -- {v.reason}"
+
+    # Path 2 (value-nearby): no title/h1 markup at all (a plain-text-shaped
+    # page), anchor pushed well past the heading window, but the record's
+    # own cited value (40 hours) sits right next to it.
+    pos_filler = ("This is a plain-text regulatory page with no title or heading markup at all, describing general licensure procedures for certified public accountants in the state. " * 4)
+    pos_tail = "The continuing education requirement under Section 13(b) is 40 hours annually, to be completed prior to each renewal cycle."
+    pos_value_body = (pos_filler + pos_tail).encode("utf-8")
+    v = evaluate_candidate(
+        "https://example.test/plain-value-page", "selftest:AUTO-6-positive-value-nearby",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(pos_value_body).hexdigest(), manual_baseline_length=len(pos_value_body),
+        claim_anchor="13(b)", cited_value=cited_value_for_record("cpe_hours.json", {"total_hours": 40}),
+        today=today, fetch=_fake_fetch(200, pos_value_body, "text/html"),
+    )
+    assert v.eligible is True, f"SELFTEST FAILED (AUTO-6 positive, value-nearby path): a page with no heading markup but the record's cited value co-located with the anchor was incorrectly rejected -- {v.reason}"
+    # Same page, but WITHOUT the cited value wired in -- proves this
+    # specific control genuinely depends on the value-nearby path, not on
+    # the heading-window fallback (the anchor is well past
+    # _HEADING_WINDOW_CHARS in this body).
+    v = evaluate_candidate(
+        "https://example.test/plain-value-page", "selftest:AUTO-6-value-nearby-isolation",
+        last_manual_verified_date=recent,
+        manual_baseline_hash=hashlib.sha256(pos_value_body).hexdigest(), manual_baseline_length=len(pos_value_body),
+        claim_anchor="13(b)", cited_value=None,
+        today=today, fetch=_fake_fetch(200, pos_value_body, "text/html"),
+    )
+    assert v.eligible is False and v.failed_check == "identity", f"SELFTEST FAILED (AUTO-6 isolation control): without a cited value, an anchor past the heading window must still fail identity -- {v}"
+
+    # --- SecurityLab's site-B control (AuditLab's correction: there are
+    # TWO _expected_pdf(url) call sites -- evaluate_candidate's (site A,
+    # already covered above) and validate_fetch_for_anchoring's own (site
+    # B). The original selftest's only control exercising this function
+    # used a non-PDF URL, so site B's %PDF- check could be removed
+    # silently.) A PDF-expected anchoring fetch that returns a bot-wall
+    # body must be refused, not accepted as a baseline. -------------------
+    ok, reason = validate_fetch_for_anchoring(
+        "https://example.test/poisoned-anchor.pdf", "cpe_hours.json", {"citation": "Ala. Code § 34-1-7"},
+        fetch=_fake_fetch(200, bot_wall_body, "text/html"),
+    )
+    assert ok is False, f"SELFTEST FAILED (SecurityLab site-B control): validate_fetch_for_anchoring() approved anchoring a PDF-expected URL that returned a bot-wall body instead of %PDF- bytes -- {reason}"
+
     # --- POSITIVE CASES: genuinely unchanged citations, PDF and HTML,
     # both within the ceiling, both with a real specific anchor. MUST
     # extend. Proves the guardrails don't just reject everything. -------
@@ -677,6 +922,19 @@ def _selftest() -> None:
     )
     assert ok is True, f"SELFTEST FAILED (AUTO-4): validate_fetch_for_anchoring() rejected a genuinely valid fetch -- {reason}"
 
+    # --- AUTO-6 on validate_fetch_for_anchoring() specifically (not just
+    # evaluate_candidate()): the SAME identity check must gate the
+    # anchoring-time function too, or a cross-reference-laden page could
+    # be recorded as a trusted MANUAL baseline in the first place --
+    # worse than a bad auto-extend, since it would then carry manual
+    # authority forever. Reuses the real NMIAC cross-reference body. -----
+    ok, reason = validate_fetch_for_anchoring(
+        "https://www.cnmilaw.org/nmiac/title01/chapter10", "cpe_hours.json",
+        {"citation": "4 CMC § 3422 (CPE Requirements)"},
+        fetch=_fake_fetch(200, nmiac_body, "text/html"),
+    )
+    assert ok is False, f"SELFTEST FAILED (AUTO-6 on validate_fetch_for_anchoring): a cross-reference-only mention of the cited locator was approved for anchoring a baseline -- {reason}"
+
     # --- AUTO-5: override re-confirmation, same fail-closed ceiling. ----
     assert override_needs_reconfirmation({"verified_date": "2026-06-24"}, today) is True   # 91 days
     assert override_needs_reconfirmation({"verified_date": "2026-06-26"}, today) is False  # 89 days
@@ -715,9 +973,11 @@ def _selftest() -> None:
             day_one_eligible += 1
     assert day_one_eligible == 0, "SELFTEST FAILED (AUTO-4 point 3): a record with no manual-anchored baseline was somehow eligible -- day one must be 0"
 
-    print("  selftest (33 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
-          "AUTO-4 (x3), AUTO-5 (x4), the original soft-404/bot-wall/baseline-poisoning trio, and the "
-          "PDF-branch content-shape/length controls from SecurityLab's residual): PASS")
+    print("  selftest (46 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+          "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
+          "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
+          "specifically), the original soft-404/bot-wall/baseline-poisoning trio, the PDF-branch "
+          "content-shape/length controls, and SecurityLab's site-B anchoring-path control): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
@@ -816,6 +1076,7 @@ def main() -> None:
             manual_baseline_hash=record.get("manual_verified_raw_hash"),
             manual_baseline_length=record.get("manual_verified_raw_byte_length"),
             claim_anchor=claim_anchor_for_record(dataset_filename, record),
+            cited_value=cited_value_for_record(dataset_filename, record),
             today=today,
         )
         (eligible if verdict.eligible else rejected).append(verdict)
