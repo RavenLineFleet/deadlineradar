@@ -35,10 +35,32 @@ must clear before the 2026-10-09 cliff, since that's the earliest hard block. Th
 
 | Batch | Target ship date | Records | Composition | Method |
 |---|---|---|---|---|
-| **2** | by 2026-09-27 | 32 | all 6 remaining 09-09 + oldest 26 of the 09-12 cohort | real citation_url fetch + field-level comparison, same methodology as batch 1 |
+| **2** | by 2026-09-27 | 32 | all 6 remaining 09-09 + oldest 26 of the 09-12 cohort | real citation_url fetch + field-level comparison + anchor recording (see below) |
 | **3** | by 2026-10-01 | 31 | next 31 of the 09-12 cohort (26 consumed so far, 58 remain after this) | " |
 | **4** | by 2026-10-05 | 31 | next 31 of the 09-12 cohort (57 consumed so far, 27 remain after this) | " |
 | **5** | by 2026-10-08 (day before the first cliff) | 31 | remaining 27 of 09-12 + the 1 09-13 record + all 3 09-19 records | " |
+
+## Batch 2 onward: also record the anchor baseline (new, 2026-09-23)
+
+Per `_AAA_orchestrator_20260923_siteB_settled_plus_batch2_anchors.md`: auto-extend has 0 eligible
+records until MANUAL anchors exist for it to compare against, so from batch 2 onward every manual
+re-verification pass must ALSO record its anchor baseline, not just bump `verified_date`/
+`last_verified` the way batch 1 did.
+
+For each record, on the SAME fetch used for the field-level comparison, call
+`build_manual_verification_update(url, dataset_filename, record, today=..., fetch=...)` in
+`scripts/citation_auto_extend_check.py` -- fetch exactly ONCE and reuse those bytes for both the
+comparison and this call, never a second network round-trip. Apply the returned dict's fields to the
+record:
+- `last_manual_verified_date` -- always set, regardless of outcome (a verifier DID look).
+- If the source qualifies (`validate_fetch_for_anchoring()` approves): also
+  `manual_verified_raw_hash`, `manual_verified_raw_byte_length`, `manual_verified_anchor` (audit-trail
+  snapshot of the anchor confirmed this pass).
+- If not (walled, no extractable anchor, wrong document): those three are explicitly `None` -- clears
+  any stale value from an earlier pass -- and `manual_verify_gap_reason` records why. The record still
+  gets its `last_manual_verified_date`/`verified_date` bump and stays manual-only; this is an expected,
+  honest outcome, not a batch failure. Oregon's OAR and Colorado's board-email source (both already
+  flagged below) are expected to land here.
 
 32 + 31 + 31 + 31 = 125. ✓ 26 + 31 + 31 + 27 = 115 (all of the 09-12 cohort). ✓
 

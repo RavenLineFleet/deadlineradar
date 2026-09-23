@@ -119,6 +119,24 @@ consumption half. Guardrails, non-negotiable under this repo's
       Every run also logs per-dataset AND per-jurisdiction eligible/total
       coverage, so a silent zero-coverage dataset or jurisdiction shows up
       instead of being buried in a long per-URL list.
+  12. STALE-20 <-> AUTO-EXTEND FEEDBACK LOOP
+      (_AAA_orchestrator_20260923_siteB_settled_plus_batch2_anchors.md).
+      Auto-extend has 0 eligible records until MANUAL anchors exist for
+      it to compare against -- so from STALE-20 batch 2 onward, every
+      manual re-verification pass must also record its anchor baseline.
+      `build_manual_verification_update()` is that tooling: called on the
+      SAME fetch the verifier just read (fetched exactly ONCE, reused for
+      both the anchoring check and the recorded hash/length -- never two
+      separate network round-trips that could silently diverge), it
+      returns the field updates to apply. `last_manual_verified_date` is
+      always set (a verifier DID look, regardless of outcome). If the
+      fetch qualifies, `manual_verified_raw_hash`/
+      `manual_verified_raw_byte_length`/`manual_verified_anchor` (an
+      audit-trail snapshot) are recorded too. If not (walled, no anchor,
+      wrong document), those three are explicitly cleared to `None` --
+      never left holding a stale value from an earlier pass -- and
+      `manual_verify_gap_reason` records why. Still writes nothing itself;
+      the STALE-20 batch process applies the returned dict to the record.
 
 THIS SCRIPT NEVER WRITES TO A DATASET FILE. Its only write, Stage A's
 proposals JSON, is a report artifact, never data/*.json or
@@ -569,6 +587,67 @@ def validate_fetch_for_anchoring(
 
 
 # ---------------------------------------------------------------------------
+# STALE-20 batch tooling entry point (ruling:
+# _AAA_orchestrator_20260923_siteB_settled_plus_batch2_anchors.md --
+# "from STALE-20 batch 2 onward, every manual re-verification must also
+# record its anchor baseline"). Auto-extend has 0 eligible records until
+# MANUAL anchors exist for something to compare against; this is the
+# other half of that loop.
+# ---------------------------------------------------------------------------
+
+def build_manual_verification_update(
+    url: str,
+    dataset_filename: str,
+    record: dict,
+    today: date | None = None,
+    fetch: FetchFn = _real_fetch,
+) -> dict:
+    """Called by whoever runs a STALE-20 manual re-verification pass, on
+    the SAME fetch they just read (fetched exactly ONCE here and reused
+    for both the anchoring check and the hash/length recording -- AUTO-4's
+    whole point is that these must be the identical bytes a human/agent
+    actually looked at, never two separate network round-trips that could
+    silently diverge). Returns the field updates to apply to the record;
+    never writes to a file itself.
+
+    Always sets `last_manual_verified_date` = today -- a verifier DID read
+    this page right now, regardless of whether it can be anchored for
+    auto-extend. If the fetch qualifies (`validate_fetch_for_anchoring()`
+    approves), also sets `manual_verified_raw_hash`/
+    `manual_verified_raw_byte_length` (the baseline auto-extend's ongoing
+    check compares against) and `manual_verified_anchor` (an audit-trail
+    snapshot of the specific identity anchor confirmed at verification
+    time -- eligibility checks always recompute the anchor fresh from the
+    record's own `citation` text; this snapshot is never itself trusted as
+    a substitute).
+
+    If the fetch does NOT qualify (walled, no anchor available, wrong
+    document), the three baseline fields are explicitly set to `None` --
+    never left holding an OLDER value from a previous pass, so a source
+    that stops being anchorable can't keep pretending it still is -- and
+    `manual_verify_gap_reason` carries why, so 'recorded as manual-only'
+    is visible in the data, not just implied by absence."""
+    _today = today or date.today()
+    update: dict = {"last_manual_verified_date": _today.isoformat()}
+
+    result = fetch(url)  # the ONE fetch -- reused below, never re-fetched
+    cached_fetch: FetchFn = lambda _url: result
+
+    ok, reason = validate_fetch_for_anchoring(url, dataset_filename, record, fetch=cached_fetch)
+    if ok and result.body is not None:
+        update["manual_verified_raw_hash"] = hashlib.sha256(result.body).hexdigest()
+        update["manual_verified_raw_byte_length"] = len(result.body)
+        update["manual_verified_anchor"] = claim_anchor_for_record(dataset_filename, record)
+        update["manual_verify_gap_reason"] = None
+    else:
+        update["manual_verified_raw_hash"] = None
+        update["manual_verified_raw_byte_length"] = None
+        update["manual_verified_anchor"] = None
+        update["manual_verify_gap_reason"] = reason
+    return update
+
+
+# ---------------------------------------------------------------------------
 # Selftest / positive controls (AuditLab's required review artifact, per
 # guardrail 9). Runs unconditionally at the top of main(), same convention
 # as build_change_events.py's RC-17 selftest. Every control asserts WHICH
@@ -948,6 +1027,61 @@ def _selftest() -> None:
     )
     assert ok is False, f"SELFTEST FAILED (AUTO-6 on validate_fetch_for_anchoring): a cross-reference-only mention of the cited locator was approved for anchoring a baseline -- {reason}"
 
+    # --- build_manual_verification_update() -- the STALE-20 batch tooling
+    # entry point (_AAA_orchestrator_20260923_siteB_settled_plus_batch2_
+    # anchors.md). Counts fetch calls to prove SINGLE-FETCH reuse: the
+    # bytes used for the anchoring check and the recorded hash/length MUST
+    # be identical, never two separate network round-trips. -------------
+    def _counting_fetch(status: int, body: bytes, content_type: str = "application/pdf"):
+        calls = {"n": 0}
+        def _f(url: str) -> FetchResult:
+            calls["n"] += 1
+            return FetchResult(ok=(status < 400), status=status, body=body if status < 400 else None, content_type=content_type)
+        return _f, calls
+
+    # Anchorable case: a real PDF fetch. Baseline fields recorded, gap
+    # reason None, and exactly ONE fetch call.
+    counting, calls = _counting_fetch(200, real_pdf_bytes, "application/pdf")
+    update = build_manual_verification_update(
+        "https://example.test/real.pdf", "cpe_hours.json", {"citation": "Ala. Code § 34-1-7"},
+        today=today, fetch=counting,
+    )
+    assert calls["n"] == 1, f"SELFTEST FAILED (build_manual_verification_update): expected exactly 1 fetch call, got {calls['n']} -- the anchoring check must reuse the SAME fetch, not re-fetch"
+    assert update["last_manual_verified_date"] == today.isoformat()
+    assert update["manual_verified_raw_hash"] == hashlib.sha256(real_pdf_bytes).hexdigest()
+    assert update["manual_verified_raw_byte_length"] == len(real_pdf_bytes)
+    assert update["manual_verified_anchor"] == "34-1-7"
+    assert update["manual_verify_gap_reason"] is None, f"SELFTEST FAILED (build_manual_verification_update): an anchorable fetch left a gap reason -- {update['manual_verify_gap_reason']!r}"
+
+    # Non-anchorable case (bot wall): last_manual_verified_date is STILL
+    # set (a verifier DID look), but baseline fields are explicitly None,
+    # not left stale, and a gap reason is recorded. Still exactly ONE
+    # fetch call.
+    counting2, calls2 = _counting_fetch(200, bot_wall_body, "text/html")
+    update2 = build_manual_verification_update(
+        "https://secure.sos.state.or.us/oard/viewSingleRule.action?ruleVrsnRsn=555555",
+        "reinstatement.json", {"citation": "OAR 801-010-0345(3)"},
+        today=today, fetch=counting2,
+    )
+    assert calls2["n"] == 1, f"SELFTEST FAILED (build_manual_verification_update): expected exactly 1 fetch call for the non-anchorable case too, got {calls2['n']}"
+    assert update2["last_manual_verified_date"] == today.isoformat(), "SELFTEST FAILED (build_manual_verification_update): a verifier who read a walled page must still get credit for last_manual_verified_date"
+    assert update2["manual_verified_raw_hash"] is None
+    assert update2["manual_verified_raw_byte_length"] is None
+    assert update2["manual_verified_anchor"] is None
+    assert update2["manual_verify_gap_reason"], "SELFTEST FAILED (build_manual_verification_update): a non-anchorable fetch must record WHY, not leave a silent gap"
+
+    # Stale-field control: a record with an OLD baseline from a prior pass
+    # must have it explicitly cleared (None), not left stale, when THIS
+    # pass finds the source no longer anchorable.
+    update3 = build_manual_verification_update(
+        "https://secure.sos.state.or.us/oard/viewSingleRule.action?ruleVrsnRsn=444444",
+        "reinstatement.json",
+        {"citation": "OAR 801-010-0345(3)", "manual_verified_raw_hash": "stale-hash-from-a-prior-pass", "manual_verified_raw_byte_length": 12345},
+        today=today, fetch=_fake_fetch(200, bot_wall_body, "text/html"),
+    )
+    assert update3["manual_verified_raw_hash"] is None, "SELFTEST FAILED (build_manual_verification_update): a now-unanchorable source must CLEAR a stale hash from a prior pass, not leave it"
+    assert update3["manual_verified_raw_byte_length"] is None
+
     # --- AUTO-5: override re-confirmation, same fail-closed ceiling. ----
     assert override_needs_reconfirmation({"verified_date": "2026-06-24"}, today) is True   # 91 days
     assert override_needs_reconfirmation({"verified_date": "2026-06-26"}, today) is False  # 89 days
@@ -986,11 +1120,12 @@ def _selftest() -> None:
             day_one_eligible += 1
     assert day_one_eligible == 0, "SELFTEST FAILED (AUTO-4 point 3): a record with no manual-anchored baseline was somehow eligible -- day one must be 0"
 
-    print("  selftest (46 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    print("  selftest (60 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
           "specifically), the original soft-404/bot-wall/baseline-poisoning trio, the PDF-branch "
-          "content-shape/length controls, and SecurityLab's site-B anchoring-path control): PASS")
+          "content-shape/length controls, SecurityLab's site-B anchoring-path control, and "
+          "build_manual_verification_update()'s single-fetch/stale-field controls (x14)): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
