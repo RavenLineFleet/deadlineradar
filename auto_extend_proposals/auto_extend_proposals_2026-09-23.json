@@ -1,6 +1,212 @@
 {
   "generated_at": "2026-09-23",
   "capture_source_file": "citation_freshness_citfresh_20260923c.json",
+  "candidate_total": 58,
   "proposal_count": 0,
-  "proposals": []
+  "proposals": [],
+  "rejection_summary": {
+    "ceiling": 18,
+    "no_baseline": 39,
+    "no_owner": 1
+  },
+  "coverage": {
+    "by_dataset": {
+      "renewal_fees.json": {
+        "total": 19,
+        "eligible": 0
+      },
+      "cpe_hours.json": {
+        "total": 12,
+        "eligible": 0
+      },
+      "cpa_deadlines.json": {
+        "total": 15,
+        "eligible": 0
+      },
+      "reinstatement.json": {
+        "total": 8,
+        "eligible": 0
+      },
+      "reg_change_events.json": {
+        "total": 3,
+        "eligible": 0
+      }
+    },
+    "by_jurisdiction": {
+      "north-carolina": {
+        "total": 1,
+        "eligible": 0
+      },
+      "alabama": {
+        "total": 2,
+        "eligible": 0
+      },
+      "idaho": {
+        "total": 1,
+        "eligible": 0
+      },
+      "utah": {
+        "total": 2,
+        "eligible": 0
+      },
+      "kentucky": {
+        "total": 2,
+        "eligible": 0
+      },
+      "michigan": {
+        "total": 2,
+        "eligible": 0
+      },
+      "puerto-rico": {
+        "total": 1,
+        "eligible": 0
+      },
+      "hawaii": {
+        "total": 2,
+        "eligible": 0
+      },
+      "northern-mariana-islands": {
+        "total": 2,
+        "eligible": 0
+      },
+      "guam": {
+        "total": 2,
+        "eligible": 0
+      },
+      "colorado": {
+        "total": 1,
+        "eligible": 0
+      },
+      "louisiana": {
+        "total": 1,
+        "eligible": 0
+      },
+      "us-virgin-islands": {
+        "total": 2,
+        "eligible": 0
+      },
+      "dc": {
+        "total": 1,
+        "eligible": 0
+      },
+      "wyoming": {
+        "total": 4,
+        "eligible": 0
+      },
+      "georgia": {
+        "total": 2,
+        "eligible": 0
+      },
+      "kansas": {
+        "total": 2,
+        "eligible": 0
+      },
+      "arkansas": {
+        "total": 1,
+        "eligible": 0
+      },
+      "maryland": {
+        "total": 2,
+        "eligible": 0
+      },
+      "north-dakota": {
+        "total": 3,
+        "eligible": 0
+      },
+      "oklahoma": {
+        "total": 1,
+        "eligible": 0
+      },
+      "vermont": {
+        "total": 1,
+        "eligible": 0
+      },
+      "tennessee": {
+        "total": 2,
+        "eligible": 0
+      },
+      "nebraska": {
+        "total": 1,
+        "eligible": 0
+      },
+      "west-virginia": {
+        "total": 1,
+        "eligible": 0
+      },
+      "alaska": {
+        "total": 2,
+        "eligible": 0
+      },
+      "california": {
+        "total": 1,
+        "eligible": 0
+      },
+      "iowa": {
+        "total": 4,
+        "eligible": 0
+      },
+      "maine": {
+        "total": 1,
+        "eligible": 0
+      },
+      "mississippi": {
+        "total": 1,
+        "eligible": 0
+      },
+      "new-jersey": {
+        "total": 2,
+        "eligible": 0
+      },
+      "new-mexico": {
+        "total": 1,
+        "eligible": 0
+      },
+      "missouri": {
+        "total": 2,
+        "eligible": 0
+      },
+      "texas": {
+        "total": 1,
+        "eligible": 0
+      }
+    },
+    "zero_coverage_jurisdictions": [
+      "alabama",
+      "alaska",
+      "arkansas",
+      "california",
+      "colorado",
+      "dc",
+      "georgia",
+      "guam",
+      "hawaii",
+      "idaho",
+      "iowa",
+      "kansas",
+      "kentucky",
+      "louisiana",
+      "maine",
+      "maryland",
+      "michigan",
+      "mississippi",
+      "missouri",
+      "nebraska",
+      "new-jersey",
+      "new-mexico",
+      "north-carolina",
+      "north-dakota",
+      "northern-mariana-islands",
+      "oklahoma",
+      "puerto-rico",
+      "tennessee",
+      "texas",
+      "us-virgin-islands",
+      "utah",
+      "vermont",
+      "west-virginia",
+      "wyoming"
+    ]
+  },
+  "stage_b_applied_count": 0,
+  "stage_b_out_of_scope_count": 0
 }

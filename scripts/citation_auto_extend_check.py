@@ -109,16 +109,27 @@ consumption half. Guardrails, non-negotiable under this repo's
       Records that can't satisfy either path stay manual-only; that is an
       acceptable, honest gap, not a bug to work around.
   11. WRITE PATH, STAGED (_AAA_orchestrator_20260923_write_path_GO_staged.md,
-      AuditLab round-3 sign-off). Stage A -- THIS is Stage A, the only
-      stage built so far -- emits `auto_extend_proposals/
-      auto_extend_proposals_<date>.json` (dataset, record id, URL, old
-      verified date, proposed new date, which checks passed, the anchor
-      matched) for every ELIGIBLE verdict, and changes NOTHING else.
-      AuditLab spot-checks the first real proposal list against the live
-      sources before Stage B (actually applying an extend) is built.
-      Every run also logs per-dataset AND per-jurisdiction eligible/total
-      coverage, so a silent zero-coverage dataset or jurisdiction shows up
-      instead of being buried in a long per-URL list.
+      AuditLab round-3 sign-off, then Stage-A spot-check PASS +
+      _AAA_orchestrator_20260923_stageB_GO_AUTO8_9.md). Stage A emits
+      `auto_extend_proposals/auto_extend_proposals_<date>.json` (dataset,
+      record id, URL, old verified date, proposed new date, which checks
+      passed, the anchor matched) for every ELIGIBLE verdict; runs by
+      default, never writes to a dataset. Stage B -- reachable ONLY via
+      the `--apply` CLI flag, never the default -- applies each in-scope
+      proposal via `apply_eligible_extends()`: sets the public verified-
+      date field + `verified_method: "auto_source_unchanged"`, appends a
+      dated `verification_history` entry, and writes BOTH `data/<file>`
+      and `worker/src/<file>` byte-identically. NEVER touches
+      `last_manual_verified_date` or the manual baseline fields -- an
+      extend confirms an existing anchor, it doesn't re-anchor. Datasets
+      outside `_PUBLIC_VERIFIED_DATE_FIELD` (reg_change_events.json, a
+      BUILD OUTPUT, never hand-edited) are reported out-of-scope, not
+      applied. When anything was applied, also re-runs `generate.py`
+      (docs/ regen) and `preship_gate.py` (safety net) and reports both
+      exit codes. Every run also logs per-dataset AND per-jurisdiction
+      eligible/total coverage, so a silent zero-coverage dataset or
+      jurisdiction shows up instead of being buried in a long per-URL
+      list.
   12. STALE-20 <-> AUTO-EXTEND FEEDBACK LOOP
       (_AAA_orchestrator_20260923_siteB_settled_plus_batch2_anchors.md).
       Auto-extend has 0 eligible records until MANUAL anchors exist for
@@ -137,13 +148,36 @@ consumption half. Guardrails, non-negotiable under this repo's
       never left holding a stale value from an earlier pass -- and
       `manual_verify_gap_reason` records why. Still writes nothing itself;
       the STALE-20 batch process applies the returned dict to the record.
+  13. AUTO-8 (auditlab_20260923_stageA_spotcheck_PASS_plus_AUTO8.md).
+      RC-29's 4 `monitor_url_overrides` targets (Wyoming's 3 Drive-
+      download forms, cnmilaw.org's alias) were structurally excluded from
+      auto-extend forever: the manifest deliberately monitors `monitor_url`
+      instead of a record's own `citation_url` for these, so the monitored
+      URL never matched an owning record and was silently discarded as
+      "orphaned" (no_owner). `_load_citation_records()` now resolves
+      `monitor_url -> the record owning dataset_url` -- gated by AUTO-5's
+      90-day override re-confirm (a STALE override is excluded from
+      resolution, never trusted). Under-extend only (safe); before this
+      fix these 4 targets could never even be CONSIDERED, let alone
+      wrongly extended.
+  14. AUTO-9 (same report as AUTO-8). The persisted proposals JSON used
+      to carry only `generated_at`/`capture_source_file`/`proposal_count`/
+      `proposals` -- the rejection histogram and coverage-honesty block
+      went to stdout only, so `proposal_count: 0` with an empty array was
+      indistinguishable, from the artifact alone, between "correct" and
+      "the pipeline fetched nothing." Now also persists
+      `candidate_total`, `rejection_summary` (the `failed_check` counts),
+      and `coverage` (by_dataset, by_jurisdiction,
+      zero_coverage_jurisdictions) in the same JSON, so a reviewer can
+      verify a zero reconciles without re-running anything.
 
-THIS SCRIPT NEVER WRITES TO A DATASET FILE. Its only write, Stage A's
-proposals JSON, is a report artifact, never data/*.json or
-worker/src/*.json.
+THIS SCRIPT NEVER WRITES TO A DATASET FILE UNLESS RUN WITH --apply.
+Without that flag (the default), its only write is Stage A's proposals
+JSON, a report artifact, never data/*.json or worker/src/*.json.
 
 Usage:
-    python scripts/citation_auto_extend_check.py [repo_root]
+    python scripts/citation_auto_extend_check.py [repo_root]              # Stage A only, never writes a dataset
+    python scripts/citation_auto_extend_check.py [repo_root] --apply      # Stage A + Stage B apply
     python scripts/citation_auto_extend_check.py --selftest-only
 """
 from __future__ import annotations
@@ -151,7 +185,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -1088,6 +1124,45 @@ def _selftest() -> None:
     assert override_needs_reconfirmation({}, today) is True                                 # no date at all -> fail closed
     assert override_needs_reconfirmation({"verified_date": "not-a-date"}, today) is True    # unparseable -> fail closed
 
+    # --- AUTO-8: monitor_url_overrides resolved into the owner index, so
+    # an override target (a monitored URL that deliberately differs from
+    # its record's own citation_url -- RC-29's Wyoming Drive-download
+    # forms, cnmilaw.org's alias) can be found by auto-extend instead of
+    # being silently discarded as "orphaned" (no_owner). Gated by AUTO-5:
+    # a STALE override must NOT resolve. Built against a synthetic repo
+    # layout in a temp dir, not the real data files, so this is a pure
+    # regression control independent of production content. -------------
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_root = Path(tmp)
+        (tmp_root / "data").mkdir()
+        fresh_record = {"id": "wy-cpe", "state_slug": "wyoming", "citation_url": "https://drive.google.com/file/d/ABC123/view?usp=sharing", "citation": "Wyo. Rules ch. 5 § 3"}
+        (tmp_root / "data" / "cpe_hours.json").write_text(json.dumps({"records": [fresh_record]}), encoding="utf-8")
+        for empty_ds in ("cpa_deadlines.json", "reinstatement.json", "renewal_fees.json"):
+            (tmp_root / "data" / empty_ds).write_text(json.dumps({"records": []}), encoding="utf-8")
+        manifest = {
+            "monitor_url_overrides": [
+                {
+                    "state_slug": "wyoming",
+                    "dataset_url": "https://drive.google.com/file/d/ABC123/view?usp=sharing",
+                    "monitor_url": "https://drive.google.com/uc?export=download&id=ABC123",
+                    "verified_date": today.isoformat(),
+                },
+                {
+                    "state_slug": "wyoming-stale",
+                    "dataset_url": "https://drive.google.com/file/d/ABC123/view?usp=sharing",
+                    "monitor_url": "https://drive.google.com/uc?export=download&id=STALE999",
+                    "verified_date": "2026-01-01",
+                },
+            ]
+        }
+        (tmp_root / "citation_urls_for_difflab_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+        owners = _load_citation_records(tmp_root, today=today)
+        assert "https://drive.google.com/uc?export=download&id=ABC123" in owners, "SELFTEST FAILED (AUTO-8): a fresh override's monitor_url did not resolve to its dataset_url's owning record"
+        resolved_dataset, resolved_record = owners["https://drive.google.com/uc?export=download&id=ABC123"]
+        assert resolved_dataset == "cpe_hours.json" and resolved_record.get("id") == "wy-cpe", f"SELFTEST FAILED (AUTO-8): resolved to the wrong record -- {resolved_dataset}, {resolved_record.get('id')}"
+        assert "https://drive.google.com/uc?export=download&id=STALE999" not in owners, "SELFTEST FAILED (AUTO-8/AUTO-5 gate): a STALE override (>90d since its own verified_date) resolved anyway -- must be excluded, not trusted"
+
     # --- claim_anchor_for_record(): per-dataset wiring, incl. the "no
     # anchor source configured for this dataset" case AND a real,
     # acknowledged coverage gap (not every real citation format
@@ -1120,12 +1195,71 @@ def _selftest() -> None:
             day_one_eligible += 1
     assert day_one_eligible == 0, "SELFTEST FAILED (AUTO-4 point 3): a record with no manual-anchored baseline was somehow eligible -- day one must be 0"
 
-    print("  selftest (60 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
+    # --- Stage B: apply_eligible_extends() -- the highest-stakes function
+    # in this file, since it's the one that actually writes production
+    # datasets. Built against a synthetic repo layout in a temp dir, never
+    # against real data. Covers: correct field updates, last_manual_
+    # verified_date/manual baseline fields UNTOUCHED, verification_history
+    # appended (not overwritten), both copies byte-identical, an
+    # out-of-scope dataset is reported not applied, and a no-proposals run
+    # touches no file at all. ---------------------------------------------
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_root = Path(tmp)
+        (tmp_root / "data").mkdir()
+        (tmp_root / "worker" / "src").mkdir(parents=True)
+        sb_record = {
+            "id": "sb-test-cpe", "state_slug": "sb-test-state", "citation": "Ala. Code § 34-1-7",
+            "citation_url": "https://example.test/real.pdf", "verified_date": "2026-09-01",
+            "verified_method": "manual", "last_manual_verified_date": "2026-09-01",
+            "manual_verified_raw_hash": "abc123", "manual_verified_raw_byte_length": 509,
+            "verification_history": "2026-09-01 (manual pass): confirmed unchanged.",
+        }
+        sb_dataset = {"records": [sb_record]}
+        sb_serialized = json.dumps(sb_dataset, indent=2, ensure_ascii=False) + "\n"
+        (tmp_root / "data" / "cpe_hours.json").write_text(sb_serialized, encoding="utf-8")
+        (tmp_root / "worker" / "src" / "cpe_hours.json").write_text(sb_serialized, encoding="utf-8")
+
+        sb_proposal = {
+            "dataset_filename": "cpe_hours.json", "record_id": "sb-test-cpe", "state_slug": "sb-test-state",
+            "url": "https://example.test/real.pdf", "old_verified_date": "2026-09-01",
+            "proposed_verified_date": today.isoformat(), "proposed_verified_method": "auto_source_unchanged",
+            "checks_passed": ["ceiling", "baseline_presence", "fetch_200", "content_shape_pdf_magic_bytes", "length_match", "hash_match"],
+            "anchor_matched": None,
+        }
+        out_of_scope_proposal = {"dataset_filename": "reg_change_events.json", "record_id": "some-event", "state_slug": "x", "url": "https://example.test/y"}
+
+        sb_applied, sb_out_of_scope = apply_eligible_extends(tmp_root, [sb_proposal, out_of_scope_proposal], today)
+
+        assert len(sb_applied) == 1 and sb_applied[0]["record_id"] == "sb-test-cpe", f"SELFTEST FAILED (Stage B): expected exactly 1 in-scope proposal applied, got {sb_applied}"
+        assert len(sb_out_of_scope) == 1 and sb_out_of_scope[0]["dataset_filename"] == "reg_change_events.json", f"SELFTEST FAILED (Stage B): reg_change_events.json proposal was not reported out-of-scope -- {sb_out_of_scope}"
+
+        sb_data_after = json.loads((tmp_root / "data" / "cpe_hours.json").read_text(encoding="utf-8"))
+        sb_mirror_after = (tmp_root / "worker" / "src" / "cpe_hours.json").read_text(encoding="utf-8")
+        sb_r = sb_data_after["records"][0]
+        assert sb_r["verified_date"] == today.isoformat(), f"SELFTEST FAILED (Stage B): verified_date was not bumped -- {sb_r['verified_date']!r}"
+        assert sb_r["verified_method"] == "auto_source_unchanged", f"SELFTEST FAILED (Stage B): verified_method not set correctly -- {sb_r['verified_method']!r}"
+        assert sb_r["last_manual_verified_date"] == "2026-09-01", "SELFTEST FAILED (Stage B): last_manual_verified_date must NEVER be touched by an auto-extend -- AUTO-1's whole ceiling depends on this staying a human-only field"
+        assert sb_r["manual_verified_raw_hash"] == "abc123", "SELFTEST FAILED (Stage B): the manual baseline hash must not be touched by an apply -- it wasn't re-anchored, only confirmed"
+        assert "2026-09-01 (manual pass): confirmed unchanged." in sb_r["verification_history"], "SELFTEST FAILED (Stage B): the prior verification_history entry was overwritten, not appended to"
+        assert f"{today.isoformat()} (auto-extend, auto_source_unchanged)" in sb_r["verification_history"], "SELFTEST FAILED (Stage B): no new verification_history entry documenting the extend was appended"
+        assert json.dumps(sb_data_after, indent=2, ensure_ascii=False) + "\n" == sb_mirror_after, "SELFTEST FAILED (Stage B): data/ and worker/src/ copies are not byte-identical after apply"
+
+        # No-op control: an empty proposals list must not touch a SINGLE
+        # file -- proven by pointing at a repo_root whose data/ files
+        # don't even exist; if apply_eligible_extends() ever unconditionally
+        # tried to read/write, this would raise FileNotFoundError.
+        empty_applied, empty_out_of_scope = apply_eligible_extends(Path(tmp) / "does-not-exist", [], today)
+        assert empty_applied == [] and empty_out_of_scope == [], "SELFTEST FAILED (Stage B): an empty proposals list must return empty results"
+
+    print("  selftest (73 assertions incl. mutation-provable controls for AUTO-1 (x3), AUTO-2, AUTO-3 (x4), "
           "AUTO-4 (x3), AUTO-5 (x4), AUTO-6 (x11: full-locator extraction, 3 real-case cross-reference "
           "negatives, 2 positive identity paths, 1 isolation control, 1 on validate_fetch_for_anchoring "
-          "specifically), the original soft-404/bot-wall/baseline-poisoning trio, the PDF-branch "
-          "content-shape/length controls, SecurityLab's site-B anchoring-path control, and "
-          "build_manual_verification_update()'s single-fetch/stale-field controls (x14)): PASS")
+          "specifically), AUTO-8 (x3: override resolution, correct-record, stale-gate), Stage B's "
+          "apply_eligible_extends() (x9: field updates, last_manual_verified_date/baseline untouched, "
+          "history appended not overwritten, byte-identical copies, out-of-scope reporting, no-op safety), "
+          "the original soft-404/bot-wall/baseline-poisoning trio, the PDF-branch content-shape/length "
+          "controls, SecurityLab's site-B anchoring-path control, and build_manual_verification_update()'s "
+          "single-fetch/stale-field controls (x14)): PASS")
 
 
 def _load_latest_capture(repo_root: Path) -> dict | None:
@@ -1141,7 +1275,7 @@ def _load_latest_capture(repo_root: Path) -> dict | None:
     return data
 
 
-def _load_citation_records(repo_root: Path) -> dict[str, tuple[str, dict]]:
+def _load_citation_records(repo_root: Path, today: date | None = None) -> dict[str, tuple[str, dict]]:
     """url -> (dataset_filename, record) for every in-scope citation, same
     enumeration preship_gate.py's check_citation_manifest_coverage() uses
     (RC-29) -- kept independent (re-reads the files itself) rather than
@@ -1167,6 +1301,28 @@ def _load_citation_records(repo_root: Path) -> dict[str, tuple[str, dict]]:
                 url = e.get(field_name)
                 if isinstance(url, str) and url.startswith(("http://", "https://")):
                     owners[url] = ("reg_change_events.json", e)
+
+    # AUTO-8: resolve RC-29's monitor_url_overrides into the SAME owner
+    # index. The manifest deliberately watches `monitor_url` instead of a
+    # record's own `citation_url` for these four targets (Wyoming's 3
+    # Drive-download forms, cnmilaw.org's alias) -- without this
+    # resolution step, the monitored URL never matches an owning record
+    # and is silently discarded as "orphaned" (no_owner), structurally
+    # excluding those records from auto-extend forever. Gated by AUTO-5's
+    # 90-day override re-confirm: a STALE override is excluded here, not
+    # resolved -- fail safe, never trust an unconfirmed mapping to route
+    # eligibility to a record.
+    _today = today or date.today()
+    for o in _load_overrides(repo_root):
+        if override_needs_reconfirmation(o, _today):
+            continue
+        dataset_url = o.get("dataset_url")
+        monitor_url = o.get("monitor_url")
+        if not isinstance(dataset_url, str) or not isinstance(monitor_url, str):
+            continue
+        owner_info = owners.get(dataset_url)
+        if owner_info is not None:
+            owners[monitor_url] = owner_info
     return owners
 
 
@@ -1201,14 +1357,106 @@ def _checks_passed_for_eligible(url: str, claim_anchor: str | None) -> list[str]
     return checks
 
 
+# ---------------------------------------------------------------------------
+# Stage B: apply (_AAA_orchestrator_20260923_stageB_GO_AUTO8_9.md --
+# "Stage B may proceed under the terms of the staged GO: one commit per
+# run, verified_method: auto_source_unchanged, last_manual_verified_date
+# untouched, preship + identical copies green"). Only reachable via the
+# --apply CLI flag; the default run stays Stage-A-only (report, no
+# writes), matching this whole feature's every prior default.
+# ---------------------------------------------------------------------------
+
+# Scope-limited to the 4 hand-maintained datasets. reg_change_events.json
+# is a BUILD OUTPUT (regenerated by build_change_events.py from
+# mobility_rules.json), never hand-edited -- an eligible verdict against
+# it is reported as out-of-scope, not applied.
+_PUBLIC_VERIFIED_DATE_FIELD = {
+    "cpa_deadlines.json": "last_verified",
+    "cpe_hours.json": "verified_date",
+    "reinstatement.json": "last_verified",
+    "renewal_fees.json": "verified_date",
+}
+
+
+def apply_eligible_extends(repo_root: Path, proposals: list[dict], today: date) -> tuple[list[dict], list[dict]]:
+    """Applies each ELIGIBLE proposal to its owning dataset record. For
+    each in-scope proposal: sets the public verified-date field (
+    `verified_date` or `last_verified`, per dataset) + `verified_method:
+    "auto_source_unchanged"`, and appends a dated `verification_history`
+    entry documenting the extend -- same free-text-log convention every
+    existing entry in that field already uses. NEVER touches
+    `last_manual_verified_date` or the `manual_verified_raw_*` baseline
+    fields -- this didn't re-anchor anything, it confirmed the existing
+    anchor still matches.
+
+    Writes the FULL dataset back to BOTH `data/<file>` and
+    `worker/src/<file>`, using the exact `json.dumps(indent=2,
+    ensure_ascii=False) + '\\n'` round-trip independently verified to
+    reproduce every existing dataset file byte-for-byte when unchanged --
+    so a diff shows ONLY the records actually touched, never a reformat
+    of the whole file. Writes nothing at all if `proposals` is empty (a
+    no-op run leaves the repo untouched).
+
+    Returns (applied, out_of_scope) -- both lists of proposal dicts
+    (applied ones carry the old date value too), for the run's
+    report/commit message."""
+    by_dataset: dict[str, list[dict]] = {}
+    out_of_scope: list[dict] = []
+    for p in proposals:
+        ds = p["dataset_filename"]
+        if ds not in _PUBLIC_VERIFIED_DATE_FIELD:
+            out_of_scope.append(p)
+            continue
+        by_dataset.setdefault(ds, []).append(p)
+
+    applied: list[dict] = []
+    for dataset_filename, ds_proposals in by_dataset.items():
+        data_path = repo_root / "data" / dataset_filename
+        mirror_path = repo_root / "worker" / "src" / dataset_filename
+        data = json.loads(data_path.read_text(encoding="utf-8"))
+        by_id = {r.get("id"): r for r in data.get("records", [])}
+        field = _PUBLIC_VERIFIED_DATE_FIELD[dataset_filename]
+
+        for p in ds_proposals:
+            record = by_id.get(p["record_id"])
+            if record is None:
+                # Shouldn't happen -- this proposal came from THIS dataset
+                # moments ago in the same run. Fail loud rather than
+                # silently skip a record we can no longer find.
+                raise RuntimeError(
+                    f"Stage B: proposal record_id {p['record_id']!r} not found in {dataset_filename} -- "
+                    f"the dataset changed between Stage A and Stage B within this same run"
+                )
+            old_value = record.get(field)
+            record[field] = today.isoformat()
+            record["verified_method"] = "auto_source_unchanged"
+            entry = (
+                f"{today.isoformat()} (auto-extend, auto_source_unchanged): independently re-fetched "
+                f"citation_url, byte-identical (hash + length match) to the manual-anchored baseline "
+                f"recorded {record.get('last_manual_verified_date', '?')}. No new human read; "
+                f"last_manual_verified_date unchanged."
+            )
+            existing_history = record.get("verification_history") or ""
+            record["verification_history"] = (existing_history + "\n\n" + entry) if existing_history else entry
+            applied.append({**p, "old_public_verified_date_field": field, "old_public_verified_date_value": old_value})
+
+        serialized = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+        data_path.write_text(serialized, encoding="utf-8")
+        mirror_path.write_text(serialized, encoding="utf-8")
+
+    return applied, out_of_scope
+
+
 def main() -> None:
     print("Running mandatory selftest (positive controls) before anything else...")
     _selftest()
 
-    if len(sys.argv) > 1 and sys.argv[1] == "--selftest-only":
+    args = sys.argv[1:]
+    if "--selftest-only" in args:
         return
-
-    repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
+    apply_mode = "--apply" in args
+    positional = [a for a in args if not a.startswith("--")]
+    repo_root = Path(positional[0]) if positional else Path(__file__).resolve().parent.parent
     today = date.today()
 
     # AUTO-5: report override staleness regardless of whether a capture exists.
@@ -1223,7 +1471,7 @@ def main() -> None:
         print("\nNo citation_freshness capture found (Orchestrator/reg_change_events/citation_freshness_citfresh_*.json) -- nothing to evaluate.")
         return
 
-    records_by_url = _load_citation_records(repo_root)
+    records_by_url = _load_citation_records(repo_root, today=today)
     print(f"\nUsing capture {capture['_source_file']} ({capture.get('checked_at', '?')}), {len(capture['results'])} URLs, {len(records_by_url)} in-scope citations known locally.")
 
     # DiffLab's own changed=False/raw_changed=False signal is used ONLY as
@@ -1308,29 +1556,75 @@ def main() -> None:
     if zero_coverage_states:
         print("  ZERO-COVERAGE JURISDICTIONS: " + ", ".join(zero_coverage_states))
 
-    print("\nRejection reasons (failed_check counts): " + ", ".join(f"{k}={v}" for k, v in sorted(failed_check_counts.items())))
+    rejection_summary = dict(sorted(failed_check_counts.items()))
+    print("\nRejection reasons (failed_check counts): " + ", ".join(f"{k}={v}" for k, v in rejection_summary.items()))
 
-    # Stage A: emit the proposal file. This is the ONLY file this script
-    # writes -- it is a report artifact, never data/*.json or
-    # worker/src/*.json. No dataset was touched by this run.
+    # Stage B (AUTO-8/9 ruling): apply, ONLY behind --apply. Default run
+    # stays Stage-A-only -- report, no writes -- matching this whole
+    # feature's every prior default.
+    applied: list[dict] = []
+    out_of_scope: list[dict] = []
+    if apply_mode and proposals:
+        applied, out_of_scope = apply_eligible_extends(repo_root, proposals, today)
+        print(f"\nStage B: applied {len(applied)} extend(s) to dataset files (verified_method=auto_source_unchanged, "
+              f"last_manual_verified_date untouched).")
+        for a in applied:
+            print(f"  APPLIED  {a['dataset_filename']}:{a['record_id']}  {a['old_public_verified_date_field']} "
+                  f"{a['old_public_verified_date_value']} -> {today.isoformat()}")
+        if out_of_scope:
+            print(f"  {len(out_of_scope)} eligible proposal(s) OUT OF STAGE-B SCOPE (not a hand-maintained "
+                  f"dataset -- reg_change_events.json is a build output, never hand-edited): " +
+                  ", ".join(f"{o['dataset_filename']}:{o['record_id']}" for o in out_of_scope))
+
+        if applied:
+            print("\nRegenerating docs/ from the updated dataset(s) (generate.py)...")
+            gen = subprocess.run([sys.executable, str(repo_root / "generate.py")], cwd=repo_root, capture_output=True, text=True)
+            print(f"generate.py exit={gen.returncode}")
+            if gen.returncode != 0:
+                print(gen.stdout[-4000:])
+                print(gen.stderr[-4000:])
+
+            print("\nRunning preship_gate.py to confirm the applied changes are still green...")
+            gate = subprocess.run([sys.executable, str(repo_root / "scripts" / "preship_gate.py")], cwd=repo_root, capture_output=True, text=True)
+            print(f"preship_gate.py exit={gate.returncode}")
+            if gate.returncode != 0:
+                print(gate.stdout[-4000:])
+                print(gate.stderr[-4000:])
+    elif apply_mode:
+        print("\nStage B: --apply passed, but 0 proposals this run -- nothing to apply, no dataset file touched.")
+
+    # AUTO-9: persist rejection_summary, the candidate total, and the
+    # coverage-honesty block (incl. zero-coverage jurisdictions) in the
+    # SAME JSON as the proposals -- not just stdout. A reviewer must be
+    # able to tell a correct zero from a broken one without re-running
+    # anything (AuditLab's exact framing).
     proposals_dir = repo_root / "auto_extend_proposals"
     proposals_dir.mkdir(exist_ok=True)
     proposals_path = proposals_dir / f"auto_extend_proposals_{today.isoformat()}.json"
     proposals_path.write_text(json.dumps({
         "generated_at": today.isoformat(),
         "capture_source_file": capture["_source_file"],
+        "candidate_total": len(candidates),
         "proposal_count": len(proposals),
         "proposals": proposals,
+        "rejection_summary": rejection_summary,
+        "coverage": {
+            "by_dataset": dataset_coverage,
+            "by_jurisdiction": state_coverage,
+            "zero_coverage_jurisdictions": zero_coverage_states,
+        },
+        "stage_b_applied_count": len(applied),
+        "stage_b_out_of_scope_count": len(out_of_scope),
     }, indent=2), encoding="utf-8")
-    print(f"\nStage A: wrote {len(proposals)} proposal(s) to {proposals_path} -- this is the ONLY file this run "
-          f"touched. No dataset file was written.")
+    print(f"\nWrote {proposals_path} (proposals + rejection_summary + coverage, AUTO-9). This is the only "
+          f"report artifact this run writes; dataset writes (if any) happened only via Stage B above, "
+          f"exactly {len(applied)} record(s), only when --apply was passed.")
 
-    print("\nThis is a REPORT ONLY (Stage A). The write path's Stage B (an actual verified_date bump applying "
-          "an ELIGIBLE proposal above) does not exist yet -- it ships only after AuditLab spot-checks a real "
-          "proposal list against the live sources. Every candidate above is REJECTED today because no record "
-          "has a manual-anchored baseline (last_manual_verified_date + manual_verified_raw_hash/length) yet -- "
-          "that's the correct, honest state until the STALE-20 batches start recording one via "
-          "validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
+    if not apply_mode:
+        print("\nThis is a REPORT ONLY (Stage A, no --apply passed). Every candidate above is REJECTED today "
+              "because no record has a manual-anchored baseline (last_manual_verified_date + "
+              "manual_verified_raw_hash/length) yet -- that's the correct, honest state until the STALE-20 "
+              "batches start recording one via validate_fetch_for_anchoring() (see STALE20_BATCH_SCHEDULE.md).")
 
 
 if __name__ == "__main__":
