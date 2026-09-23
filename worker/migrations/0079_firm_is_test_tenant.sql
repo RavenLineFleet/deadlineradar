@@ -1,0 +1,27 @@
+-- Orchestrator ruling (2026-09-23, unblock AuditLab scope #1 cross-tenant
+-- IDOR test, 8 cycles escalated, charter's #1 security line): "does firm
+-- A's session return firm B's rows" has never been executed live because
+-- there was no second real tenant to test against. This column marks a
+-- firm as synthetic operator test data -- excluded from every real send
+-- path (reminder/digest/Slack/Teams/SMS/rule-change alerts) and from any
+-- future metrics/traction/admin aggregate feature (none exists yet; this
+-- is the flag such a feature should filter on when one is built).
+--
+-- Deliberately NOT reusing `demo_locked` -- that flag is wired into the
+-- public, unauthenticated /firm/demo-login route via getDemoFirm()'s
+-- `WHERE demo_locked = 1 AND status = 'active' LIMIT 1` with no ORDER BY,
+-- and into the demo roster's reserved fixed-email reseed logic, both of
+-- which carry an explicit, documented invariant that exactly ONE
+-- demo_locked=1 firm may ever exist in production (store.ts, getDemoFirm()
+-- and reseedDemoFirmRosterIfBelowFloor()'s own comments). A second
+-- demo_locked=1 row would make that route non-deterministic and collide
+-- reserved demo-roster identities across two firms. is_test_tenant carries
+-- none of that baggage -- it is checked only at the specific send/metrics
+-- sites listed above, added deliberately, never implicitly inherited from
+-- an existing gate.
+--
+-- status stays 'active' on a test tenant (requireFirmSession()/
+-- verifySession() require it for ANY authenticated route to work at all --
+-- this is what actually makes the tenant usable for the IDOR probe), so
+-- exclusion from sends/metrics is is_test_tenant's job alone, not status's.
+ALTER TABLE firms ADD COLUMN is_test_tenant INTEGER NOT NULL DEFAULT 0;

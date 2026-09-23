@@ -530,6 +530,17 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
         });
         continue;
       }
+      // migration 0079 (Orchestrator ruling, 2026-09-23): a synthetic
+      // operator test tenant, same "gate the send" posture as demo_locked
+      // immediately above -- never demo_locked itself (see FirmBasicInfo.
+      // is_test_tenant's own comment for why).
+      if (firmInfo?.is_test_tenant) {
+        summary.errors.push({
+          subscriber_id: sub.id,
+          error: "SKIPPED: firm is a test tenant -- no email sent.",
+        });
+        continue;
+      }
 
       // Defense-in-depth: allConfirmedActive() already filters to confirmed, but
       // a permanently-unsubscribed address must never be sent to even if a status
@@ -973,6 +984,16 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
         });
         continue;
       }
+      // migration 0079: same "gate the send" posture as demo_locked above,
+      // for a synthetic operator test tenant -- never demo_locked itself.
+      if (firm.is_test_tenant) {
+        summary.errors.push({
+          firm_id: firm.id,
+          event_id: event.event_id,
+          error: "SKIPPED: firm is a test tenant -- no email sent.",
+        });
+        continue;
+      }
       // AuditLab ALERT-2 (LOW-MED, 2026-08-09): permanent suppression is
       // the one signal that means "stop emailing me" globally --
       // runReminderPass() already refuses on it ("BLOCKED: email is
@@ -1163,6 +1184,9 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
         // identical check -- checked before claiming, without claiming.
         const firmInfo = sub.firm_id ? firmsById.get(sub.firm_id) ?? null : null;
         if (firmInfo?.demo_locked) continue;
+        // migration 0079: same "gate the send" posture, synthetic operator
+        // test tenant -- never demo_locked itself.
+        if (firmInfo?.is_test_tenant) continue;
 
         let thresholds: number[] = ESCALATION_THRESHOLDS_DAYS;
         if (firmInfo?.reminder_thresholds) {
@@ -1413,6 +1437,12 @@ export async function runSlackAlertPass(env: Env, opts: RunSlackAlertOptions = {
       summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is demo_locked -- no Slack post from the shared demo account." });
       continue;
     }
+    // migration 0079: same "gate the send" posture, synthetic operator
+    // test tenant -- never demo_locked itself.
+    if (firm.is_test_tenant) {
+      summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is a test tenant -- no Slack post sent." });
+      continue;
+    }
 
     // Roadmap #151 Phase 3 (2026-08-10): layer 2 of the multi-channel gate
     // -- handleFirmSlackConnectCallback() (index.ts) already stops a NEW
@@ -1640,6 +1670,12 @@ export async function runTeamsAlertPass(env: Env, opts: RunTeamsAlertOptions = {
 
     if (firm.demo_locked) {
       summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is demo_locked -- no Teams post from the shared demo account." });
+      continue;
+    }
+    // migration 0079: same "gate the send" posture, synthetic operator
+    // test tenant -- never demo_locked itself.
+    if (firm.is_test_tenant) {
+      summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is a test tenant -- no Teams post sent." });
       continue;
     }
 
@@ -1916,6 +1952,12 @@ export async function runSmsAlertPass(env: Env, opts: RunSmsAlertOptions = {}): 
         summary.errors.push({ subscriber_id: sub.id, error: "SKIPPED: firm is demo_locked -- no SMS sent from the shared demo account." });
         continue;
       }
+      // migration 0079: same "gate the send" posture, synthetic operator
+      // test tenant -- never demo_locked itself.
+      if (firmInfo?.is_test_tenant) {
+        summary.errors.push({ subscriber_id: sub.id, error: "SKIPPED: firm is a test tenant -- no SMS sent." });
+        continue;
+      }
 
       // Roadmap #151 Phase 3 (2026-08-10): SAME send-time gate as Slack/
       // Teams, but ONLY for a subscriber attached to a firm -- a firm-less
@@ -2025,6 +2067,15 @@ export async function runAdminDigestAlertPass(env: Env, opts: RunAdminDigestAler
     // any claiming, without claiming.
     if (firm.demo_locked) {
       summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is demo_locked -- no email sent from the shared demo account." });
+      continue;
+    }
+    // migration 0079: same "gate the send" posture, synthetic operator
+    // test tenant -- never demo_locked itself. (This function is currently
+    // dead code, see index.ts's own short-circuit comment where it would
+    // be called -- kept in sync with the other passes anyway, cheap and
+    // correct if it's ever wired back in.)
+    if (firm.is_test_tenant) {
+      summary.errors.push({ firm_id: firm.id, error: "SKIPPED: firm is a test tenant -- no email sent." });
       continue;
     }
 

@@ -1247,6 +1247,11 @@ export interface FirmRow {
   // migration's own docstring -- blocks self-serve in-session password
   // changes and SSO linking, NOT the emailed password-reset path.
   demo_locked: number;
+  // migration 0079 (Orchestrator ruling, 2026-09-23): synthetic operator
+  // test data, excluded from every real send path exactly like demo_locked
+  // -- see FirmBasicInfo.is_test_tenant's own comment for why this is a
+  // separate column, never demo_locked reused.
+  is_test_tenant: number;
   // migration 0026 (Task #3). Null unless deletion has been requested; once
   // set, requestFirmDeletion() has already flipped status to
   // FIRM_STATUS_DELETED, so these three are otherwise inert (nothing reads
@@ -5766,6 +5771,16 @@ export interface FirmBasicInfo {
   // scope was index.ts's handle* functions; the cron lives in
   // scheduler.ts). 0/1 as returned by D1, coerced by the caller.
   demo_locked: number;
+  // migration 0079 (Orchestrator ruling, 2026-09-23, unblock AuditLab's
+  // cross-tenant IDOR test): a firm minted as synthetic operator test data
+  // -- excluded from every real send path exactly like demo_locked, but
+  // deliberately a SEPARATE column (never reuse demo_locked for this: that
+  // flag is wired into the public /firm/demo-login route's non-deterministic
+  // `LIMIT 1` lookup and the reserved demo-roster reseed logic, both of
+  // which assume exactly one demo_locked=1 row exists in production --
+  // see getDemoFirm()'s own comment). 0/1 as returned by D1, same coercion
+  // posture as demo_locked above.
+  is_test_tenant: number;
   // Roadmap #151 Phase 3 (2026-08-10): runSmsAlertPass() reads these three
   // (hasValueLineAccess() needs status too, not just plan_tier/created_at)
   // to gate the SEND, not just the earlier connect step -- closes the gap
@@ -5789,7 +5804,7 @@ export interface FirmBasicInfo {
 export async function listAllFirmsBasicInfo(db: D1Database): Promise<FirmBasicInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, reply_to_email, reminder_thresholds, demo_locked, plan_tier, created_at, status, admin_email, admin_digest_enabled, admin_unsubscribe_token
+      `SELECT id, name, reply_to_email, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status, admin_email, admin_digest_enabled, admin_unsubscribe_token
          FROM firms`
     )
     .all<FirmBasicInfo>();
@@ -5822,6 +5837,8 @@ export interface FirmSlackConnectedInfo {
   reminder_thresholds: string | null;
   // Same AuditLab DEMO-5 reasoning as FirmBasicInfo.demo_locked above.
   demo_locked: number;
+  // migration 0079: same reasoning as FirmBasicInfo.is_test_tenant above.
+  is_test_tenant: number;
   // Roadmap #151 Phase 3: same reasoning as FirmBasicInfo.plan_tier/
   // created_at/status above -- runSlackAlertPass() gates the SEND with
   // these, not just the connect step.
@@ -5833,7 +5850,7 @@ export interface FirmSlackConnectedInfo {
 export async function listFirmsWithSlackConnected(db: D1Database): Promise<FirmSlackConnectedInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, slack_webhook_url, slack_webhook_url_iv, reminder_thresholds, demo_locked, plan_tier, created_at, status
+      `SELECT id, name, slack_webhook_url, slack_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status
          FROM firms
         WHERE slack_webhook_url IS NOT NULL`
     )
@@ -5948,6 +5965,8 @@ export interface FirmTeamsConnectedInfo {
   teams_webhook_url_iv: string | null;
   reminder_thresholds: string | null;
   demo_locked: number;
+  // migration 0079: same reasoning as FirmBasicInfo.is_test_tenant above.
+  is_test_tenant: number;
   // Roadmap #151 Phase 3: same reasoning as FirmBasicInfo.plan_tier/
   // created_at/status above -- runTeamsAlertPass() gates the SEND with
   // these, not just the connect step.
@@ -5959,7 +5978,7 @@ export interface FirmTeamsConnectedInfo {
 export async function listFirmsWithTeamsConnected(db: D1Database): Promise<FirmTeamsConnectedInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, teams_webhook_url, teams_webhook_url_iv, reminder_thresholds, demo_locked, plan_tier, created_at, status
+      `SELECT id, name, teams_webhook_url, teams_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status
          FROM firms
         WHERE teams_webhook_url IS NOT NULL`
     )
