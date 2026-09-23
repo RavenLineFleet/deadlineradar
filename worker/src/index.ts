@@ -10512,6 +10512,52 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
+      // TEMPORARY, ONE-OFF -- Devin-approved diagnostic send (AskUserQuestion,
+      // 2026-09-22, relayed via orchestrator_20260922_devin_approved_sendgrid_diagnostic_email.md;
+      // redo per Orchestrator's 2026-09-23 root-cause finding that the 09-22
+      // attempt never ran at all -- it sat in this same POST-only block and
+      // every probe used GET). Sends exactly one email to a hardcoded
+      // recipient (Devin's own address) to read SendGrid's live response and
+      // answer "can we currently send at all." No parameters accepted beyond
+      // a high-entropy token, so a guessed hit during this route's brief
+      // deploy window can only ever email the one authorized recipient,
+      // nothing else. TO BE REVERTED immediately after one use -- do not
+      // leave this in production.
+      if (url.pathname === "/dr-onetime-check-2f8c") {
+        if (url.searchParams.get("token") !== "CvWuNHAOq6MxU0xXfMAxTvpA9t7t557w") {
+          return errorPage(404, "Not found.");
+        }
+        if (!env.SENDGRID_API_KEY) {
+          return jsonResponse(200, { sendgrid_api_key_present: false });
+        }
+        try {
+          const resp = await fetch("https://api.sendgrid.com/v3/mail/send", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              personalizations: [{ to: [{ email: "dlhall86@gmail.com" }] }],
+              from: { email: "noreply@deadline-radar.com", name: "Deadline-Radar" },
+              subject: "DeadlineRadar diagnostic send -- SendGrid status check",
+              content: [
+                { type: "text/plain", value: "One-off diagnostic send, requested 2026-09-22, redone 2026-09-23 to confirm SendGrid is currently able to send. Safe to ignore/delete." },
+              ],
+            }),
+          });
+          const bodySnippet = await resp.text().catch(() => "<body unreadable>");
+          return jsonResponse(200, {
+            sendgrid_api_key_present: true,
+            status: resp.status,
+            ok: resp.status >= 200 && resp.status < 300,
+            body: bodySnippet.slice(0, 1000),
+          });
+        } catch (err) {
+          return jsonResponse(200, { sendgrid_api_key_present: true, error: String(err) });
+        }
+      }
+
       if (ACTION_PATHS.has(url.pathname)) {
         const allowed = await checkRateLimit(env.DB, ip, "action", RATE_LIMIT_ACTION);
         if (!allowed) return errorPage(429, "Too many requests. Please try again later.");
