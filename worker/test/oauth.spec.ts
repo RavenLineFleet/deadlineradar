@@ -82,6 +82,26 @@ describe("provider configuration gating", () => {
     expect(getConfiguredProvider({} as Env, "microsoft")).toBeNull();
   });
 
+  it("SecurityLab (LOW, 2026-09-23): a request-derived providerId cannot hit Object.prototype -- __proto__/constructor/toString all return null via the deliberate own-property guard", () => {
+    // Not a regression test in the usual sense -- confirmed by hand (see
+    // the fix's own comment) that the OLD code returned null for these
+    // same inputs too, just by accident: PROVIDERS[id] resolves to an
+    // Object.prototype MEMBER (a function/the Object constructor), whose
+    // own .clientIdVar is undefined, so env[undefined] (== env["undefined"])
+    // was never actually configured. This locks in the correct behavior via
+    // the DELIBERATE guard now, so it stops depending on that coincidence
+    // (which breaks the moment Env ever gains a literal "undefined" key, or
+    // this function's shape changes) -- same class of fix as SEC-5's
+    // literal-name guard elsewhere in this repo.
+    const envWithSecrets = {
+      GOOGLE_OAUTH_CLIENT_ID: "x",
+      GOOGLE_OAUTH_CLIENT_SECRET: "y",
+    } as unknown as Env;
+    for (const id of ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"]) {
+      expect(getConfiguredProvider(envWithSecrets, id)).toBeNull();
+    }
+  });
+
   it("requests identity-only scopes (broader scopes would trigger Google's verification review)", () => {
     // AuditLab OAUTH-1 (2026-08-05): dropped 'profile' -- requested but
     // never used, and it made the Google consent screen list more than the
