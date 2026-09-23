@@ -2369,8 +2369,11 @@ const INTERNAL_NOTIFY_EMAIL = "support@deadline-radar.com";
 // How many days a warning fires before a row would otherwise silently
 // downgrade to not_verified. Independent of MOBILITY_VERIFICATION_TTL_DAYS
 // (the actual TTL, owned by mobility.ts) -- this is the alert's own lead
-// time, not a second copy of the guard's own cutoff.
-const MOBILITY_STALENESS_WARNING_DAYS = 30;
+// time, not a second copy of the guard's own cutoff. Exported (2026-09-23,
+// orchestrator ruling) for the same reason GATED_DATASET_STALENESS_*
+// below are -- the test suite recomputes an independent expectation from
+// this real threshold instead of hardcoding the resulting live-data count.
+export const MOBILITY_STALENESS_WARNING_DAYS = 30;
 
 export interface MobilityRowNearingExpiry {
   state: string;
@@ -2465,8 +2468,13 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
  * (GATED_DATASET_STALENESS_WARNING_DAYS, not the 30-day
  * MOBILITY_STALENESS_WARNING_DAYS) -- a 30-day heads-up on a 30-day TTL
  * would fire on literally every record, every day. */
-const GATED_DATASET_STALENESS_THRESHOLD_DAYS = 30;
-const GATED_DATASET_STALENESS_WARNING_DAYS = 7;
+// Exported (2026-09-23, orchestrator ruling on decoupling worker.spec.ts's
+// hardcoded live-data counts) so the test suite can recompute an
+// independent expectation from these SAME thresholds, rather than either
+// hardcoding its own copy (a second place to drift) or hardcoding the
+// resulting count (which drifted on every legitimate re-verification).
+export const GATED_DATASET_STALENESS_THRESHOLD_DAYS = 30;
+export const GATED_DATASET_STALENESS_WARNING_DAYS = 7;
 
 export interface GatedDatasetRowNearingExpiry {
   dataset: "cpe_hours" | "reinstatement" | "renewal_fees";
