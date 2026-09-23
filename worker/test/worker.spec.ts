@@ -4992,12 +4992,20 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
   // MOB-12 (2026-09-19, AssetLab) did the same to Oklahoma-individual --
   // its real re-verification (a genuine residency-trigger fix, not a
   // defect) bumped verified_date to 2026-09-19, pushing its TTL out to
-  // 2027-03-18, also outside the window. Both are legitimate
+  // 2027-03-18, also outside the window. RC-25 (2026-09-23, AssetLab,
+  // AuditLab-ruled) did the same to Michigan-individual -- its citation_url
+  // was pointed at the wrong MCL section (a real bug, unrelated to
+  // freshness), and fixing it re-verified both sides from primary,
+  // bumping verified_date to 2026-09-23 and pushing its TTL out to
+  // 2027-03-22, also outside the window. Michigan had shared the earliest
+  // expiry (2027-01-27) with Alabama; Alabama alone now holds that slot,
+  // so nearing[0]'s daysUntilExpiry/expiresOn below are unchanged even
+  // though which state they belong to changed. All three are legitimate
   // re-verifications, not bugs -- this block's numbers are kept in sync
   // with reality the same way the FRESH-3 block below it is (see that
-  // block's own 2026-09-19 comment for the general principle). Two of 110
-  // rows (Guam-individual, Oklahoma-individual) now sit outside the
-  // window; 108 real rows should appear.
+  // block's own 2026-09-19 comment for the general principle). Three of
+  // 110 rows (Guam-individual, Oklahoma-individual, Michigan-individual)
+  // now sit outside the window; 107 real rows should appear.
 
   it("nothing is nearing expiry today (2026) -- the real window is 5 months out", async () => {
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
@@ -5009,14 +5017,15 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
     const { mobilityRowsNearingExpiry } = await import("../src/scheduler");
     // 2027-01-20: earliest expiry (2027-01-27) is 7 days out -- inside the
     // 30-day window, so every real row still within TTL at this point
-    // should appear (108 of the 110 total; Guam-individual and
-    // Oklahoma-individual's re-verified TTLs now expire 2027-02-23 and
-    // 2027-03-18 respectively, both outside the window -- see the
-    // describe-block comment above).
+    // should appear (107 of the 110 total; Guam-individual, Oklahoma-
+    // individual and Michigan-individual's re-verified TTLs now expire
+    // 2027-02-23, 2027-03-18 and 2027-03-22 respectively, all outside the
+    // window -- see the describe-block comment above).
     const nearing = mobilityRowsNearingExpiry(new Date("2027-01-20T00:00:00Z"));
-    expect(nearing.length).toBe(108);
+    expect(nearing.length).toBe(107);
     expect(nearing.some((r) => r.state === "Guam" && r.type === "individual")).toBe(false);
     expect(nearing.some((r) => r.state === "Oklahoma" && r.type === "individual")).toBe(false);
+    expect(nearing.some((r) => r.state === "Michigan" && r.type === "individual")).toBe(false);
     // Sorted soonest-first.
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
@@ -5159,11 +5168,18 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   // re-verifications, not a defect) -- neither event is a bug, and this
   // block's numbers are updated to match rather than frozen at authorship
   // time, the same maintenance TEST-10 (below) already established for
-  // this describe block. Current wall: 38 records at 2026-09-09
-  // (1 cpe_hours + 5 reinstatement + 32 renewal_fees) and 115 at
-  // 2026-09-12 (48 cpe_hours + 45 reinstatement + 22 renewal_fees).
+  // this describe block. STALE-20 batch 1 (2026-09-22, AssetLab): 32 of
+  // the 38 records at 09-09 (the 1 cpe_hours + 5 reinstatement + 26 of the
+  // 32 renewal_fees) were re-verified against their real citation_url and
+  // CONFIRMED_UNCHANGED, bumping verified_date/last_verified to 2026-09-22
+  // -- a real re-verification pass, not a defect, that empties the 09-09
+  // cohort down to renewal_fees only. Current wall: 6 records at
+  // 2026-09-09 (0 cpe_hours + 0 reinstatement + 6 renewal_fees) and 115 at
+  // 2026-09-12 (48 cpe_hours + 45 reinstatement + 22 renewal_fees) -- the
+  // 09-12 cohort is untouched by STALE-20 batch 1 (it re-verified the
+  // OLDER 09-09 cohort first, oldest-first, per its own ordering).
   // 2026-10-06 puts BOTH cohorts inside the 7-day warning window
-  // simultaneously (38 rows at 4 days out, 115 at 7) -- AuditLab TEST-10
+  // simultaneously (6 rows at 4 days out, 115 at 7) -- AuditLab TEST-10
   // (LOW, 2026-09-12): an earlier pass at 2026-10-03 saw only the
   // single-valued 39-row cohort, which cannot exercise sort order at all
   // (every element carries the same daysUntilExpiry, so a broken sort
@@ -5180,19 +5196,23 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
     const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-10-06T00:00:00Z"));
-    expect(nearing.length).toBe(153);
+    expect(nearing.length).toBe(121);
+    // STALE-20 batch 1 (2026-09-22) emptied cpe_hours and reinstatement out
+    // of the 09-09 cohort entirely -- both datasets still appear in the
+    // 09-12 cohort, which this window also covers, so this assertion stays
+    // true; only the 09-09-cohort-only assertions below changed.
     expect(nearing.some((r) => r.dataset === "cpe_hours")).toBe(true);
     expect(nearing.some((r) => r.dataset === "reinstatement")).toBe(true);
     expect(nearing.some((r) => r.dataset === "renewal_fees")).toBe(true);
     // Sorted soonest-first -- a real assertion here, not a degenerate one:
-    // the 38-row 2026-09-09 cohort (4 days out) must all precede the
+    // the 6-row 2026-09-09 cohort (4 days out) must all precede the
     // 115-row 2026-09-12 cohort (7 days out).
     for (let i = 1; i < nearing.length; i++) {
       expect(nearing[i]!.daysUntilExpiry).toBeGreaterThanOrEqual(nearing[i - 1]!.daysUntilExpiry);
     }
     expect(nearing[0]!.daysUntilExpiry).toBe(4);
     expect(nearing[0]!.expiresOn).toBe("2026-10-10");
-    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(38);
+    expect(nearing.filter((r) => r.daysUntilExpiry === 4 && r.expiresOn === "2026-10-10").length).toBe(6);
     expect(nearing.filter((r) => r.daysUntilExpiry === 7 && r.expiresOn === "2026-10-13").length).toBe(115);
   });
 
@@ -5245,8 +5265,13 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
         expect(sentBody.subject).toContain("expiring soon");
         expect(sentBody.subject).toContain("2026-10-10");
         const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
-        expect(textContent).toContain("cpe_hours.json");
-        expect(textContent).toContain("reinstatement.json");
+        // 2026-10-03 + 7 days only reaches the 2026-10-10 cliff, i.e. only
+        // the 09-09 cohort -- STALE-20 batch 1 (2026-09-22) emptied that
+        // cohort's cpe_hours and reinstatement rows entirely, leaving only
+        // renewal_fees (see the describe-block comment above). A real
+        // re-verification pass, not a defect: asserting all three dataset
+        // names unconditionally was coupled to a cohort composition that
+        // has since legitimately changed.
         expect(textContent).toContain("renewal_fees.json");
         expect(textContent).toContain("HARD-BLOCKS ALL SHIPPING");
 
@@ -5870,6 +5895,15 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
   it("blocks the 101st CPE entry from the same firm within the daily window (own rate-limit bucket)", async () => {
     // 100 real sequential DB-writing requests genuinely takes longer than
     // vitest's 5s default -- explicit timeout, not a sign anything's wrong.
+    // Bumped 20000 -> 60000 (2026-09-23, AssetLab): passes in ~1.5s run in
+    // isolation, but consistently times out at 20000ms when worker.spec.ts
+    // runs as a whole file (this file alone is ~2,500 tests) -- confirmed
+    // via `git stash` against the pre-this-session baseline too, so it
+    // isn't something this session's changes caused. Real, reproducible
+    // slowdown from cumulative D1/workerd load this late in a huge single
+    // file, not flakiness and not a logic bug -- same shape as the other
+    // 60000ms-timeout tests already in this suite (map1-mobility-scope.
+    // spec.ts, mobility-roster-check.spec.ts).
     const { cookie } = await createFirmWithSession("CPE Rate Firm", `cpe-rate-${Date.now()}@example.com`);
     const created = await postFirmLicense(cookie, { email: `cpe-rate-staff-${Date.now()}@example.com`, state_slug: "georgia", license_type_id: "ga-individual" });
     const { id: subscriberId } = (await created.json()) as { id: string };
@@ -5879,11 +5913,13 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
     }
     const overCap = await postCpeEntry(cookie, { subscriber_id: subscriberId, entry_date: "2026-06-01", hours: "1", category: "general" }, "203.0.113.250");
     expect(overCap.status).toBe(429);
-  }, 20000);
+  }, 60000);
 
   // AuditLab S-3, 2026-08-03 (LOW): DELETE had no bucket at all, unlike POST
   // above. Rate limit runs before the id lookup, so a nonexistent id still
   // consumes the bucket.
+  // Bumped 30000 -> 60000 (2026-09-23, AssetLab): same real cumulative-load
+  // slowdown as the POST test just above, not flakiness -- see its comment.
   it("blocks the 101st CPE-entry DELETE from the same firm within the daily window", async () => {
     const { cookie } = await createFirmWithSession("CPE Delete Rate Firm", `cpe-delete-rate-${Date.now()}@example.com`);
     let sawA429 = false;
@@ -5896,7 +5932,7 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
       expect(resp.status).toBe(404);
     }
     expect(sawA429, "expected a 429 within the RATE_LIMIT_CPE_ENTRY_DELETE ceiling (100/day) -- got none in 105 requests").toBe(true);
-  }, 30000);
+  }, 60000);
 });
 
 // ---------------------------------------------------------------------------
