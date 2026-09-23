@@ -216,7 +216,14 @@ looking at.</p>
         voteHtml +
         '<button type="button" class="dr-roadmap-notify-toggle">Notify me when this ships</button>' +
         '<form class="dr-roadmap-notify-form" data-idea-id="' + esc(idea.id) + '" hidden>' + hiddenFieldsHtml +
-        '<input type="email" class="dr-roadmap-notify-email" placeholder="you@example.com" required autocomplete="email">' +
+        // AuditLab A11Y-18 (LOW-MEDIUM, 2026-09-19): a placeholder is not a
+        // valid accessible name (WCAG 4.1.2) and disappears once typed into
+        // (3.3.2) -- caught only once AuditLab checked this control in its
+        // actually-revealed state (after "Notify me when this ships" is
+        // clicked), which a static-HTML sweep can't see since this whole
+        // form is assembled by JS at render() time, not present in the
+        // built page source at all.
+        '<input type="email" class="dr-roadmap-notify-email" placeholder="you@example.com" required autocomplete="email" aria-label="' + esc('Email address for ' + idea.title + ' ship notification') + '">' +
         '<button type="submit">Notify me</button></form>' +
         '<p class="dr-roadmap-notify-result" hidden></p>' +
         '</div></div>';
