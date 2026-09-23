@@ -276,7 +276,24 @@ def _looks_like_pdf(body: bytes) -> bool:
     return body[:5] == b"%PDF-"
 
 
-def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, citation: str | None) -> tuple[str, str]:
+# AuditLab CITE-75 (2026-09-23): fixing the Wyoming citations to ship the
+# Board's own /file/d/<id>/view form (a viewer page) instead of the
+# /uc?export=download form (raw PDF bytes) is a real customer-UX win, but
+# it silently regresses THIS script if left unhandled: verified live that
+# a Drive viewer page's <title> is the source filename ("CHAPTER5 (3).pdf
+# - Google Drive"), never the cited section -- so the token-match heuristic
+# below would call every one of these WRONG_PAGE on a citation that is, in
+# fact, correct. Same shape as the PDF-body skip just above: the title tag
+# on this specific page type carries no citation signal, so skip rather
+# than assert a false negative.
+_DRIVE_VIEWER_RE = re.compile(r"^https?://drive\.google\.com/file/d/[^/]+/view", re.IGNORECASE)
+
+
+def _is_drive_viewer_page(url: str) -> bool:
+    return bool(_DRIVE_VIEWER_RE.match(url))
+
+
+def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, citation: str | None, url: str | None = None) -> tuple[str, str]:
     """Returns (verdict, reason). verdict is CONFIRMED / WRONG_PAGE / SKIPPED.
     Only ever called once the status-level checks already consider the
     response structurally LIVE -- this can only downgrade LIVE to
@@ -286,6 +303,8 @@ def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, 
         return "SKIPPED", "no body to check"
     if not citation:
         return "SKIPPED", "no citation string on this record (only citation_url fields carry one)"
+    if url and _is_drive_viewer_page(url):
+        return "SKIPPED", "Google Drive viewer page -- <title> is the source filename, not the cited section, so the token-match heuristic doesn't apply here"
     if _looks_like_pdf(real_body):
         # AuditLab's own explicit guidance: "skip the assertion rather than
         # fake it" for PDFs -- confirming a %PDF body contains cited text
@@ -307,7 +326,7 @@ def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, 
     return "WRONG_PAGE", f"citation token {token!r} not found in <title> {real_title!r}"
 
 
-def classify(real_status, real_body, sig_status, sig_body, citation=None) -> tuple[str, str]:
+def classify(real_status, real_body, sig_status, sig_body, citation=None, url=None) -> tuple[str, str]:
     """Returns (verdict, reason). verdict is one of LIVE / DEAD / UNVERIFIABLE / WRONG-PAGE."""
     # Bot defense: a 403 on the real citation, or on the control probe
     # itself (can't establish any baseline for this host), is not proof of
@@ -339,7 +358,7 @@ def classify(real_status, real_body, sig_status, sig_body, citation=None) -> tup
     # CITED text. Layer a content assertion on top before calling anything
     # LIVE. This can only downgrade LIVE to WRONG-PAGE; it never runs for a
     # response already classified DEAD/UNVERIFIABLE above.
-    content_verdict, content_reason = assert_citation_in_content(real_body, sig_body, citation)
+    content_verdict, content_reason = assert_citation_in_content(real_body, sig_body, citation, url)
     if content_verdict == "WRONG_PAGE":
         return "WRONG-PAGE", f"status looked live ({live_reason}), but {content_reason}"
     return "LIVE", live_reason
@@ -382,7 +401,7 @@ def main() -> int:
         sig_status, sig_body = host_signatures[host]
 
         real_status, real_body, detail = _fetch(url)
-        verdict, reason = classify(real_status, real_body, sig_status, sig_body, citations.get(url))
+        verdict, reason = classify(real_status, real_body, sig_status, sig_body, citations.get(url), url)
         results[url] = (verdict, reason, locations)
         print(f"[{i}/{len(all_urls)}] {verdict} ({reason}) {url}")
 
