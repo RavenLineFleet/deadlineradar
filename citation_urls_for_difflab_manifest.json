@@ -1,5 +1,5 @@
 {
-  "schema_note": "DeadlineRadar citation_url manifest for DiffLab capture (ScoutLab S4, 2026-09-22). Same {state_slug, monitor_urls} shape as scoutlab_mobility_difflab_monitor_manifest.json. Sourced from cpa_deadlines/cpe_hours/reinstatement/renewal_fees.json citation_url fields, deduped per state. Updated 2026-09-22: added citation_url/secondary_url from the 6 SOURCE_CONFLICT records in reg_change_events.json (orchestrator_20260922_s4_design_APPROVED_plus_conflict_scope.md). Updated 2026-09-23 (AuditLab RC-27): RC-24/25 repointed Guam's and Michigan's conflict-record citation_url/secondary_url -- this manifest wasn't regenerated in that commit, so it kept watching Guam's retired guamboa.org/faqs.htm and Michigan's retired mcl-339-727a instead of the URLs the conflict cards now actually cite. Dropped both retired URLs, added the current ones (Michigan's mcl-339-728 + .../lic-info/cpa-firms already present from mobility_rules.json's own fix; Guam's 25GAR002.pdf was already present, only faqs.htm needed dropping). Every citation/secondary_url change to a manifest-sourced record should regenerate this file in the same commit (see RC-20's precedent, 9df61c8fc) -- a preship_gate check that this manifest is a superset of all current citation/secondary URLs would catch a future miss.",
+  "schema_note": "DeadlineRadar citation_url manifest for DiffLab capture (ScoutLab S4, 2026-09-22). Same {state_slug, monitor_urls} shape as scoutlab_mobility_difflab_monitor_manifest.json. Sourced from cpa_deadlines/cpe_hours/reinstatement/renewal_fees.json citation_url fields, deduped per state. Updated 2026-09-22: added citation_url/secondary_url from the 6 SOURCE_CONFLICT records in reg_change_events.json (orchestrator_20260922_s4_design_APPROVED_plus_conflict_scope.md). Updated 2026-09-23 (AuditLab RC-27): RC-24/25 repointed Guam's and Michigan's conflict-record citation_url/secondary_url -- this manifest wasn't regenerated in that commit, so it kept watching Guam's retired guamboa.org/faqs.htm and Michigan's retired mcl-339-727a instead of the URLs the conflict cards now actually cite. Dropped both retired URLs, added the current ones (Michigan's mcl-339-728 + .../lic-info/cpa-firms already present from mobility_rules.json's own fix; Guam's 25GAR002.pdf was already present, only faqs.htm needed dropping). Every citation/secondary_url change to a manifest-sourced record should regenerate this file in the same commit (see RC-20's precedent, 9df61c8fc) -- a preship_gate check that this manifest is a superset of all current citation/secondary URLs would catch a future miss. Updated 2026-09-23 (AuditLab RC-29 + CITE-76 ruling): added `monitor_url_overrides` below and a preship_gate check (check_citation_manifest_coverage) that every dataset citation_url/secondary_url is either in some state's monitor_urls verbatim, or covered by an override entry -- NOT a naive string-superset gate, which AuditLab showed would force two real regressions (NMI's cnmilaw.gov/.org alias, Wyoming's Drive-viewer-vs-download-PDF). See each override's own `reason` field.",
   "generated": "2026-09-23",
   "total_distinct_urls": 181,
   "total_distinct_hosts": 95,
@@ -459,6 +459,36 @@
         "https://drive.google.com/uc?export=download&id=1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5",
         "https://wyoleg.gov/statutes/compress/title33.pdf"
       ]
+    }
+  ],
+  "monitor_url_overrides": [
+    {
+      "state_slug": "northern-mariana-islands",
+      "dataset_url": "https://cnmilaw.gov/docs/public_laws/13/pl13-52.pdf",
+      "monitor_url": "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
+      "reason": "Host alias, not a coverage gap. AuditLab (2026-09-23) confirmed both resolve to the same final URL and the identical 90,236 B PDF. The .org host soft-404s (200 + an HTML listing) on a garbage path while .gov gives a real 404, so .gov is the technically better canonical target, but nothing is currently wrong -- not worth a churn-only sync.",
+      "verified": "2026-09-23 by AuditLab (RC-29)"
+    },
+    {
+      "state_slug": "wyoming",
+      "dataset_url": "https://drive.google.com/file/d/1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5/view?usp=sharing",
+      "monitor_url": "https://drive.google.com/uc?export=download&id=1kwzouFcKUpZffgw1u6WPaHqi_q7Ex2Z5",
+      "reason": "Deliberate divergence, not a coverage gap. CITE-75 (2026-09-23) repointed the DATASET's citation_url from the download form to the Board's own viewer form, because a reader clicking a citation should land on a page, not trigger a file download. But the viewer form (.../file/d/<id>/view) serves Google's JS viewer SHELL (133,432 B, text/html) -- monitoring it for changes would detect Google's app churn, not the rule. The download form (.../uc?export=download) serves the actual PDF bytes (93,741 B, application/octet-stream) -- a strictly better change-detection target for the same document. Syncing the manifest to the reader-facing URL would be a downgrade.",
+      "verified": "2026-09-23 by AuditLab (RC-29)"
+    },
+    {
+      "state_slug": "wyoming",
+      "dataset_url": "https://drive.google.com/file/d/1_PXSjRL7bujzlYPfR4-srukZSptY2Saa/view?usp=sharing",
+      "monitor_url": "https://drive.google.com/uc?export=download&id=1_PXSjRL7bujzlYPfR4-srukZSptY2Saa",
+      "reason": "Same as the wy-cpe override above (viewer-shell-vs-raw-PDF), for wyoming-reinstatement's citation.",
+      "verified": "2026-09-23 by AuditLab (RC-29)"
+    },
+    {
+      "state_slug": "wyoming",
+      "dataset_url": "https://drive.google.com/file/d/17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj/view?usp=sharing",
+      "monitor_url": "https://drive.google.com/uc?export=download&id=17T28QT9V6Pv32Ek1PKdkbU1DZ6-OmSDj",
+      "reason": "Same as the wy-cpe override above (viewer-shell-vs-raw-PDF), for wyoming-renewal-fee's citation.",
+      "verified": "2026-09-23 by AuditLab (RC-29)"
     }
   ]
 }
