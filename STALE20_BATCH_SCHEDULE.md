@@ -13,19 +13,28 @@ shipping once a record's `verified_date`/`last_verified` turns 31 days old. Re-v
 first in ~31-record batches (spread across sessions ahead of each cliff) avoids re-creating a
 157-record wall on a single date, per AuditLab's original "157-record wall" finding.
 
-## Current wall, as of 2026-09-23 (independently recomputed from live data, not carried forward)
+## Current wall, as of 2026-09-23 post-batch-2 (independently recomputed from live data, not carried forward)
 
 | Cohort date | Records | cpe_hours | reinstatement | renewal_fees | Gate-blocking cliff (verified_date + 30d) |
 |---|---|---|---|---|---|
-| 2026-09-09 | 6 | 0 | 0 | 6 | **2026-10-09** |
-| 2026-09-12 | 115 | 48 | 45 | 22 | 2026-10-12 |
+| 2026-09-12 (89 remain of 115) | 89 | 22 | 45 | 22 | 2026-10-12 |
 | 2026-09-13 | 1 | 0 | 0 | 1 | 2026-10-13 |
 | 2026-09-19 | 3 | 2 | 1 | 0 | 2026-10-19 |
 | 2026-09-22 (batch 1, DONE) | 32 | 1 | 5 | 26 | 2026-10-22 |
+| 2026-09-23 (batch 2, DONE) | 32 | 26 | 0 | 6 | 2026-10-23 |
 
 Batch 1 (32 records: 1 cpe_hours + 5 reinstatement + 26 renewal_fees, all originally 2026-09-09)
 already shipped 2026-09-22, `CONFIRMED_UNCHANGED` 32/32 — see HANDOFF's 2026-09-22 ~12:00 MDT
-entry. **125 records remain**, across the 09-09/09-12/09-13/09-19 cohorts above.
+entry.
+
+**Batch 2 (32 records: all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cpe_hours cohort)
+shipped 2026-09-23, commit `229d85b80`.** 20/32 anchored a real manual baseline for the first time
+(manual_verified_raw_hash/byte_length/manual_verified_anchor); 12/32 stayed honestly manual-only (0
+hard fetch failures — bot-walls/missing-anchor/identity misses, not network errors).
+`wyoming-renewal-fee` anchored via its recorded monitor_url override, per AUTO-10. Produced
+auto-extend's first-ever 7 real eligible candidates (6 cpe_hours + 1 renewal_fees) — not applied,
+awaiting the standing first-run approval process. **93 records remain**, across the 09-12 (89
+remaining)/09-13/09-19 cohorts above.
 
 ## Batches 2–5
 
@@ -35,8 +44,8 @@ must clear before the 2026-10-09 cliff, since that's the earliest hard block. Th
 
 | Batch | Target ship date | Records | Composition | Method |
 |---|---|---|---|---|
-| **2** | by 2026-09-27 | 32 | all 6 remaining 09-09 + oldest 26 of the 09-12 cohort | real citation_url fetch + field-level comparison + anchor recording (see below) |
-| **3** | by 2026-10-01 | 31 | next 31 of the 09-12 cohort (26 consumed so far, 58 remain after this) | " |
+| **2 (DONE, 2026-09-23, `229d85b80`)** | by 2026-09-27 | 32 | all 6 remaining 09-09 renewal_fees + first 26 of the 09-12 cohort (all landed in cpe_hours.json, alphabetical by state -- al through mt; the 09-12 cohort's reinstatement/renewal_fees records happened to sort after cpe_hours in file-iteration order, so batch 3 onward should re-derive its own oldest-N rather than assume an even split across datasets) | real citation_url fetch + field-level comparison (cited fee/hours figure presence) + anchor recording |
+| **3** | by 2026-10-01 | 31 | next 31 of the 09-12 cohort (26 consumed so far -- all cpe_hours -- 89 remain: 22 cpe_hours + 45 reinstatement + 22 renewal_fees) | " |
 | **4** | by 2026-10-05 | 31 | next 31 of the 09-12 cohort (57 consumed so far, 27 remain after this) | " |
 | **5** | by 2026-10-08 (day before the first cliff) | 31 | remaining 27 of 09-12 + the 1 09-13 record + all 3 09-19 records | " |
 
