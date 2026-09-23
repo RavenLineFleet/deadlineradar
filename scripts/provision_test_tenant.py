@@ -50,6 +50,15 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# Windows' console defaults stdout to cp1252, which can't encode some of
+# wrangler's own output (colored glyphs/emoji) -- reconfigure to UTF-8 with
+# a replace-on-error fallback so a print() of wrangler's real output never
+# crashes this script (measured live: it did, mid-provision, on the second
+# attempt here).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKER_DIR = REPO_ROOT / "worker"
 STATE_FILE = REPO_ROOT / "scripts" / ".test_tenant_b_state.json"  # gitignored -- see teardown notes below
@@ -80,20 +89,34 @@ def sql_str(s: str) -> str:
 
 
 def run_wrangler_sql(sql: str, *, label: str) -> None:
-    print(f"\n--- SQL to execute ({label}) ---")
-    print(sql)
+    """Runs each ';'-separated statement as its OWN wrangler invocation,
+    not one multi-statement --command call -- measured live that a multi-
+    statement batch is NOT atomic (a later statement's failure left an
+    earlier one's INSERT committed, an orphaned firms row with no member),
+    so isolate each statement to fail loudly and stop immediately rather
+    than leaving a silently-partial tenant behind."""
+    statements = [s.strip() for s in sql.split(";") if s.strip()]
+    print(f"\n--- SQL to execute ({label}), {len(statements)} statement(s) ---")
+    for i, stmt in enumerate(statements, 1):
+        print(f"\n[{i}/{len(statements)}] {stmt};")
+        result = subprocess.run(
+            ["npx", "wrangler", "d1", "execute", "deadlineradar", "--remote", "--command", stmt + ";"],
+            cwd=WORKER_DIR,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=True,
+        )
+        print(result.stdout)
+        if result.returncode != 0:
+            print(result.stderr, file=sys.stderr)
+            raise SystemExit(
+                f"wrangler d1 execute failed on statement {i}/{len(statements)} (exit {result.returncode}) -- "
+                f"statements 1..{i - 1} already committed (D1 is not transactional across separate "
+                f"wrangler calls); check state manually before retrying."
+            )
     print("--- end SQL ---\n")
-    result = subprocess.run(
-        ["npx", "wrangler", "d1", "execute", "deadlineradar", "--remote", "--command", sql],
-        cwd=WORKER_DIR,
-        capture_output=True,
-        text=True,
-        shell=True,
-    )
-    print(result.stdout)
-    if result.returncode != 0:
-        print(result.stderr, file=sys.stderr)
-        raise SystemExit(f"wrangler d1 execute failed (exit {result.returncode})")
 
 
 def cmd_create() -> None:
@@ -123,18 +146,29 @@ def cmd_create() -> None:
         },
     ]
 
+    # Same 3-step order as worker/src/store.ts's own createFirm(): firms
+    # and firm_members have a circular FK (firms.primary_member_id ->
+    # firm_members.id, firm_members.firm_id -> firms.id), so the firm is
+    # inserted first with primary_member_id left NULL, then the member,
+    # then a separate UPDATE sets the pointer -- inserting firms with
+    # primary_member_id already set fails SQLITE_CONSTRAINT_FOREIGNKEY
+    # since the referenced member doesn't exist yet (measured live, not
+    # guessed -- this script's first version did it in one INSERT).
     statements = []
     statements.append(
         f"INSERT INTO firms (id, name, admin_email, admin_name, plan_tier, status, created_at, "
-        f"is_test_tenant, demo_locked, primary_member_id, admin_unsubscribe_token, rule_change_alerts_enabled, admin_digest_enabled) "
+        f"is_test_tenant, demo_locked, admin_unsubscribe_token, rule_change_alerts_enabled, admin_digest_enabled) "
         f"VALUES ({sql_str(firm_id)}, {sql_str('Test Firm B (AuditLab IDOR probe -- synthetic)')}, "
         f"{sql_str(admin_email)}, {sql_str('Test Firm B Admin')}, 'free', 'active', {sql_str(now_iso)}, "
-        f"1, 0, {sql_str(member_id)}, {sql_str(admin_unsub_token)}, 1, 1);"
+        f"1, 0, {sql_str(admin_unsub_token)}, 1, 1);"
     )
     statements.append(
         f"INSERT INTO firm_members (id, firm_id, email, name, role, invited_at, joined_at, created_at) "
         f"VALUES ({sql_str(member_id)}, {sql_str(firm_id)}, {sql_str(admin_email)}, {sql_str('Test Firm B Admin')}, "
         f"'partner', {sql_str(now_iso)}, {sql_str(now_iso)}, {sql_str(now_iso)});"
+    )
+    statements.append(
+        f"UPDATE firms SET primary_member_id = {sql_str(member_id)} WHERE id = {sql_str(firm_id)};"
     )
 
     subscriber_ids = []
