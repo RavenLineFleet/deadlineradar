@@ -4201,6 +4201,105 @@ def _find_if_conditions(text: str) -> list[tuple[str, int, int]]:
     return results
 
 
+def _condition_is_constant_true(cond: str) -> bool:
+    """Sibling to `_condition_is_constant_false()`: True if `cond` is
+    trivially true because of a bare `true`/`1` OR'd in somewhere (e.g.
+    `is_test_tenant || true`), which would neutralize a negation elsewhere
+    in the same condition regardless of the flag's real value. Same
+    literal-vs-comparison care as the false-sibling (`=== true`/`!== true`
+    stays legitimate, only a bare `true`/`1` counts)."""
+    stripped = re.sub(r"[=!]==?\s*true\b", "", cond)
+    stripped = re.sub(r"\btrue\s*[=!]==?", "", stripped)
+    if re.search(r"\btrue\b", stripped):
+        return True
+    if re.search(r"(?<![\w.])1(?![\w.])\s*(\|\||$)", cond.strip()):
+        return True
+    return False
+
+
+def _find_if_blocks(text: str) -> list[tuple[str, str]]:
+    """Yields (condition_text, block_text) for every `if (...) { ... }` OR
+    bodyless `if (...) stmt;` in text, via the same balanced-paren/
+    balanced-brace walk `_strip_dead_if_false_blocks()` already uses.
+    Bodyless is INCLUDED here (unlike that function, which explicitly defers
+    it) -- real guards in this codebase use it (scheduler.ts's
+    `if (firmInfo?.demo_locked) continue;`), and `_condition_guards_flag()`
+    needs to see that block text (`continue;`) to tell an early-exit from a
+    combined send-guarding condition. Capturing a bodyless statement just
+    reads to the next top-level `;`, which is exactly this codebase's real
+    shape (a single `continue`/`return ...`), not general statement parsing."""
+    results = []
+    n = len(text)
+    for m in re.finditer(r"if\s*\(", text):
+        cond_start = m.end() - 1
+        depth = 0
+        k = cond_start
+        while k < n:
+            if text[k] == "(":
+                depth += 1
+            elif text[k] == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        if k >= n:
+            continue
+        cond = text[cond_start + 1 : k]
+        after_paren = k + 1
+        brace_m = re.match(r"\s*\{", text[after_paren:])
+        if brace_m:
+            brace_start = after_paren + brace_m.end() - 1
+            depth = 0
+            j = brace_start
+            while j < n:
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            block_end = j + 1 if j < n else n
+            results.append((cond, text[brace_start:block_end]))
+        else:
+            semi = text.find(";", after_paren)
+            block_end = semi + 1 if semi != -1 else after_paren
+            results.append((cond, text[after_paren:block_end]))
+    return results
+
+
+def _condition_guards_flag(cond: str, block: str, flag: str) -> bool:
+    """True if this `if (cond) { block }` (or bodyless `if (cond) stmt;`)
+    genuinely keeps a firm/session where `flag` is true from reaching a
+    send, for any of the shapes this codebase actually uses (a standalone
+    early-exit, an if/else-if/else chain that sets a `reason` and skips
+    sending elsewhere, or a combined condition wrapping the send directly).
+
+    SecurityLab (2026-09-23, GATE send-exclusion polarity finding,
+    Orchestrator GO): the prior version required only that `flag`'s NAME
+    appear somewhere in a live (non-constant-false) if() condition, with no
+    regard for polarity or for whether that if is the one actually guarding
+    the send. Two real weakenings both passed clean: a dropped `!` in the
+    condition that directly wraps `sendViaSendGrid(` (inverts to "only
+    flagged firms receive") and an OR-true short-circuit
+    (`(session.firm.is_test_tenant || true)`, always enters regardless of
+    the flag).
+
+    The fix narrows scope to exactly the case that matters: when `block`
+    itself contains the `sendViaSendGrid(` call -- i.e. this condition IS
+    "the send condition" -- a bare positive mention is no longer enough;
+    only a genuine, non-neutralized NEGATION counts. Every other shape (an
+    early-exit whose block doesn't itself send, or a branch in an
+    if/else-if/else chain where the send lives in a DIFFERENT branch
+    entirely) is untouched -- those conditions were never "the send
+    condition" to begin with, so requiring a `!` there would be requiring
+    something the real, correct code doesn't and shouldn't have."""
+    if "sendViaSendGrid(" in block:
+        negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
+        return negated and not _condition_is_constant_true(cond)
+    return flag in cond and not _condition_is_constant_false(cond)
+
+
 def _strip_dead_if_false_blocks(text: str) -> str:
     """AuditLab GUARD-1 (2026-08-20): a guard's own invariant check can be
     neutralised by wrapping it in dead code -- `if (false) { if
@@ -4381,16 +4480,17 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             if "sendViaSendGrid(" not in body:
                 continue
             senders_found += 1
-            # Require demo_locked in a LIVE if() condition, not merely
-            # present in the body -- closes `if (false && firm.demo_locked)`,
-            # which has no enclosing braces for _strip_dead_if_false_blocks
-            # to catch, and is otherwise indistinguishable from a real guard
-            # to a bare substring search. Balanced-paren extraction (not a
-            # naive `[^)]*` regex, which mis-truncates on a nested call --
-            # see _find_if_conditions()'s docstring, GUARD-1 follow-up).
+            # Require demo_locked to genuinely GUARD the send, not merely be
+            # PRESENT in a live if() condition -- closes both
+            # `if (false && firm.demo_locked)` (no enclosing braces for
+            # _strip_dead_if_false_blocks to catch) and, per SecurityLab's
+            # 2026-09-23 polarity finding, a mention whose polarity is wrong
+            # for its shape (see _condition_guards_flag()'s own docstring).
+            # Block-based (not just condition-based) extraction -- see
+            # _find_if_blocks()'s docstring, GUARD-1 follow-up lineage.
             demo_locked_guarded = any(
-                "demo_locked" in cond and not _condition_is_constant_false(cond)
-                for cond, _, _ in _find_if_conditions(body)
+                _condition_guards_flag(cond, block, "demo_locked")
+                for cond, block in _find_if_blocks(body)
             )
             # migration 0079 (Orchestrator ruling, 2026-09-23, unblock
             # AuditLab's cross-tenant IDOR test): is_test_tenant is a
@@ -4403,8 +4503,8 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             # test tenant as it does to the demo firm -- none of them turn
             # on demo_locked specifically.
             test_tenant_guarded = any(
-                "is_test_tenant" in cond and not _condition_is_constant_false(cond)
-                for cond, _, _ in _find_if_conditions(body)
+                _condition_guards_flag(cond, block, "is_test_tenant")
+                for cond, block in _find_if_blocks(body)
             )
             if demo_locked_guarded and test_tenant_guarded:
                 continue
