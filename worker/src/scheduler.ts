@@ -2663,7 +2663,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
 
   if (mismatches.length === 0) return;
   if (!env.RESEND_API_KEY) {
-    console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but SENDGRID_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
+    console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but RESEND_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
     return;
   }
   const monthUtc = new Date().toISOString().slice(0, 7);
