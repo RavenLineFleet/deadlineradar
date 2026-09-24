@@ -163,15 +163,15 @@ describe("POST /roadmap/notify-signup + GET/POST /roadmap/notify-confirm", () =>
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.20" },
           body: JSON.stringify({ idea_id: SEEDED_IDEA_ID, email }),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(signupResp.status).toBe(200);
       const signupBody = (await signupResp.json()) as { ok: boolean; sent: boolean };
       expect(signupBody.sent).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe(email);
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe(email);
 
       const row = await env.DB.prepare(
         "SELECT confirmed_at, confirm_token FROM feature_idea_notify_signups WHERE idea_id = ?1 AND email = ?2"

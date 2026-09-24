@@ -150,7 +150,7 @@ describe("POST /subscriber/login -- must not be an enumeration oracle", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 500 }));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       const request = new Request(`${BASE}/subscriber/login`, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.94" },

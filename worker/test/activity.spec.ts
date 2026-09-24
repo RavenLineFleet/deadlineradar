@@ -199,13 +199,13 @@ describe("POST /unsubscribe -- admin notification (Task #10)", () => {
           headers: { "content-type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ token: rawToken, action_csrf: nonce }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(unsubResp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe(adminEmail);
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe(adminEmail);
       expect(sentBody.subject).toContain("Will Unsubscribe");
     } finally {
       fetchSpy.mockRestore();
@@ -238,7 +238,7 @@ describe("POST /unsubscribe -- admin notification (Task #10)", () => {
           headers: { "content-type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ token: rawToken, action_csrf: nonce }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(unsubResp.status).toBe(200);
       expect(fetchSpy).not.toHaveBeenCalled();

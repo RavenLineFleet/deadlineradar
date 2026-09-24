@@ -87,7 +87,7 @@ describe("a real token-less magic-link request spends the ACTION budget, never t
         // none) so this actually exercises allowMissingToken -- with no
         // secret configured, verifyTurnstile() would pass regardless of
         // token presence and this test would prove nothing.
-        { SENDGRID_API_KEY: "test-key-not-real", TURNSTILE_SECRET_KEY: "test-secret-not-real" }
+        { RESEND_API_KEY: "test-key-not-real", TURNSTILE_SECRET_KEY: "test-secret-not-real" }
       );
       expect(resp.status).toBe(200);
       // handleFirmLogin defers the send via ctx.waitUntil (TIMING-1) -- wait
@@ -126,7 +126,7 @@ describe("CAP-2: action email has its own independent daily-cap kill switch", ()
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.244" },
           body: new URLSearchParams({ hp_website: "", admin_email: adminEmail }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real", REMINDERS_DAILY_SEND_CAP: "0" }
+        { RESEND_API_KEY: "test-key-not-real", REMINDERS_DAILY_SEND_CAP: "0" }
       );
       expect(resp.status).toBe(200);
       await drain();
@@ -148,7 +148,7 @@ describe("CAP-2: action email has its own independent daily-cap kill switch", ()
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.245" },
           body: new URLSearchParams({ hp_website: "", admin_email: adminEmail }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real", ACTION_DAILY_SEND_CAP: "0" }
+        { RESEND_API_KEY: "test-key-not-real", ACTION_DAILY_SEND_CAP: "0" }
       );
       expect(resp.status).toBe(200); // still a generic success response -- no enumeration oracle
       await drain();

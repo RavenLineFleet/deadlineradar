@@ -6279,10 +6279,11 @@ export async function allSmsOptedInConfirmed(db: D1Database): Promise<Subscriber
 }
 
 // ---------------------------------------------------------------------------
-// Email deliverability (2026-08-09, roadmap #55). SendGrid's Event Webhook
-// reports what happened to an email AFTER it was accepted for sending --
-// see sendgrid_webhook.ts's own docstring for the signature verification
-// this feeds into.
+// Email deliverability (2026-08-09, roadmap #55). Resend's webhook (the
+// SendGrid Event Webhook until the 2026-09-23 removal) reports what
+// happened to an email AFTER it was accepted for sending -- see
+// resend_webhook.ts's own docstring for the signature verification this
+// feeds into.
 // ---------------------------------------------------------------------------
 
 export type PermanentSuppressionReason = "hard_bounced" | "spam_complaint";
@@ -6305,9 +6306,13 @@ export async function suppressByEmail(db: D1Database, emailNormalized: string, r
   return result.meta.changes ?? 0;
 }
 
-/** Idempotent log insert, keyed by SendGrid's own event id -- see migration
- * 0055's own docstring for why this is the real dedup guard against a
- * redelivered webhook. */
+/** Idempotent log insert, keyed by the webhook provider's own delivery id
+ * (Resend/Svix's svix-id header since the 2026-09-23 SendGrid removal;
+ * `sg_event_id`/`sgEventId` naming is unchanged from the SendGrid era to
+ * avoid a schema migration for a same-day provider swap -- the column is
+ * a generic "provider event id," not SendGrid-specific data) -- see
+ * migration 0055's own docstring for why this is the real dedup guard
+ * against a redelivered webhook. */
 export async function recordDeliverabilityEvent(
   db: D1Database,
   input: { sgEventId: string; email: string; eventType: string; reason: string | null }
@@ -6329,7 +6334,7 @@ export async function recordDeliverabilityEvent(
  * automatic trigger, made rarely, so this is meant to be driven by a
  * one-off script run by whoever's operating the fleet when the day
  * actually comes, using this + buildFeatureIdeaShippedEmail() +
- * sendViaSendGrid() directly -- not worth a whole admin-auth surface for
+ * sendEmail() directly -- not worth a whole admin-auth surface for
  * something invoked a handful of times a year. Returns every CONFIRMED,
  * not-yet-notified, not-unsubscribed (AuditLab UNSUB-4) signup for the
  * idea; the caller sends -- building each row's own List-Unsubscribe URL as

@@ -4,7 +4,7 @@
 **deadline-radar.com** (repo must stay **public** — GitHub Pages on the free tier only serves
 public repos; flipping this repo private silently takes the entire live site down, as happened
 2026-09-03). `docs/` is the deployed static site (one page per state), paired with a Cloudflare
-Worker API (`worker/`, Stripe billing, D1-backed subscriber/firm accounts, SendGrid email) that
+Worker API (`worker/`, Stripe billing, D1-backed subscriber/firm accounts, Resend email) that
 is a **separate deploy** from this repo (`worker/.last_deploy_commit` tracks its own marker —
 pushing this repo does not redeploy the Worker). Current scope, state coverage, and feature
 status change often enough that this file does not try to track them precisely — the operator's

@@ -260,7 +260,7 @@ describe("POST /subscriber/change-email -- request phase", () => {
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.230", Cookie: cookie },
           body: JSON.stringify({ new_email: taken }),
         }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, RESEND_API_KEY: "test-key-not-real" },
         { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext
       );
       expect(resp.status).toBe(200);
@@ -317,7 +317,7 @@ describe("POST /subscriber/change-email -- request phase", () => {
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.226", Cookie: cookie },
           body: JSON.stringify({ new_email: newEmail }),
         }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, RESEND_API_KEY: "test-key-not-real" },
         { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext
       );
       expect(resp.status).toBe(200);
@@ -325,7 +325,7 @@ describe("POST /subscriber/change-email -- request phase", () => {
       const recipients = fetchSpy.mock.calls.map((call) => {
         const init = call[1] as RequestInit;
         const body = JSON.parse((init.body as string) ?? "{}");
-        return body.personalizations?.[0]?.to?.[0]?.email;
+        return body.to?.[0];
       });
       expect(recipients[0]).toBe(oldEmail);
       expect(recipients[1]).toBe(newEmail);
@@ -353,7 +353,7 @@ describe("POST /subscriber/change-email -- request phase", () => {
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.229", Cookie: cookie },
           body: JSON.stringify({ new_email: newEmail }),
         }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, RESEND_API_KEY: "test-key-not-real" },
         { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext
       );
       expect(resp.status).toBe(200); // the request itself still succeeds -- token exists, just unconfirmed
@@ -443,7 +443,7 @@ describe("POST /subscriber/login/verify -- email_change apply phase (roadmap #12
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.231", Cookie: cookie },
           body: JSON.stringify({ new_email: newEmail }),
         }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, RESEND_API_KEY: "test-key-not-real" },
         { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext
       );
       expect(changeResp.status).toBe(200);
@@ -451,10 +451,10 @@ describe("POST /subscriber/login/verify -- email_change apply phase (roadmap #12
       const confirmCall = fetchSpy.mock.calls.find((call) => {
         const init = call[1] as RequestInit;
         const body = JSON.parse((init.body as string) ?? "{}");
-        return body.personalizations?.[0]?.to?.[0]?.email === newEmail;
+        return body.to?.[0] === newEmail;
       });
       const confirmBody = JSON.parse(((confirmCall?.[1] as RequestInit).body as string) ?? "{}");
-      const htmlContent = (confirmBody.content ?? []).find((c: { type: string }) => c.type === "text/html")?.value ?? "";
+      const htmlContent = confirmBody.html ?? "";
       const match = /href="([^"]*\/subscriber\/login\/verify\?token=[^"]+)"/.exec(htmlContent);
       expect(match).toBeTruthy();
       capturedConfirmUrl = match![1]!.replace(/&amp;/g, "&");

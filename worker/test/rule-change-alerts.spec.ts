@@ -448,7 +448,7 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
 });
 
 describe("POST /firm/rule-change/notify forwards topic end to end", () => {
-  const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+  const RESEND_URL = "https://api.resend.com/emails";
 
   it("a non-mobility topic in the request body reaches the actual sent email, not the old hardcoded mobility wording", async () => {
     const { firmId, memberId } = await newFirmWithRosterLicense("alert3-e2e", "oklahoma");
@@ -457,7 +457,7 @@ describe("POST /firm/rule-change/notify forwards topic end to end", () => {
     const captured: Array<{ subject: string }> = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         const body = JSON.parse(String(init?.body)) as { subject: string };
         captured.push({ subject: body.subject });
         return new Response(null, { status: 202 });
@@ -478,7 +478,7 @@ describe("POST /firm/rule-change/notify forwards topic end to end", () => {
             topic: "CPA regulatory/statutory change",
           }),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       const respBody = (await resp.json()) as { sent: number };

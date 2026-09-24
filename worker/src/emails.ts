@@ -2158,7 +2158,7 @@ export function buildSignupNotificationEmail(
  * visitor -- same "not a customer-facing email" posture as
  * buildSignupNotificationEmail() above, so it likewise skips the full
  * CAN-SPAM/unsubscribe apparatus. The caller passes visitorEmail as
- * sendViaSendGrid()'s separate replyTo parameter (not baked in here) so a
+ * sendEmail()'s separate replyTo parameter (not baked in here) so a
  * human at Raven@ can just hit Reply and reach the visitor directly.
  */
 export function buildAssistantTicketEmail(details: {

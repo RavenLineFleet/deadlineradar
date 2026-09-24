@@ -6,7 +6,7 @@ compatibility_date = "2026-07-01"
 # Daily reminder scheduler. Fires index.ts's scheduled() once a day at
 # 18:00 UTC (noon Mountain), which sends each confirmed subscriber the
 # nearest newly-due escalation reminder (60/30/14/7/3/1 days out). The
-# handler no-ops when SENDGRID_API_KEY is unset, so this trigger is inert
+# handler no-ops when RESEND_API_KEY is unset, so this trigger is inert
 # until sending is configured.
 [triggers]
 crons = ["0 18 * * *"]

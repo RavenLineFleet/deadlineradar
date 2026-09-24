@@ -78,7 +78,7 @@ import {
   checkAndCountAdminDigestSend,
   DEFAULT_DAILY_NEWSLETTER_SEND_CAP,
   checkAndCountNewsletterSend,
-  sendViaSendGrid,
+  sendEmail,
 } from "./sender";
 import { sendToSlack } from "./slack";
 import { sendToTeams } from "./teams";
@@ -270,7 +270,7 @@ export interface RunReminderOptions {
   /** Scheduling clock. Defaults to now. A test can advance it without waiting
    * real days. */
   asOf?: Date;
-  /** Injected sender for tests -- defaults to the real SendGrid send. Mirrors
+  /** Injected sender for tests -- defaults to the real Resend send. Mirrors
    * the Python original passing an EmailSender in. */
   send?: ReminderSendFn;
 }
@@ -307,8 +307,8 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
   const send: ReminderSendFn =
     opts.send ??
     ((to, built, replyTo) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, replyTo, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, replyTo);
     });
 
   // Roadmap #19: one query, not one per subscriber -- see
@@ -745,8 +745,8 @@ export async function runDripCoursePass(env: Env, opts: RunReminderOptions = {})
   const send: ReminderSendFn =
     opts.send ??
     ((to, built) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
 
   const summary: DripCourseSummary = { enrolled: 0, checked: 0, sent: 0, errors: [] };
@@ -949,8 +949,8 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
   const send: ReminderSendFn =
     opts.send ??
     ((to, built) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const asOf = opts.asOf ?? new Date();
 
@@ -1103,8 +1103,8 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
   const send: ReminderSendFn =
     opts.send ??
     ((to, built) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
 
   const firmsById = new Map((await store.listAllFirmsBasicInfo(env.DB)).map((f) => [f.id, f]));
@@ -2043,8 +2043,8 @@ export async function runAdminDigestAlertPass(env: Env, opts: RunAdminDigestAler
   const send: ReminderSendFn =
     opts.send ??
     ((to, built) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const cap = dailyAdminDigestSendCap(env);
   const staticBase = staticSiteAbsoluteBaseUrl(env);
@@ -2275,8 +2275,8 @@ export async function runComplianceNewsletterPass(
   const send: ReminderSendFn =
     opts.send ??
     ((to, built) => {
-      if (!env.SENDGRID_API_KEY) return Promise.resolve(false);
-      return sendViaSendGrid(env.SENDGRID_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     });
   const asOf = opts.asOf ?? new Date();
 
@@ -2485,13 +2485,13 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
   if (!requireSendApproval(env, "mobilityStalenessAlert")) return;
   const nearing = mobilityRowsNearingExpiry(new Date());
   if (nearing.length === 0) return;
-  if (!env.SENDGRID_API_KEY) return;
+  if (!env.RESEND_API_KEY) return;
   const monthUtc = new Date().toISOString().slice(0, 7);
   const claimed = await store.claimMobilityStalenessAlertForMonth(env.DB, monthUtc);
   if (!claimed) return;
   try {
     const built = buildMobilityStalenessAlertEmail(nearing);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+    const ok = await sendEmail(env.RESEND_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     }
@@ -2585,13 +2585,13 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
   if (!requireSendApproval(env, "gatedDatasetStalenessAlert")) return;
   const nearing = gatedDatasetRowsNearingExpiry(new Date());
   if (nearing.length === 0) return;
-  if (!env.SENDGRID_API_KEY) return;
+  if (!env.RESEND_API_KEY) return;
   const dayUtc = new Date().toISOString().slice(0, 10);
   const claimed = await store.claimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
   if (!claimed) return;
   try {
     const built = buildGatedDatasetStalenessAlertEmail(nearing);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+    const ok = await sendEmail(env.RESEND_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
     }
@@ -2662,7 +2662,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   }
 
   if (mismatches.length === 0) return;
-  if (!env.SENDGRID_API_KEY) {
+  if (!env.RESEND_API_KEY) {
     console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but SENDGRID_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
     return;
   }
@@ -2671,7 +2671,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   if (!claimed) return;
   try {
     const built = buildStripePriceParityAlertEmail(mismatches);
-    const ok = await sendViaSendGrid(env.SENDGRID_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY);
+    const ok = await sendEmail(env.RESEND_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
     }
@@ -2739,10 +2739,10 @@ export async function runAssistantLatencyAlertPass(
   if (stats.n === 0 || stats.p95Ms === null || stats.maxMs === null) return;
   const breached = stats.p95Ms > ASSISTANT_LATENCY_ALERT_P95_MS || stats.maxMs > ASSISTANT_LATENCY_ALERT_MAX_MS;
   if (!breached) return;
-  if (!env.SENDGRID_API_KEY) return;
-  const apiKey = env.SENDGRID_API_KEY;
+  if (!env.RESEND_API_KEY) return;
+  const apiKey = env.RESEND_API_KEY;
   const send =
-    opts.send ?? ((built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => sendViaSendGrid(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY, undefined, env.RESEND_API_KEY));
+    opts.send ?? ((built: ReturnType<typeof buildAssistantLatencyAlertEmail>) => sendEmail(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY));
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const dayUtc = new Date().toISOString().slice(0, 10);
   const claimed = await store.claimAssistantLatencyAlertForToday(env.DB, dayUtc);
@@ -2761,7 +2761,7 @@ export async function runAssistantLatencyAlertPass(
       ok = await send(built);
       if (ok) break;
       // MON-5: was a SILENT single failure. Name each failed attempt (the
-      // status+body are in sendViaSendGrid's own [sendgrid-fail] line).
+      // status+body are in sendEmail's own [resend-fail] line).
       console.log(
         `[assistant-latency-alert-cron] send attempt ${attempt}/${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} failed`
       );

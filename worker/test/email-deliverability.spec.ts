@@ -1,22 +1,21 @@
 /**
- * Roadmap #55 (2026-08-09): SendGrid Event Webhook (bounce/complaint
- * tracking). Two layers tested independently, same split as
- * sendgrid_webhook.ts itself:
- *   1. derSignatureToRaw() / verifySendGridEventSignature() -- pure crypto,
- *      no D1/HTTP involved. There's no real SendGrid-signed sample to test
- *      against, so these tests sign with Web Crypto's own RAW-format
- *      ECDSA output, hand-DER-encode it (the inverse of the function under
- *      test), and confirm the round-trip verifies -- proving the DER
- *      parsing is correct without needing an external fixture.
+ * Roadmap #55 (2026-08-09, bounce/complaint tracking), Resend/Svix webhook
+ * (replaces the old SendGrid Event Webhook -- Orchestrator directive,
+ * 2026-09-23, Devin: "Replace SendGrid completely"). Two layers tested
+ * independently, same split as resend_webhook.ts itself:
+ *   1. verifyResendEventSignature() -- pure crypto, no D1/HTTP involved.
+ *      Signs with the real HMAC-SHA256-over-`{id}.{timestamp}.{body}`
+ *      scheme Svix documents, so these are genuine round-trip tests, not
+ *      a mocked verifier.
  *   2. POST /email/events -- the route, using workerFetch() to override
- *      env.SENDGRID_WEBHOOK_PUBLIC_KEY per-test (same pattern
- *      billing.spec.ts uses for STRIPE_WEBHOOK_SECRET), signing real
- *      request bodies with the matching private key.
+ *      env.RESEND_WEBHOOK_SECRET per-test (same pattern billing.spec.ts
+ *      uses for STRIPE_WEBHOOK_SECRET), signing real request bodies with
+ *      the matching secret.
  */
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
-import { derSignatureToRaw, verifySendGridEventSignature } from "../src/sendgrid_webhook";
+import { verifyResendEventSignature } from "../src/resend_webhook";
 
 function testExecutionContext(): ExecutionContext {
   return {
@@ -37,110 +36,109 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-// Inverse of derSignatureToRaw() -- test-only, encodes a raw 64-byte r||s
-// signature back into DER so these tests can exercise the real parser
-// against a real Web Crypto-produced signature.
-function rawSignatureToDer(raw: Uint8Array): Uint8Array {
-  const encodeInteger = (coord: Uint8Array): number[] => {
-    let bytes = [...coord];
-    while (bytes.length > 1 && bytes[0] === 0x00 && ((bytes[1] ?? 0) & 0x80) === 0) bytes.shift();
-    if ((bytes[0] ?? 0) & 0x80) bytes = [0x00, ...bytes]; // sign-padding
-    return [0x02, bytes.length, ...bytes];
-  };
-  const r = encodeInteger(raw.slice(0, 32));
-  const s = encodeInteger(raw.slice(32, 64));
-  const body = [...r, ...s];
-  return new Uint8Array([0x30, body.length, ...body]);
+function fakeSecret(): { raw: string; whsec: string } {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const raw = toBase64(bytes);
+  return { raw, whsec: `whsec_${raw}` };
 }
 
-async function generateKeyPair(): Promise<CryptoKeyPair> {
-  return crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]) as Promise<CryptoKeyPair>;
-}
-
-async function publicKeyBase64(keyPair: CryptoKeyPair): Promise<string> {
-  const spki = (await crypto.subtle.exportKey("spki", keyPair.publicKey)) as ArrayBuffer;
-  return toBase64(new Uint8Array(spki));
-}
-
-async function signEventPayload(keyPair: CryptoKeyPair, timestamp: string, body: string): Promise<string> {
-  const signed = new TextEncoder().encode(timestamp + body);
-  const rawSig = new Uint8Array(
-    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, signed as BufferSource)
-  );
-  return toBase64(rawSignatureToDer(rawSig));
+async function signPayload(secretRaw: string, svixId: string, svixTimestamp: string, body: string): Promise<string> {
+  const keyBytes = Uint8Array.from(atob(secretRaw), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", keyBytes as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signedContent = `${svixId}.${svixTimestamp}.${body}`;
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedContent) as BufferSource);
+  return `v1,${toBase64(new Uint8Array(mac))}`;
 }
 
 // ---------------------------------------------------------------------------
-// derSignatureToRaw() / verifySendGridEventSignature() -- pure crypto
+// verifyResendEventSignature() -- pure crypto
 // ---------------------------------------------------------------------------
 
-describe("verifySendGridEventSignature", () => {
-  it("verifies a genuine signature round-tripped through DER encode -> derSignatureToRaw() -> Web Crypto verify()", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const timestamp = "1723190400";
-    const body = JSON.stringify([{ email: "a@example.com", event: "bounce", sg_event_id: "evt-1" }]);
-    const sigB64 = await signEventPayload(keyPair, timestamp, body);
+describe("verifyResendEventSignature", () => {
+  it("verifies a genuine HMAC signature", async () => {
+    const { raw, whsec } = fakeSecret();
+    const svixId = "msg_1";
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const sig = await signPayload(raw, svixId, svixTimestamp, body);
 
-    expect(await verifySendGridEventSignature(pubKeyB64, sigB64, timestamp, body)).toBe(true);
+    expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, sig, body, 300, 1723190400)).toBe(true);
   });
 
-  it("holds across many random signatures -- exercises both DER sign-padding cases", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
+  it("holds across many random deliveries", async () => {
+    const { raw, whsec } = fakeSecret();
     for (let i = 0; i < 15; i++) {
-      const timestamp = String(1700000000 + i);
-      const body = JSON.stringify([{ email: `x${i}@example.com`, event: "delivered", sg_event_id: `evt-${i}` }]);
-      const sigB64 = await signEventPayload(keyPair, timestamp, body);
-      expect(await verifySendGridEventSignature(pubKeyB64, sigB64, timestamp, body)).toBe(true);
+      const svixId = `msg_${i}`;
+      const svixTimestamp = String(1700000000 + i);
+      const body = JSON.stringify({ type: "email.delivered", data: { to: [`x${i}@example.com`] } });
+      const sig = await signPayload(raw, svixId, svixTimestamp, body);
+      expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, sig, body, 300, 1700000000 + i)).toBe(true);
     }
   });
 
   it("rejects a tampered body", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const timestamp = "1723190400";
-    const body = JSON.stringify([{ email: "a@example.com", event: "bounce", sg_event_id: "evt-1" }]);
-    const sigB64 = await signEventPayload(keyPair, timestamp, body);
+    const { raw, whsec } = fakeSecret();
+    const svixId = "msg_1";
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const sig = await signPayload(raw, svixId, svixTimestamp, body);
 
-    const tampered = body.replace("bounce", "delivered");
-    expect(await verifySendGridEventSignature(pubKeyB64, sigB64, timestamp, tampered)).toBe(false);
+    const tampered = body.replace("bounced", "delivered");
+    expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, sig, tampered, 300, 1723190400)).toBe(false);
   });
 
-  it("rejects a wrong timestamp", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const timestamp = "1723190400";
-    const body = JSON.stringify([{ email: "a@example.com", event: "bounce", sg_event_id: "evt-1" }]);
-    const sigB64 = await signEventPayload(keyPair, timestamp, body);
+  it("rejects a tampered svix-id (the id is part of the signed content, not incidental)", async () => {
+    const { raw, whsec } = fakeSecret();
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const sig = await signPayload(raw, "msg_1", svixTimestamp, body);
 
-    expect(await verifySendGridEventSignature(pubKeyB64, sigB64, "1723190401", body)).toBe(false);
+    expect(await verifyResendEventSignature(whsec, "msg_2", svixTimestamp, sig, body, 300, 1723190400)).toBe(false);
   });
 
-  it("rejects a signature from a different key", async () => {
-    const keyPair = await generateKeyPair();
-    const otherKeyPair = await generateKeyPair();
-    const otherPubKeyB64 = await publicKeyBase64(otherKeyPair);
-    const timestamp = "1723190400";
-    const body = JSON.stringify([{ email: "a@example.com", event: "bounce", sg_event_id: "evt-1" }]);
-    const sigB64 = await signEventPayload(keyPair, timestamp, body);
+  it("rejects a signature from a different secret", async () => {
+    const { raw } = fakeSecret();
+    const { whsec: otherWhsec } = fakeSecret();
+    const svixId = "msg_1";
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const sig = await signPayload(raw, svixId, svixTimestamp, body);
 
-    expect(await verifySendGridEventSignature(otherPubKeyB64, sigB64, timestamp, body)).toBe(false);
+    expect(await verifyResendEventSignature(otherWhsec, svixId, svixTimestamp, sig, body, 300, 1723190400)).toBe(false);
+  });
+
+  it("rejects a delivery outside the timestamp tolerance window (replay protection)", async () => {
+    const { raw, whsec } = fakeSecret();
+    const svixId = "msg_1";
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const sig = await signPayload(raw, svixId, svixTimestamp, body);
+
+    // "now" is 10 minutes after the signed timestamp -- outside the 5-minute default window.
+    expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, sig, body, 300, 1723190400 + 600)).toBe(false);
+    // Just inside the window still verifies.
+    expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, sig, body, 300, 1723190400 + 299)).toBe(true);
+  });
+
+  it("verifies against any one of several space-separated v1 tokens (secret rotation)", async () => {
+    const { raw, whsec } = fakeSecret();
+    const svixId = "msg_1";
+    const svixTimestamp = "1723190400";
+    const body = JSON.stringify({ type: "email.bounced", data: { to: ["a@example.com"] } });
+    const realSig = await signPayload(raw, svixId, svixTimestamp, body);
+    const combined = `v1,bm90LXJlYWw= ${realSig} v1,YWxzby1ub3QtcmVhbA==`;
+
+    expect(await verifyResendEventSignature(whsec, svixId, svixTimestamp, combined, body, 300, 1723190400)).toBe(true);
   });
 
   it("fails closed on malformed inputs -- never throws", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    expect(await verifySendGridEventSignature(pubKeyB64, null, "123", "{}")).toBe(false);
-    expect(await verifySendGridEventSignature(pubKeyB64, "not-base64!!", "123", "{}")).toBe(false);
-    expect(await verifySendGridEventSignature(pubKeyB64, "AAAA", null, "{}")).toBe(false);
-    expect(await verifySendGridEventSignature("not-a-valid-key", "AAAA", "123", "{}")).toBe(false);
-  });
-
-  it("derSignatureToRaw returns null on malformed DER rather than throwing", () => {
-    expect(derSignatureToRaw(new Uint8Array([0x00, 0x01, 0x02]))).toBeNull();
-    expect(derSignatureToRaw(new Uint8Array([0x30, 0x05, 0x02, 0x01, 0x01]))).toBeNull(); // truncated
-    expect(derSignatureToRaw(new Uint8Array([]))).toBeNull();
+    const { whsec } = fakeSecret();
+    expect(await verifyResendEventSignature(whsec, null, "123", "v1,AAAA", "{}")).toBe(false);
+    expect(await verifyResendEventSignature(whsec, "msg_1", null, "v1,AAAA", "{}")).toBe(false);
+    expect(await verifyResendEventSignature(whsec, "msg_1", "123", null, "{}")).toBe(false);
+    expect(await verifyResendEventSignature(whsec, "msg_1", "not-a-number", "v1,AAAA", "{}")).toBe(false);
+    expect(await verifyResendEventSignature("not-valid-base64!!", "msg_1", "123", "v1,AAAA", "{}")).toBe(false);
+    expect(await verifyResendEventSignature(whsec, "msg_1", "123", "garbage-no-comma", "{}")).toBe(false);
   });
 });
 
@@ -148,19 +146,21 @@ describe("verifySendGridEventSignature", () => {
 // POST /email/events
 // ---------------------------------------------------------------------------
 
-async function postEvents(
-  keyPair: CryptoKeyPair | null,
-  events: unknown[],
+async function postEvent(
+  secret: { raw: string; whsec: string } | null,
+  event: unknown,
   envOverrides: Record<string, unknown>,
-  timestampOverride?: string
+  opts: { svixId?: string; timestampOverride?: string } = {}
 ): Promise<Response> {
-  const body = JSON.stringify(events);
+  const body = JSON.stringify(event);
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (keyPair) {
-    const timestamp = timestampOverride ?? "1723190400";
-    const sigB64 = await signEventPayload(keyPair, timestamp, body);
-    headers["X-Twilio-Email-Event-Webhook-Signature"] = sigB64;
-    headers["X-Twilio-Email-Event-Webhook-Timestamp"] = timestamp;
+  if (secret) {
+    const svixId = opts.svixId ?? `msg_${Date.now()}_${Math.random()}`;
+    const timestamp = opts.timestampOverride ?? String(Math.floor(Date.now() / 1000));
+    const sig = await signPayload(secret.raw, svixId, timestamp, body);
+    headers["svix-id"] = svixId;
+    headers["svix-timestamp"] = timestamp;
+    headers["svix-signature"] = sig;
   }
   return workerFetch(
     new Request("https://deadline-radar.com/email/events", { method: "POST", headers, body }),
@@ -182,30 +182,28 @@ async function seedConfirmedSubscriber(email: string): Promise<void> {
 }
 
 describe("POST /email/events", () => {
-  it("503s when SENDGRID_WEBHOOK_PUBLIC_KEY is unset -- same unconfigured-rejects posture as /stripe/webhook", async () => {
-    const resp = await postEvents(null, [{ email: "a@example.com", event: "bounce", sg_event_id: "evt-x" }], {
-      SENDGRID_WEBHOOK_PUBLIC_KEY: undefined,
+  it("503s when RESEND_WEBHOOK_SECRET is unset -- same unconfigured-rejects posture as /stripe/webhook", async () => {
+    const resp = await postEvent(null, { type: "email.bounced", data: { to: ["a@example.com"] } }, {
+      RESEND_WEBHOOK_SECRET: undefined,
     });
     expect(resp.status).toBe(503);
   });
 
   it("400s on a missing/invalid signature and mutates nothing", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-badsig-${Date.now()}@example.com`;
+    const secret = fakeSecret();
+    const email = `resendevt-badsig-${Date.now()}@example.com`;
     await seedConfirmedSubscriber(email);
 
-    const resp = await postEvents(null, [{ email, event: "bounce", sg_event_id: "evt-badsig" }], {
-      SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64,
+    const resp = await postEvent(null, { type: "email.bounced", data: { to: [email] } }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
     });
     expect(resp.status).toBe(400);
     expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(false);
   });
 
-  it("a bounce event suppresses every row sharing that email", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-bounce-${Date.now()}@example.com`;
+  it("an email.bounced event suppresses every row sharing that email", async () => {
+    const secret = fakeSecret();
+    const email = `resendevt-bounce-${Date.now()}@example.com`;
     await seedConfirmedSubscriber(email);
     await store.addPending(env.DB, {
       email,
@@ -218,8 +216,8 @@ describe("POST /email/events", () => {
       skipConfirmation: true,
     });
 
-    const resp = await postEvents(keyPair, [{ email, event: "bounce", sg_event_id: `evt-bounce-${Date.now()}`, reason: "550 5.1.1 no such user" }], {
-      SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64,
+    const resp = await postEvent(secret, { type: "email.bounced", data: { to: [email] } }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
     });
     expect(resp.status).toBe(200);
     expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(true);
@@ -229,91 +227,68 @@ describe("POST /email/events", () => {
     }
   });
 
-  it("a spamreport event suppresses too", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-spam-${Date.now()}@example.com`;
+  it("an email.complained event suppresses too", async () => {
+    const secret = fakeSecret();
+    const email = `resendevt-spam-${Date.now()}@example.com`;
     await seedConfirmedSubscriber(email);
 
-    const resp = await postEvents(keyPair, [{ email, event: "spamreport", sg_event_id: `evt-spam-${Date.now()}` }], {
-      SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64,
+    const resp = await postEvent(secret, { type: "email.complained", data: { to: [email] } }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
     });
     expect(resp.status).toBe(200);
     expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(true);
+    const row = await store.listSubscriberLicenses(env.DB, email);
+    expect(row[0]?.stop_reason).toBe("spam_complaint");
   });
 
-  it("AuditLab EMAIL-3: a SOFT bounce (event:'bounce', type:'blocked' -- SendGrid's REAL shape) is logged but does NOT suppress", async () => {
-    // Per SendGrid's own docs, a temporary delivery failure (full mailbox,
-    // transient greylisting) arrives as event:"bounce" with type:"blocked"
-    // -- SendGrid never sends a top-level event:"blocked". The original
-    // handler only read `event`, so this soft bounce was indistinguishable
-    // from a hard one and permanently silenced every future reminder to
-    // the address. This is the exact payload shape that must NOT suppress.
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-softbounce-${Date.now()}@example.com`;
-    const sgEventId = `evt-softbounce-${Date.now()}`;
+  it("an email.delivery_delayed event (transient) is logged but does NOT suppress", async () => {
+    const secret = fakeSecret();
+    const email = `resendevt-delayed-${Date.now()}@example.com`;
+    const svixId = `msg-delayed-${Date.now()}`;
     await seedConfirmedSubscriber(email);
 
-    const resp = await postEvents(
-      keyPair,
-      [{ email, event: "bounce", type: "blocked", sg_event_id: sgEventId, reason: "mailbox full" }],
-      { SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64 }
-    );
+    const resp = await postEvent(secret, { type: "email.delivery_delayed", data: { to: [email] } }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
+    }, { svixId });
     expect(resp.status).toBe(200);
     expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(false);
-    const row = await env.DB.prepare("SELECT * FROM email_deliverability_events WHERE sg_event_id = ?1").bind(sgEventId).first();
+    const row = await env.DB.prepare("SELECT * FROM email_deliverability_events WHERE sg_event_id = ?1").bind(svixId).first();
     expect(row).toBeTruthy();
-    expect((row as { event_type: string }).event_type).toBe("bounce");
+    expect((row as { event_type: string }).event_type).toBe("email.delivery_delayed");
   });
 
-  it("positive control: a HARD bounce (event:'bounce', type:'bounce') still suppresses -- the soft-bounce fix didn't break this", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-hardbounce-${Date.now()}@example.com`;
-    const sgEventId = `evt-hardbounce-${Date.now()}`;
+  it("a redelivered event (same svix-id) doesn't double-log or re-suppress destructively", async () => {
+    const secret = fakeSecret();
+    const email = `resendevt-redeliver-${Date.now()}@example.com`;
+    const svixId = `msg-redeliver-${Date.now()}`;
     await seedConfirmedSubscriber(email);
+    const overrides = { RESEND_WEBHOOK_SECRET: secret.whsec };
 
-    const resp = await postEvents(
-      keyPair,
-      [{ email, event: "bounce", type: "bounce", sg_event_id: sgEventId, reason: "550 5.1.1 no such user" }],
-      { SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64 }
-    );
-    expect(resp.status).toBe(200);
-    expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(true);
-  });
-
-  it("a redelivered event (same sg_event_id) doesn't double-log or re-suppress destructively", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-redeliver-${Date.now()}@example.com`;
-    const sgEventId = `evt-redeliver-${Date.now()}`;
-    await seedConfirmedSubscriber(email);
-    const overrides = { SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64 };
-
-    const first = await postEvents(keyPair, [{ email, event: "bounce", sg_event_id: sgEventId }], overrides, "1723190500");
+    const first = await postEvent(secret, { type: "email.bounced", data: { to: [email] } }, overrides, { svixId });
     expect(first.status).toBe(200);
-    const second = await postEvents(keyPair, [{ email, event: "bounce", sg_event_id: sgEventId }], overrides, "1723190600");
+    const second = await postEvent(secret, { type: "email.bounced", data: { to: [email] } }, overrides, { svixId });
     expect(second.status).toBe(200);
 
-    const { results } = await env.DB.prepare("SELECT * FROM email_deliverability_events WHERE sg_event_id = ?1").bind(sgEventId).all();
+    const { results } = await env.DB.prepare("SELECT * FROM email_deliverability_events WHERE sg_event_id = ?1").bind(svixId).all();
     expect(results?.length).toBe(1);
   });
 
-  it("a batch with one malformed event among valid ones still processes the valid ones", async () => {
-    const keyPair = await generateKeyPair();
-    const pubKeyB64 = await publicKeyBase64(keyPair);
-    const email = `sgevt-batch-${Date.now()}@example.com`;
+  it("a delivery with no usable `to` is accepted (200, signature was valid) but suppresses nothing", async () => {
+    const secret = fakeSecret();
+    const resp = await postEvent(secret, { type: "email.bounced", data: {} }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
+    });
+    expect(resp.status).toBe(200);
+  });
+
+  it("accepts `data.to` as a bare string, not just an array", async () => {
+    const secret = fakeSecret();
+    const email = `resendevt-stringto-${Date.now()}@example.com`;
     await seedConfirmedSubscriber(email);
 
-    const resp = await postEvents(
-      keyPair,
-      [
-        { event: "bounce", sg_event_id: "evt-missing-email" }, // malformed -- no email
-        { email, event: "bounce", sg_event_id: `evt-batch-valid-${Date.now()}` },
-      ],
-      { SENDGRID_WEBHOOK_PUBLIC_KEY: pubKeyB64 }
-    );
+    const resp = await postEvent(secret, { type: "email.bounced", data: { to: email } }, {
+      RESEND_WEBHOOK_SECRET: secret.whsec,
+    });
     expect(resp.status).toBe(200);
     expect(await store.isPermanentlySuppressed(env.DB, email)).toBe(true);
   });

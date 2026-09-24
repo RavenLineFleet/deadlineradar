@@ -5,13 +5,20 @@
 rule ("Deadline-Radar", never "DeadlineRadar") already had a detector
 (check_external_copy.py), but nothing called it -- a human had to remember to run it
 before sending, the exact failure mode that let 6 drafts through review un-hyphenated.
-This script is the actual fix: the send path itself refuses to call SendGrid if the
+This script is the actual fix: the send path itself refuses to send if the
 subject/body fails the check. There is no way to send an outreach email through this
 script with a violation in it -- not "you should check first," structurally can't.
 
 If more brand/style rules for external copy come up later, extend
 check_external_copy.py's VIOLATION_RE / find_violations_in_text() rather than adding a
 second check here -- this script only calls that one detector.
+
+RETIRED as a real sender, 2026-09-23 (Orchestrator directive, "Replace SendGrid
+completely" -- explicit standing rule: outreach mail goes only from Zoho raven@
+mooseandraven.com, never through the Deadline-Radar product's own transactional sender,
+SendGrid or its replacement Resend alike). --check-only and --dry-run keep working (the
+brand gate is still useful for drafting), but a real send now refuses outright with that
+message -- see main() below. Send a checked/gate-passed draft manually from Zoho instead.
 
 Draft file format (see outreach_drafts/*.md for real examples):
     **Recipient**: <email> (<free-text about how the address was verified>)
@@ -43,15 +50,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.check_external_copy import find_violations_in_text  # noqa: E402
-from reminders.sender import DryRunSender, SendGridSender  # noqa: E402
+from reminders.sender import DryRunSender  # noqa: E402
 
-# SEC-5 (AuditLab/SecurityLab, 2026-09-09): must live two dirs up, out of the
-# repo entirely -- REPO_ROOT is public (RavenLineFleet/deadlineradar) and
-# unignored for a repo-root .sendgrid_key. Matches reminders/run_live_selftest.py's
-# own KEY_PATH; do not drop the .parent.parent again.
-KEY_PATH = REPO_ROOT.parent.parent / ".sendgrid_key"
-FROM_EMAIL = "support@deadline-radar.com"
-FROM_NAME = "Deadline-Radar"
+OUTREACH_REFUSAL_MESSAGE = (
+    "Refusing to send: outreach mail goes only from Zoho raven@mooseandraven.com "
+    "(hard rule), never through the Deadline-Radar product's own transactional sender. "
+    "Use --check-only to gate-check this draft, then send it manually from Zoho."
+)
 
 _RECIPIENT_RE = re.compile(r"^\*\*Recipient\*\*:\s*(\S+)", re.MULTILINE)
 _SUBJECT_RE = re.compile(r"^\*\*Subject\*\*:\s*(.+)$", re.MULTILINE)
@@ -129,12 +134,8 @@ def main() -> int:
     elif dry_run:
         sender = DryRunSender()
     else:
-        try:
-            api_key = KEY_PATH.read_text(encoding="utf-8").strip()
-        except FileNotFoundError:
-            print(f"No SendGrid key at {KEY_PATH} -- this must live OUTSIDE the repo, never inside it.")
-            return 2
-        sender = SendGridSender(api_key=api_key, from_email=FROM_EMAIL, from_name=FROM_NAME)
+        print(OUTREACH_REFUSAL_MESSAGE)
+        return 2
 
     all_ok = True
     for raw in files:

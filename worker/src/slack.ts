@@ -104,7 +104,7 @@ export async function exchangeSlackCode(input: {
 
 /**
  * Posts one message to a firm's connected incoming webhook. Mirrors
- * sendViaSendGrid()'s exact contract (sender.ts) -- AbortController +
+ * sendEmail()'s exact contract (sender.ts) -- AbortController +
  * SEND_TIMEOUT_MS timeout, 2xx-only success, never throws -- so it drops
  * into runSlackAlertPass()'s injectable `send` option the same way every
  * other pass's `send` does.

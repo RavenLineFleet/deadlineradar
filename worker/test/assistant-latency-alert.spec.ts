@@ -13,7 +13,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
 
-const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_URL = "https://api.resend.com/emails";
 
 async function seedSamples(
   nowSeconds: number,
@@ -177,7 +177,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     try {
       await store.logAssistantChatLatency(env.DB, 40000, Math.floor(Date.now() / 1000), "success");
-      await freshRun({ SEND_APPROVED_PASSES: undefined, SENDGRID_API_KEY: "test-key" });
+      await freshRun({ SEND_APPROVED_PASSES: undefined, RESEND_API_KEY: "test-key" });
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();
@@ -190,7 +190,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       const now = Math.floor(Date.now() / 1000);
       // Simulate the real documented baseline: values in the 15-18s band.
       await seedSamples(now, [15000, 16000, 17000, 18000, 15500]);
-      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" });
+      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" });
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();
@@ -201,9 +201,9 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const captured: Array<{ to: unknown; subject: string; text: string }> = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
-        const body = JSON.parse(String(init?.body)) as { personalizations: Array<{ to: unknown }>; subject: string; content: Array<{ value: string }> };
-        captured.push({ to: body.personalizations[0]?.to, subject: body.subject, text: body.content[0]?.value ?? "" });
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { to: unknown; subject: string; text: string };
+        captured.push({ to: body.to, subject: body.subject, text: body.text ?? "" });
         return new Response(null, { status: 202 });
       }
       throw new Error(`unexpected fetch in assistant-latency-alert test: ${url}`);
@@ -211,7 +211,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     try {
       const now = Math.floor(Date.now() / 1000);
       await seedSamples(now, [16000, 17000, 35000, 15000, 16500]); // one real stall at 35s
-      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" });
+      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" });
       expect(captured).toHaveLength(1);
       expect(captured[0]?.subject).toContain("assistant chat latency degraded");
       expect(captured[0]?.text).toContain("35.0s");
@@ -225,7 +225,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const captured: string[] = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         const body = JSON.parse(String(init?.body)) as { subject: string };
         captured.push(body.subject);
         return new Response(null, { status: 202 });
@@ -238,7 +238,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       // all-rows p95 down to ~0.4s (breach=false) if MON-4 weren't fixed.
       await seedSamples(now, Array.from({ length: 950 }, () => 400), "rate_limited");
       await seedSamples(now, Array.from({ length: 50 }, () => 26000), "success");
-      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" });
+      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" });
       expect(captured).toHaveLength(1);
     } finally {
       fetchSpy.mockRestore();
@@ -258,7 +258,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const captured: string[] = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         const body = JSON.parse(String(init?.body)) as { subject: string };
         captured.push(body.subject);
         return new Response(null, { status: 202 });
@@ -271,7 +271,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       // but max (26000) is under the 30000 max threshold. Isolates the p95
       // branch from the max branch.
       await seedSamples(now, Array.from({ length: 20 }, () => 26000));
-      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" });
+      await freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" });
       expect(captured).toHaveLength(1);
     } finally {
       fetchSpy.mockRestore();
@@ -282,7 +282,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     let sendCount = 0;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         sendCount++;
         return new Response(null, { status: 202 });
       }
@@ -293,7 +293,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       await seedSamples(now, [40000]);
       const runOnce = async () => {
         const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
-        return runAssistantLatencyAlertPass({ ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never);
+        return runAssistantLatencyAlertPass({ ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never);
       };
       await runOnce();
       await store.logAssistantChatLatency(env.DB, 41000, now, "success"); // still breaching on a later tick
@@ -310,7 +310,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       const now = Math.floor(Date.now() / 1000);
       await seedSamples(now, [50000]);
       await expect(
-        freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: undefined })
+        freshRun({ SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: undefined })
       ).resolves.toBeUndefined();
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
@@ -322,7 +322,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     let calls = 0;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         calls++;
         return new Response("simulated failure", { status: 500 });
       }
@@ -335,9 +335,9 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
       // MON-5: inject a no-op sleep so the retry backoff doesn't add real
       // seconds to the suite; the real fetch mock still exercises
-      // sendViaSendGrid's [sendgrid-fail] status+body logging path 3x.
+      // sendEmail's [resend-fail] status+body logging path 3x.
       await runAssistantLatencyAlertPass(
-        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never,
         { sleep: async () => {} }
       );
       // MON-5: the send is retried to exhaustion before giving up (was 1 call).
@@ -368,7 +368,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
       let attempts = 0;
       const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
       await runAssistantLatencyAlertPass(
-        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never,
         {
           send: async () => {
             attempts++;
@@ -396,7 +396,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
     await expect(
       runAssistantLatencyAlertPass(
-        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+        { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never,
         { send: async () => { attempts++; return false; }, sleep: async () => {} }
       )
     ).resolves.toBeUndefined();
@@ -416,7 +416,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const sleeps: number[] = [];
     const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
     await runAssistantLatencyAlertPass(
-      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never,
       { send: async () => { attempts++; return true; }, sleep: async (ms) => { sleeps.push(ms); } }
     );
     expect(attempts).toBe(1);
@@ -429,7 +429,7 @@ describe("runAssistantLatencyAlertPass -- the gated, thresholded send", () => {
     const sleeps: number[] = [];
     const { runAssistantLatencyAlertPass } = await import("../src/scheduler");
     await runAssistantLatencyAlertPass(
-      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", SENDGRID_API_KEY: "test-key" } as never,
+      { ...env, SEND_APPROVED_PASSES: "assistantLatencyAlert", RESEND_API_KEY: "test-key" } as never,
       { send: async () => false, sleep: async (ms) => { sleeps.push(ms); } }
     );
     // 3 attempts -> 2 backoffs, increasing: BACKOFF_MS*1, BACKOFF_MS*2.
