@@ -9048,9 +9048,10 @@ full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
   <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account where one exists,
   or your IP address for the handful of actions (like signing out) that happen before a session exists
   -- so a compromised session or a scripting bug can't be abused to hammer the system.</li>
-  <li><strong>Independent header layers:</strong> Content-Security-Policy, X-Frame-Options, and
-  X-Content-Type-Options on every response, as additional protection against the same class of
-  attack.</li>
+  <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
+  (X-Frame-Options plus a Content-Security-Policy <code>frame-ancestors</code> directive) on
+  every response; a strict Content-Security-Policy against script injection on our API
+  routes.</li>
 </ul>
 
 <h2>Incident response</h2>
