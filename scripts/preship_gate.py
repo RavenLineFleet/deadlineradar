@@ -15,6 +15,8 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from datetime import date
 from pathlib import Path
 from typing import NamedTuple
@@ -6757,6 +6759,131 @@ def print_changelog_staleness_advisory(repo_root: Path) -> None:
         print(f"Fresh -- newest changelog entry is {newest} ({age_days} days old).")
 
 
+# SecurityLab + AuditLab, SEC-HDR-2 (2026-09-23, consolidated after several
+# rounds of mutual self-correction between them -- see
+# securitylab_20260923_SECHDR2_* / auditlab_20260923_SECHDR2_* in
+# Orchestrator's inbox for the full derivation, not repeated here). Nothing
+# in this codebase detected a change to the LIVE header set this site
+# actually serves: the static layer's header config lives entirely in a
+# Cloudflare zone Transform Rule, outside this repo, and every existing
+# header assertion (worker/test/*.spec.ts) dispatches to the in-process
+# Worker via SELF.fetch(), never the real edge. This is preship_gate.py's
+# first network dependency, added deliberately for exactly that reason --
+# not a check that can be satisfied by reading source.
+#
+# Two traps both reviewers independently hit while designing this, and
+# which any future change to it must preserve the fix for:
+#   1. The stdlib default User-Agent is Cloudflare-blocked (403, "error
+#      code: 1010") on EVERY route, both layers. A request with no
+#      explicit UA never reaches the origin at all.
+#   2. That same 403 block page carries THIS SITE'S OWN header set on the
+#      static layer (the zone Transform Rule applies to block responses
+#      too) -- so a header-only comparison reads clean on a request that
+#      reached nothing. Identity (status + exact body) must be checked
+#      BEFORE headers are trusted, on BOTH layers, permanently -- not a
+#      today-only quirk, since the block page will carry whatever CSP-1
+#      eventually ships too.
+_SECURITY_HEADER_LAYERS = (
+    {
+        "name": "static",
+        "url": "https://deadline-radar.com/kansas/",
+        "identity_ok": lambda status, body: status == 200 and body.startswith(b"<!doctype html>"),
+        "identity_desc": "200 with a body starting '<!doctype html>'",
+        "expected": {
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "SAMEORIGIN",
+            # EXPECTED to change once CSP-1 (a real script-src/base-uri/
+            # form-action policy) lands -- update this value deliberately
+            # as part of that commit; it is not a literal to "fix" when
+            # the gate goes red for an unrelated reason.
+            "content-security-policy": "frame-ancestors 'self'",
+        },
+    },
+    {
+        "name": "api",
+        "url": "https://deadline-radar.com/api/health",
+        "identity_ok": lambda status, body: status == 200 and body == b'{"status":"ok"}',
+        "identity_desc": '200 with body {"status":"ok"}',
+        "expected": {
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "content-security-policy": (
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; "
+                "form-action 'self'; frame-ancestors 'none'"
+            ),
+        },
+    },
+)
+# Known LOW, not drift (SecurityLab, confirmed by AuditLab): neither
+# layer's Strict-Transport-Security carries `preload`. Deliberately not
+# asserted above, so that known gap never shows up as a false drift.
+
+
+def _fetch_with_identity(url: str, timeout: float = 10.0):
+    """Fetches `url` with an explicit User-Agent -- see trap #1 in the
+    block comment above `_SECURITY_HEADER_LAYERS`; the stdlib default is
+    Cloudflare-blocked on every route this file checks. Returns (status,
+    body, headers, network_error): `network_error` is None whenever an
+    HTTP response of any status came back (even a 403 or 500 -- that is
+    still "reached something," for the caller's identity check to
+    evaluate), and is set only when the request never got a response at
+    all (DNS, timeout, connection refused), so the caller can tell
+    "reached the server and didn't like what it said" from "reached
+    nothing" -- the third-outcome distinction both reviewers required."""
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; DeadlineRadarPreshipGate/1.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read(), dict(resp.headers.items()), None
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), dict(e.headers.items()) if e.headers else {}, None
+    except (urllib.error.URLError, OSError, TimeoutError) as e:
+        return None, b"", {}, str(e)
+
+
+def check_security_header_layers(fetch=None) -> list[str]:
+    """SEC-HDR-2 -- see the block comment above `_SECURITY_HEADER_LAYERS`
+    for the full derivation. Fetches each real layer, verifies IDENTITY
+    (never headers alone -- trap #2 above) before trusting anything it
+    says, then compares the expected header values. `fetch` is an
+    injection seam (defaults to `_fetch_with_identity`) so a test can
+    prove both failure modes the reviewers required without touching the
+    network: an unreachable host must fail this check, and a mutated
+    expected value must too."""
+    fetch = fetch or _fetch_with_identity
+    errors = []
+    for layer in _SECURITY_HEADER_LAYERS:
+        status, body, headers, net_error = fetch(layer["url"])
+        if net_error is not None:
+            errors.append(
+                f"[SEC-HDR-2] could not verify headers for the {layer['name']} layer "
+                f"({layer['url']}) -- {net_error}. This is NOT the same finding as "
+                "'headers are wrong': the check could not reach the server at all."
+            )
+            continue
+        if not layer["identity_ok"](status, body):
+            errors.append(
+                f"[SEC-HDR-2] {layer['name']} layer ({layer['url']}) did not return "
+                f"identity {layer['identity_desc']} -- got status={status}, "
+                f"body={body[:80]!r}. This can mean a Cloudflare interstitial or block "
+                "page answered instead of the real origin (headers cannot tell the two "
+                "apart on their own), or the page is genuinely broken. Either way, "
+                "headers were not trusted or compared."
+            )
+            continue
+        headers_lower = {k.lower(): v for k, v in headers.items()}
+        for header_name, expected_value in layer["expected"].items():
+            actual = headers_lower.get(header_name)
+            if actual != expected_value:
+                errors.append(
+                    f"[SEC-HDR-2] {layer['name']} layer ({layer['url']}) header "
+                    f"{header_name!r} drifted -- expected {expected_value!r}, got "
+                    f"{actual!r}. If this is an intentional change (e.g. CSP-1 "
+                    "landing), update the expected value in _SECURITY_HEADER_LAYERS "
+                    "deliberately."
+                )
+    return errors
+
+
 def main():
     repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
     docs_dir = repo_root / "docs"
@@ -6859,6 +6986,7 @@ def main():
     all_errors += check_mutating_get_coverage(repo_root)
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
+    all_errors += check_security_header_layers()
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")
     if all_errors:
