@@ -9571,7 +9571,7 @@ function withSecurityHeaders(response: Response): Response {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     // Orchestrator abuse-test finding (2026-08-05, LOW, latent): every
     // response from this Worker is per-request/per-session (JSON API data
     // or a one-off confirmation/error page) and must never be cached by an
