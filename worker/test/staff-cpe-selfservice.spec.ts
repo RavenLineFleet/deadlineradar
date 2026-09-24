@@ -246,15 +246,15 @@ describe("POST /firm/staff-cpe-reminder", () => {
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify({ subscriber_id: staff.id }),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       const body = (await resp.json()) as { sent: boolean };
       expect(body.sent).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe(staffEmail);
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe(staffEmail);
       expect(sentBody.subject).toContain("Reminder Firm");
     } finally {
       fetchSpy.mockRestore();
@@ -277,7 +277,7 @@ describe("POST /firm/staff-cpe-reminder", () => {
         headers: { "content-type": "application/json", Cookie: firmACookie },
         body: JSON.stringify({ subscriber_id: staffB.id }),
       }),
-      { SENDGRID_API_KEY: "test-key-not-real" }
+      { RESEND_API_KEY: "test-key-not-real" }
     );
     expect(resp.status).toBe(404);
   });
@@ -304,7 +304,7 @@ describe("POST /firm/staff-cpe-reminder", () => {
         headers: { "content-type": "application/json", Cookie: cookie },
         body: JSON.stringify({ subscriber_id: staff.id }),
       }),
-      { SENDGRID_API_KEY: "test-key-not-real" }
+      { RESEND_API_KEY: "test-key-not-real" }
     );
     expect(resp.status).toBe(200);
     const body = (await resp.json()) as { sent: boolean; reason: string | null };
@@ -344,7 +344,7 @@ describe("POST /firm/rule-change/notify", () => {
         headers: { "content-type": "application/json", Cookie: cookie },
         body: JSON.stringify({ state_slug: "georgia" }),
       }),
-      { SENDGRID_API_KEY: "test-key-not-real" }
+      { RESEND_API_KEY: "test-key-not-real" }
     );
     expect(resp.status).toBe(400);
   });
@@ -364,16 +364,16 @@ describe("POST /firm/rule-change/notify", () => {
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify(validBody),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       const body = (await resp.json()) as { sent: number; skipped: number; total: number };
       expect(body.total).toBe(1);
       expect(body.sent).toBe(1);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe(gaEmail);
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe(gaEmail);
       expect(sentBody.subject).toContain("Georgia");
     } finally {
       fetchSpy.mockRestore();
@@ -393,12 +393,12 @@ describe("POST /firm/rule-change/notify", () => {
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify(validBody),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      const sentHeaders = sentBody.personalizations[0].headers as Record<string, string>;
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      const sentHeaders = sentBody.headers as Record<string, string>;
       expect(sentHeaders["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
       const match = /<(https:\/\/[^>]+)>/.exec(sentHeaders["List-Unsubscribe"] ?? "");
       expect(match).not.toBeNull();
@@ -443,7 +443,7 @@ describe("POST /firm/rule-change/notify", () => {
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify(validBody),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       const body = (await resp.json()) as { sent: number; total: number };

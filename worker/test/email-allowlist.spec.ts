@@ -7,20 +7,20 @@
  * person is emailed (test allowlist or dry-run mode -- verify it)."
  *
  * Two layers are tested:
- *   1. Unit tests directly against sendViaSendGrid() -- prove the gate
+ *   1. Unit tests directly against sendEmail() -- prove the gate
  *      refuses a non-allowlisted recipient BEFORE any network call (not just
  *      that it returns false -- an attacker-controlled address that happened
  *      to also fail some other way would look "safe" if only the return
  *      value were checked), prove a case-insensitive allowlisted recipient
  *      still sends, and prove an unset allowlist leaves behavior unchanged.
  *   2. An integration test through the real POST /subscribe confirmation-
- *      email call site (index.ts, one of the 7 sendViaSendGrid() callers),
+ *      email call site (index.ts, one of the 7 sendEmail() callers),
  *      proving the gate is actually wired up end-to-end and not just
  *      correct in isolation.
  */
 import { describe, expect, it, vi } from "vitest";
 import { env } from "cloudflare:test";
-import { sendViaSendGrid } from "../src/sender";
+import { sendEmail } from "../src/sender";
 import type { BuiltEmail } from "../src/emails";
 import * as store from "../src/store";
 
@@ -72,7 +72,7 @@ async function firmLoginVerifyPost(
 }
 
 
-const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_URL = "https://api.resend.com/emails";
 
 function form(fields: Record<string, string>): string {
   return new URLSearchParams(fields).toString();
@@ -91,11 +91,11 @@ function okResponse(): Response {
   return new Response("{}", { status: 202 });
 }
 
-describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
+describe("sendEmail() -- EMAIL_ALLOWLIST gate (unit)", () => {
   it("a non-allowlisted recipient is refused BEFORE any network call: fetch is never invoked", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "real-outside-person@somestranger.com",
         fakeEmail(),
@@ -115,7 +115,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   it("an allowlisted recipient still sends normally, case-insensitively and trimmed", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "  Test@Example.com  ", // untrimmed, mixed-case -- must still match "test@example.com"
         fakeEmail(),
@@ -124,7 +124,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
       expect(result).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy).toHaveBeenCalledWith(
-        SENDGRID_URL,
+        RESEND_URL,
         expect.objectContaining({ method: "POST" })
       );
       // Confirm the actual recipient placed on the wire is the (untrimmed,
@@ -132,7 +132,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
       // whether the send happens, it must not silently rewrite the To:.
       const call = fetchSpy.mock.calls[0];
       const body = JSON.parse(String((call?.[1] as RequestInit).body));
-      expect(body.personalizations[0].to[0].email).toBe("  Test@Example.com  ");
+      expect(body.to[0]).toBe("  Test@Example.com  ");
     } finally {
       fetchSpy.mockRestore();
     }
@@ -141,7 +141,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   it("with NO allowlist argument (undefined) -- the production default -- behavior is unchanged: fetch IS called for any recipient", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "anybody-at-all@example.com",
         fakeEmail()
@@ -157,7 +157,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   it("an empty-string allowlist behaves exactly like an unset one (fetch still called, gate off)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const result = await sendViaSendGrid("fake-api-key", "anybody@example.com", fakeEmail(), "");
+      const result = await sendEmail("fake-api-key", "anybody@example.com", fakeEmail(), "");
       expect(result).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
@@ -168,7 +168,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   it("a whitespace-only allowlist (e.g. \",,\") also behaves like unset -- gate off, not a fail-open-to-nobody trap", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const result = await sendViaSendGrid("fake-api-key", "anybody@example.com", fakeEmail(), " , , ");
+      const result = await sendEmail("fake-api-key", "anybody@example.com", fakeEmail(), " , , ");
       expect(result).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
@@ -177,7 +177,7 @@ describe("sendViaSendGrid() -- EMAIL_ALLOWLIST gate (unit)", () => {
   });
 });
 
-describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOWLIST (AuditLab LOG-1)", () => {
+describe("sendEmail() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOWLIST (AuditLab LOG-1)", () => {
   // Before this fix, the console.log body-dump rode along with the mere
   // presence of the allowlist argument -- setting EMAIL_ALLOWLIST alone (a
   // plausible "restrict recipients" safety action) would have silently also
@@ -187,7 +187,7 @@ describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOW
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "test@example.com",
         fakeEmail(),
@@ -207,7 +207,7 @@ describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOW
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "anybody@example.com",
         fakeEmail(),
@@ -227,7 +227,7 @@ describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOW
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const result = await sendViaSendGrid(
+      const result = await sendEmail(
         "fake-api-key",
         "owner@example.com",
         fakeEmail(),
@@ -247,7 +247,7 @@ describe("sendViaSendGrid() -- EMAIL_PREVIEW_LOG_BODY decoupled from EMAIL_ALLOW
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const result = await sendViaSendGrid("fake-api-key", "anybody@example.com", fakeEmail());
+      const result = await sendEmail("fake-api-key", "anybody@example.com", fakeEmail());
       expect(result).toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("[preview-email]"));
@@ -265,7 +265,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
     try {
       const envWithGate = {
         ...env,
-        SENDGRID_API_KEY: "test-key-not-real",
+        RESEND_API_KEY: "test-key-not-real",
         EMAIL_ALLOWLIST: "owner@example.com,owner+test@example.com",
       };
       const outsideEmail = `real-outside-person-${Date.now()}@somestranger.com`;
@@ -300,7 +300,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
       const allowlistedEmail = "owner+test@example.com";
       const envWithGate = {
         ...env,
-        SENDGRID_API_KEY: "test-key-not-real",
+        RESEND_API_KEY: "test-key-not-real",
         EMAIL_ALLOWLIST: "owner@example.com,owner+test@example.com",
       };
       const body = new URLSearchParams({
@@ -317,7 +317,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
       const resp = await worker.fetch(request, envWithGate, testExecutionContext());
       expect(resp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledWith(SENDGRID_URL, expect.objectContaining({ method: "POST" }));
+      expect(fetchSpy).toHaveBeenCalledWith(RESEND_URL, expect.objectContaining({ method: "POST" }));
     } finally {
       fetchSpy.mockRestore();
     }
@@ -327,7 +327,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
     const worker = (await import("../src/index")).default;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const envNoGate = { ...env, SENDGRID_API_KEY: "test-key-not-real" }; // no EMAIL_ALLOWLIST at all
+      const envNoGate = { ...env, RESEND_API_KEY: "test-key-not-real" }; // no EMAIL_ALLOWLIST at all
       const anyEmail = `prod-unchanged-${Date.now()}@example.com`;
       const body = new URLSearchParams({
         email: anyEmail,
@@ -343,7 +343,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
       const resp = await worker.fetch(request, envNoGate, testExecutionContext());
       expect(resp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledWith(SENDGRID_URL, expect.objectContaining({ method: "POST" }));
+      expect(fetchSpy).toHaveBeenCalledWith(RESEND_URL, expect.objectContaining({ method: "POST" }));
     } finally {
       fetchSpy.mockRestore();
     }
@@ -353,7 +353,7 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
 describe("POST /debug/run-reminder-pass -- preview-only manual cron trigger", () => {
   it("404s in a production-style env (no EMAIL_ALLOWLIST set at all)", async () => {
     const worker = (await import("../src/index")).default;
-    const envNoGate = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+    const envNoGate = { ...env, RESEND_API_KEY: "test-key-not-real" };
     const request = new Request("https://deadline-radar.com/debug/run-reminder-pass", {
       method: "POST",
       headers: { "cf-connecting-ip": "203.0.113.210" },
@@ -368,7 +368,7 @@ describe("POST /debug/run-reminder-pass -- preview-only manual cron trigger", ()
     try {
       const envWithGate = {
         ...env,
-        SENDGRID_API_KEY: "test-key-not-real",
+        RESEND_API_KEY: "test-key-not-real",
         EMAIL_ALLOWLIST: "owner@example.com,owner+test@example.com",
       };
       const request = new Request("https://deadline-radar.com/debug/run-reminder-pass", {
@@ -389,7 +389,7 @@ describe("POST /debug/run-reminder-pass -- preview-only manual cron trigger", ()
     vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     const envWithGate = {
       ...env,
-      SENDGRID_API_KEY: "test-key-not-real",
+      RESEND_API_KEY: "test-key-not-real",
       EMAIL_ALLOWLIST: "owner@example.com",
     };
     const ip = "203.0.113.212";
@@ -424,7 +424,7 @@ describe("ACTION_BASE_URL override -- preview/staging action links point at the 
     try {
       const envPreview = {
         ...env,
-        SENDGRID_API_KEY: "test-key-not-real",
+        RESEND_API_KEY: "test-key-not-real",
         EMAIL_ALLOWLIST: "owner@example.com",
         ACTION_BASE_URL: "https://deadlineradar-api-preview.example.workers.dev/api",
       };
@@ -436,9 +436,9 @@ describe("ACTION_BASE_URL override -- preview/staging action links point at the 
       const resp = await worker.fetch(request, envPreview, testExecutionContext());
       expect(resp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      const textContent = sentBody.text as string;
       expect(textContent).toContain("https://deadlineradar-api-preview.example.workers.dev/api/firm/login/verify?token=");
       expect(textContent).not.toContain("deadline-radar.com");
     } finally {
@@ -450,7 +450,7 @@ describe("ACTION_BASE_URL override -- preview/staging action links point at the 
     const worker = (await import("../src/index")).default;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const envProd = { ...env, SENDGRID_API_KEY: "test-key-not-real" }; // no ACTION_BASE_URL, no EMAIL_ALLOWLIST
+      const envProd = { ...env, RESEND_API_KEY: "test-key-not-real" }; // no ACTION_BASE_URL, no EMAIL_ALLOWLIST
       const anyEmail = `prod-actionurl-${Date.now()}@example.com`;
       const request = new Request("https://deadline-radar.com/subscribe", {
         method: "POST",
@@ -465,9 +465,9 @@ describe("ACTION_BASE_URL override -- preview/staging action links point at the 
       const resp = await worker.fetch(request, envProd, testExecutionContext());
       expect(resp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      const textContent = sentBody.text as string;
       expect(textContent).toContain("https://deadline-radar.com/api/confirm?token=");
     } finally {
       fetchSpy.mockRestore();

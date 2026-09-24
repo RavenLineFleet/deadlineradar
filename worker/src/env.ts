@@ -7,11 +7,14 @@
  * through. It is set (as a wrangler secret) once a real Turnstile widget
  * exists, at which point the signup form is bot-protected.
  *
- * `SENDGRID_API_KEY` is OPTIONAL -- a wrangler secret, never hardcoded, never
+ * `RESEND_API_KEY` is OPTIONAL -- a wrangler secret, never hardcoded, never
  * committed. When present, `/subscribe` sends a double-opt-in confirmation
  * email (Phase 2). When absent, the subscribe handler skips sending entirely
  * and behaves as capture-only (Phase 1) -- so an accidental unset degrades
- * safely to "store but don't email" rather than erroring.
+ * safely to "store but don't email" rather than erroring. SendGrid was the
+ * original transport; Orchestrator directive 2026-09-23 (Devin: "Replace
+ * SendGrid completely") removed it entirely after its trial account was
+ * credit-blocked -- Resend is the only transport now, see sender.ts.
  *
  * `REMINDERS_DAILY_SEND_CAP` is an OPTIONAL wrangler var (a plain string
  * number) -- the circuit-breaker daily cap; defaults to DEFAULT_DAILY_SEND_CAP
@@ -73,25 +76,26 @@
  * conservative by default given SMS has a real per-message cost, unlike
  * every other channel.
  *
- * `SENDGRID_WEBHOOK_PUBLIC_KEY` is a wrangler secret for verifying
- * SendGrid's Event Webhook (roadmap #55, bounce/complaint tracking) --
- * the base64 SPKI/DER public key SendGrid's dashboard displays once
- * "Signed Event Webhook" is enabled. Same unconfigured-rejects posture as
- * handleStripeWebhook() -- POST /email/events 503s until this is set,
- * rather than silently accepting unverifiable calls; SendGrid retries.
+ * `RESEND_WEBHOOK_SECRET` is a wrangler secret for verifying Resend's
+ * webhook (bounce/complaint tracking, replaces the old SendGrid Event
+ * Webhook) -- Resend signs deliveries the Svix way (svix-id/svix-timestamp/
+ * svix-signature headers, HMAC-SHA256 with this `whsec_...` secret). Same
+ * unconfigured-rejects posture as handleStripeWebhook() -- POST /email/events
+ * 503s until this is set, rather than silently accepting unverifiable calls;
+ * Resend retries on non-2xx same as SendGrid did.
  *
  * `EMAIL_ALLOWLIST` is an OPTIONAL wrangler var -- a comma-separated list of
  * exact email addresses (e.g. "owner@example.com,owner+test@example.com").
- * This is a PREVIEW/STAGING-ONLY safety gate: when set, sendViaSendGrid()
+ * This is a PREVIEW/STAGING-ONLY safety gate: when set, sendEmail()
  * (sender.ts) refuses to send to any recipient not on the list, before making
  * any network call. It MUST be left unset in production -- an unset/empty
- * value leaves sendViaSendGrid()'s behavior completely unchanged (no gate).
+ * value leaves sendEmail()'s behavior completely unchanged (no gate).
  * This var controls ONLY recipient restriction -- see EMAIL_PREVIEW_LOG_BODY
  * below for the separate (and separately gated) full-body logging switch.
  *
  * `EMAIL_PREVIEW_LOG_BODY` is an OPTIONAL wrangler var -- PREVIEW/STAGING-ONLY,
  * like EMAIL_ALLOWLIST above but deliberately a SEPARATE var. When set to any
- * non-empty value, sendViaSendGrid() (sender.ts) logs the complete outgoing
+ * non-empty value, sendEmail() (sender.ts) logs the complete outgoing
  * email body via console.log, readable live via `wrangler tail --config
  * wrangler.preview.toml` -- this is what lets a preview tester grab a
  * magic-link URL straight out of the log stream instead of needing a real
@@ -144,19 +148,6 @@
 export interface Env {
   DB: D1Database;
   TURNSTILE_SECRET_KEY?: string;
-  SENDGRID_API_KEY?: string;
-  /**
-   * OPTIONAL -- a wrangler secret, never hardcoded, never committed, same
-   * convention as SENDGRID_API_KEY. Devin chose Resend to replace SendGrid
-   * (2026-09-23, orchestrator directive: SendGrid's trial ended 09-02 and
-   * the account is confirmed blocked -- 401 "Maximum credits exceeded",
-   * live-tested the same day). sendViaSendGrid() (sender.ts) selects the
-   * Resend transport when a caller passes this through as its new trailing
-   * `resendApiKey` param; SendGrid stays the active path (and the fallback)
-   * until Resend is wired into real call sites and verified live -- not yet
-   * true anywhere in this checkout, so this var currently has zero
-   * production effect even once set.
-   */
   RESEND_API_KEY?: string;
   /**
    * SecurityLab (2026-08-29, corroborated by AuditLab): without this, every
@@ -169,7 +160,7 @@ export interface Env {
    * behavior -- silently omitting the header and letting the droplet 401 --
    * produced an outage with no code-level signal of the cause). Set via
    * `wrangler secret put`, never in wrangler.toml, never committed -- same
-   * convention as TURNSTILE_SECRET_KEY/SENDGRID_API_KEY.
+   * convention as TURNSTILE_SECRET_KEY/RESEND_API_KEY.
    */
   ASSISTANT_DROPLET_SHARED_SECRET?: string;
   /**
@@ -201,7 +192,7 @@ export interface Env {
   ADMIN_DIGEST_DAILY_SEND_CAP?: string;
   NEWSLETTER_DAILY_SEND_CAP?: string;
   MOBILITY_STALENESS_ALERT_DAILY_SEND_CAP?: string;
-  SENDGRID_WEBHOOK_PUBLIC_KEY?: string;
+  RESEND_WEBHOOK_SECRET?: string;
   EMAIL_ALLOWLIST?: string;
   EMAIL_PREVIEW_LOG_BODY?: string;
   SEND_APPROVED_PASSES?: string;
@@ -212,7 +203,7 @@ export interface Env {
    * gated PER PROVIDER: `getConfiguredProvider()` in oauth.ts returns null
    * unless BOTH of a provider's values are present, in which case that
    * provider's ROUTES 404. Same degrade-safely convention as
-   * TURNSTILE_SECRET_KEY/SENDGRID_API_KEY. AuditLab SSO-E (LOW, 2026-08-21):
+   * TURNSTILE_SECRET_KEY/RESEND_API_KEY. AuditLab SSO-E (LOW, 2026-08-21):
    * this used to also claim "and its sign-in button is not rendered" -- that
    * half was never true here either. The button is a SEPARATE, build-time
    * decision (generate.py's own SSO_PROVIDERS/DR_SSO_PROVIDERS default),
@@ -263,7 +254,7 @@ export interface Env {
   GOOGLE_OAUTH_CLIENT_SECRET?: string;
   /**
    * Stripe billing (2026-08-05, paid tiers). OPTIONAL, same degrade-safely
-   * convention as SENDGRID_API_KEY/TURNSTILE_SECRET_KEY: unset means
+   * convention as RESEND_API_KEY/TURNSTILE_SECRET_KEY: unset means
    * checkout.ts's routes refuse with a clear error instead of throwing, so a
    * preview/dev environment with no Stripe config simply can't reach
    * checkout rather than crashing.

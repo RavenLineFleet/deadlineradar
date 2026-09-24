@@ -78,122 +78,18 @@ class DryRunSender(EmailSender):
         return True
 
 
-class SendGridSender(EmailSender):
-    """Real-provider stub. Requires SENDGRID_API_KEY in the environment --
-    never hardcoded, never committed. NOT wired up as the active sender
-    anywhere in this codebase yet (see get_sender() below) -- this class
-    exists so the shape is ready the moment a real key exists, not so it
-    runs today. Uses only the Python standard library (urllib) so this
-    repo stays dependency-free until a real send is actually authorized;
-    swap in the official `sendgrid` package at that point if preferred.
-
-    Click and open tracking are explicitly disabled on every send (see
-    `tracking_settings` in send() below) -- these are transactional emails,
-    not marketing, and SendGrid's click-tracking rewrite is what mangled
-    action links into long tracking-domain URLs in the v1 self-test."""
-
-    API_URL = "https://api.sendgrid.com/v3/mail/send"
-
-    def __init__(
-        self,
-        api_key: str | None = None,
-        from_email: str = "reminders@example.invalid",
-        from_name: str | None = None,
-    ):
-        self.api_key = api_key or os.environ.get("SENDGRID_API_KEY")
-        self.from_email = from_email
-        self.from_name = from_name
-        # Diagnostic-only, set by the most recent send() call -- NEVER
-        # includes the API key. Lets a caller report the exact SendGrid
-        # error string (e.g. a 401/403 body) without this class needing to
-        # print anything itself.
-        self.last_status: int | None = None
-        self.last_error: str | None = None
-        self.last_message_id: str | None = None
-        if not self.api_key:
-            raise RuntimeError(
-                "SendGridSender requires SENDGRID_API_KEY in the environment. "
-                "This is an account/key the project maintainer creates and supplies -- see "
-                "reminders/README.md. Refusing to silently fall back to dry-run here; callers "
-                "should choose DryRunSender explicitly if that's what they want."
-            )
-
-    def send(
-        self,
-        to_email: str,
-        subject: str,
-        text_body: str,
-        html_body: str | None = None,
-        headers: dict | None = None,
-    ) -> bool:
-        import urllib.request
-        import urllib.error
-
-        from_field = {"email": self.from_email}
-        if self.from_name:
-            from_field["name"] = self.from_name
-        personalization = {"to": [{"email": to_email}]}
-        if headers:
-            # SendGrid's v3 mail-send API attaches custom transport headers
-            # (e.g. Importance/X-Priority/X-MSMail-Priority for the 1-day
-            # reminder tier -- see emails.HIGH_IMPORTANCE_HEADERS) per
-            # personalization, not as a top-level field. Values must be
-            # strings; emails.py already builds them as strings, but stringify
-            # defensively so a future caller passing a non-string can't 400
-            # the whole send.
-            personalization["headers"] = {str(k): str(v) for k, v in headers.items()}
-        payload = {
-            "personalizations": [personalization],
-            "from": from_field,
-            "subject": subject,
-            "content": [{"type": "text/plain", "value": text_body}],
-            # These are transactional reminders, not marketing -- click
-            # tracking has no analytics value here and actively hurts the
-            # product: it rewrites every href to a long redirect URL through
-            # a SendGrid tracking domain, which is exactly what made action
-            # links look like giant, phishing-style tracking URLs when
-            # rendered (the v1 self-test's #1 reported problem). Open
-            # tracking (a 1x1 pixel) is disabled for the same
-            # "transactional, not marketing" reasoning -- no analytics need
-            # justifies adding tracking infrastructure to a CAN-SPAM email.
-            "tracking_settings": {
-                "click_tracking": {"enable": False, "enable_text": False},
-                "open_tracking": {"enable": False},
-            },
-        }
-        if html_body:
-            payload["content"].append({"type": "text/html", "value": html_body})
-        req = urllib.request.Request(
-            self.API_URL,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        self.last_status = None
-        self.last_error = None
-        self.last_message_id = None
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                self.last_status = resp.status
-                self.last_message_id = resp.headers.get("X-Message-Id")
-                return 200 <= resp.status < 300
-        except urllib.error.HTTPError as exc:
-            self.last_status = exc.code
-            try:
-                body = exc.read().decode("utf-8", errors="replace")
-            except Exception:  # noqa: BLE001 -- diagnostic best-effort only
-                body = "<could not read error body>"
-            # SendGrid error bodies are JSON describing what's wrong with the
-            # request/key -- never includes the key itself (the key is sent
-            # only in the outbound Authorization header, never echoed back).
-            self.last_error = f"HTTP {exc.code}: {body}"
-            return False
-        except urllib.error.URLError as exc:
-            self.last_error = f"Network error: {exc.reason}"
-            return False
+# SendGrid removed entirely 2026-09-23 (Orchestrator directive, Devin:
+# "Replace SendGrid completely"). This module's own SendGridSender was
+# never wired up as the active sender anywhere (get_sender() below was
+# always hardcoded to DryRunSender) -- this whole reminders/ Python module
+# is a LOCAL, never-deployed reference implementation the Worker
+# (worker/src/) superseded (see server.py's own docstring: "not deployed
+# anywhere"). Deleted rather than ported: porting a real-provider class for
+# a reference implementation that has never sent a real email is pure
+# make-work with no live path to exercise it. reminders/run_live_selftest.py,
+# which existed only to drive SendGridSender against a real account, is
+# deleted with it -- the real live test now happens against the Worker's
+# actual production flow (see the SendGrid-removal ship report).
 
 
 # Module-level (not instance-level) lock, deliberately: get_sender() may

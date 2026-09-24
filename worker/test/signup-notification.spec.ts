@@ -82,16 +82,16 @@ describe("individual signup notification -- fires on confirmation, not on /subsc
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.91" },
           body: new URLSearchParams({ token: row!.confirm_token }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe("support@deadline-radar.com");
       expect(sentBody.subject).toContain("New individual signup");
       expect(sentBody.subject).toContain(email);
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const textContent = sentBody.text as string;
       expect(textContent).toContain(email);
       expect(textContent).toContain("Georgia");
     } finally {
@@ -117,7 +117,7 @@ describe("individual signup notification -- fires on confirmation, not on /subsc
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.92" },
           body: new URLSearchParams({ token: row!.confirm_token }).toString(),
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200); // confirm() is idempotent -- still succeeds
       expect(fetchSpy).not.toHaveBeenCalled(); // but no duplicate notification
@@ -135,14 +135,14 @@ describe("firm signup notification -- fires on first login only", () => {
 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const resp = await firmLoginVerify(rawToken, { SENDGRID_API_KEY: "test-key-not-real" }, "203.0.113.95");
+      const resp = await firmLoginVerify(rawToken, { RESEND_API_KEY: "test-key-not-real" }, "203.0.113.95");
       expect(resp.status).toBe(302);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
+      expect(sentBody.to[0]).toBe("support@deadline-radar.com");
       expect(sentBody.subject).toContain("Notify Test Firm");
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const textContent = sentBody.text as string;
       expect(textContent).toContain("Notify Test Firm");
       expect(textContent).toContain(adminEmail);
     } finally {
@@ -154,12 +154,12 @@ describe("firm signup notification -- fires on first login only", () => {
     const adminEmail = `notify-firm2-${Date.now()}@example.com`;
     const firm = await store.createFirm(env.DB, { name: "Notify Test Firm Two", adminEmail });
     const { rawToken: firstToken } = await store.createLoginToken(env.DB, firm.id);
-    await firmLoginVerify(firstToken, { SENDGRID_API_KEY: "test-key-not-real" }, "203.0.113.96");
+    await firmLoginVerify(firstToken, { RESEND_API_KEY: "test-key-not-real" }, "203.0.113.96");
 
     const { rawToken: secondToken } = await store.createLoginToken(env.DB, firm.id);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
-      const resp = await firmLoginVerify(secondToken, { SENDGRID_API_KEY: "test-key-not-real" }, "203.0.113.96");
+      const resp = await firmLoginVerify(secondToken, { RESEND_API_KEY: "test-key-not-real" }, "203.0.113.96");
       expect(resp.status).toBe(302);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {

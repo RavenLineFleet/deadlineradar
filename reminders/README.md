@@ -19,10 +19,12 @@ the live footer, and the copy was templated/redundant. Fixed in `emails.py`:
   `@media (prefers-color-scheme: dark)`, and mobile-responsive.
 - **Buttons instead of raw URLs.** Action links ("Confirm my email," "Stop these
   reminders," "Remind me next time") render as styled anchor buttons in the HTML view; a
-  small "Unsubscribe" text link sits in the footer. **SendGrid click AND open tracking
-  are now explicitly disabled** (`sender.py`'s `SendGridSender`) — these are transactional
-  emails, not marketing, and click-tracking's URL-rewrite was exactly what mangled the
-  displayed hrefs in v1.
+  small "Unsubscribe" text link sits in the footer. **Click AND open tracking were
+  explicitly disabled** on the real-provider sender this module used to have (`SendGridSender`,
+  removed 2026-09-23 when SendGrid was retired fleet-wide — see the "What's needed" section
+  below) — these are transactional emails, not marketing, and click-tracking's URL-rewrite was
+  exactly what mangled the displayed hrefs in v1. The Worker's real sender (`worker/src/
+  sender.ts`, Resend) keeps the same no-tracking posture.
 - **The leaked dev placeholder is gone.** `emails.py` no longer contains any
   `MAILING_ADDRESS_PLACEHOLDER` string that could reach an email. Every email-building
   function now calls `_mailing_address()` first, which **raises `RuntimeError`** unless a
@@ -84,12 +86,11 @@ rebuilding the template:
   (`Importance: High`, `X-Priority: 1`, `X-MSMail-Priority: High`) is attached exclusively to the
   1-day reminder — every other tier, plus the confirmation and stop-confirmation emails, stays at
   normal priority. Flagging every email high-priority is a cry-wolf signal that hurts inbox
-  placement; reserving it for the one genuinely final reminder is the point. `sender.py`'s entire
-  chain (`DryRunSender`, `SendGridSender`, `CircuitBreakerSender`, `WhitelistedSender`) now
-  accepts and forwards an optional `headers` dict; `SendGridSender` attaches it to
-  `personalizations[0]["headers"]` (SendGrid's per-recipient custom-header field, not a top-level
-  one) only when headers are actually present — a headers-less send has no `"headers"` key on the
-  personalization at all, not an empty dict.
+  placement; reserving it for the one genuinely final reminder is the point. `sender.py`'s
+  chain (`DryRunSender`, `CircuitBreakerSender`, `WhitelistedSender`) accepts and forwards an
+  optional `headers` dict unchanged — the same contract `SendGridSender` (removed 2026-09-23)
+  used to satisfy too, attaching it to `personalizations[0]["headers"]` (SendGrid's per-recipient
+  custom-header field, not a top-level one) only when headers were actually present.
 - **Primary-inbox placement stays protected.** No copy or structural change in this pass touches
   the transactional framing, multipart text+HTML shape, or the absence of spam-trigger phrasing
   that already got v2 landing in the project maintainer's Primary inbox — this pass is additive
@@ -297,11 +298,12 @@ backend host exists.
 
 ## What's needed from the project maintainer (surfacing, not doing myself)
 
-1. **A transactional email-service account + API key.** `sender.py` has a ready `SendGridSender`
-   stub (SendGrid picked as the example since it has a workable free tier; Postmark/SES would be
-   similar swaps). Until a real `SENDGRID_API_KEY` exists in the environment, `get_sender()` stays
-   hardcoded to `DryRunSender` — flipping that is a deliberate one-line code change, not something
-   an environment variable can silently trigger.
+1. **A transactional email-service account + API key.** SUPERSEDED 2026-09-23: this reference
+   implementation's real-provider stub (`SendGridSender`) was removed rather than ported when
+   SendGrid was retired fleet-wide, since this Python module has never been deployed and the
+   real send path is now `worker/src/sender.ts` (Resend) in the live Cloudflare Worker instead.
+   `get_sender()` here stays permanently hardcoded to `DryRunSender` — this module is a local
+   reference/prototype, not a second production sender to keep in parity with the Worker's.
 2. **A real physical mailing address for the email footer.** CAN-SPAM legally requires a valid
    physical postal address in every commercial email — this is not something that can be
    fabricated. `emails.py` no longer has a placeholder string at all: every email-building function

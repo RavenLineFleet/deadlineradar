@@ -28,7 +28,7 @@ async function workerFetch(request: Request, envOverrides: Record<string, unknow
   return worker.fetch(request, { ...env, ...envOverrides } as never, testExecutionContext());
 }
 
-function sendgridOk(): Response {
+function resendOk(): Response {
   return new Response("{}", { status: 202 });
 }
 
@@ -60,13 +60,13 @@ async function postTicket(
       headers,
       body: typeof body === "string" ? body : JSON.stringify(body),
     }),
-    { SENDGRID_API_KEY: "test-key-not-real", ...opts.envOverrides }
+    { RESEND_API_KEY: "test-key-not-real", ...opts.envOverrides }
   );
 }
 
 describe("POST /assistant/ticket -- validation", () => {
   it("rejects a cross-origin request (CSRF)", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "visitor@example.com" }, { origin: "https://attacker.example" });
       expect(resp.status).toBe(400);
@@ -111,7 +111,7 @@ describe("POST /assistant/ticket -- validation", () => {
       const probe = await postTicket({ description: "Help" }, { ip });
       expect(probe.status).toBe(400);
     }
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "visitor@example.com" }, { ip });
       expect(resp.status).toBe(200);
@@ -128,7 +128,7 @@ describe("POST /assistant/ticket -- validation", () => {
       env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_ticket", now - i)
     );
     await env.DB.batch(inserts);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "visitor@example.com" }, { ip });
       expect(resp.status).toBe(429);
@@ -145,7 +145,7 @@ describe("POST /assistant/ticket -- validation", () => {
       env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_chat", now - i)
     );
     await env.DB.batch(inserts);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "visitor@example.com" }, { ip });
       expect(resp.status).toBe(200);
@@ -157,7 +157,7 @@ describe("POST /assistant/ticket -- validation", () => {
   it("503s (not a false success) when SENDGRID_API_KEY is unset", async () => {
     const resp = await postTicket(
       { description: "Help", email: "visitor@example.com" },
-      { envOverrides: { SENDGRID_API_KEY: undefined } }
+      { envOverrides: { RESEND_API_KEY: undefined } }
     );
     expect(resp.status).toBe(503);
   });
@@ -173,7 +173,7 @@ describe("POST /assistant/ticket -- validation", () => {
 
 describe("POST /assistant/ticket -- success path, anonymous", () => {
   it("sends to support@deadline-radar.com with the visitor's email as reply-to", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "I can't find my Ohio CPE hours.", email: "visitor@example.com" });
       expect(resp.status).toBe(200);
@@ -182,14 +182,14 @@ describe("POST /assistant/ticket -- success path, anonymous", () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(String(url)).toContain("sendgrid.com");
+      expect(String(url)).toContain("resend.com");
       const payload = JSON.parse(init.body as string) as {
-        personalizations: { to: { email: string }[] }[];
-        reply_to?: { email: string };
+        to: string[];
+        reply_to?: string;
         subject: string;
       };
-      expect(payload.personalizations[0]?.to[0]?.email).toBe("support@deadline-radar.com");
-      expect(payload.reply_to?.email).toBe("visitor@example.com");
+      expect(payload.to?.[0]).toBe("support@deadline-radar.com");
+      expect(payload.reply_to).toBe("visitor@example.com");
       expect(payload.subject).toContain("visitor@example.com");
     } finally {
       fetchSpy.mockRestore();
@@ -197,7 +197,7 @@ describe("POST /assistant/ticket -- success path, anonymous", () => {
   });
 
   it("includes the description and session_id in the email body", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       await postTicket({
         description: "I can't find my Ohio CPE hours.",
@@ -205,8 +205,8 @@ describe("POST /assistant/ticket -- success path, anonymous", () => {
         session_id: "sess-abc-123",
       });
       const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const payload = JSON.parse(init.body as string) as { content: { type: string; value: string }[] };
-      const textBody = payload.content.find((c) => c.type === "text/plain")?.value ?? "";
+      const payload = JSON.parse(init.body as string) as { text: string };
+      const textBody = payload.text ?? "";
       expect(textBody).toContain("I can't find my Ohio CPE hours.");
       expect(textBody).toContain("sess-abc-123");
     } finally {
@@ -215,7 +215,7 @@ describe("POST /assistant/ticket -- success path, anonymous", () => {
   });
 
   it("rejects a client-forged session_id gibberish gracefully (treated as absent, not an error)", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "visitor@example.com", session_id: 12345 });
       expect(resp.status).toBe(200);
@@ -244,13 +244,13 @@ describe("POST /assistant/ticket -- signed-in visitors skip the email prompt", (
       skipConfirmation: true,
     });
     const cookie = await subscriberCookie(email);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help", email: "spoofed@attacker.example" }, { cookie });
       expect(resp.status).toBe(200);
       const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const payload = JSON.parse(init.body as string) as { reply_to?: { email: string } };
-      expect(payload.reply_to?.email).toBe(store.normalizeEmail(email));
+      const payload = JSON.parse(init.body as string) as { reply_to?: string };
+      expect(payload.reply_to).toBe(store.normalizeEmail(email));
     } finally {
       fetchSpy.mockRestore();
     }
@@ -269,7 +269,7 @@ describe("POST /assistant/ticket -- signed-in visitors skip the email prompt", (
       skipConfirmation: true,
     });
     const cookie = await subscriberCookie(email);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help" }, { cookie });
       expect(resp.status).toBe(200);
@@ -286,13 +286,13 @@ describe("POST /assistant/ticket -- signed-in visitors skip the email prompt", (
     const member = await store.getFirmMemberById(env.DB, firmId, memberId);
     const { rawSessionToken } = await store.createSession(env.DB, firmId, memberId);
     const cookie = `dr_firm_session=${rawSessionToken}`;
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const resp = await postTicket({ description: "Help from firm dashboard" }, { cookie });
       expect(resp.status).toBe(200);
       const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const payload = JSON.parse(init.body as string) as { reply_to?: { email: string } };
-      expect(payload.reply_to?.email).toBe(member!.email);
+      const payload = JSON.parse(init.body as string) as { reply_to?: string };
+      expect(payload.reply_to).toBe(member!.email);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -306,7 +306,7 @@ describe("POST /assistant/ticket -- signed-in visitors skip the email prompt", (
     await env.DB.prepare("UPDATE firms SET demo_locked = 1 WHERE id = ?1").bind(firmId).run();
     const { rawSessionToken } = await store.createSession(env.DB, firmId, memberId);
     const cookie = `dr_firm_session=${rawSessionToken}`;
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(sendgridOk());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(resendOk());
     try {
       const noEmail = await postTicket({ description: "Help from the demo" }, { cookie });
       expect(noEmail.status).toBe(400);
@@ -315,8 +315,8 @@ describe("POST /assistant/ticket -- signed-in visitors skip the email prompt", (
       const resp = await postTicket({ description: "Help from the demo", email: "realperson@example.com" }, { cookie });
       expect(resp.status).toBe(200);
       const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const payload = JSON.parse(init.body as string) as { reply_to?: { email: string } };
-      expect(payload.reply_to?.email).toBe("realperson@example.com");
+      const payload = JSON.parse(init.body as string) as { reply_to?: string };
+      expect(payload.reply_to).toBe("realperson@example.com");
     } finally {
       fetchSpy.mockRestore();
       await env.DB.prepare("UPDATE firms SET demo_locked = 0 WHERE id = ?1").bind(firmId).run();

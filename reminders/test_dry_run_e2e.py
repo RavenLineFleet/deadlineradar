@@ -1028,45 +1028,6 @@ def test_server_first_name_and_address_precheck_http() -> None:
         thread.join(timeout=2)
 
 
-def test_sendgrid_click_tracking_disabled() -> None:
-    print("\n== Part 27 (v2): SendGrid payload disables click + open tracking ==")
-    captured: dict = {}
-
-    class _FakeResponse:
-        status = 202
-        headers = {"X-Message-Id": "fake-id"}
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def read(self):
-            return b""
-
-    def fake_urlopen(req, timeout=10):
-        captured["body"] = json.loads(req.data.decode("utf-8"))
-        return _FakeResponse()
-
-    real_urlopen = urllib.request.urlopen
-    urllib.request.urlopen = fake_urlopen
-    try:
-        s = sender_module.SendGridSender(
-            api_key="fake-key-not-real", from_email="noreply@deadline-radar.com", from_name="DeadlineRadar"
-        )
-        ok = s.send("someone@example.invalid", "Test subject", "text body", "<p>html body</p>")
-        check("SendGridSender.send() reports success against the faked transport", ok is True)
-    finally:
-        urllib.request.urlopen = real_urlopen
-
-    tracking = captured.get("body", {}).get("tracking_settings", {})
-    check("tracking_settings present in the outbound SendGrid payload", bool(tracking))
-    check("click_tracking.enable is False", tracking.get("click_tracking", {}).get("enable") is False)
-    check("click_tracking.enable_text is False", tracking.get("click_tracking", {}).get("enable_text") is False)
-    check("open_tracking.enable is False", tracking.get("open_tracking", {}).get("enable") is False)
-
-
 def test_degenerate_address_rejected_and_override_caller_restricted() -> None:
     """Regression tests for two real gaps an independent adversarial pass
     found in the v2 build: (1) an env var containing ONLY zero-width/
@@ -1225,8 +1186,12 @@ def test_headers_plumbed_through_sender_chain() -> None:
     """Regression test: the 1-day tier's high-importance headers must
     actually reach a real send, not just exist in the dict emails.py
     returns -- every sender wrapper in the chain (DryRunSender,
-    CircuitBreakerSender, WhitelistedSender, SendGridSender) must forward
-    `headers` unchanged rather than silently dropping it."""
+    CircuitBreakerSender, WhitelistedSender) must forward `headers`
+    unchanged rather than silently dropping it. (SendGridSender was the
+    fourth wrapper this test exercised; removed with the class itself,
+    2026-09-23 SendGrid removal -- the real-provider transport is now the
+    Worker's sender.ts, covered by its own vitest suite, not this Python
+    reference implementation.)"""
     print("\n== Part 31 (v2.1): high-importance headers actually reach the wire, through every wrapper ==")
     reset_storage()
 
@@ -1239,57 +1204,6 @@ def test_headers_plumbed_through_sender_chain() -> None:
     dry.send("someone2@example.invalid", "subj2", "text2")
     log2 = read_dry_run_log()
     check("DryRunSender logs an empty headers dict when none passed", log2[-1].get("headers") == {}, log2[-1].get("headers"))
-
-    captured: dict = {}
-
-    class _FakeResponse:
-        status = 202
-        headers = {"X-Message-Id": "fake-id"}
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def read(self):
-            return b""
-
-    def fake_urlopen(req, timeout=10):
-        captured["body"] = json.loads(req.data.decode("utf-8"))
-        return _FakeResponse()
-
-    real_urlopen = urllib.request.urlopen
-    urllib.request.urlopen = fake_urlopen
-    try:
-        s = sender_module.SendGridSender(api_key="fake-key-not-real", from_email="noreply@deadline-radar.com")
-        s.send("someone@example.invalid", "subj", "text", None, emails.HIGH_IMPORTANCE_HEADERS)
-    finally:
-        urllib.request.urlopen = real_urlopen
-    sent_headers = captured.get("body", {}).get("personalizations", [{}])[0].get("headers", {})
-    check(
-        "SendGridSender attaches headers on personalizations[0], not top-level",
-        sent_headers == emails.HIGH_IMPORTANCE_HEADERS,
-        sent_headers,
-    )
-
-    captured2: dict = {}
-
-    def fake_urlopen2(req, timeout=10):
-        captured2["body"] = json.loads(req.data.decode("utf-8"))
-        return _FakeResponse()
-
-    urllib.request.urlopen = fake_urlopen2
-    try:
-        s2 = sender_module.SendGridSender(api_key="fake-key-not-real", from_email="noreply@deadline-radar.com")
-        s2.send("someone@example.invalid", "subj", "text")
-    finally:
-        urllib.request.urlopen = real_urlopen
-    check(
-        "no 'headers' key at all on the personalization when none was passed (normal-priority tiers)",
-        "headers" not in captured2.get("body", {}).get("personalizations", [{}])[0],
-        captured2.get("body", {}).get("personalizations"),
-    )
 
     class _CapturingSender(sender_module.EmailSender):
         def __init__(self):
@@ -1341,7 +1255,6 @@ def main() -> None:
         test_first_name_greeting_and_sanitization()
         test_html_branding_buttons_and_dark_mode()
         test_server_first_name_and_address_precheck_http()
-        test_sendgrid_click_tracking_disabled()
         test_degenerate_address_rejected_and_override_caller_restricted()
         test_scheduler_one_bad_subscriber_does_not_abort_the_batch()
         test_urgency_subjects_and_priority_headers()

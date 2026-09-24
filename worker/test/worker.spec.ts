@@ -1283,7 +1283,7 @@ describe("POST /firm/login -- login-link resend for an existing firm", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 500 }));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       const request = new Request("https://deadline-radar.com/firm/login", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.164" },
@@ -2134,7 +2134,7 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
     try {
       const { cookie } = await createFirmWithSession("Bennett CPA Group", `bennett-${Date.now()}@example.com`);
       const staffEmail = `staff-transparency-${Date.now()}@example.com`;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       const request = new Request("https://deadline-radar.com/firm/licenses", {
         method: "POST",
         headers: { "content-type": "application/json", Cookie: cookie },
@@ -2148,10 +2148,10 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
       const resp = await worker.fetch(request, envWithKey, testExecutionContext());
       expect(resp.status).toBe(201);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, sendGridCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(sendGridCallInit.body));
+      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = JSON.parse(String(resendCallInit.body));
       expect(sentBody.subject).toContain("Bennett CPA Group added you to Deadline-Radar");
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const textContent = sentBody.text as string;
       expect(textContent).toContain("Bennett CPA Group added you to Deadline-Radar");
       expect(textContent).toContain("/api/unsubscribe?token=");
       expect(textContent).not.toContain("/api/confirm?token=");
@@ -3170,7 +3170,7 @@ describe("PATCH /firm/licenses/:id re-confirm email -- AuditLab COPY-10b", () =>
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
     try {
       const worker = (await import("../src/index")).default;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       const newEmail = `copy10b-staff-new-${Date.now()}@example.com`;
       const request = new Request(`https://deadline-radar.com/firm/licenses/${id}`, {
         method: "PATCH",
@@ -3185,13 +3185,11 @@ describe("PATCH /firm/licenses/:id re-confirm email -- AuditLab COPY-10b", () =>
 
       const sendCall = fetchSpy.mock.calls.find((c: Parameters<typeof fetch>) => {
         const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
-        return url === "https://api.sendgrid.com/v3/mail/send";
+        return url === "https://api.resend.com/emails";
       });
       expect(sendCall).toBeDefined();
       const sentBody = JSON.parse(String((sendCall![1] as RequestInit).body));
-      const textContent = (
-        sentBody.content as { type: string; value: string }[]
-      ).find((c) => c.type === "text/plain")?.value;
+      const textContent = sentBody.text as string | undefined;
 
       // The subscriber's OWN [7, 1] must win, not the firm's [60, 30].
       expect(textContent).toContain("7 and 1 day");
@@ -3436,7 +3434,7 @@ describe("Confirm / unsubscribe / renewed / rearm lifecycle", () => {
     const worker = (await import("../src/index")).default;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
     try {
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       const request = new Request(`https://deadline-radar.com/renewed?token=${row.renewed_token}`, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.165" },
@@ -4761,7 +4759,7 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
       });
       const waited: Promise<unknown>[] = [];
       const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
       await expect(
         worker.scheduled({} as ScheduledController, envWithKey, ctx)
       ).resolves.not.toThrow();
@@ -4793,7 +4791,7 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
       const worker = (await import("../src/index")).default;
       const waited1: Promise<unknown>[] = [];
       const ctx1 = { waitUntil: (p: Promise<unknown>) => waited1.push(p) } as unknown as ExecutionContext;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
 
       await worker.scheduled({} as ScheduledController, envWithKey, ctx1);
       await Promise.all(waited1);
@@ -4835,11 +4833,11 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
       const worker = (await import("../src/index")).default;
       const waited1: Promise<unknown>[] = [];
       const ctx1 = { waitUntil: (p: Promise<unknown>) => waited1.push(p) } as unknown as ExecutionContext;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
 
       await worker.scheduled({} as ScheduledController, envWithKey, ctx1);
       await Promise.all(waited1);
-      // The 500 means sendViaSendGrid() returned false -- the row must NOT
+      // The 500 means sendEmail() returned false -- the row must NOT
       // survive (this is the actual DROP-3 fix; pre-fix, this assertion
       // would have found the row still present).
       const afterFirst = await env.DB.prepare(`SELECT COUNT(*) AS n FROM stale_data_alert_log WHERE day = ?1`)
@@ -4888,7 +4886,7 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
       const worker = (await import("../src/index")).default;
       const waited: Promise<unknown>[] = [];
       const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
-      const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+      const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
 
       // The load-bearing assertion: this must resolve, not reject. Pre-fix,
       // the claim's rejection would propagate through the async IIFE
@@ -5097,7 +5095,7 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
         throw new Error(`unexpected fetch in STALE-10 unapproved-pass test: ${typeof input === "string" ? input : (input as Request).url}`);
       });
       try {
-        await runMobilityStalenessAlertPass({ ...env, SENDGRID_API_KEY: "test-key-not-real" } as never);
+        await runMobilityStalenessAlertPass({ ...env, RESEND_API_KEY: "test-key-not-real" } as never);
         expect(fetchSpy).not.toHaveBeenCalled();
       } finally {
         fetchSpy.mockRestore();
@@ -5116,18 +5114,18 @@ describe("mobilityRowsNearingExpiry / runMobilityStalenessAlertPass (AuditLab ST
       try {
         const envWithConsent = {
           ...env,
-          SENDGRID_API_KEY: "test-key-not-real",
+          RESEND_API_KEY: "test-key-not-real",
           SEND_APPROVED_PASSES: "mobilityStalenessAlert",
         } as never;
         await runMobilityStalenessAlertPass(envWithConsent);
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-        expect(String(url)).toContain("sendgrid");
+        expect(String(url)).toContain("resend");
         const sentBody = JSON.parse(String(init.body));
-        expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
+        expect(sentBody.to[0]).toBe("support@deadline-radar.com");
         expect(sentBody.subject).toContain("expiring soon");
         expect(sentBody.subject).toContain("2027-01-27");
-        const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
+        const textContent = (sentBody.text as string | undefined);
         expect(textContent).toContain("2027-01-27");
         expect(textContent).toContain("mobility_rules.json");
 
@@ -5273,7 +5271,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
         throw new Error(`unexpected fetch in FRESH-3 unapproved-pass test: ${typeof input === "string" ? input : (input as Request).url}`);
       });
       try {
-        await runGatedDatasetStalenessAlertPass({ ...env, SENDGRID_API_KEY: "test-key-not-real" } as never);
+        await runGatedDatasetStalenessAlertPass({ ...env, RESEND_API_KEY: "test-key-not-real" } as never);
         expect(fetchSpy).not.toHaveBeenCalled();
       } finally {
         fetchSpy.mockRestore();
@@ -5302,18 +5300,18 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
       try {
         const envWithConsent = {
           ...env,
-          SENDGRID_API_KEY: "test-key-not-real",
+          RESEND_API_KEY: "test-key-not-real",
           SEND_APPROVED_PASSES: "gatedDatasetStalenessAlert",
         } as never;
         await runGatedDatasetStalenessAlertPass(envWithConsent);
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-        expect(String(url)).toContain("sendgrid");
+        expect(String(url)).toContain("resend");
         const sentBody = JSON.parse(String(init.body));
-        expect(sentBody.personalizations[0].to[0].email).toBe("support@deadline-radar.com");
+        expect(sentBody.to[0]).toBe("support@deadline-radar.com");
         expect(sentBody.subject).toContain("expiring soon");
         expect(sentBody.subject).toContain(expected[0]!.expiresOn);
-        const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
+        const textContent = (sentBody.text as string | undefined);
         for (const dataset of expectedDatasets) {
           expect(textContent).toContain(`${dataset}.json`);
         }
@@ -5558,7 +5556,7 @@ describe("AuditLab NEWS-1 (MEDIUM, 2026-08-13): scheduled() actually invokes run
     });
     const waited: Promise<unknown>[] = [];
     const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
-    const envWithKey = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+    const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
     try {
       await expect(worker.scheduled({} as ScheduledController, envWithKey, ctx)).resolves.not.toThrow();
       await Promise.all(waited);
@@ -6675,18 +6673,18 @@ describe("POST /firm/sign-out-other-devices -- detection email (AuditLab)", () =
           method: "POST",
           headers: { Cookie: a.cookie, "cf-connecting-ip": "203.0.113.240" },
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       expect(((await resp.json()) as { other_sessions_ended: number }).other_sessions_ended).toBe(1);
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [calledUrl, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(calledUrl).toBe("https://api.sendgrid.com/v3/mail/send");
+      expect(calledUrl).toBe("https://api.resend.com/emails");
       const sentBody = JSON.parse((calledInit.body as string) ?? "{}");
-      expect(sentBody.personalizations?.[0]?.to?.[0]?.email).toBe(adminEmail); // real admin address, from the DB row
+      expect(sentBody.to?.[0]).toBe(adminEmail); // real admin address, from the DB row
       expect((sentBody.subject ?? "").toLowerCase()).toContain("signed out");
-      const htmlContent = (sentBody.content ?? []).find((c: { type: string }) => c.type === "text/html")?.value ?? "";
+      const htmlContent = sentBody.html ?? "";
       expect(htmlContent).toContain("If this was not you");
     } finally {
       fetchSpy.mockRestore();
@@ -6705,7 +6703,7 @@ describe("POST /firm/sign-out-other-devices -- detection email (AuditLab)", () =
           method: "POST",
           headers: { Cookie: a.cookie, "cf-connecting-ip": "203.0.113.241" },
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       expect(((await resp.json()) as { other_sessions_ended: number }).other_sessions_ended).toBe(0);
@@ -6727,7 +6725,7 @@ describe("POST /firm/sign-out-other-devices -- detection email (AuditLab)", () =
           method: "POST",
           headers: { Cookie: a.cookie, "cf-connecting-ip": "203.0.113.242" },
         }),
-        { SENDGRID_API_KEY: "test-key-not-real" }
+        { RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(200);
       expect(((await resp.json()) as { other_sessions_ended: number }).other_sessions_ended).toBe(1);
@@ -6862,7 +6860,7 @@ describe("POST /firm/change-email -- request phase", () => {
       const worker = (await import("../src/index")).default;
       const resp = await worker.fetch(
         new Request("https://deadline-radar.com/firm/change-email", { method: "POST", headers, body: JSON.stringify({ new_email: takenEmail }) }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" } as never,
+        { ...env, RESEND_API_KEY: "test-key-not-real" } as never,
         testExecutionContext()
       );
       expect(resp.status).toBe(200);
@@ -6902,7 +6900,7 @@ describe("POST /firm/change-email -- request phase", () => {
       const worker = (await import("../src/index")).default;
       const resp = await worker.fetch(
         new Request("https://deadline-radar.com/firm/change-email", { method: "POST", headers, body: JSON.stringify({ new_email: newEmail }) }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" } as never,
+        { ...env, RESEND_API_KEY: "test-key-not-real" } as never,
         testExecutionContext()
       );
       expect(resp.status).toBe(200);
@@ -6910,7 +6908,7 @@ describe("POST /firm/change-email -- request phase", () => {
       const recipients = fetchSpy.mock.calls.map((call) => {
         const init = call[1] as RequestInit;
         const body = JSON.parse((init.body as string) ?? "{}");
-        return body.personalizations?.[0]?.to?.[0]?.email;
+        return body.to?.[0];
       });
       expect(recipients).toContain(newEmail);
       expect(recipients).toContain(oldEmail);
@@ -6940,7 +6938,7 @@ describe("POST /firm/change-email -- request phase", () => {
       const worker = (await import("../src/index")).default;
       const resp = await worker.fetch(
         new Request("https://deadline-radar.com/firm/change-email", { method: "POST", headers, body: JSON.stringify({ new_email: newEmail }) }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" } as never,
+        { ...env, RESEND_API_KEY: "test-key-not-real" } as never,
         testExecutionContext()
       );
       expect(resp.status).toBe(200); // request itself still succeeds -- token exists, just unconfirmed
@@ -7102,7 +7100,7 @@ describe("POST /firm/login/verify -- email_change redemption", () => {
           headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.282", Cookie: cookie },
           body: JSON.stringify({ new_email: newEmail }),
         }),
-        { ...env, SENDGRID_API_KEY: "test-key-not-real" } as never,
+        { ...env, RESEND_API_KEY: "test-key-not-real" } as never,
         testExecutionContext()
       );
       expect(changeResp.status).toBe(200);
@@ -7110,10 +7108,10 @@ describe("POST /firm/login/verify -- email_change redemption", () => {
       const confirmCall = fetchSpy.mock.calls.find((call) => {
         const init2 = call[1] as RequestInit;
         const body = JSON.parse((init2.body as string) ?? "{}");
-        return body.personalizations?.[0]?.to?.[0]?.email === newEmail;
+        return body.to?.[0] === newEmail;
       });
       const confirmBody = JSON.parse(((confirmCall?.[1] as RequestInit).body as string) ?? "{}");
-      const htmlContent = (confirmBody.content ?? []).find((c: { type: string }) => c.type === "text/html")?.value ?? "";
+      const htmlContent = confirmBody.html ?? "";
       const match = /href="([^"]*\/firm\/login\/verify\?token=[^"]+)"/.exec(htmlContent);
       expect(match).toBeTruthy();
       capturedConfirmUrl = match![1]!.replace(/&amp;/g, "&");
@@ -7389,17 +7387,17 @@ describe("SSO routes", () => {
         new Request(`https://deadline-radar.com/firm/auth/google/callback?code=test-code&state=${linkState.rawState}`, {
           headers: { "cf-connecting-ip": "203.0.113.236", Cookie: `dr_oauth_handshake=${linkState.rawBrowserBinding}` },
         }),
-        { ...env, ...ssoEnv, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, ...ssoEnv, RESEND_API_KEY: "test-key-not-real" },
         testExecutionContext()
       );
       expect(linkResp.status).toBe(302);
       // Call 0 is the token exchange (stubbed); call 1 is the notification.
       expect(fetchSpy).toHaveBeenCalledTimes(2);
-      const [sendGridUrl, sendGridInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
-      expect(String(sendGridUrl)).toContain("sendgrid");
-      const sentBody = JSON.parse(String(sendGridInit.body));
+      const [resendUrl, resendInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
+      expect(String(resendUrl)).toContain("resend");
+      const sentBody = JSON.parse(String(resendInit.body));
       expect(sentBody.subject).toContain("Google sign-in method was connected");
-      const textContent = sentBody.content.find((c: { type: string }) => c.type === "text/plain").value as string;
+      const textContent = sentBody.text as string;
       expect(textContent).toContain(email);
       expect(textContent).toContain("Connected Sign-In Methods");
     } finally {
@@ -7423,7 +7421,7 @@ describe("SSO routes", () => {
         new Request(`https://deadline-radar.com/firm/auth/google/callback?code=test-code&state=${loginState.rawState}`, {
           headers: { "cf-connecting-ip": "203.0.113.237", Cookie: `dr_oauth_handshake=${loginState.rawBrowserBinding}` },
         }),
-        { ...env, ...ssoEnv, SENDGRID_API_KEY: "test-key-not-real" },
+        { ...env, ...ssoEnv, RESEND_API_KEY: "test-key-not-real" },
         testExecutionContext()
       );
       expect(loginResp.status).toBe(302);

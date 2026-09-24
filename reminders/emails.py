@@ -8,8 +8,7 @@ Every email built here carries:
     commercial email). This module never fabricates one: `_mailing_address()`
     raises `RuntimeError` if a real address isn't configured. The ONLY way
     to get a non-real value through is `set_test_mailing_address_override()`,
-    which is technically restricted (not just documented) to callers named
-    `run_live_selftest.py` (the hard-whitelisted live self-test) or
+    which is technically restricted (not just documented) to a caller named
     `test_dry_run_e2e.py` (this repo's own test suite) -- see that
     function's docstring. Production code paths (`server.py`, `scheduler.py`)
     are not on that list, so a real subscriber can never receive a
@@ -59,13 +58,16 @@ SENDER_LINE = f"{SITE_NAME} (a {BRAND_NAME} project)"
 # mail-receiving agency is the normal solution for a project like this).
 MAILING_ADDRESS_ENV_VAR = "REMINDERS_MAILING_ADDRESS"
 
-# ONLY ever set by run_live_selftest.py, which is itself hard-gated to a
-# single whitelisted recipient (sender.WhitelistedSender). Do not set this
-# from any other caller -- see set_test_mailing_address_override()'s own
-# docstring for why that would defeat the whole point of this guard. This
+# ONLY ever set by test_dry_run_e2e.py, this repo's own test suite. Do not
+# set this from any other caller -- see set_test_mailing_address_override()'s
+# own docstring for why that would defeat the whole point of this guard. This
 # is TECHNICALLY enforced (not just documented) in that function -- only a
 # caller whose own source filename is in this set is allowed through.
-_ALLOWED_OVERRIDE_CALLERS = frozenset({"run_live_selftest.py", "test_dry_run_e2e.py"})
+# run_live_selftest.py was ALSO allowed here until 2026-09-23, when it was
+# deleted along with SendGridSender (the class it existed solely to drive
+# live) -- SendGrid removal, Orchestrator directive. Removed from this set
+# with it rather than left as a permission for a file that no longer exists.
+_ALLOWED_OVERRIDE_CALLERS = frozenset({"test_dry_run_e2e.py"})
 
 _TEST_MAILING_ADDRESS_OVERRIDE: str | None = None
 
@@ -73,15 +75,14 @@ MAX_FIRST_NAME_LEN = 60
 
 
 def set_test_mailing_address_override(marker: str) -> None:
-    """FOR run_live_selftest.py ONLY. Lets the hard-whitelisted self-test
-    (which can only ever send to one pre-approved address) render a
-    clearly-fake, obviously-internal marker in the footer instead of
-    hard-failing, so a human can review the rest of the template before a
-    real address exists. Any OTHER caller setting this would reopen the
-    exact hole `_mailing_address()` exists to close -- a placeholder
-    reaching a real recipient -- so this function must never be called from
-    server.py, scheduler.py, or any code path that can reach a real
-    subscriber.
+    """FOR test_dry_run_e2e.py ONLY (this repo's own test suite). Lets a
+    test render a clearly-fake, obviously-internal marker in the footer
+    instead of hard-failing, so a human can review the rest of the template
+    before a real address exists. Any OTHER caller setting this would
+    reopen the exact hole `_mailing_address()` exists to close -- a
+    placeholder reaching a real recipient -- so this function must never be
+    called from server.py, scheduler.py, or any code path that can reach a
+    real subscriber.
 
     Found by adversarial review: a docstring alone is not a technical
     control -- nothing previously stopped ANY caller in-process from

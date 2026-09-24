@@ -3,7 +3,7 @@
  * alert failed silently on 2026-09-02 (a SendGrid 4xx that unclaimed its own
  * day row and logged nothing), and nothing recorded that the nightly cron
  * even fired. This file covers the two observability halves of the fix:
- *   1. sendViaSendGrid() now LOGS status+body on a non-2xx (and names a
+ *   1. sendEmail() now LOGS status+body on a non-2xx (and names a
  *      thrown/aborted send) instead of returning a bare `false`.
  *   2. scheduled() writes an unconditional cron-liveness heartbeat, proven
  *      here to be actually wired into the entrypoint (not just unit-correct).
@@ -11,32 +11,32 @@
  */
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendViaSendGrid } from "../src/sender";
+import { sendEmail } from "../src/sender";
 import type { BuiltEmail } from "../src/emails";
 import * as store from "../src/store";
 
-const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_URL = "https://api.resend.com/emails";
 
 function fakeEmail(): BuiltEmail {
   return { subject: "s", textBody: "t", htmlBody: "<p>t</p>", headers: {} };
 }
 
-describe("MON-5 part 1: sendViaSendGrid() surfaces the failure instead of swallowing it", () => {
-  it("a non-2xx logs [sendgrid-fail] with the status AND a body snippet, and still returns false", async () => {
+describe("MON-5 part 1: sendEmail() surfaces the failure instead of swallowing it", () => {
+  it("a non-2xx logs [resend-fail] with the status AND a body snippet, and still returns false", async () => {
     const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => { logs.push(String(m)); });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         return new Response('{"errors":[{"message":"The from address does not match a verified Sender Identity"}]}', { status: 403 });
       }
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
       // EMAIL_ALLOWLIST unset -> no short-circuit -> reaches fetch.
-      const result = await sendViaSendGrid("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
+      const result = await sendEmail("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
       expect(result).toBe(false);
-      const line = logs.find((l) => l.includes("[sendgrid-fail]"));
+      const line = logs.find((l) => l.includes("[resend-fail]"));
       expect(line).toBeDefined();
       expect(line).toContain("status=403");
       expect(line).toContain("verified Sender Identity"); // the body reason is captured, not discarded
@@ -46,14 +46,14 @@ describe("MON-5 part 1: sendViaSendGrid() surfaces the failure instead of swallo
     }
   });
 
-  it("a thrown fetch (network failure / timeout abort) logs [sendgrid-error] and returns false, never throwing", async () => {
+  it("a thrown fetch (network failure / timeout abort) logs [resend-error] and returns false, never throwing", async () => {
     const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => { logs.push(String(m)); });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     try {
-      const result = await sendViaSendGrid("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
+      const result = await sendEmail("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
       expect(result).toBe(false);
-      expect(logs.some((l) => l.includes("[sendgrid-error]") && l.includes("network down"))).toBe(true);
+      expect(logs.some((l) => l.includes("[resend-error]") && l.includes("network down"))).toBe(true);
     } finally {
       fetchSpy.mockRestore();
       logSpy.mockRestore();
@@ -65,13 +65,13 @@ describe("MON-5 part 1: sendViaSendGrid() surfaces the failure instead of swallo
     const logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => { logs.push(String(m)); });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      if (url === SENDGRID_URL) return new Response(null, { status: 202 });
+      if (url === RESEND_URL) return new Response(null, { status: 202 });
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
-      const result = await sendViaSendGrid("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
+      const result = await sendEmail("fake-api-key", "support@deadline-radar.com", fakeEmail(), undefined);
       expect(result).toBe(true);
-      expect(logs.some((l) => l.includes("[sendgrid-"))).toBe(false);
+      expect(logs.some((l) => l.includes("[resend-"))).toBe(false);
     } finally {
       fetchSpy.mockRestore();
       logSpy.mockRestore();
@@ -137,7 +137,7 @@ describe("MON-5 part 2: the heartbeat is actually WIRED into scheduled()", () =>
     const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
     // No SEND_APPROVED_PASSES + a fake key: every send-gated pass no-ops, so
     // this exercises the entrypoint's own heartbeat write, not the passes.
-    const scheduledEnv = { ...env, SENDGRID_API_KEY: "test-key-not-real" };
+    const scheduledEnv = { ...env, RESEND_API_KEY: "test-key-not-real" };
     try {
       expect(await store.getCronHeartbeat(env.DB)).toBeNull();
 

@@ -4066,7 +4066,7 @@ def _blank_strings_and_comments(text: str) -> str:
     match (false alarm on correct code), and a string literal containing
     both `/*` and `*/` (e.g. two separate `const pattern = "/*"` / `const
     closer = "*/"` string constants) can make the block-comment regex
-    swallow everything between them -- including a real sendViaSendGrid()
+    swallow everything between them -- including a real sendEmail()
     call -- making the whole function INVISIBLE to a guard, worse than a
     false pass since nothing hints anything was skipped. Also closes
     GUARD-1's case E: a bare identifier like `demo_locked` mentioned inside
@@ -4393,11 +4393,11 @@ def _find_if_blocks(text: str) -> list[tuple[str, str]]:
 
 
 def _condition_guards_flag(
-    cond: str, block: str, flag: str, protected_substrings: tuple[str, ...] = ("sendViaSendGrid(",)
+    cond: str, block: str, flag: str, protected_substrings: tuple[str, ...] = ("sendEmail(",)
 ) -> bool:
     """True if this `if (cond) { block }` (or bodyless `if (cond) stmt;`)
     genuinely keeps a firm/session where `flag` is true from reaching a
-    protected call (default `sendViaSendGrid(`; callers guarding a different
+    protected call (default `sendEmail(`; callers guarding a different
     action -- e.g. a mutating `store.*(` call -- pass their own
     `protected_substrings`), for any of the shapes this codebase actually
     uses: a standalone early-exit, an if/else-if/else chain that sets a
@@ -4552,17 +4552,19 @@ def _strip_ts_comments(text: str) -> str:
 
 
 _EMAIL_TRANSPORT_SCOPE_MARKERS: tuple[str, ...] = (
+    # SendGrid was fully removed 2026-09-23 (Orchestrator directive, Devin:
+    # "Replace SendGrid completely") -- its host stays in this list
+    # deliberately, as a permanent guard against anyone ever re-adding a
+    # direct SendGrid call, not because it's expected to appear.
     "api.sendgrid.com",
     "api.resend.com",
-    "sendViaSendGridTransport(",
-    "sendViaResendTransport(",
 )
 
 
 def check_email_transport_scope(repo_root: Path) -> list[str]:
     """SecurityLab SEND-1 (LOW-MED, 2026-09-23): every send-exclusion gate in
     this file (`check_demo_locked_email_coverage()` and its mutation
-    sibling) finds senders by the literal string `sendViaSendGrid(` --
+    sibling) finds senders by the literal string `sendEmail(` --
     invisible to a code path that calls a transport API directly. Live
     proof, not hypothetical: `bf8bd300b` (a Devin-approved, token-gated,
     single-recipient diagnostic route, deployed and reverted within a
@@ -4571,10 +4573,11 @@ def check_email_transport_scope(repo_root: Path) -> list[str]:
     exclusion, `EMAIL_ALLOWLIST`, and the daily send cap entirely -- and
     both send-exclusion gates scored it 0 errors.
 
-    `sendViaSendGrid()` in `worker/src/sender.ts` is the ONLY place allowed
-    to reach either provider: assert that no OTHER file under `worker/src`
-    contains the literal provider host or either private transport
-    function's name. This is deliberately a blunt, file-scoped assertion
+    `sendEmail()` (renamed from `sendViaSendGrid()` when SendGrid was fully
+    removed, 2026-09-23) in `worker/src/sender.ts` is the ONLY place
+    allowed to reach either provider: assert that no OTHER file under
+    `worker/src` contains the literal provider host. This is deliberately
+    a blunt, file-scoped assertion
     (not a call-graph analysis) -- cheap and decidable, which is the same
     tradeoff every sibling gate in this file makes, and it is exactly what
     would have caught `bf8bd300b` pre-ship (see the selftest control in
@@ -4592,12 +4595,12 @@ def check_email_transport_scope(repo_root: Path) -> list[str]:
     including a freshly-injected `bf8bd300b`-shaped fixture -- the same
     string/comment-ambiguity failure `_blank_strings_and_comments()`'s own
     docstring describes, just reproduced in a second, simpler function
-    instead of avoided. Confirmed no other file under `worker/src` mentions
-    any of these markers even in a comment today (verified by grep before
-    shipping this check), so scanning raw text carries no live
-    false-positive risk; if a future comment ever legitimately names one of
-    these markers in prose, that is a one-line rewording, not a reason to
-    reach for either broken alternative."""
+    instead of avoided. Re-verified (2026-09-23, SendGrid-removal pass) that
+    no other file under `worker/src` mentions either provider host even in
+    a comment, so scanning raw text carries no live false-positive risk; if
+    a future comment ever legitimately names one of these markers in prose,
+    that is a one-line rewording, not a reason to reach for either broken
+    alternative."""
     worker_src = repo_root / "worker" / "src"
     if not worker_src.exists():
         print("  (skipping email-transport-scope check -- worker/ tree not present in this checkout)")
@@ -4612,11 +4615,11 @@ def check_email_transport_scope(repo_root: Path) -> list[str]:
                 line_no = body[: body.index(marker)].count("\n") + 1
                 errors.append(
                     f"[SEND-1][{ts_file.name}:{line_no}] '{marker}' appears outside "
-                    "worker/src/sender.ts -- only sendViaSendGrid() (sender.ts) may reach "
+                    "worker/src/sender.ts -- only sendEmail() (sender.ts) may reach "
                     "an email provider. A direct call here bypasses demo_locked/"
                     "is_test_tenant exclusion, EMAIL_ALLOWLIST, and the daily send cap "
                     "entirely, invisible to check_demo_locked_email_coverage(). Route the "
-                    "send through sendViaSendGrid() instead."
+                    "send through sendEmail() instead."
                 )
     return errors
 
@@ -4703,7 +4706,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     ONLY `async function handle*` in index.ts -- exactly the scope of the
     finding it was built from, which is exactly how the four decay classes
     in this file all started. The reminder cron (worker/src/scheduler.ts)
-    also calls sendViaSendGrid() with no demo_locked check and this guard
+    also calls sendEmail() with no demo_locked check and this guard
     did not catch it. Broadened to every function (any name, async or not)
     in every worker/src/*.ts file -- the invariant is "does this function
     send to a roster-derived address," which has nothing to do with what
@@ -4767,7 +4770,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             # count as coverage.
             body = _blank_strings_and_comments(raw_body)
             body = _strip_dead_if_false_blocks(body)
-            if "sendViaSendGrid(" not in body:
+            if "sendEmail(" not in body:
                 continue
             senders_found += 1
             # Require demo_locked to genuinely GUARD the send, not merely be
@@ -4810,7 +4813,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             if not test_tenant_guarded:
                 missing.append("is_test_tenant")
             errors.append(
-                f"[DEMO-EMAIL] {name}() ({ts_file.name}) calls sendViaSendGrid() but has no live "
+                f"[DEMO-EMAIL] {name}() ({ts_file.name}) calls sendEmail() but has no live "
                 f"{'/'.join(missing)} check and isn't in check_demo_locked_email_coverage()'s allowlist "
                 "-- either gate the send for a demo_locked or is_test_tenant firm, or add it to the "
                 "allowlist with the reason its recipient is never attacker-controlled"
@@ -4825,13 +4828,13 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         errors.append(
             f"[DEMO-EMAIL] allowlist entry for function(s) that no longer exist: {', '.join(stale_allowlist)}"
         )
-    # GATE-11 (AuditLab, 2026-08-22): if `sendViaSendGrid(` itself is ever
+    # GATE-11 (AuditLab, 2026-08-22): if `sendEmail(` itself is ever
     # renamed, senders_found silently drops to 0 and every check above
     # trivially passes on nothing -- assert the derivation actually found
     # something, same pattern CSRF-2 already established.
     if senders_found == 0:
         errors.append(
-            "[DEMO-EMAIL] found ZERO functions calling sendViaSendGrid( anywhere in worker/src/*.ts "
+            "[DEMO-EMAIL] found ZERO functions calling sendEmail( anywhere in worker/src/*.ts "
             "-- the function was renamed or removed, and this check is measuring nothing and must "
             "be repaired."
         )
@@ -4935,7 +4938,7 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
         # mutate, and the old presence check (blind to polarity in this
         # branch) passed it clean. `_condition_guards_flag()`'s own
         # negation-iff-containment rule applies identically here with the
-        # PROTECTED call swapped from sendViaSendGrid( to this handler's own
+        # PROTECTED call swapped from sendEmail( to this handler's own
         # mutating store.* call(s).
         mutating_call_markers = tuple(f"store.{fn}(" for fn in mutating_fns)
         guarded = any(
@@ -5378,10 +5381,10 @@ def check_write_endpoint_rate_limits(repo_root: Path) -> list[str]:
         "server-to-server callback, same category as handleStripeWebhook above -- rate-limiting it "
         "risks dropping a legitimate burst of real inbound STOP replies, and the signature check is "
         "the real access control here, not a counter",
-        "handleEmailEventsWebhook": "SendGrid-signed (verified via X-Twilio-Email-Event-Webhook-Signature, "
-        "verifySendGridEventSignature()) server-to-server callback, same category as handleStripeWebhook/ "
-        "handleSmsInbound above -- rate-limiting it risks dropping a legitimate burst of real bounce/ "
-        "complaint events (batches can carry 1000+ events), and the signature check is the real access "
+        "handleEmailEventsWebhook": "Resend-signed (Svix-style svix-id/svix-timestamp/svix-signature "
+        "headers, verifyResendEventSignature()) server-to-server callback, same category as "
+        "handleStripeWebhook/handleSmsInbound above -- rate-limiting it risks dropping a legitimate "
+        "burst of real bounce/complaint deliveries, and the signature check is the real access "
         "control here, not a counter",
         # Token-keyed action links (AuditLab's own suggested exception
         # category): each takes a large random unguessable `token` as its
@@ -5693,7 +5696,7 @@ CSRF_EXEMPT_WRITE_HANDLERS = {
     "handleFirmLoginVerify": "emailed-token",
     "handleSubscriberLoginVerify": "emailed-token",
     # Webhook signature (3) -- authenticated by a cryptographic signature
-    # over the raw body (Stripe/SendGrid/Twilio each verified separately),
+    # over the raw body (Stripe/Resend/Twilio each verified separately),
     # which a same-site cookie could never satisfy regardless of origin.
     "handleStripeWebhook": "webhook-signature",
     "handleEmailEventsWebhook": "webhook-signature",

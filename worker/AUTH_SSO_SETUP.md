@@ -118,7 +118,7 @@ Each provider is independently gated on its own two secrets being present -- but
 earlier version of this section that conflated them):
 
 - **Both secrets missing → that provider's ROUTES 404**, mirroring how `TURNSTILE_SECRET_KEY` and
-  `SENDGRID_API_KEY` already degrade in this codebase. This is `getConfiguredProvider()` in
+  `RESEND_API_KEY` already degrade in this codebase. This is `getConfiguredProvider()` in
   `oauth.ts`, checked at request time against the Worker's real runtime environment.
 - **The button's visibility is a SEPARATE, build-time decision** -- generate.py's own
   `SSO_PROVIDERS`/`DR_SSO_PROVIDERS` default (section 3, above), manually flipped when a

@@ -28,7 +28,7 @@ enrolling a THIRD PARTY's address. Defenses, in the order they're checked:
   2. Hidden honeypot field -- silently no-ops bots that fill every field.
   3. Cloudflare Turnstile hook (_verify_turnstile) -- inert until a real
      secret key is configured (same gating pattern as sender.py's
-     SendGridSender), ready to drop in the moment the site fronts Turnstile.
+     RuntimeError-if-unconfigured senders used to have), ready to drop in the moment the site fronts Turnstile.
   4. Control-character / length / format validation on every field, BEFORE
      anything is persisted or computed -- rejects header-injection-style and
      stored-XSS-style payloads outright.
@@ -90,7 +90,7 @@ HONEYPOT_FIELD_NAME = "hp_website"
 # Turnstile (free, invisible-mode-capable) is the natural bot wall once a
 # public endpoint exists. TURNSTILE_SECRET_KEY is None until the project
 # maintainer configures a real secret (env var, never hardcoded/committed --
-# same pattern as sender.py's SENDGRID_API_KEY). While unset, verification
+# same pattern as an API key any real sender.py provider would need). While unset, verification
 # is a documented no-op and the honeypot + rate limit are the active
 # defenses; once a secret is set, _verify_turnstile() performs the real
 # siteverify call and the form's `cf-turnstile-response` field (reserved,

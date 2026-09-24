@@ -584,7 +584,7 @@ describe("POST /firm/2fa/verify", () => {
 });
 
 describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live send HELD pending Devin)", () => {
-  const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+  const RESEND_URL = "https://api.resend.com/emails";
 
   it("HELD BY DEFAULT: redeeming a backup code sends nothing today, even with SENDGRID_API_KEY configured", async () => {
     // This is the test that actually matters for what ships right now --
@@ -621,15 +621,15 @@ describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live 
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.260" },
           body: form({ pending, code: codes[0] as string }),
         }),
-        { TOTP_ENCRYPTION_KEY: KEY, SENDGRID_API_KEY: "test-key-not-real" }
+        { TOTP_ENCRYPTION_KEY: KEY, RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(302);
       expect(resp.headers.get("Set-Cookie") ?? "").toContain("dr_firm_session=");
-      const sendGridCalls = fetchSpy.mock.calls.filter((c: Parameters<typeof fetch>) => {
+      const resendCalls = fetchSpy.mock.calls.filter((c: Parameters<typeof fetch>) => {
         const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
-        return url === SENDGRID_URL;
+        return url === RESEND_URL;
       });
-      expect(sendGridCalls.length).toBe(0);
+      expect(resendCalls.length).toBe(0);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -659,7 +659,7 @@ describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live 
           headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.261" },
           body: form({ pending, code }),
         }),
-        { TOTP_ENCRYPTION_KEY: KEY, SENDGRID_API_KEY: "test-key-not-real" }
+        { TOTP_ENCRYPTION_KEY: KEY, RESEND_API_KEY: "test-key-not-real" }
       );
       expect(resp.status).toBe(302);
       expect(resp.headers.get("Set-Cookie") ?? "").toContain("dr_firm_session=");
@@ -724,14 +724,14 @@ describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live 
 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
     try {
-      await sendBackupCodeRedeemedNotice({ ...env, SENDGRID_API_KEY: "test-key-not-real" } as never, firm!, member!);
+      await sendBackupCodeRedeemedNotice({ ...env, RESEND_API_KEY: "test-key-not-real" } as never, firm!, member!);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(String(url)).toContain("sendgrid");
+      expect(String(url)).toContain("resend");
       const sentBody = JSON.parse(String(init.body));
-      expect(sentBody.personalizations[0].to[0].email).toBe(member!.email);
+      expect(sentBody.to[0]).toBe(member!.email);
       expect(sentBody.subject).toContain("backup code was used");
-      const textContent = (sentBody.content as { type: string; value: string }[]).find((c) => c.type === "text/plain")?.value;
+      const textContent = (sentBody.text as string | undefined);
       expect(textContent).toContain("7 backup codes remaining");
       expect(textContent).toContain(firm!.name);
     } finally {
@@ -768,7 +768,7 @@ describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live 
     });
     try {
       await sendBackupCodeRedeemedNotice(
-        { ...env, SENDGRID_API_KEY: "test-key-not-real", ACTION_DAILY_SEND_CAP: "0" } as never,
+        { ...env, RESEND_API_KEY: "test-key-not-real", ACTION_DAILY_SEND_CAP: "0" } as never,
         firm!,
         member!
       );
@@ -787,7 +787,7 @@ describe("backup-code redemption notice -- AuditLab 2FA-4 (build approved, live 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("server error", { status: 500 }));
     try {
       await expect(
-        sendBackupCodeRedeemedNotice({ ...env, SENDGRID_API_KEY: "test-key-not-real" } as never, firm!, member!)
+        sendBackupCodeRedeemedNotice({ ...env, RESEND_API_KEY: "test-key-not-real" } as never, firm!, member!)
       ).resolves.toBeUndefined();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {

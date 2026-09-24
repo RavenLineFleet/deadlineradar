@@ -1,26 +1,33 @@
 /**
  * DeadlineRadar Worker -- email sending (Phase 2).
  *
- * Ported from reminders/sender.py (SendGridSender + CircuitBreakerSender).
  * Two responsibilities:
- *   1. sendViaSendGrid() -- one transactional send through SendGrid's v3
- *      mail-send API. Click + open tracking are disabled on every send (these
- *      are transactional, not marketing -- click tracking rewrites action
- *      links into long tracking-domain URLs, the v1 self-test's #1 problem).
+ *   1. sendEmail() -- one transactional send through Resend's v1 mail-send
+ *      API. No tracking is enabled (these are transactional, not marketing --
+ *      Resend has no per-request tracking toggle; tracking is an
+ *      account-level dashboard setting, confirmed off).
  *   2. checkAndCountSend() -- a hard DAILY send cap (circuit breaker) backed by
  *      the send_counters table (migration 0004). Protects the free-tier quota
  *      and, more importantly, sender reputation: a bug or attack that tries to
  *      blow through a burst of sends gets refused once the cap is hit for the
  *      UTC day, instead of getting the whole domain flagged as a spammer.
  *
- * The SendGrid API key is read from env.SENDGRID_API_KEY -- a wrangler secret,
- * never hardcoded, never committed. If it is unset, sendConfirmation() below
- * is never reached (index.ts only calls it when the key is present).
+ * Orchestrator directive (2026-09-23, Devin: "Replace SendGrid completely"):
+ * SendGrid's trial ended 09-02 and its account was credit-blocked; Resend was
+ * wired as a fallback-swap the same day (3746f9307), cut over to active
+ * (b5966d214), live-tested (ff49b26c7/5cb9474b5), then made the sole
+ * transport here -- SendGrid's code path, API URL, and every dual-transport
+ * branch are gone, not just unused. `sendViaSendGrid()`'s old name and its
+ * SendGrid-specific docs are gone with it; see git history (pre-`SendGrid-
+ * removal` commits) for the SendGrid-era implementation if it's ever needed.
+ *
+ * The Resend API key is read from env.RESEND_API_KEY -- a wrangler secret,
+ * never hardcoded, never committed. If it is unset, every caller's own
+ * `if (!env.RESEND_API_KEY) return` guard means this is never reached.
  */
 
 import type { BuiltEmail } from "./emails";
 
-const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM_EMAIL = "noreply@deadline-radar.com";
 const FROM_NAME = "Deadline-Radar";
@@ -276,7 +283,7 @@ function parseAllowlist(raw: string | undefined): string[] | null {
 }
 
 /**
- * Exported for callers OTHER than sendViaSendGrid that need the same
+ * Exported for callers OTHER than sendEmail that need the same
  * "is this a known preview/staging test address" membership check (2026-07-30
  * addition: the firm-signup trial gate exempts EMAIL_ALLOWLIST addresses so a
  * tester can still sign up a preview firm with their own real personal
@@ -291,9 +298,13 @@ export function isEmailAllowlisted(raw: string | undefined, email: string): bool
 }
 
 /**
- * One transactional send via SendGrid. Returns true on 2xx, false otherwise
- * (a failed send must never throw up into /subscribe -- a subscriber's record
- * is already stored; a transient email failure should not 500 their request).
+ * One transactional send via Resend's v1 mail-send API
+ * (https://resend.com/docs/api-reference/emails/send-email). Returns true on
+ * 2xx, false otherwise (a failed send must never throw up into /subscribe --
+ * a subscriber's record is already stored; a transient email failure should
+ * not 500 their request). No per-request tracking toggle exists on Resend
+ * (unlike SendGrid's old tracking_settings) -- tracking is an account-level
+ * dashboard setting, confirmed off.
  *
  * `emailAllowlist` is the raw env.EMAIL_ALLOWLIST value (see env.ts) -- a
  * PREVIEW/STAGING-ONLY safety gate. When it parses to a non-empty list and
@@ -311,7 +322,7 @@ export function isEmailAllowlisted(raw: string | undefined, email: string): bool
  * would have silently also enabled full-body credential logging. The two are
  * unrelated capabilities and now require two separate opt-ins.
  */
-export async function sendViaSendGrid(
+export async function sendEmail(
   apiKey: string,
   toEmail: string,
   email: BuiltEmail,
@@ -319,30 +330,16 @@ export async function sendViaSendGrid(
   previewLogBody?: string,
   // Roadmap #19 (2026-08-07): lightweight white-label. Deliberately does NOT
   // change `from` -- every send still originates from FROM_EMAIL/FROM_NAME
-  // above, so SendGrid's own domain authentication (SPF/DKIM) is untouched
-  // and DeadlineRadar remains the sender of record for CAN-SPAM purposes.
-  // Only where a REPLY goes changes.
-  replyTo?: string,
-  // Devin chose Resend to replace SendGrid (2026-09-23, orchestrator
-  // directive, SendGrid account blocked -- "Maximum credits exceeded",
-  // live-confirmed same day). Deliberately a NEW TRAILING optional param,
-  // not a signature change: the function's NAME and existing params stay
-  // exactly as every one of the 41 current call sites (plus preship_gate's
-  // DEMO-EMAIL/consent checks, which key on the literal name) already
-  // expect -- a rename is separate, later cleanup. Selected when the
-  // CALLER passes a truthy env.RESEND_API_KEY here; no call site does yet
-  // (that wiring is a deliberate follow-up, once the key exists and the
-  // sending domain is verified), so this is fully dead in production today
-  // -- exercised only by direct unit tests until then. SendGrid stays the
-  // active path (and remains available as a fallback) until Resend is
-  // wired in and verified live.
-  resendApiKey?: string
+  // above, so the domain's own authentication (SPF/DKIM) is untouched and
+  // DeadlineRadar remains the sender of record for CAN-SPAM purposes. Only
+  // where a REPLY goes changes.
+  replyTo?: string
 ): Promise<boolean> {
   const allowlist = parseAllowlist(emailAllowlist);
   // Preview/staging visibility (2026-07-28; decoupled from the allowlist
   // gate by AuditLab LOG-1, 2026-09-12): log the full built email -- readable
   // live via `wrangler tail --config wrangler.preview.toml`. This is what
-  // makes the preview usable even before/without a real SENDGRID_API_KEY: a
+  // makes the preview usable even before/without a real RESEND_API_KEY: a
   // tester can grab a magic-link URL (or a reminder email's renew-and-rearm
   // link) straight out of the log stream. Only fires when previewLogBody is
   // explicitly set, which is never true in production -- this line does not
@@ -353,104 +350,6 @@ export async function sendViaSendGrid(
   if (allowlist && !allowlist.includes(toEmail.trim().toLowerCase())) {
     return false;
   }
-  // Shared across both transports -- the allowlist/preview gates above are
-  // provider-agnostic and must apply identically regardless of which one
-  // ends up sending.
-  if (resendApiKey) {
-    return sendViaResendTransport(resendApiKey, toEmail, email, replyTo);
-  }
-  return sendViaSendGridTransport(apiKey, toEmail, email, replyTo);
-}
-
-async function sendViaSendGridTransport(
-  apiKey: string,
-  toEmail: string,
-  email: BuiltEmail,
-  replyTo?: string
-): Promise<boolean> {
-  const personalization: Record<string, unknown> = { to: [{ email: toEmail }] };
-  if (email.headers && Object.keys(email.headers).length > 0) {
-    // SendGrid attaches custom transport headers per personalization, values
-    // must be strings (emails.py builds them as strings; stringify defensively).
-    const h: Record<string, string> = {};
-    for (const [k, v] of Object.entries(email.headers)) h[String(k)] = String(v);
-    personalization.headers = h;
-  }
-  const payload = {
-    personalizations: [personalization],
-    from: { email: FROM_EMAIL, name: FROM_NAME },
-    ...(replyTo ? { reply_to: { email: replyTo } } : {}),
-    subject: email.subject,
-    content: [
-      { type: "text/plain", value: email.textBody },
-      { type: "text/html", value: email.htmlBody },
-    ],
-    // Transactional, not marketing -- tracking has no analytics value here and
-    // click tracking actively mangles action links into long redirect URLs.
-    tracking_settings: {
-      click_tracking: { enable: false, enable_text: false },
-      open_tracking: { enable: false },
-    },
-  };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
-  try {
-    const resp = await fetch(SENDGRID_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    if (resp.status >= 200 && resp.status < 300) return true;
-    // MON-5 (2026-09-02): a non-2xx used to `return false` with the response
-    // body never read -- so a SendGrid REJECTION (e.g. the assistant-latency
-    // alert's 4xx on 2026-09-02, which then silently deleted the day's only
-    // alert row) vanished with zero trace; the caller saw only `false`. Log
-    // the status + a bounded body snippet so the rejection REASON is
-    // recoverable from Worker logs. The body is safe to log: SendGrid error
-    // bodies carry validation/quota messages, never the API key (that lives
-    // only in the request Authorization header, never echoed back).
-    let bodySnippet: string;
-    try {
-      bodySnippet = (await resp.text()).slice(0, 500);
-    } catch {
-      bodySnippet = "<body unreadable>";
-    }
-    console.log(`[sendgrid-fail] status=${resp.status} body=${JSON.stringify(bodySnippet)}`);
-    return false;
-  } catch (err) {
-    // MON-5: was a bare `return false` -- a network failure or the
-    // SEND_TIMEOUT_MS abort also vanished silently. Name it (still returns
-    // false; the caller's own failure handling is unchanged).
-    console.log(`[sendgrid-error] ${String(err)}`);
-    return false;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-/**
- * Resend's v1 mail-send API (https://resend.com/docs/api-reference/emails/send-email).
- * Mirrors sendViaSendGridTransport()'s contract exactly (2xx -> true, every
- * other outcome -> false, never throws) and preserves everything the
- * SendGrid path does that Resend's request shape supports: same FROM_EMAIL/
- * FROM_NAME, same reply-to behavior, same List-Unsubscribe/List-Unsubscribe-
- * Post headers (RFC 8058), same text+html bodies. Resend has no
- * per-request click/open-tracking toggle (unlike SendGrid's
- * tracking_settings) -- tracking is an account-level dashboard setting on
- * Resend, so there is no equivalent field to set here; this is a real
- * parity gap to confirm (not assume) is off once the account exists.
- */
-async function sendViaResendTransport(
-  apiKey: string,
-  toEmail: string,
-  email: BuiltEmail,
-  replyTo?: string
-): Promise<boolean> {
   const payload: Record<string, unknown> = {
     from: `${FROM_NAME} <${FROM_EMAIL}>`,
     to: [toEmail],
@@ -474,10 +373,11 @@ async function sendViaResendTransport(
       signal: controller.signal,
     });
     if (resp.status >= 200 && resp.status < 300) return true;
-    // Same MON-5 discipline as the SendGrid path -- log status + a bounded
-    // body snippet, never swallow the failure reason. Resend error bodies
-    // carry validation/quota messages, never the API key (Authorization
-    // header only, never echoed back).
+    // MON-5 (2026-09-02) discipline: log status + a bounded body snippet,
+    // never swallow the failure reason -- a non-2xx used to `return false`
+    // with the response body never read, so a rejection vanished with zero
+    // trace. Resend error bodies carry validation/quota messages, never the
+    // API key (Authorization header only, never echoed back).
     let bodySnippet: string;
     try {
       bodySnippet = (await resp.text()).slice(0, 500);

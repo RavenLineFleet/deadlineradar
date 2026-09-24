@@ -11,7 +11,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as store from "../src/store";
 
-const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
+const RESEND_URL = "https://api.resend.com/emails";
 const STRIPE_PRICE_URL = (id: string) => `https://api.stripe.com/v1/prices/${id}`;
 
 function stripePriceResponse(overrides: Partial<{ unit_amount: number; currency: string; interval: string; active: boolean }> = {}) {
@@ -26,7 +26,7 @@ function stripePriceResponse(overrides: Partial<{ unit_amount: number; currency:
 
 const BASE_ENV = {
   STRIPE_SECRET_KEY: "sk_test_x",
-  SENDGRID_API_KEY: "test-key",
+  RESEND_API_KEY: "test-key",
   STRIPE_PRICE_FIRM_STARTER: "price_starter",
   STRIPE_PRICE_FIRM_GROWTH: "price_growth",
   STRIPE_PRICE_FIRM_STANDARD: "price_standard",
@@ -121,9 +121,9 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === SENDGRID_URL) {
-        const body = JSON.parse(String(init?.body)) as { subject: string; content: Array<{ value: string }> };
-        captured.push({ subject: body.subject, text: body.content[0]?.value ?? "" });
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { subject: string; text: string };
+        captured.push({ subject: body.subject, text: body.text ?? "" });
         return new Response(null, { status: 202 });
       }
       throw new Error(`unexpected fetch: ${url}`);
@@ -148,9 +148,9 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ interval: "month" }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === SENDGRID_URL) {
-        const body = JSON.parse(String(init?.body)) as { content: Array<{ value: string }> };
-        captured.push(body.content[0]?.value ?? "");
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
         return new Response(null, { status: 202 });
       }
       throw new Error(`unexpected fetch: ${url}`);
@@ -173,9 +173,9 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === SENDGRID_URL) {
-        const body = JSON.parse(String(init?.body)) as { content: Array<{ value: string }> };
-        captured.push(body.content[0]?.value ?? "");
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
         return new Response(null, { status: 202 });
       }
       throw new Error(`unexpected fetch: ${url}`);
@@ -197,7 +197,7 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === SENDGRID_URL) {
+      if (url === RESEND_URL) {
         sendCount++;
         return new Response(null, { status: 202 });
       }
@@ -223,7 +223,7 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     });
     try {
       const month = new Date().toISOString().slice(0, 7);
-      await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", SENDGRID_API_KEY: undefined })).resolves.toBeUndefined();
+      await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", RESEND_API_KEY: undefined })).resolves.toBeUndefined();
       // Month was never claimed -- a later tick with SendGrid configured can still alert.
       expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
     } finally {
@@ -238,7 +238,7 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === SENDGRID_URL) return new Response("simulated failure", { status: 500 });
+      if (url === RESEND_URL) return new Response("simulated failure", { status: 500 });
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
