@@ -4718,6 +4718,24 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     explicitly allowlisted below with the reason it's safe. The allowlist
     is the opt-out AuditLab itself asked for; every entry names why the
     recipient isn't attacker-controlled, not just "already reviewed"."""
+    # GATE-30 (SecurityLab, 2026-09-23, LOW-MED, filed against GATE-11 right
+    # below: "preship_gate.py:4835 only trips when senders_found == 0, so
+    # losing 28 of 32 senders passes green"). GATE-11 catches the function
+    # being renamed/removed outright; it does NOT catch a refactor that
+    # moves most sends behind a helper this scan doesn't reach -- that would
+    # silently report a small nonzero senders_found and still pass. These
+    # are FLOORS (recorded baseline at commit 9ebb96f2d, the SendGrid
+    # rename -- AuditLab and SecurityLab jointly re-enumerated and confirmed
+    # it survived the rename identically to the pre-rename commit
+    # cc817ccb5), not exact-match assertions: growth is normal and expected
+    # and never trips this. Only a DROP below the recorded baseline does. A
+    # deliberate commit that legitimately removes/consolidates senders
+    # should lower these constants in that same commit, with a comment
+    # explaining why -- same posture as every other hand-maintained
+    # baseline in this file.
+    SENDER_COUNT_FLOOR = 32
+    DEMO_LOCKED_GUARDED_FLOOR = 13
+    DEMO_LOCKED_ENFORCED_FLOOR = 9
     worker_src = repo_root / "worker" / "src"
     if not worker_src.exists():
         print("  (skipping demo-locked-email-coverage check -- worker/ tree not present in this checkout)")
@@ -4758,6 +4776,8 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     errors = []
     found_names = set()
     senders_found = 0
+    demo_locked_guarded_count = 0
+    demo_locked_enforced_count = 0
     for ts_file in sorted(worker_src.glob("*.ts")):
         text = ts_file.read_text(encoding="utf-8")
         for name, raw_body in _balanced_brace_function_bodies(text, r"\w+"):
@@ -4799,6 +4819,18 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
                 _condition_guards_flag(cond, block, "is_test_tenant")
                 for cond, block in _find_if_blocks(body)
             )
+            # GATE-30 counters: "guarded" is every sender with a live
+            # demo_locked check, full stop. "enforced" narrows that to the
+            # ones NOT also sitting on the allowlist below -- those are the
+            # senders that pass ONLY because of the guard, i.e. the ones
+            # that would actually start failing if the guard broke. A
+            # guarded-but-allowlisted sender would still pass via the
+            # allowlist even if its guard silently rotted, so it can't be
+            # counted as evidence the guard itself is doing anything.
+            if demo_locked_guarded:
+                demo_locked_guarded_count += 1
+                if name not in allowlisted:
+                    demo_locked_enforced_count += 1
             if demo_locked_guarded and test_tenant_guarded:
                 continue
             covered, expiry_error = _allowlist_covers(allowlisted, name)
@@ -4837,6 +4869,44 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
             "[DEMO-EMAIL] found ZERO functions calling sendEmail( anywhere in worker/src/*.ts "
             "-- the function was renamed or removed, and this check is measuring nothing and must "
             "be repaired."
+        )
+    elif senders_found < SENDER_COUNT_FLOOR:
+        errors.append(
+            f"[GATE-30] found only {senders_found} functions calling sendEmail( anywhere in "
+            f"worker/src/*.ts -- below the recorded floor of {SENDER_COUNT_FLOOR} (2026-09-23 "
+            "baseline, commit 9ebb96f2d). GATE-11 above only catches a full drop to zero; this "
+            "catches a partial one -- either the scan broke (a refactor moved sends somewhere "
+            "_balanced_brace_function_bodies() doesn't reach) or senders were actually removed. "
+            "If this drop is real and reviewed, lower SENDER_COUNT_FLOOR in the same commit with "
+            "a comment explaining why."
+        )
+    # GATE-30 (SecurityLab, 2026-09-23): the sender-count floor above only
+    # proves sendEmail( is still being called somewhere -- it says nothing
+    # about whether the demo_locked GUARD itself survived. A refactor could
+    # hold senders_found steady at 32 while every guard on them quietly
+    # broke (e.g. a shared helper's condition gets inverted or deleted) and
+    # this whole function would still report 0 [DEMO-EMAIL] errors, because
+    # every one of those 32 would just fail the per-function check above --
+    # which is loud -- UNLESS the same refactor also widened the allowlist
+    # to cover them, which is exactly the silent-decay shape this file's
+    # other GATE-3x/DEMO-x siblings exist to catch. These two floors are the
+    # backstop for that: independent evidence the guard, not the allowlist,
+    # is still doing real work.
+    if demo_locked_guarded_count < DEMO_LOCKED_GUARDED_FLOOR:
+        errors.append(
+            f"[GATE-30] only {demo_locked_guarded_count} functions have a live demo_locked guard "
+            f"on their sendEmail( call -- below the recorded floor of {DEMO_LOCKED_GUARDED_FLOOR} "
+            "(2026-09-23 baseline, commit 9ebb96f2d). A guard may have been silently removed or "
+            "broken. If this drop is real and reviewed, lower DEMO_LOCKED_GUARDED_FLOOR in the "
+            "same commit with a comment explaining why."
+        )
+    if demo_locked_enforced_count < DEMO_LOCKED_ENFORCED_FLOOR:
+        errors.append(
+            f"[GATE-30] only {demo_locked_enforced_count} functions rely on their demo_locked "
+            "guard (rather than the allowlist) to pass -- below the recorded floor of "
+            f"{DEMO_LOCKED_ENFORCED_FLOOR} (2026-09-23 baseline, commit 9ebb96f2d). If this drop "
+            "is real and reviewed (e.g. a guarded sender was legitimately moved to the allowlist), "
+            "lower DEMO_LOCKED_ENFORCED_FLOOR in the same commit with a comment explaining why."
         )
     return errors
 
