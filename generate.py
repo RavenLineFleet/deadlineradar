@@ -1154,15 +1154,26 @@ PAGE_CSS = """
      2026-08-14; the earlier 30/45 split let one record show a green "Verified"
      caveat next to a red "RE-VERIFY NEEDED" seal. Do not re-split them. */
   /* Devin (2026-09-23, screenshot: devin_20260923_kansas_verified_seal_clipped.png)
-     caught the right edge sliced off on a live render. Root cause: this
-     floated-right seal had a ZERO right margin, landing pixel-flush against
-     `main { overflow-x: clip; }` (added 2026-08-28 for an unrelated fix,
-     UX-6 above -- neither change accounted for the other). A zero-margin
-     fit against a safe padded boundary is fine; a zero-margin fit against a
-     CLIPPING boundary has no tolerance for the sub-pixel rounding a floated
-     rem-sized box can pick up at some zoom/DPI combinations, so a hairline
-     sliver gets clipped. Small non-zero right margin gives that tolerance
-     back without visibly moving the seal. */
+     caught this seal broken on a live render. First pass (shipped
+     cc817ccb5, right-margin below) fixed a REAL but SECONDARY issue --
+     Orchestrator's follow-up review of the same screenshot named the
+     actual symptom: the seal's bottom ~25% (lower ring + date band) was
+     painted over by the callout card immediately below it, not clipped at
+     the right edge. Root cause of THAT: the seal, h1, and subhead are
+     floats/inline content with no clearfix, so `<main>`'s normal-flow
+     height calculation ends as soon as the h1+subhead's own (shorter)
+     height is done -- the callout starts there, not after the seal's
+     actual bottom edge. Its own `.callout { position: relative; }` (needed
+     for its internal children) then paints in the CSS "positioned
+     descendants" layer, which comes AFTER the "floats" layer in painting
+     order regardless of DOM order, so wherever the two boxes geometrically
+     overlap, the callout's background wins. Fixed by wrapping seal+h1+
+     subhead in `.dr-headwrap` below, which establishes a new block
+     formatting context (`display: flow-root`) so ITS OWN height properly
+     contains the float -- every following block (whichever of the many
+     per-state template variants it is) then starts below the seal's true
+     bottom, no per-card-class patching required. */
+  .dr-headwrap { display: flow-root; }
   .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
   .dr-seal svg { width: 100%; height: 100%; display: block; }
   .dr-seal .dr-seal-stale { display: none; }
@@ -7159,8 +7170,8 @@ def build_state_page(
         firm_landing_slugs_by_state.get(state_slug) if firm_landing_slugs_by_state else None,
         renewal_fees_by_slug.get(state_slug) if renewal_fees_by_slug else None,
     )
-    body = f"""{_seal_html(last_verified)}<h1>{esc(title)}</h1>
-<p class="subhead">{esc(state_name)} CPA license renewal</p>
+    body = f"""<div class="dr-headwrap">{_seal_html(last_verified)}<h1>{esc(title)}</h1>
+<p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
 {trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records)}
 {_flag_wrong_html(state_name, state_slug)}
