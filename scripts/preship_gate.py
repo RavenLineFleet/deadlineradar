@@ -4257,17 +4257,21 @@ def _strip_enclosing_parens(s: str) -> str:
 
 
 # SecurityLab N2 (2026-09-23, GATE-25 residual gap): the object a
-# demo_locked/is_test_tenant negation is checked ON must be one of the
-# objects this codebase actually uses for the FIRM BEING SENT TO --
+# demo_locked/is_test_tenant reference is checked ON must be one of the
+# objects this codebase actually uses for the firm being acted on --
 # otherwise `!otherFirm.is_test_tenant` (right flag, wrong object) passes a
-# check that protects nothing. Enumerated from the real call sites (every
-# function in worker/src that both calls sendViaSendGrid( and has a live
-# demo_locked/is_test_tenant condition), not guessed: `firm`/`session.firm`
-# in index.ts, `firmInfo` (optional-chained) in scheduler.ts. No call site
-# uses a `sub`-rooted path today -- if one is added later for a genuinely
-# new principal type, add it here explicitly rather than widening the
-# pattern to accept any identifier.
-_GUARD_OBJECT_ALLOWLIST = ("firm", "session.firm", "firmInfo")
+# check that protects nothing. Originally enumerated from only the
+# direct-wrap (email-send) call sites; AuditLab GATE-29 (2026-09-23) added
+# `_is_pure_positive_atom()` for the containment branch and its first real
+# run found `signoutFirm` (handleFirmSignOutOtherDevices's own local name
+# for the firm being acted on) missing -- re-enumerated from BOTH shapes
+# across BOTH gates this time (every function in worker/src with a live
+# demo_locked/is_test_tenant condition feeding either
+# check_demo_locked_email_coverage or check_demo_locked_mutation_coverage),
+# not guessed. No call site uses a `sub`-rooted path today -- if one is
+# added later for a genuinely new principal type, add it here explicitly
+# rather than widening the pattern to accept any identifier.
+_GUARD_OBJECT_ALLOWLIST = ("firm", "session.firm", "firmInfo", "signoutFirm")
 
 
 def _is_pure_negation_atom(fragment: str, flag: str) -> bool:
@@ -4295,6 +4299,37 @@ def _is_pure_negation_atom(fragment: str, flag: str) -> bool:
     if len(_split_top_level(atom, "||")) > 1:
         return False
     m = re.fullmatch(r"!\s*\(*\s*([\w$]+(?:\??\.[\w$]+)*)\s*\)*", atom)
+    if not m:
+        return False
+    path = m.group(1)
+    if path != flag and not path.endswith("." + flag):
+        return False
+    obj = path[: -(len(flag) + 1)].rstrip("?") if path != flag else ""
+    return obj in _GUARD_OBJECT_ALLOWLIST
+
+
+def _is_pure_positive_atom(fragment: str, flag: str) -> bool:
+    """AuditLab GATE-29 (2026-09-23): the exact dual of
+    `_is_pure_negation_atom()`, for the CONTAINMENT branch (an early-exit/
+    403 guard placed BEFORE the protected call, e.g. `if (COND) { 403 }`).
+    Safety there requires `flag ⟹ COND` -- COND must be true whenever the
+    flag is, so the guard always fires and blocks the protected call from
+    ever being reached. That holds when `flag` is a pure positive atom
+    among COND's top-level `||` disjuncts (`flag`, or `flag || X`: either
+    way `flag=true` forces that disjunct, hence COND, true) but NOT when
+    `flag` is ANDed with anything (`flag && X`: `flag=true, X=false` makes
+    that whole disjunct false, so COND can be false and the guard can be
+    skipped even though the flag is set) -- `_is_pure_negation_atom()`'s
+    `&&`-vs-`||` logic, mirrored. `flag in cond` (the old check) accepted
+    all three shapes; mutation-proven (AuditLab, `runRuleChangeAlertPass`
+    and 24 other real containment guards) that the AND-weakened shape
+    passes the gate clean while structurally not protecting anything.
+    Same `\\b`-anchored atom match as the negation sibling also closes
+    GATE-29b (a renamed flag like `demo_lockedX` no longer substring-matches)."""
+    atom = _strip_enclosing_parens(fragment)
+    if len(_split_top_level(atom, "&&")) > 1:
+        return False
+    m = re.fullmatch(r"\(*\s*([\w$]+(?:\??\.[\w$]+)*)\s*\)*", atom)
     if not m:
         return False
     path = m.group(1)
@@ -4397,13 +4432,21 @@ def _condition_guards_flag(
     `_is_pure_negation_atom()` per top-level `&&` conjunct -- see its own
     docstring for why AND (not OR) is the only shape that structurally
     guarantees the flag is false whenever the condition is true, and why the
-    object matters (N2)."""
+    object matters (N2).
+
+    AuditLab GATE-29/29b (2026-09-23): the CONTAINMENT branch (below) still
+    had the pre-N1 bare-presence bug, just on its own dual shape --
+    `flag in cond` accepted `(flag && X)`, which does NOT guarantee the
+    guard fires whenever the flag is set (see `_is_pure_positive_atom()`'s
+    own docstring), and accepted a substring match like `demo_lockedX`.
+    Replaced with `_is_pure_positive_atom()` per top-level `||` disjunct --
+    the exact mirror of the direct-wrap branch's `&&`-conjunct rule."""
     if any(marker in block for marker in protected_substrings):
         return any(_is_pure_negation_atom(c, flag) for c in _split_top_level(cond, "&&"))
     negated = bool(re.search(r"!\s*\(*\s*(?:[\w$]+\.)*" + re.escape(flag) + r"\b", cond))
     if negated:
         return False
-    return flag in cond and not _condition_is_constant_false(cond)
+    return any(_is_pure_positive_atom(d, flag) for d in _split_top_level(cond, "||"))
 
 
 def _strip_dead_if_false_blocks(text: str) -> str:
