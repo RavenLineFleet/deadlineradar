@@ -33,8 +33,19 @@ function toBase64(bytes: Uint8Array): string {
 
 /** Constant-time string comparison -- a signature check that short-circuits
  * on the first mismatched byte leaks timing information an attacker could
- * use to forge a valid signature one byte at a time. Same discipline as
- * every other secret-comparison in this codebase (see password.ts). */
+ * use to forge a valid signature one byte at a time.
+ *
+ * AuditLab (2026-09-25): this is NOT the same discipline as password.ts's
+ * constantTimeEqual(), despite the name -- this one early-returns on a
+ * length mismatch, which password.ts's deliberately does not (it folds the
+ * length difference into the accumulator instead, precisely to avoid this
+ * shape). That early return is acceptable ONLY here, because the one call
+ * site (verifyResendEventSignature() below) compares against `expected`, a
+ * base64 HMAC-SHA256 of fixed length -- "your signature isn't the right
+ * length" leaks nothing an attacker doesn't already know from the public
+ * HMAC spec. It is NOT acceptable for a variable-length secret (a token, a
+ * password, an API key): copy password.ts's version for that case, not
+ * this one. */
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
