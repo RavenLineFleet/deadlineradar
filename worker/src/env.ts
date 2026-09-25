@@ -195,6 +195,19 @@ export interface Env {
   RESEND_WEBHOOK_SECRET?: string;
   EMAIL_ALLOWLIST?: string;
   EMAIL_PREVIEW_LOG_BODY?: string;
+  /**
+   * SecurityLab RL9 (2026-09-25): auth for POST /debug/run-reminder-pass,
+   * which lets a human tester fire the daily reminder cron on demand.
+   * Previously gated on EMAIL_ALLOWLIST being set -- the same inverted
+   * coupling LOG-1 fixed for EMAIL_PREVIEW_LOG_BODY above, an operator
+   * setting an allowlist as a recipient-restriction safety measure would
+   * have silently also exposed this unauthenticated endpoint. Compare
+   * against the request's `X-Debug-Secret` header with constantTimeEqual()
+   * (password.ts) -- never `===`. Set via `wrangler secret put`, never in
+   * wrangler.toml, never committed -- same convention as
+   * ASSISTANT_DROPLET_SHARED_SECRET/TURNSTILE_SECRET_KEY.
+   */
+  DEBUG_REMINDER_PASS_SECRET?: string;
   SEND_APPROVED_PASSES?: string;
   ACTION_BASE_URL?: string;
   STATIC_SITE_BASE_URL?: string;

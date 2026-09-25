@@ -21,7 +21,10 @@ compatibility_date = "2026-07-01"
 # touches this preview D1 (whatever Devin adds himself while testing) and
 # every send it could make is separately gated by EMAIL_ALLOWLIST. The
 # preview-only POST /debug/run-reminder-pass route is the practical way to
-# test a reminder email without waiting for the next 18:00 UTC tick.
+# test a reminder email without waiting for the next 18:00 UTC tick --
+# requires its own `wrangler secret put DEBUG_REMINDER_PASS_SECRET` on THIS
+# config (SecurityLab RL9, 2026-09-25: no longer coupled to EMAIL_ALLOWLIST),
+# sent back as the request's X-Debug-Secret header.
 [triggers]
 crons = ["0 18 * * *"]
 
