@@ -140,6 +140,47 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET /go/mtcpa -- MT eConnect click-through redirect", () => {
+  it("302s to the UTM-tagged homepage and logs exactly one click row", async () => {
+    const countRows = async () =>
+      (await env.DB.prepare("SELECT COUNT(*) as n FROM mtcpa_click_log").first<{ n: number }>())!.n;
+    const before = await countRows();
+
+    const resp = await SELF.fetch("https://deadline-radar.com/go/mtcpa", {
+      headers: { "cf-connecting-ip": "203.0.113.80" },
+      redirect: "manual",
+    });
+
+    expect(resp.status).toBe(302);
+    expect(resp.headers.get("Location")).toBe(
+      "https://deadline-radar.com/?utm_source=mtcpa&utm_medium=newsletter&utm_campaign=econnect"
+    );
+    expect(await countRows()).toBe(before + 1);
+  });
+
+  it("also works through the /api prefix (the real deployed Route)", async () => {
+    const resp = await SELF.fetch("https://deadline-radar.com/api/go/mtcpa", {
+      headers: { "cf-connecting-ip": "203.0.113.81" },
+      redirect: "manual",
+    });
+    expect(resp.status).toBe(302);
+    expect(resp.headers.get("Location")).toBe(
+      "https://deadline-radar.com/?utm_source=mtcpa&utm_medium=newsletter&utm_campaign=econnect"
+    );
+  });
+
+  it("logs no PII -- the click_log row has only an id and a timestamp column", async () => {
+    await SELF.fetch("https://deadline-radar.com/go/mtcpa", {
+      headers: { "cf-connecting-ip": "203.0.113.82" },
+      redirect: "manual",
+    });
+    const row = await env.DB
+      .prepare("SELECT * FROM mtcpa_click_log ORDER BY id DESC LIMIT 1")
+      .first<Record<string, unknown>>();
+    expect(Object.keys(row!).sort()).toEqual(["clicked_at", "id"]);
+  });
+});
+
 describe("/api prefix stripping (Workers Route binding)", () => {
   // REGRESSION: this Worker is bound to the deadline-radar.com/api/* Route,
   // so every real request arrives with an /api prefix Cloudflare does NOT
