@@ -230,6 +230,7 @@ import {
   validatePasswordStrength,
   needsRehash,
   dummyVerifyForTiming,
+  constantTimeEqual,
 } from "./password";
 import {
   generateTotpSecretBase32,
@@ -10518,16 +10519,30 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
-      // PREVIEW/STAGING ONLY -- see RATE_LIMIT_DEBUG_REMINDER_PASS's own
-      // comment. Gated on env.EMAIL_ALLOWLIST being SET, which is never true
-      // in production (that env var only exists on a preview deployment) --
-      // so this route is unconditionally 404 in production regardless of
-      // this check ever being reached, and every email it can possibly send
-      // is itself gated by sendEmail()'s allowlist. Lets a human tester
-      // fire the daily reminder cron on demand rather than waiting for the
-      // real 18:00 UTC trigger.
+      // SecurityLab RL9 (2026-09-25, downgraded LOW-MEDIUM -> INFORMATIONAL
+      // after AuditLab confirmed it's unreachable in production today: the
+      // worker's only route is deadline-radar.com/api/*, and this path
+      // isn't under /api/, so it 404s at the edge before this code ever
+      // runs). Previously gated on env.EMAIL_ALLOWLIST being set -- the
+      // SAME inverted coupling AuditLab's LOG-1 (2026-09-12) already fixed
+      // for full-body logging: EMAIL_ALLOWLIST is a PREVIEW/STAGING-ONLY
+      // recipient restriction (env.ts's own doc comment), not an auth
+      // control, so an operator setting it as a safety measure would have
+      // silently also exposed this endpoint. The routing block above is
+      // NOT something to rely on either -- a later route-widening or a
+      // workers.dev/preview URL would make this reachable with no code
+      // change, so it needs its own real gate independent of both.
+      // Decoupled onto its own dedicated shared secret, same pattern as
+      // ASSISTANT_DROPLET_SHARED_SECRET. Lets a human tester fire the
+      // daily reminder cron on demand rather than waiting for the real
+      // 18:00 UTC trigger.
       if (url.pathname === "/debug/run-reminder-pass") {
-        if (!env.EMAIL_ALLOWLIST) return errorPage(404, "Not found.");
+        const configuredSecret = env.DEBUG_REMINDER_PASS_SECRET;
+        const suppliedSecret = request.headers.get("X-Debug-Secret");
+        if (!configuredSecret || !suppliedSecret ||
+            !constantTimeEqual(new TextEncoder().encode(suppliedSecret), new TextEncoder().encode(configuredSecret))) {
+          return errorPage(404, "Not found.");
+        }
         const allowed = await checkRateLimit(env.DB, ip, "debug_reminder_pass", RATE_LIMIT_DEBUG_REMINDER_PASS);
         if (!allowed) return errorPage(429, "Too many requests. Please try again later.");
         try {

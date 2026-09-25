@@ -351,29 +351,60 @@ describe("EMAIL_ALLOWLIST gate -- wired up end-to-end through a real call site (
 });
 
 describe("POST /debug/run-reminder-pass -- preview-only manual cron trigger", () => {
-  it("404s in a production-style env (no EMAIL_ALLOWLIST set at all)", async () => {
+  // SecurityLab RL9 (2026-09-25): gate moved off EMAIL_ALLOWLIST (a
+  // recipient-restriction var, not an auth control -- the same inverted
+  // coupling LOG-1 already fixed elsewhere) onto its own dedicated shared
+  // secret, compared via the X-Debug-Secret header.
+  it("404s with no DEBUG_REMINDER_PASS_SECRET configured at all", async () => {
     const worker = (await import("../src/index")).default;
     const envNoGate = { ...env, RESEND_API_KEY: "test-key-not-real" };
     const request = new Request("https://deadline-radar.com/debug/run-reminder-pass", {
       method: "POST",
-      headers: { "cf-connecting-ip": "203.0.113.210" },
+      headers: { "cf-connecting-ip": "203.0.113.210", "X-Debug-Secret": "guessed-value" },
     });
     const resp = await worker.fetch(request, envNoGate, testExecutionContext());
     expect(resp.status).toBe(404);
   });
 
-  it("runs the reminder pass and returns a JSON summary in a preview-style env (EMAIL_ALLOWLIST set)", async () => {
+  it("404s when DEBUG_REMINDER_PASS_SECRET is configured but the header is missing or wrong", async () => {
+    const worker = (await import("../src/index")).default;
+    const envWithSecret = {
+      ...env,
+      RESEND_API_KEY: "test-key-not-real",
+      DEBUG_REMINDER_PASS_SECRET: "the-real-secret",
+    };
+    const noHeader = await worker.fetch(
+      new Request("https://deadline-radar.com/debug/run-reminder-pass", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.213" },
+      }),
+      envWithSecret,
+      testExecutionContext()
+    );
+    expect(noHeader.status).toBe(404);
+    const wrongHeader = await worker.fetch(
+      new Request("https://deadline-radar.com/debug/run-reminder-pass", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.214", "X-Debug-Secret": "wrong-value" },
+      }),
+      envWithSecret,
+      testExecutionContext()
+    );
+    expect(wrongHeader.status).toBe(404);
+  });
+
+  it("runs the reminder pass and returns a JSON summary when the secret header matches", async () => {
     const worker = (await import("../src/index")).default;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
     try {
       const envWithGate = {
         ...env,
         RESEND_API_KEY: "test-key-not-real",
-        EMAIL_ALLOWLIST: "owner@example.com,owner+test@example.com",
+        DEBUG_REMINDER_PASS_SECRET: "the-real-secret",
       };
       const request = new Request("https://deadline-radar.com/debug/run-reminder-pass", {
         method: "POST",
-        headers: { "cf-connecting-ip": "203.0.113.211" },
+        headers: { "cf-connecting-ip": "203.0.113.211", "X-Debug-Secret": "the-real-secret" },
       });
       const resp = await worker.fetch(request, envWithGate, testExecutionContext());
       expect(resp.status).toBe(200);
@@ -390,27 +421,22 @@ describe("POST /debug/run-reminder-pass -- preview-only manual cron trigger", ()
     const envWithGate = {
       ...env,
       RESEND_API_KEY: "test-key-not-real",
-      EMAIL_ALLOWLIST: "owner@example.com",
+      DEBUG_REMINDER_PASS_SECRET: "the-real-secret",
     };
     const ip = "203.0.113.212";
+    const headers = { "cf-connecting-ip": ip, "X-Debug-Secret": "the-real-secret" };
     for (let i = 0; i < 5; i++) {
       const resp = await worker.fetch(
-        new Request("https://deadline-radar.com/debug/run-reminder-pass", {
-          method: "POST",
-          headers: { "cf-connecting-ip": ip },
-        }),
+        new Request("https://deadline-radar.com/debug/run-reminder-pass", { method: "POST", headers }),
         envWithGate,
         testExecutionContext()
       );
       expect(resp.status).not.toBe(429);
     }
     const sixth = await worker.fetch(
-      new Request("https://deadline-radar.com/debug/run-reminder-pass", {
-        method: "POST",
-        headers: { "cf-connecting-ip": ip },
-      }),
+      new Request("https://deadline-radar.com/debug/run-reminder-pass", { method: "POST", headers }),
       envWithGate,
-        testExecutionContext()
+      testExecutionContext()
     );
     expect(sixth.status).toBe(429);
     vi.restoreAllMocks();
