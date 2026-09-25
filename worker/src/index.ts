@@ -9609,6 +9609,34 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       return jsonResponse(200, { status: "ok" });
     }
 
+    // Orchestrator directive (2026-09-25): the MT Society of CPAs eConnect
+    // banner/advertorial link points here so clicks are countable exactly,
+    // rather than inferred from noisy UTM traffic. One D1 row per click,
+    // timestamp only (migration 0080) -- no IP, no UA, no referrer, nothing
+    // that could identify a visitor. Awaited (not waitUntil-deferred): at
+    // this endpoint's expected volume (a ~1,400-member newsletter, "tens of
+    // clicks" per ScoutLab's own placement note) a single D1 insert adds
+    // negligible latency, and awaiting it means the count is never at risk
+    // of a dropped fire-and-forget write. Wrapped in try/catch regardless --
+    // a logging failure must never turn into a broken redirect for a real
+    // visitor following the link from the newsletter.
+    if (url.pathname === "/go/mtcpa") {
+      try {
+        await env.DB.prepare("INSERT INTO mtcpa_click_log (clicked_at) VALUES (?)")
+          .bind(new Date().toISOString())
+          .run();
+      } catch {
+        // swallow -- see comment above
+      }
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: "https://deadline-radar.com/?utm_source=mtcpa&utm_medium=newsletter&utm_campaign=econnect",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     const ip = clientIp(request);
 
     // /firm/licenses*, migration 0008's firm-dashboard JSON API (2026-07-28)
