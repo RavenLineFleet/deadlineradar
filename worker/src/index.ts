@@ -10519,21 +10519,24 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
-      // SecurityLab RL9 (2026-09-25, downgraded LOW-MEDIUM -> INFORMATIONAL
-      // after AuditLab confirmed it's unreachable in production today: the
-      // worker's only route is deadline-radar.com/api/*, and this path
-      // isn't under /api/, so it 404s at the edge before this code ever
-      // runs). Previously gated on env.EMAIL_ALLOWLIST being set -- the
-      // SAME inverted coupling AuditLab's LOG-1 (2026-09-12) already fixed
-      // for full-body logging: EMAIL_ALLOWLIST is a PREVIEW/STAGING-ONLY
-      // recipient restriction (env.ts's own doc comment), not an auth
-      // control, so an operator setting it as a safety measure would have
-      // silently also exposed this endpoint. The routing block above is
-      // NOT something to rely on either -- a later route-widening or a
-      // workers.dev/preview URL would make this reachable with no code
-      // change, so it needs its own real gate independent of both.
-      // Decoupled onto its own dedicated shared secret, same pattern as
-      // ASSISTANT_DROPLET_SHARED_SECRET. Lets a human tester fire the
+      // SecurityLab RL9 (2026-09-25, LOW-MEDIUM, live -- AuditLab's initial
+      // "unreachable, routing-blocked" downgrade was itself wrong and
+      // retracted: it probed the bare /debug/... path, which does 404
+      // statically, but the real externally-reachable form is
+      // /api/debug/run-reminder-pass -- /api is stripped BEFORE this match
+      // (index.ts's own fetch() prefix-strip above), so the request reaches
+      // this handler same as any other route). Previously gated on
+      // env.EMAIL_ALLOWLIST being set -- the SAME inverted coupling
+      // AuditLab's LOG-1 (2026-09-12) already fixed for full-body logging:
+      // EMAIL_ALLOWLIST is a PREVIEW/STAGING-ONLY recipient restriction
+      // (env.ts's own doc comment), not an auth control, so an operator
+      // setting it as a safety measure would have silently also exposed
+      // this endpoint to any anonymous caller. Decoupled onto its own
+      // dedicated shared secret, same pattern as
+      // ASSISTANT_DROPLET_SHARED_SECRET, compared with constantTimeEqual()
+      // (password.ts) -- never `===`, which would reopen a timing side
+      // channel a test suite can't catch (that property rests on this
+      // comment and code review, not a test). Lets a human tester fire the
       // daily reminder cron on demand rather than waiting for the real
       // 18:00 UTC trigger.
       if (url.pathname === "/debug/run-reminder-pass") {
