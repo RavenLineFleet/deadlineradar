@@ -20,7 +20,8 @@ BASE=https://deadline-radar.com/api
 
 # 1. Health check.
 curl -s "$BASE/health"
-# Expect: {"status":"ok"}
+# Expect: {"status":"ok","version":"<some id>"} -- the version is opaque and changes
+# on every deploy (AuditLab DEPLOY-4); status is the field to check, not the exact body.
 
 # 2. A real signup.
 curl -s -X POST "$BASE/subscribe" \

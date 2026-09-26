@@ -72,7 +72,8 @@ python3 ../scripts/deploy_worker.py
 # 6. Smoke-test against the real deployment (see ACCEPTANCE.md for the full acceptance
 #    checklist -- this is just the fastest possible first check):
 curl -s https://deadline-radar.com/api/health
-#   Expect: {"status":"ok"}
+#   Expect: {"status":"ok","version":"<some id>"} -- the version is opaque and changes
+#   on every deploy (AuditLab DEPLOY-4); status is the field to check, not the exact body.
 ```
 
 Nothing above touches `SENDGRID_API_KEY`, `REMINDERS_MAILING_ADDRESS`, or
