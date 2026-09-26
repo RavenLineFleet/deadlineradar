@@ -7,8 +7,12 @@
 --
 -- One row per (ip, bucket) rate-limit "hit" (a timestamp of a request that
 -- counted against the window). Rows older than the relevant window are
--- deleted opportunistically by ratelimit.ts on every check for that
--- ip+bucket, so this table self-trims rather than growing forever.
+-- deleted opportunistically by validation.ts's checkRateLimit() on every
+-- check for that SAME ip+bucket -- so a key that never recurs is never
+-- revisited, and its rows are never reclaimed. AuditLab RL-9 (2026-09-26,
+-- originated with SecurityLab): this table does NOT self-trim on its own;
+-- purgeStaleRateLimitHits() (store.ts), wired into the daily cron, is the
+-- actual unkeyed cleanup that bounds its growth.
 
 CREATE TABLE IF NOT EXISTS rate_limit_hits (
     ip TEXT NOT NULL,

@@ -4865,6 +4865,35 @@ export async function purgeExpiredSessions(
 }
 
 /**
+ * AuditLab RL-9 (LOW, 2026-09-26, originated with SecurityLab): checkRateLimit()'s
+ * own DELETE (validation.ts) only reclaims rows for the (ip, bucket) key being
+ * checked in the CURRENT request -- an address that hits a bucket once and never
+ * comes back keeps its rows forever, so migration 0002's "self-trims rather than
+ * growing forever" comment is false for that case. This is the actual, unkeyed
+ * cleanup that closes the gap: one pass a day, every table row, no per-key
+ * revisit required.
+ *
+ * The cutoff is the longest windowSeconds among all current RATE_LIMIT_*
+ * definitions (86400s, verified by AuditLab against every definition in
+ * validation.ts) -- strictly older than the longest window means no request
+ * anywhere could still legitimately be counting that row, with no separate
+ * safety margin needed. `ts` is the third column of this table's only index
+ * (ip, bucket, ts), so a ts-only predicate can't use it and this is a full
+ * table scan -- fine once a day, not fine more often.
+ */
+export const RATE_LIMIT_HITS_RETENTION_SECONDS = 86_400;
+
+export async function purgeStaleRateLimitHits(
+  db: D1Database,
+  nowSeconds: number,
+  retentionSeconds = RATE_LIMIT_HITS_RETENTION_SECONDS
+): Promise<number> {
+  const cutoff = nowSeconds - retentionSeconds;
+  const result = await db.prepare(`DELETE FROM rate_limit_hits WHERE ts < ?1`).bind(cutoff).run();
+  return result.meta.changes ?? 0;
+}
+
+/**
  * Roadmap #66 (2026-08-07): "what changed since your last login" banner.
  * Reuses firm_sessions (no new column/migration needed) -- the most recent
  * OTHER session's created_at IS the previous login, by definition. Excludes
@@ -6631,9 +6660,14 @@ export interface AssistantChatLatencyStats {
  * volume signal even though it doesn't move p95/max.
  *
  * Reads every sample within `sinceSeconds` of `nowSeconds` and, in the
- * same call, opportunistically deletes rows older than that window -- same
- * self-trimming shape as checkRateLimit()'s own rate_limit_hits cleanup
- * (0002), so this table never needs a separate pruning job. p95 uses the
+ * same call, opportunistically deletes rows older than that window, unkeyed
+ * -- every stale row, not just ones tied to whatever triggered this call.
+ * AuditLab RL-9 (2026-09-26): NOT the same shape as checkRateLimit()'s
+ * rate_limit_hits cleanup (0002), which only reclaims the specific
+ * (ip, bucket) being checked in the current request -- a key that never
+ * recurs is never revisited. This table's cleanup is the better pattern;
+ * rate_limit_hits now gets its own daily purge instead (purgeStaleRateLimitHits,
+ * scheduled() below). p95 uses the
  * standard nearest-rank method (ceil(0.95 * n), 1-indexed) on samples
  * sorted ascending; p95Ms/maxMs are null when there are zero SUCCESS
  * samples (even if totalN > 0, e.g. an all-429 window) so the caller can't
