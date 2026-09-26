@@ -9,9 +9,13 @@
 -- One row per real assistant/chat request (not per attempt -- see
 -- callAssistantDroplet's own comment on what "elapsed" measures), logged
 -- fire-and-forget so a logging failure never affects the actual response.
--- Self-trims the same way rate_limit_hits (0002) does: old rows are
--- deleted opportunistically by the daily latency-alert pass, not by a
--- separate cleanup job.
+-- Self-trims on every read (recentAssistantChatLatencyStats deletes rows
+-- older than its own window, unkeyed -- ALL stale rows, not just the ones
+-- for whatever caller happened to read). AuditLab RL-9 (2026-09-26): this
+-- is NOT the same shape as rate_limit_hits (0002) -- that table's cleanup
+-- is keyed to the (ip, bucket) being checked in the current request, so a
+-- key that never recurs is never revisited and its rows are never reclaimed.
+-- This table's unkeyed delete is the better pattern, not an equivalent one.
 CREATE TABLE IF NOT EXISTS assistant_chat_latency_log (
     ts INTEGER NOT NULL, -- unix seconds
     elapsed_ms INTEGER NOT NULL

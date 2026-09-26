@@ -12951,6 +12951,25 @@ export default {
       })()
     );
 
+    // RL-9 (AuditLab, 2026-09-26, originated with SecurityLab, LOW): same
+    // "unrelated concern that shares one cron trigger" reasoning as the
+    // session-purge pass just above -- rate_limit_hits rows for a key that
+    // never recurs are otherwise never reclaimed (see
+    // purgeStaleRateLimitHits()'s own docstring), and this must keep
+    // running whether or not email is configured.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const deleted = await store.purgeStaleRateLimitHits(env.DB, Math.floor(Date.now() / 1000));
+          if (deleted > 0) {
+            console.log(`[rate-limit-purge-cron] deleted ${deleted} rate_limit_hits row(s) past retention`);
+          }
+        } catch (err) {
+          console.log(`[rate-limit-purge-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
     // Orchestrator walkthrough finding (2026-08-24): reseeds the shared
     // demo firm's roster back to its baseline whenever a visitor's
     // exploration has emptied it below DEMO_ROSTER_FLOOR -- see
