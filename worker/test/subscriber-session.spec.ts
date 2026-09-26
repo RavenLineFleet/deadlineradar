@@ -58,13 +58,28 @@ describe("subscriber sign-in: identity is the EMAIL, and it must not over-match"
     expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, second.rawToken)).not.toBeNull();
   });
 
-  it("does NOT invalidate an outstanding email_change token when a login token is issued, or vice versa", async () => {
+  // AuditLab TTL-1 (LOW, 2026-09-25, caught by mutation testing): the
+  // original version of this test was named "...or vice versa" but its
+  // body only ever exercised ONE direction (email_change issued first,
+  // then login) -- a mutant that removed the purpose='login' guard
+  // entirely (so an email_change issuance would ALSO burn an outstanding
+  // login token) survived 20/20 green. Split into the two directions the
+  // name always claimed to cover, so each is a real, independently-failing
+  // assertion.
+  it("issuing a login token does NOT invalidate an outstanding email_change token", async () => {
     const email = `sub-purpose-isolation-${Date.now()}@examplefirm.com`;
     const emailChange = await store.createSubscriberLoginToken(env.DB, email, "email_change", "new@examplefirm.com");
     const login = await store.createSubscriberLoginToken(env.DB, email, "login");
     // Both purposes coexist -- issuing one must not burn the other's
     // outstanding token.
     expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, emailChange.rawToken)).not.toBeNull();
+    expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, login.rawToken)).not.toBeNull();
+  });
+
+  it("issuing an email_change token must NOT burn an outstanding login token", async () => {
+    const email = `viceversa-${Date.now()}@examplefirm.com`;
+    const login = await store.createSubscriberLoginToken(env.DB, email, "login");
+    await store.createSubscriberLoginToken(env.DB, email, "email_change", "new@examplefirm.com");
     expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, login.rawToken)).not.toBeNull();
   });
 

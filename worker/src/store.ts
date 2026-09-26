@@ -5037,13 +5037,7 @@ export async function createSubscriberLoginToken(
   // token in flight must survive a login link being requested (and vice
   // versa), so this must never touch the other purpose's rows.
   const normalizedPurpose = normalizeSubscriberLoginTokenPurpose(purpose);
-  if (normalizedPurpose === "login") {
-    await db
-      .prepare(`UPDATE subscriber_login_tokens SET used_at = ?1 WHERE email_normalized = ?2 AND purpose = 'login' AND used_at IS NULL`)
-      .bind(now.toISOString(), normalizeEmail(email))
-      .run();
-  }
-  await db
+  const insertStmt = db
     .prepare(
       `INSERT INTO subscriber_login_tokens (id, email_normalized, token_hash, created_at, expires_at, used_at, purpose, pending_new_email)
        VALUES (?1,?2,?3,?4,?5,NULL,?6,?7)`
@@ -5056,8 +5050,25 @@ export async function createSubscriberLoginToken(
       expiresAt,
       normalizedPurpose,
       normalizedPurpose === "email_change" ? pendingNewEmail : null
-    )
-    .run();
+    );
+  // SecurityLab LOW (2026-09-25, caught in its own review of the change
+  // right below): the burn and the insert used to be two separate awaited
+  // statements with no transaction, so two near-simultaneous issuances
+  // could interleave (burn, burn, insert, insert) and leave 2 live tokens
+  // instead of the intended 1 -- same "conditional UPDATE instead of
+  // check-then-act" hazard this file's own verifyAndConsumeSubscriberLoginToken()
+  // (a few lines below) already guards against on this exact table.
+  // db.batch() runs as one transaction, closing that window.
+  if (normalizedPurpose === "login") {
+    await db.batch([
+      db
+        .prepare(`UPDATE subscriber_login_tokens SET used_at = ?1 WHERE email_normalized = ?2 AND purpose = 'login' AND used_at IS NULL`)
+        .bind(now.toISOString(), normalizeEmail(email)),
+      insertStmt,
+    ]);
+  } else {
+    await insertStmt.run();
+  }
   return { rawToken, id };
 }
 

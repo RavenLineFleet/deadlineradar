@@ -1162,7 +1162,8 @@ export function buildStaffCpeReminderEmail(loginUrl: string, firmName: string, s
     `Click below to sign in and enter them -- it takes a minute:\n\n` +
     `${loginUrl}\n\n` +
     `This link expires in ${formatTokenTtl(SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES)} and can only be used once. If it's expired by the time you ` +
-    `click it, ask ${safeFirmName} to send another.\n\n` +
+    `click it, ask ${safeFirmName} to send another. If you had an earlier reminder email from us, ` +
+    `that link is no longer valid -- use this one.\n\n` +
     `Signing in also shows you every renewal deadline we're tracking for this email address, not ` +
     `just this one.\n\n` +
     `If this doesn't apply to you, you can safely ignore this email.\n\n` +
@@ -1179,7 +1180,8 @@ export function buildStaffCpeReminderEmail(loginUrl: string, firmName: string, s
       `<p style="margin:0 0 20px;">${button(loginUrl, "Sign in and log hours")}</p>` +
       p(
         `This link expires in ${formatTokenTtl(SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES)} and can only be used once. If it's expired by the time ` +
-          `you click it, ask ${esc(safeFirmName)} to send another.`,
+          `you click it, ask ${esc(safeFirmName)} to send another. If you had an earlier reminder ` +
+          `email from us, that link is no longer valid &mdash; use this one.`,
         13,
         LIGHT.muted
       ) +
