@@ -4873,13 +4873,18 @@ export async function purgeExpiredSessions(
  * cleanup that closes the gap: one pass a day, every table row, no per-key
  * revisit required.
  *
- * The cutoff is the longest windowSeconds among all current RATE_LIMIT_*
- * definitions (86400s, verified by AuditLab against every definition in
- * validation.ts) -- strictly older than the longest window means no request
- * anywhere could still legitimately be counting that row, with no separate
- * safety margin needed. `ts` is the third column of this table's only index
- * (ip, bucket, ts), so a ts-only predicate can't use it and this is a full
- * table scan -- fine once a day, not fine more often.
+ * The cutoff must be >= the longest windowSeconds among all current
+ * RATE_LIMIT_* definitions (86400s today) -- strictly older than the
+ * longest window means no request anywhere could still legitimately be
+ * counting that row, with no separate safety margin needed. AuditLab
+ * (2026-09-26): a one-time enumeration is a snapshot, not a standing
+ * guarantee, so this relationship is ENFORCED, not just documented --
+ * see rl9-rate-limit-hits-purge.spec.ts's "retention-drift gate" describe
+ * block, which fails the day a longer window is added anywhere in
+ * validation.ts (or a RateLimit is defined outside it). `ts` is the third
+ * column of this table's only index (ip, bucket, ts), so a ts-only
+ * predicate can't use it and this is a full table scan -- fine once a
+ * day, not fine more often.
  */
 export const RATE_LIMIT_HITS_RETENTION_SECONDS = 86_400;
 
