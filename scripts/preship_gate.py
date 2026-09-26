@@ -6560,9 +6560,28 @@ def print_cpe_hours_staleness_advisory(repo_root: Path) -> None:
 def print_cpa_deadlines_staleness_advisory(repo_root: Path) -> None:
     """Surfaces cpa_deadlines_staleness_check.py (roadmap #45, 2026-08-07) as
     part of the normal pre-ship run, same treatment as the CPE-hours/
-    reinstatement/rule-change-monitoring advisories -- printed, never affects
-    exit code. cpa_deadlines.json's 89 records each have their own
-    last_verified date.
+    reinstatement/rule-change-monitoring ADVISORY PRINTS specifically
+    (print_cpe_hours_staleness_advisory()/print_reinstatement_staleness_
+    advisory()) -- printed, never affects exit code. cpa_deadlines.json's 89
+    records each have their own last_verified date.
+
+    AuditLab STALE-22 (2026-09-25): this docstring's comparison used to read
+    as ambiguous about which cpe_hours/reinstatement mechanism it meant --
+    worth being explicit, since it decides whether anyone believes the build
+    will catch a stale dataset before a deploy does. cpe_hours and
+    reinstatement each have TWO separate mechanisms: this kind of advisory
+    print (informational only) AND a completely separate HARD GATE
+    (check_cpe_hours_currency()/check_reinstatement_currency() above, which
+    DO feed all_errors and DO block the build). cpa_deadlines has no
+    equivalent hard gate here in preship_gate.py at all -- its hard gate is
+    a Worker RUNTIME guard instead (deadline.ts's checkDataFreshness()),
+    which pauses signups and every outbound send rather than blocking a
+    deploy. So a stale cpa_deadlines record will NOT stop `git push`; it
+    stops the live site instead, the next time this pass runs post-deploy.
+    worker/src/scheduler.ts's gatedDatasetRowsNearingExpiry() now covers
+    cpa_deadlines with its own (longer) warning window precisely because
+    this build-time advisory was, until now, the dataset's only signal, and
+    it fires no exit code either.
 
     AuditLab STALE-17 (2026-09-12): this docstring used to claim the
     Worker's runtime guard (checkDataFreshness() -> combinedAgeDays())

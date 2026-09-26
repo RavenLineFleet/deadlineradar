@@ -22,6 +22,7 @@ import {
 } from "../src/validation";
 import * as store from "../src/store";
 import {
+  CPA_DEADLINES_STALENESS_WARNING_DAYS,
   GATED_DATASET_STALENESS_THRESHOLD_DAYS,
   GATED_DATASET_STALENESS_WARNING_DAYS,
   MOBILITY_STALENESS_WARNING_DAYS,
@@ -5230,20 +5231,24 @@ describe("store.claimGatedDatasetStalenessAlertForDay (FRESH-3)", () => {
 });
 
 // Same decoupling as computeExpectedMobilityNearing() above, for the
-// sibling gated-dataset (cpe_hours/reinstatement/renewal_fees) warning --
-// independently recomputed from the same 3 JSON files scheduler.ts itself
-// reads, using the real exported thresholds
+// sibling gated-dataset (cpe_hours/reinstatement/renewal_fees/
+// cpa_deadlines) warning -- independently recomputed from the same 4 JSON
+// files scheduler.ts itself reads, using the real exported thresholds
 // (GATED_DATASET_STALENESS_THRESHOLD_DAYS, GATED_DATASET_STALENESS_
-// WARNING_DAYS), not by calling gatedDatasetRowsNearingExpiry() itself.
-function computeExpectedGatedDatasetNearing(now: Date): Array<{ dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }> {
+// WARNING_DAYS, CPA_DEADLINES_STALENESS_WARNING_DAYS), not by calling
+// gatedDatasetRowsNearingExpiry() itself. cpa_deadlines (AuditLab STALE-22,
+// 2026-09-25) uses its own longer warning window given its higher
+// consequence (a runtime pause of signups/sends, not a build-time refusal).
+type GatedDatasetRow = { dataset: "cpe_hours" | "reinstatement" | "renewal_fees" | "cpa_deadlines"; id: string; state: string; daysUntilExpiry: number; expiresOn: string };
+function computeExpectedGatedDatasetNearing(now: Date): GatedDatasetRow[] {
   const thresholdMs = (GATED_DATASET_STALENESS_THRESHOLD_DAYS + 1) * 86_400_000;
-  const rows: Array<{ dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }> = [];
-  const consider = (dataset: "cpe_hours" | "reinstatement" | "renewal_fees", id: unknown, state: unknown, verifiedDateStr: unknown) => {
+  const rows: GatedDatasetRow[] = [];
+  const consider = (dataset: GatedDatasetRow["dataset"], id: unknown, state: unknown, verifiedDateStr: unknown, warningDays: number = GATED_DATASET_STALENESS_WARNING_DAYS) => {
     if (typeof id !== "string" || typeof state !== "string" || typeof verifiedDateStr !== "string") return;
     const verified = Date.parse(verifiedDateStr);
     if (Number.isNaN(verified)) return;
     const daysUntilExpiry = Math.ceil((verified + thresholdMs - now.getTime()) / 86_400_000);
-    if (daysUntilExpiry <= 0 || daysUntilExpiry > GATED_DATASET_STALENESS_WARNING_DAYS) return;
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > warningDays) return;
     rows.push({ dataset, id, state, daysUntilExpiry, expiresOn: new Date(verified + thresholdMs).toISOString().slice(0, 10) });
   };
   for (const raw of (cpeHoursDataForTest.records ?? []) as Record<string, unknown>[]) {
@@ -5254,6 +5259,9 @@ function computeExpectedGatedDatasetNearing(now: Date): Array<{ dataset: "cpe_ho
   }
   for (const raw of (renewalFeesDataForTest.records ?? []) as Record<string, unknown>[]) {
     consider("renewal_fees", raw.id, raw.state, raw.verified_date);
+  }
+  for (const raw of (cpaDeadlinesData.records ?? []) as Record<string, unknown>[]) {
+    consider("cpa_deadlines", raw.id, raw.state, raw.last_verified, CPA_DEADLINES_STALENESS_WARNING_DAYS);
   }
   rows.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return rows;
@@ -5356,7 +5364,11 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
         for (const dataset of expectedDatasets) {
           expect(textContent).toContain(`${dataset}.json`);
         }
-        expect(textContent).toContain("HARD-BLOCKS ALL SHIPPING");
+        // AuditLab STALE-22 (2026-09-25): the intro states BOTH consequences
+        // unconditionally now (build-time gate for 3 datasets, runtime gate
+        // for cpa_deadlines), since a single row set can mix both.
+        expect(textContent).toContain("HARD-BLOCK SHIPPING");
+        expect(textContent).toContain("PAUSES SIGNUPS AND ALL OUTBOUND SENDS");
 
         // Same day, second tick -- must NOT send again.
         await runGatedDatasetStalenessAlertPass(envWithConsent);
@@ -5375,11 +5387,12 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
       { dataset: "cpe_hours", id: "tx-cpe", state: "Texas", daysUntilExpiry: 3, expiresOn: "2027-01-23" },
       { dataset: "renewal_fees", id: "ohio-renewal-fee", state: "Ohio", daysUntilExpiry: 10, expiresOn: "2027-01-30" },
     ]);
-    expect(built.subject).toContain("2 gate-blocking records");
+    expect(built.subject).toContain("2 gated records");
     expect(built.subject).toContain("2027-01-23");
     expect(built.textBody).toContain("cpe_hours.json");
     expect(built.textBody).toContain("Texas (tx-cpe)");
     expect(built.textBody).toContain("2027-01-23");
+    expect(built.textBody).toContain("blocks shipping");
     expect(built.textBody).toContain("3 days left");
     expect(built.textBody).toContain("renewal_fees.json");
     expect(built.textBody).toContain("Ohio (ohio-renewal-fee)");
@@ -5388,8 +5401,24 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     expect(built.textBody.toLowerCase()).toContain("warning, not an outage");
 
     const single = buildGatedDatasetStalenessAlertEmail([{ dataset: "reinstatement", id: "maine-reinstatement", state: "Maine", daysUntilExpiry: 1, expiresOn: "2027-02-01" }]);
-    expect(single.subject).toContain("1 gate-blocking record "); // singular, not "1 gate-blocking records"
+    expect(single.subject).toContain("1 gated record "); // singular, not "1 gated records"
     expect(single.textBody).toContain("1 day left"); // singular, not "1 days left"
+  });
+
+  // AuditLab STALE-22 (2026-09-25): cpa_deadlines gets a DIFFERENT
+  // consequence phrase than the other three -- it pauses signups/sends at
+  // runtime, it does not block a build.
+  it("buildGatedDatasetStalenessAlertEmail() labels cpa_deadlines with its own runtime consequence, distinct from the build-blocking datasets", async () => {
+    const { buildGatedDatasetStalenessAlertEmail } = await import("../src/emails");
+    const built = buildGatedDatasetStalenessAlertEmail([
+      { dataset: "cpa_deadlines", id: "nj-individual", state: "New Jersey", daysUntilExpiry: 2, expiresOn: "2027-03-01" },
+      { dataset: "cpe_hours", id: "tx-cpe", state: "Texas", daysUntilExpiry: 5, expiresOn: "2027-03-04" },
+    ]);
+    expect(built.textBody).toContain("cpa_deadlines.json");
+    expect(built.textBody).toContain("New Jersey (nj-individual) -- pauses signups + all outbound sends");
+    expect(built.textBody).toContain("Texas (tx-cpe) -- blocks shipping");
+    expect(built.textBody).not.toContain("New Jersey (nj-individual) -- blocks shipping");
+    expect(built.htmlBody).toContain("pauses signups + all outbound sends");
   });
 });
 

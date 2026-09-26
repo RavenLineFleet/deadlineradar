@@ -2293,28 +2293,37 @@ export function buildMobilityStalenessAlertEmail(
  * FRESH-3 (AuditLab, 2026-09-12). buildMobilityStalenessAlertEmail() above
  * warns about a TTL that downgrades one feature's own answer to
  * `not_verified` -- unpleasant, but not a build-time failure. This is the
- * higher-stakes sibling: cpe_hours.json/reinstatement.json/renewal_fees.json
- * each have their own 30-day preship_gate.py gate
+ * higher-stakes sibling, covering FOUR gated datasets with TWO different
+ * consequences: cpe_hours.json/reinstatement.json/renewal_fees.json each
+ * have their own 30-day preship_gate.py gate
  * (check_cpe_hours_currency/check_reinstatement_currency/
  * check_renewal_fee_currency) that HARD-BLOCKS ALL SHIPPING once a record
- * crosses it -- not a feature-level degradation, the whole site stops
- * deploying. A batch-verification burst (2026-08-13/08-14) put 74 records
- * on that collision course with ~24h notice; this alert exists so the next
- * one is caught a week out, not a day out. Same internal-only
+ * crosses it -- a build-time failure. cpa_deadlines.json (AuditLab
+ * STALE-22, 2026-09-25, added here after being the only one of the four
+ * with NO advance warning at all) trips a RUNTIME guard instead
+ * (checkDataFreshness(), deadline.ts) that PAUSES SIGNUPS AND EVERY
+ * OUTBOUND SEND -- a live customer-facing outage, and the higher-
+ * consequence case despite having previously had the weakest pre-emptive
+ * coverage. A batch-verification burst (2026-08-13/08-14) put 74
+ * cpe_hours/reinstatement/renewal_fees records on that collision course
+ * with ~24h notice; this alert exists so the next one is caught a week (or,
+ * for cpa_deadlines, CPA_DEADLINES_STALENESS_WARNING_DAYS -- longer, given
+ * the higher stakes) out, not a day out. Same internal-only
  * INTERNAL_NOTIFY_EMAIL/no-unsubscribe-apparatus convention as
  * buildMobilityStalenessAlertEmail(), but grouped by dataset (a
- * cpe_hours-only wave and a renewal_fees-only wave call for different
- * urgency/tooling) and framed as a daily-until-resolved warning, not a
- * monthly one -- see runGatedDatasetStalenessAlertPass()'s own docstring
- * for why the dedup cadence differs.
+ * cpe_hours-only wave and a cpa_deadlines-only wave call for very
+ * different urgency/tooling, and the per-row copy says which consequence
+ * applies -- see CONSEQUENCE below) and framed as a daily-until-resolved
+ * warning, not a monthly one -- see runGatedDatasetStalenessAlertPass()'s
+ * own docstring for why the dedup cadence differs.
  */
 export function buildGatedDatasetStalenessAlertEmail(
-  rows: { dataset: "cpe_hours" | "reinstatement" | "renewal_fees"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }[]
+  rows: { dataset: "cpe_hours" | "reinstatement" | "renewal_fees" | "cpa_deadlines"; id: string; state: string; daysUntilExpiry: number; expiresOn: string }[]
 ): BuiltEmail {
   const soonest = rows[0];
   const subject = soonest
-    ? `Deadline-Radar: ${rows.length} gate-blocking record${rows.length === 1 ? "" : "s"} expiring soon, first on ${soonest.expiresOn}`
-    : "Deadline-Radar: gate-blocking records expiring soon";
+    ? `Deadline-Radar: ${rows.length} gated record${rows.length === 1 ? "" : "s"} expiring soon, first on ${soonest.expiresOn}`
+    : "Deadline-Radar: gated records expiring soon";
   const byDataset = new Map<string, typeof rows>();
   for (const r of rows) {
     const list = byDataset.get(r.dataset) ?? [];
@@ -2325,39 +2334,67 @@ export function buildGatedDatasetStalenessAlertEmail(
     cpe_hours: "cpe_hours.json",
     reinstatement: "reinstatement.json",
     renewal_fees: "renewal_fees.json",
+    cpa_deadlines: "cpa_deadlines.json",
+  };
+  // AuditLab STALE-22 (2026-09-25): the four datasets do NOT share one
+  // consequence, and the copy must say so per row -- cpa_deadlines trips a
+  // RUNTIME guard (checkDataFreshness(), deadline.ts) that pauses signups
+  // and every outbound send, a live customer-facing outage; the other three
+  // trip a BUILD-TIME preship_gate.py refusal, which blocks a deploy but
+  // never touches a running site. Conflating them here would be the exact
+  // kind of misattributed-mechanism comment this finding is about.
+  const CONSEQUENCE: Record<string, string> = {
+    cpe_hours: "blocks shipping",
+    reinstatement: "blocks shipping",
+    renewal_fees: "blocks shipping",
+    cpa_deadlines: "pauses signups + all outbound sends",
   };
   const sectionsText = [...byDataset.entries()]
     .map(
       ([dataset, group]) =>
         `${DATASET_LABELS[dataset] ?? dataset} (${group.length}):\n` +
-        group.map((r) => `  ${r.state} (${r.id}) -- blocks shipping ${r.expiresOn}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left`).join("\n")
+        group
+          .map(
+            (r) =>
+              `  ${r.state} (${r.id}) -- ${CONSEQUENCE[dataset] ?? "expires"} ${r.expiresOn}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left`
+          )
+          .join("\n")
     )
     .join("\n\n");
   const sectionsHtml = [...byDataset.entries()]
     .map(
       ([dataset, group]) =>
         `<p><strong>${esc(DATASET_LABELS[dataset] ?? dataset)}</strong> (${group.length}):</p>` +
-        `<ul>${group.map((r) => `<li>${esc(r.state)} (${esc(r.id)}) &mdash; blocks shipping ${esc(r.expiresOn)}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left</li>`).join("")}</ul>`
+        `<ul>${group
+          .map(
+            (r) =>
+              `<li>${esc(r.state)} (${esc(r.id)}) &mdash; ${esc(CONSEQUENCE[dataset] ?? "expires")} ${esc(r.expiresOn)}, ${r.daysUntilExpiry} day${r.daysUntilExpiry === 1 ? "" : "s"} left</li>`
+          )
+          .join("")}</ul>`
     )
     .join("");
   const textBody =
-    `The following record(s) will pass their 30-day preship_gate.py staleness bar soon. Unlike a ` +
-    `feature-level TTL, this HARD-BLOCKS ALL SHIPPING once it trips -- re-verify against the primary ` +
-    `source and bump verified_date/last_verified before the date listed:\n\n` +
+    `The following record(s) will pass their 30-day staleness bar soon -- re-verify against the ` +
+    `primary source and bump verified_date/last_verified before the date listed. The consequence ` +
+    `differs by dataset (see each line): cpe_hours/reinstatement/renewal_fees HARD-BLOCK SHIPPING at ` +
+    `build time (preship_gate.py); cpa_deadlines PAUSES SIGNUPS AND ALL OUTBOUND SENDS at runtime ` +
+    `(deadline.ts's checkDataFreshness()) -- a live outage, not a blocked deploy:\n\n` +
     `${sectionsText}\n\n` +
-    `This is a warning, not an outage -- nothing has degraded yet. preship_gate.py already refuses to ` +
-    `ship on genuinely stale data; this email exists so re-verification happens before that refusal, ` +
-    `not after a blocked deploy. Fires at most once per UTC day while any record remains in the ` +
-    `7-day warning window.`;
+    `This is a warning, not an outage -- nothing has degraded yet. Each gate already refuses/pauses on ` +
+    `genuinely stale data; this email exists so re-verification happens before that, not after. Fires ` +
+    `at most once per UTC day while any record remains in its dataset's warning window.`;
   const htmlBody =
-    `<p>The following record(s) will pass their 30-day <code>preship_gate.py</code> staleness bar soon. ` +
-    `Unlike a feature-level TTL, this HARD-BLOCKS ALL SHIPPING once it trips &mdash; re-verify against ` +
-    `the primary source and bump <code>verified_date</code>/<code>last_verified</code> before the date ` +
-    `listed:</p>${sectionsHtml}` +
-    `<p>This is a warning, not an outage &mdash; nothing has degraded yet. <code>preship_gate.py</code> ` +
-    `already refuses to ship on genuinely stale data; this email exists so re-verification happens ` +
-    `before that refusal, not after a blocked deploy. Fires at most once per UTC day while any record ` +
-    `remains in the 7-day warning window.</p>`;
+    `<p>The following record(s) will pass their 30-day staleness bar soon &mdash; re-verify against the ` +
+    `primary source and bump <code>verified_date</code>/<code>last_verified</code> before the date ` +
+    `listed. The consequence differs by dataset (see each line): <code>cpe_hours</code>/` +
+    `<code>reinstatement</code>/<code>renewal_fees</code> HARD-BLOCK SHIPPING at build time ` +
+    `(<code>preship_gate.py</code>); <code>cpa_deadlines</code> PAUSES SIGNUPS AND ALL OUTBOUND SENDS ` +
+    `at runtime (<code>deadline.ts</code>'s <code>checkDataFreshness()</code>) &mdash; a live outage, ` +
+    `not a blocked deploy:</p>${sectionsHtml}` +
+    `<p>This is a warning, not an outage &mdash; nothing has degraded yet. Each gate already refuses/` +
+    `pauses on genuinely stale data; this email exists so re-verification happens before that, not ` +
+    `after. Fires at most once per UTC day while any record remains in its dataset's warning ` +
+    `window.</p>`;
   return { subject, textBody, htmlBody, headers: {} };
 }
 

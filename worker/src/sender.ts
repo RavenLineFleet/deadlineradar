@@ -348,6 +348,16 @@ export async function sendEmail(
     console.log(`[preview-email] to=${toEmail} subject=${JSON.stringify(email.subject)}\n${email.textBody}`);
   }
   if (allowlist && !allowlist.includes(toEmail.trim().toLowerCase())) {
+    // AuditLab SILENT-5 (LOW, 2026-09-25): MON-5's "never swallow the
+    // failure reason" discipline (see the Resend-rejection branch below)
+    // was applied there and not here, in the same function -- and this
+    // branch's failure mode is the worse of the two: allowlist has no
+    // business being set in production (env.ts's own doc comment), but if
+    // it ever were, this line is what silently drops every email to every
+    // customer, one `return false` at a time, with nothing to grep. Same
+    // preview-only scope as the [preview-email] log two lines up, so
+    // logging the recipient here carries the same posture.
+    console.log(`[email-allowlist-drop] to=${toEmail}`);
     return false;
   }
   const payload: Record<string, unknown> = {
