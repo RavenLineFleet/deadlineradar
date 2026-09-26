@@ -3458,7 +3458,7 @@ def check_rate_limit_defined_only_in_validation_ts(repo_root: Path) -> list[str]
 
     pattern = re.compile(r":\s*RateLimit\s*=")
     errors = []
-    for ts_file in sorted(worker_src.glob("*.ts")):
+    for ts_file in sorted(worker_src.rglob("*.ts")):
         if ts_file == validation_ts:
             continue
         text = ts_file.read_text(encoding="utf-8")
@@ -4670,7 +4670,7 @@ def check_email_transport_scope(repo_root: Path) -> list[str]:
         print("  (skipping email-transport-scope check -- worker/ tree not present in this checkout)")
         return []
     errors = []
-    for ts_file in sorted(worker_src.glob("*.ts")):
+    for ts_file in sorted(worker_src.rglob("*.ts")):
         if ts_file.name == "sender.ts":
             continue
         body = ts_file.read_text(encoding="utf-8")
@@ -4842,7 +4842,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     senders_found = 0
     demo_locked_guarded_count = 0
     demo_locked_enforced_count = 0
-    for ts_file in sorted(worker_src.glob("*.ts")):
+    for ts_file in sorted(worker_src.rglob("*.ts")):
         text = ts_file.read_text(encoding="utf-8")
         for name, raw_body in _balanced_brace_function_bodies(text, r"\w+"):
             found_names.add(name)
@@ -6939,6 +6939,23 @@ def print_changelog_staleness_advisory(repo_root: Path) -> None:
 #      BEFORE headers are trusted, on BOTH layers, permanently -- not a
 #      today-only quirk, since the block page will carry whatever CSP-1
 #      eventually ships too.
+def _health_body_shape_ok(body: bytes) -> bool:
+    """DEPLOY-4 (2026-09-26): /api/health's body includes a per-deploy
+    version id that must legitimately differ from one check to the next --
+    verifies shape (status == "ok", version a non-empty string), never the
+    literal bytes, so this check doesn't fail on every real deploy."""
+    try:
+        parsed = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return (
+        isinstance(parsed, dict)
+        and parsed.get("status") == "ok"
+        and isinstance(parsed.get("version"), str)
+        and len(parsed["version"]) > 0
+    )
+
+
 _SECURITY_HEADER_LAYERS = (
     {
         "name": "static",
@@ -6958,8 +6975,14 @@ _SECURITY_HEADER_LAYERS = (
     {
         "name": "api",
         "url": "https://deadline-radar.com/api/health",
-        "identity_ok": lambda status, body: status == 200 and body == b'{"status":"ok"}',
-        "identity_desc": '200 with body {"status":"ok"}',
+        # AuditLab DEPLOY-4 (2026-09-26): body now also carries an opaque
+        # per-deploy `version` (env.CF_VERSION_METADATA?.id) that changes on
+        # every deploy by design -- an exact byte match here would fail on
+        # every real deploy, which is exactly backwards for a check meant to
+        # confirm identity survives one. Checks shape (status == "ok" and a
+        # non-empty version string) instead of the literal body.
+        "identity_ok": lambda status, body: status == 200 and _health_body_shape_ok(body),
+        "identity_desc": '200 with body {"status": "ok", "version": "<non-empty string>"}',
         "expected": {
             "x-content-type-options": "nosniff",
             "x-frame-options": "DENY",
