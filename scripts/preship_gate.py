@@ -3374,9 +3374,14 @@ def check_signin_ttl_copy_sync(repo_root: Path) -> list[str]:
     The 14 worker-side copies now derive directly (same house standard as
     index.ts's SMS verification message). generate.py's copy can't easily
     cross the Python/TypeScript boundary to derive directly, so this is the
-    CPE-4 shape instead: assert the number in that one sentence still
-    matches SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES (the /signin/ page is
-    subscriber-facing, not the firm-side LOGIN_TOKEN_TTL_MINUTES)."""
+    CPE-4 shape instead: assert the number in EVERY such sentence in the
+    file still matches SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES (every one found
+    by inspection describes a subscriber-facing sign-in link, not the
+    firm-side LOGIN_TOKEN_TTL_MINUTES). AuditLab GATE-31 (2026-09-26):
+    originally checked only the first match (in practice, only /signin/'s
+    copy) -- a second, identically-worded sentence on the firm dashboard's
+    CPE panel went stale at the same time /signin/'s did, and a
+    single-match gate called that clean. Now checks every match."""
     store_ts = repo_root / "worker" / "src" / "store.ts"
     generate_py = repo_root / "generate.py"
     if not store_ts.exists() or not generate_py.exists():
@@ -3398,28 +3403,37 @@ def check_signin_ttl_copy_sync(repo_root: Path) -> list[str]:
     ts_minutes = str(eval(ts_match.group(1), {"__builtins__": {}}))
 
     py_text = generate_py.read_text(encoding="utf-8")
-    # The sentence line-wraps in the Python source (a plain "15 minutes"
-    # grep misses it) -- \s+ between the number and the unit tolerates
-    # that same wrap surviving a future re-wording, without also matching
-    # some unrelated "expires in 15" elsewhere in the file. Accepts either
-    # unit (2026-09-26, same house standard as store.ts's formatTokenTtl()):
-    # a whole-hour TTL renders as "N hours" in user-facing copy rather than
-    # a raw minute count nobody wants to read, so the gate must normalize
-    # units before comparing rather than require literal minutes.
-    py_match = re.search(r"expires in\s+(\d+)\s+(minutes?|hours?)", py_text)
-    if not py_match:
-        return ["[SIGNIN-TTL] generate.py's /signin/ TTL sentence ('expires in N minutes/hours') not "
-                "found -- can't verify sync with worker/src/store.ts."]
-    py_number, py_unit = py_match.group(1), py_match.group(2)
-    py_minutes = str(int(py_number) * 60) if py_unit.startswith("hour") else py_number
+    # AuditLab GATE-31 (2026-09-26): this used to be re.search (first match
+    # only), scoped to the /signin/ page. A second, identically-shaped
+    # subscriber-link-TTL sentence on the firm dashboard's CPE panel went
+    # stale right alongside /signin/'s and this gate, checking only one
+    # occurrence, called that clean. finditer + checking every match closes
+    # that -- every hand-written "expire(s) in N minutes/hours" sentence in
+    # generate.py describes a subscriber-facing sign-in link (the only
+    # TTL prose in this file today; verified by inspection, not assumed --
+    # see the function docstring), so each is checked against the same
+    # constant. The sentence line-wraps in the Python source (a plain
+    # "15 minutes" grep misses it) -- \s+ between the number and the unit
+    # tolerates that. Accepts either unit (same house standard as store.ts's
+    # formatTokenTtl()): a whole-hour TTL renders as "N hours" in user-facing
+    # copy rather than a raw minute count nobody wants to read.
+    py_matches = list(re.finditer(r"expire[sd]? in\s+(\d+)\s+(minutes?|hours?)", py_text))
+    if not py_matches:
+        return ["[SIGNIN-TTL] generate.py has no 'expire(s) in N minutes/hours' TTL sentence -- "
+                "can't verify sync with worker/src/store.ts."]
 
-    if py_minutes != ts_minutes:
-        return [
-            f"[SIGNIN-TTL] worker/src/store.ts's SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES ({ts_minutes}) "
-            f"and generate.py's /signin/ page copy ({py_number} {py_unit} = {py_minutes} minutes) "
-            "have drifted -- bump both together, at the same time the actual token TTL changes."
-        ]
-    return []
+    errors = []
+    for m in py_matches:
+        py_number, py_unit = m.group(1), m.group(2)
+        py_minutes = str(int(py_number) * 60) if py_unit.startswith("hour") else py_number
+        if py_minutes != ts_minutes:
+            line_no = py_text.count("\n", 0, m.start()) + 1
+            errors.append(
+                f"[SIGNIN-TTL] worker/src/store.ts's SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES ({ts_minutes}) "
+                f"and generate.py:{line_no}'s copy ({py_number} {py_unit} = {py_minutes} minutes) have "
+                "drifted -- bump both together, at the same time the actual token TTL changes."
+            )
+    return errors
 
 
 def check_reminder_threshold_authorities_sync(repo_root: Path) -> list[str]:
