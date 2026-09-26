@@ -23,6 +23,13 @@ database_name = "deadlineradar"
 # command is run, and not before.
 database_id = "678e7b5a-e627-4c19-ab6f-2e249c0d7e1f"
 
+# AuditLab DEPLOY-4 (LOW, 2026-09-26): opaque per-deploy id, exposed via
+# /health as env.CF_VERSION_METADATA.id -- see Env's own comment (env.ts)
+# for why this is the right form (needs no build-time plumbing, never a
+# git SHA).
+[version_metadata]
+binding = "CF_VERSION_METADATA"
+
 [[r2_buckets]]
 # Roadmap #1/#2 (2026-08-07): document storage (license/CPE certificates).
 # Bucket created via `wrangler r2 bucket create deadlineradar-documents`
