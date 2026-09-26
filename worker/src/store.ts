@@ -1837,6 +1837,22 @@ export async function consumeFirm2faPendingToken(db: D1Database, id: string): Pr
 // neighborhood) and is generous enough for "click the email you just got."
 export const LOGIN_TOKEN_TTL_MINUTES = 15;
 
+/** Renders a token TTL for user-facing copy -- "15 minutes", "24 hours".
+ * AuditLab (2026-09-25): every login-link email interpolated the raw
+ * MINUTES number next to a hardcoded literal "minutes" -- true for
+ * SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES's 15-minute era, but bumping that
+ * constant to 24h (1440) would have rendered "expires in 1440 minutes" to
+ * an actual customer. Whole hours render as hours; anything else (any
+ * current or future TTL that isn't an exact multiple of 60) falls back to
+ * minutes, so this never silently mis-renders a value nobody's chosen yet. */
+export function formatTokenTtl(minutes: number): string {
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
 // A firm admin dashboard session, not a one-time action link -- 30 days is
 // a reasonable "stay signed in" duration for a low-frequency B2B admin tool
 // (an office manager checking renewal status, not a consumer app opened
@@ -4934,9 +4950,27 @@ export async function deleteSessionByIdForMember(db: D1Database, memberId: strin
 // cannot produce a principal of the other kind.
 // ---------------------------------------------------------------------------
 
-/** Same 15-minute contract as the firm login link, for the same reason:
- * it is a one-shot bearer credential sitting in an inbox. */
-export const SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES = 15;
+/** Orchestrator directive (2026-09-25, Devin: "the 15 mins is way too short --
+ * a reminder gets opened hours later"): 24 hours, not the firm login link's
+ * 15-minute contract -- this token is mailed unprompted (a CPE/renewal
+ * reminder), not requested in the moment a person is sitting at a sign-in
+ * form, so it routinely sits unread for hours. Deliberately NOT the same
+ * contract as LOGIN_TOKEN_TTL_MINUTES (the firm side) -- SecurityLab/
+ * AuditLab pre-registered that only THIS constant may move; the firm login
+ * link, the 2FA pending token, the OAuth CSRF state, and the phone
+ * verification code all stay at their existing (shorter) TTLs.
+ *
+ * A longer-lived bearer credential sitting in an inbox (or a mail archive,
+ * or a forwarded thread) for 24 hours instead of 15 minutes is a real risk
+ * increase on its own terms -- bounded two ways, not by entropy (256 bits
+ * either way): the daily send-rate cap (RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT)
+ * turns from a request throttle into a genuine concurrent-credential cap
+ * because createSubscriberLoginToken() below now burns any outstanding
+ * unused purpose='login' token for the same email before issuing a new one
+ * -- at most ONE live login-purpose token per address at any moment,
+ * regardless of TTL, rather than up to (cap x TTL) of them accumulating
+ * from repeated re-sends. */
+export const SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES = 24 * 60;
 
 /**
  * Roadmap #12 (2026-08-07). Same "carry INTENT on the token row" pattern
@@ -4989,6 +5023,26 @@ export async function createSubscriberLoginToken(
   const id = newToken();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES * 60_000).toISOString();
+  // SecurityLab PASS condition #2 (2026-09-25, pre-registered ahead of the
+  // 15min->24h TTL change): with a 24-hour window, a caller who requests
+  // several links (a slow first email, an impatient re-click, a genuine
+  // re-send request) would otherwise accumulate that many live bearer
+  // credentials at once -- up to (5/hour cap x 24h) = 120 concurrent tokens
+  // for one mailbox, not the 15-minute-era ~5. Burning every outstanding
+  // unused purpose='login' token for this email BEFORE issuing a new one
+  // caps concurrent live login-purpose credentials at exactly 1 regardless
+  // of TTL or send count, same "invalidate the old ones on issue" posture
+  // invalidateOutstandingSubscriberEmailChangeTokens() already uses for the
+  // email_change purpose. Scoped to purpose='login' only -- an email_change
+  // token in flight must survive a login link being requested (and vice
+  // versa), so this must never touch the other purpose's rows.
+  const normalizedPurpose = normalizeSubscriberLoginTokenPurpose(purpose);
+  if (normalizedPurpose === "login") {
+    await db
+      .prepare(`UPDATE subscriber_login_tokens SET used_at = ?1 WHERE email_normalized = ?2 AND purpose = 'login' AND used_at IS NULL`)
+      .bind(now.toISOString(), normalizeEmail(email))
+      .run();
+  }
   await db
     .prepare(
       `INSERT INTO subscriber_login_tokens (id, email_normalized, token_hash, created_at, expires_at, used_at, purpose, pending_new_email)
@@ -5000,8 +5054,8 @@ export async function createSubscriberLoginToken(
       await hashToken(rawToken),
       now.toISOString(),
       expiresAt,
-      normalizeSubscriberLoginTokenPurpose(purpose),
-      purpose === "email_change" ? pendingNewEmail : null
+      normalizedPurpose,
+      normalizedPurpose === "email_change" ? pendingNewEmail : null
     )
     .run();
   return { rawToken, id };
