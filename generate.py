@@ -22464,7 +22464,7 @@ license. Useful when it arrives. Not something to plan around.</p>
 typed in. If that date was wrong, if a board changes its rule, or if you pick up a license in another
 state, nothing tells you; it's only as current as your last edit.</p>
 <p><strong>A reminder service like ours.</strong> Deadline-Radar computes each date from the board's
-own verified rule and emails you at 60, 30, 14, 7, 3 and 1 day before it. In the six jurisdictions
+own verified rule and emails you at 60, 30, 14, 7, 3 and 1 day before it. In the {BYOD_COUNT} jurisdictions
 where the rule doesn't let us compute a date, you enter the date from your license and we track that.
 It has limits too. It's email, so it goes to the address you give us, and that's worth keeping current
 for the same reason your board's is. And we're independent of every board, so your board's rule, not
@@ -24262,7 +24262,7 @@ so both clocks work for you instead of quietly running past you.</p>
 ]
 
 
-def build_blog_article_page(article: dict) -> str:
+def build_blog_article_page(article: dict, byod_count: int | None = None) -> str:
     # AuditLab PROSE-1 (2026-08-07): every guide's factual claims now carry a
     # visible review date from data/guide_reviews.json -- the same registry
     # scripts/guide_review_staleness_check.py ages via the preship gate, so
@@ -24309,6 +24309,21 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
 </div>
 <p class="backlink"><a href="../">&larr; Back to all guides</a></p>
 """
+    # AuditLab COPY-21 (2026-09-26): a hand-kept "{BYOD_COUNT}" placeholder in
+    # one article's body_html (rather than a literal number) so this figure
+    # can't drift from the same derived stat the homepage footnote uses --
+    # the exact hand-kept-copy-of-a-derived-number gap GATE-6 already closed
+    # in the homepage code, re-opened once in blog prose. Fails loudly
+    # (rather than silently shipping the literal placeholder text) if a
+    # future call site forgets to pass byod_count while this token is still
+    # in play.
+    if byod_count is not None:
+        body = body.replace("{BYOD_COUNT}", str(byod_count))
+    if "{BYOD_COUNT}" in body:
+        raise RuntimeError(
+            f"guide '{article['slug']}' has an unfilled {{BYOD_COUNT}} placeholder -- "
+            "pass byod_count to build_blog_article_page() before shipping it"
+        )
     # datePublished/dateModified: invisible, SEO-only per Devin's ask --
     # regardless of what's shown visually, search engines get the real dates.
     # `content_modified` is a separate, optional override for the rare case
@@ -25105,10 +25120,16 @@ def main() -> None:
     blog_dir.mkdir(parents=True, exist_ok=True)
     (blog_dir / "index.html").write_text(build_blog_index_page(BLOG_ARTICLES), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/blog/index.html")
+    # AuditLab COPY-21: threaded through so the SS12.3 section's byod count
+    # can't drift from the homepage footnote's own derived stat -- see
+    # build_blog_article_page()'s own comment.
+    _blog_byod_count = _coverage_counts(by_slug)["byod"]
     for article in BLOG_ARTICLES:
         article_dir = blog_dir / article["slug"]
         article_dir.mkdir(parents=True, exist_ok=True)
-        (article_dir / "index.html").write_text(build_blog_article_page(article), encoding="utf-8")
+        (article_dir / "index.html").write_text(
+            build_blog_article_page(article, byod_count=_blog_byod_count), encoding="utf-8"
+        )
         print(f"wrote {SITE_DIR.name}/blog/{article['slug']}/index.html")
 
     (SITE_DIR / "favicon.svg").write_text(FAVICON_SVG, encoding="utf-8")
