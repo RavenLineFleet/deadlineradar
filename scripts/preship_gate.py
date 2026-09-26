@@ -3384,28 +3384,40 @@ def check_signin_ttl_copy_sync(repo_root: Path) -> list[str]:
                 "/signin/ TTL copy stays in sync."]
 
     ts_text = store_ts.read_text(encoding="utf-8")
-    ts_match = re.search(r"SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES\s*=\s*(\d+)", ts_text)
-    if not ts_match:
+    # The constant is a literal arithmetic expression ("24 * 60"), not a
+    # bare number -- caught 2026-09-26 when this regex silently captured
+    # just the "24" and compared it against generate.py's minutes, which
+    # would have flagged every correctly-synced value as drifted. Capture
+    # up to the statement terminator and evaluate it as int arithmetic only
+    # (digits/whitespace/+/* -- rejects anything else rather than eval'ing
+    # arbitrary source text).
+    ts_match = re.search(r"SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES\s*=\s*([0-9\s*+]+);", ts_text)
+    if not ts_match or not re.fullmatch(r"[0-9\s*+]+", ts_match.group(1)):
         return ["[SIGNIN-TTL] worker/src/store.ts's SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES constant not "
                 "found -- can't verify sync with generate.py's /signin/ copy."]
-    ts_minutes = ts_match.group(1)
+    ts_minutes = str(eval(ts_match.group(1), {"__builtins__": {}}))
 
     py_text = generate_py.read_text(encoding="utf-8")
     # The sentence line-wraps in the Python source (a plain "15 minutes"
-    # grep misses it) -- \s+ between the number and "minutes" tolerates
+    # grep misses it) -- \s+ between the number and the unit tolerates
     # that same wrap surviving a future re-wording, without also matching
-    # some unrelated "expires in 15" elsewhere in the file.
-    py_match = re.search(r"expires in\s+(\d+)\s+minutes", py_text)
+    # some unrelated "expires in 15" elsewhere in the file. Accepts either
+    # unit (2026-09-26, same house standard as store.ts's formatTokenTtl()):
+    # a whole-hour TTL renders as "N hours" in user-facing copy rather than
+    # a raw minute count nobody wants to read, so the gate must normalize
+    # units before comparing rather than require literal minutes.
+    py_match = re.search(r"expires in\s+(\d+)\s+(minutes?|hours?)", py_text)
     if not py_match:
-        return ["[SIGNIN-TTL] generate.py's /signin/ TTL sentence ('expires in N minutes') not "
+        return ["[SIGNIN-TTL] generate.py's /signin/ TTL sentence ('expires in N minutes/hours') not "
                 "found -- can't verify sync with worker/src/store.ts."]
-    py_minutes = py_match.group(1)
+    py_number, py_unit = py_match.group(1), py_match.group(2)
+    py_minutes = str(int(py_number) * 60) if py_unit.startswith("hour") else py_number
 
     if py_minutes != ts_minutes:
         return [
             f"[SIGNIN-TTL] worker/src/store.ts's SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES ({ts_minutes}) "
-            f"and generate.py's /signin/ page copy ({py_minutes} minutes) have drifted -- bump both "
-            "together, at the same time the actual token TTL changes."
+            f"and generate.py's /signin/ page copy ({py_number} {py_unit} = {py_minutes} minutes) "
+            "have drifted -- bump both together, at the same time the actual token TTL changes."
         ]
     return []
 
