@@ -24,10 +24,15 @@ describe("subscriber sign-in: identity is the EMAIL, and it must not over-match"
 
   it("rejects an unknown token, and cannot be distinguished from a used one", async () => {
     // Every negative needs a POSITIVE CONTROL in the same test -- otherwise
-    // this passes even if the function were a bare `return null`.
-    const email = `sub-oracle-${Date.now()}@examplefirm.com`;
-    const live = await store.createSubscriberLoginToken(env.DB, email);
-    const used = await store.createSubscriberLoginToken(env.DB, email);
+    // this passes even if the function were a bare `return null`. The
+    // control uses a SEPARATE email from the used token (2026-09-25: same-
+    // email login-purpose tokens now invalidate each other on reissue --
+    // see the dedicated test below -- so reusing one email here would make
+    // the "still works" control fail for the wrong reason).
+    const usedEmail = `sub-oracle-used-${Date.now()}@examplefirm.com`;
+    const liveEmail = `sub-oracle-live-${Date.now()}@examplefirm.com`;
+    const live = await store.createSubscriberLoginToken(env.DB, liveEmail);
+    const used = await store.createSubscriberLoginToken(env.DB, usedEmail);
     expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, used.rawToken)).not.toBeNull();
 
     const usedResult = await store.verifyAndConsumeSubscriberLoginToken(env.DB, used.rawToken);
@@ -37,6 +42,30 @@ describe("subscriber sign-in: identity is the EMAIL, and it must not over-match"
     expect(usedResult).toBeNull();
     // and the control still works, proving the nulls above mean something
     expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, live.rawToken)).not.toBeNull();
+  });
+
+  // SecurityLab PASS condition #2 (2026-09-25, pre-registered ahead of the
+  // 15min->24h TTL bump): a 24-hour window makes concurrent live tokens the
+  // real risk, not entropy -- so issuing a new login-purpose link for an
+  // email must burn any prior unused one for that SAME email, capping live
+  // credentials at 1 regardless of TTL or how many times a link was
+  // re-sent.
+  it("issuing a second login-purpose token for the same email invalidates the first", async () => {
+    const email = `sub-reissue-${Date.now()}@examplefirm.com`;
+    const first = await store.createSubscriberLoginToken(env.DB, email);
+    const second = await store.createSubscriberLoginToken(env.DB, email);
+    expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, first.rawToken)).toBeNull();
+    expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, second.rawToken)).not.toBeNull();
+  });
+
+  it("does NOT invalidate an outstanding email_change token when a login token is issued, or vice versa", async () => {
+    const email = `sub-purpose-isolation-${Date.now()}@examplefirm.com`;
+    const emailChange = await store.createSubscriberLoginToken(env.DB, email, "email_change", "new@examplefirm.com");
+    const login = await store.createSubscriberLoginToken(env.DB, email, "login");
+    // Both purposes coexist -- issuing one must not burn the other's
+    // outstanding token.
+    expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, emailChange.rawToken)).not.toBeNull();
+    expect(await store.verifyAndConsumeSubscriberLoginToken(env.DB, login.rawToken)).not.toBeNull();
   });
 
   it("rejects an EXPIRED login token", async () => {

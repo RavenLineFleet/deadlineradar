@@ -1863,7 +1863,7 @@ function firmLoginSentPage(env: Env): string {
   return htmlPage(
     "Check your email",
     "<h1>Check your email</h1><p>If that email has (or can have) a Deadline-Radar firm account, we've " +
-      `just sent a sign-in link. It expires in ${store.LOGIN_TOKEN_TTL_MINUTES} minutes and works once &mdash; if it's expired by ` +
+      `just sent a sign-in link. It expires in ${store.formatTokenTtl(store.LOGIN_TOKEN_TTL_MINUTES)} and works once &mdash; if it's expired by ` +
       "the time you click it, just request a new one.</p>" +
       `<p>New here? If you haven't created a firm account yet, nothing will arrive for that address &mdash; ` +
       `<a href="${homeUrl}/firm-login/">create your account</a> instead.</p>` +
@@ -1886,8 +1886,9 @@ function subscriberLoginSentPage(env: Env): string {
   return htmlPage(
     "Check your email",
     "<h1>Check your email</h1><p>If we're tracking any renewal deadlines for that address, we've " +
-      `just sent a sign-in link. It expires in ${store.SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES} minutes and works once &mdash; if it's expired by ` +
-      "the time you click it, just request a new one.</p>" +
+      `just sent a sign-in link. It expires in ${store.formatTokenTtl(store.SUBSCRIBER_LOGIN_TOKEN_TTL_MINUTES)} and works once &mdash; if it's expired by ` +
+      "the time you click it, just request a new one. If you had an older link from us, it's no " +
+      "longer valid &mdash; this new one is the one to use.</p>" +
       `<p>Not signed up yet? Nothing will arrive for an address we don't have &mdash; ` +
       `<a href="${homeUrl}/">pick your state</a> to start getting free renewal reminders.</p>`
   );
@@ -4890,7 +4891,7 @@ async function handleSubscriberPhoneStartVerification(request: Request, env: Env
     env.TWILIO_AUTH_TOKEN,
     env.TWILIO_FROM_NUMBER,
     phoneNumberRaw,
-    `Your Deadline-Radar verification code is ${code}. It expires in ${store.PHONE_VERIFICATION_TTL_MINUTES} minutes.`
+    `Your Deadline-Radar verification code is ${code}. It expires in ${store.formatTokenTtl(store.PHONE_VERIFICATION_TTL_MINUTES)}.`
   );
   if (!sent) {
     return jsonResponse(502, { error: "Couldn't send the verification text. Please check the number and try again." });
