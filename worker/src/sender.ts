@@ -354,10 +354,16 @@ export async function sendEmail(
     // branch's failure mode is the worse of the two: allowlist has no
     // business being set in production (env.ts's own doc comment), but if
     // it ever were, this line is what silently drops every email to every
-    // customer, one `return false` at a time, with nothing to grep. Same
-    // preview-only scope as the [preview-email] log two lines up, so
-    // logging the recipient here carries the same posture.
-    console.log(`[email-allowlist-drop] to=${toEmail}`);
+    // customer, one `return false` at a time, with nothing to grep.
+    //
+    // SecurityLab (2026-09-25, same day): masking the local part rather
+    // than logging toEmail in full -- an earlier version didn't, which
+    // re-crossed the exact line AuditLab's LOG-1 drew (full-body/recipient
+    // logging must require its OWN var, EMAIL_PREVIEW_LOG_BODY, not ride
+    // along on EMAIL_ALLOWLIST's mere presence). This keeps the diagnostic
+    // value ("a drop happened, to this domain") without logging a real
+    // recipient address on one var alone.
+    console.log(`[email-allowlist-drop] to=${toEmail.replace(/^[^@]+/, "***")}`);
     return false;
   }
   const payload: Record<string, unknown> = {
