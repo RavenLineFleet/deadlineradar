@@ -10946,8 +10946,8 @@ def build_signin_page() -> str:
     <button type="submit">Email me a sign-in link</button>
   </form>
   <p id="dr-signin-sub-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
-  <p class="dr-auth-alt" id="dr-signin-sub-ok" hidden>Check your email for the link. It expires in 15
-  minutes and works once.</p>
+  <p class="dr-auth-alt" id="dr-signin-sub-ok" hidden>Check your email for the link. It expires in 24
+  hours and works once.</p>
   <p class="signup-microcopy" id="dr-signin-sub-footer">Not signed up yet? <a href="/">Pick your
   state</a> to start getting free renewal reminders &mdash; no account needed.</p>
 </div>
@@ -22388,6 +22388,11 @@ BLOG_ARTICLES = [
     {
         "slug": "what-your-board-promises-about-renewal-reminders",
         "published": "2026-08-17",  # first-introduction commit date, from git history
+        # ValueLab SS12.3 (2026-09-26, orchestrator ruling): added the
+        # status-quo-comparison section below without re-verifying the legal
+        # findings, so dateModified moves but the visible "Last verified"
+        # stamp (sourced from data/guide_reviews.json) correctly does not.
+        "content_modified": "2026-09-26",
         "title": "What Your State Board Actually Promises About Renewal Reminders",
         "meta_description": (
             "We checked what ten state boards actually commit to about renewal notices, in their "
@@ -22446,6 +22451,28 @@ document a notice practice on their renewal pages at all.</p>
 <p><strong>A scope note, because it matters</strong>: this covers exactly the ten jurisdictions named
 above, checked individually against each one's own codified rule or official published notice. It
 isn't a claim about most states, or a typical state &mdash; only about these ten, specifically.</p>
+
+<h2>Three ways to keep track, and where each one can break</h2>
+<p>Whatever you rely on, the rules above leave the deadline with you. So the real question isn't
+whether to track it, but what you're trusting to do the tracking.</p>
+<p><strong>Your board's own notice.</strong> It covers the one license that board issued, on that
+board's timeline, sent to whatever address you last gave it. Six of the ten boards above say in their
+own rules that a notice going astray doesn't move your deadline. Two only write once you've already
+missed, and lead time runs from roughly four months in New York to 30 days for an individual Texas
+license. Useful when it arrives. Not something to plan around.</p>
+<p><strong>A spreadsheet or calendar you keep yourself.</strong> It reminds you of exactly the date you
+typed in. If that date was wrong, if a board changes its rule, or if you pick up a license in another
+state, nothing tells you; it's only as current as your last edit.</p>
+<p><strong>A reminder service like ours.</strong> Deadline-Radar computes each date from the board's
+own verified rule and emails you at 60, 30, 14, 7, 3 and 1 day before it. In the six jurisdictions
+where the rule doesn't let us compute a date, you enter the date from your license and we track that.
+It has limits too. It's email, so it goes to the address you give us, and that's worth keeping current
+for the same reason your board's is. And we're independent of every board, so your board's rule, not
+our reminder, is what actually counts. If you're ever unsure of a date, confirm it with the board.</p>
+<p>None of these fully replaces the others. A board notice that does arrive is good confirmation. The
+point of a reminder that doesn't depend on any single board is that it keeps working when one board's
+notice doesn't. If you're the one tracking licenses for a whole firm, the spreadsheet problem looks
+different. We've written that up on the <a href="../../for-firms/">firm overview</a>.</p>
 
 <h2>What this means if you're licensed in more than one state</h2>
 <p>Each board is only ever watching its own deadline, on its own timeline, sent to whatever address
@@ -24284,6 +24311,15 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
 """
     # datePublished/dateModified: invisible, SEO-only per Devin's ask --
     # regardless of what's shown visually, search engines get the real dates.
+    # `content_modified` is a separate, optional override for the rare case
+    # where the page's content changed (a new section, ValueLab/AssetLab
+    # 2026-09-26) without the underlying legal findings being re-verified --
+    # dateModified should reflect that edit, but the visible "Last verified"
+    # stamp above must not move, since it specifically promises a sources
+    # recheck that didn't happen. Falls back to reviewed_iso so every other
+    # article (the common case: content and sources reviewed together) is
+    # unaffected.
+    date_modified_iso = article.get("content_modified", reviewed_iso)
     blog_posting_schema = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
@@ -24291,7 +24327,7 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
         "description": article["meta_description"],
         "url": f"{SITE_BASE_URL}/blog/{article['slug']}/",
         "datePublished": published_iso,
-        "dateModified": reviewed_iso,
+        "dateModified": date_modified_iso,
         "author": {"@type": "Organization", "name": BRAND_NAME},
         "publisher": {"@type": "Organization", "name": BRAND_NAME},
     }
