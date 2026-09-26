@@ -2528,34 +2528,61 @@ export const GATED_DATASET_STALENESS_THRESHOLD_DAYS = 30;
 export const GATED_DATASET_STALENESS_WARNING_DAYS = 7;
 
 export interface GatedDatasetRowNearingExpiry {
-  dataset: "cpe_hours" | "reinstatement" | "renewal_fees";
+  dataset: "cpe_hours" | "reinstatement" | "renewal_fees" | "cpa_deadlines";
   id: string;
   state: string;
   daysUntilExpiry: number;
   expiresOn: string;
 }
 
-/** Rows whose 30-day preship_gate.py staleness bar will trip within the
- * next GATED_DATASET_STALENESS_WARNING_DAYS, sorted soonest-first, across
- * all three gate-blocking datasets combined -- one alert for the shared
- * failure mode (batch-verification bursts), not three near-identical
- * passes. Already-stale rows are excluded: preship_gate.py already refuses
- * to ship on them, which is a build-time failure an operator can't miss;
- * this warning exists so re-verification happens BEFORE that refusal, not
- * after a blocked deploy. Reads the bundled JSON directly, same "duplicate
- * the import, don't reach into another module's already-built lookup
- * tables" reasoning as mobilityRowsNearingExpiry() above. `age_days > 30`
- * is what actually goes stale (preship_gate.py's collect_stale()), so the
- * first stale day is `verified + 31 days`, not `verified + 30`. */
+/** AuditLab STALE-22 (MEDIUM, 2026-09-25): cpa_deadlines is the highest-
+ * consequence of the four gated datasets -- deadline.ts's checkDataFreshness()
+ * pauses signups AND every outbound send on it, where the other three only
+ * block a build (preship_gate.py) -- but was the only one of the four with
+ * NO advance warning; its sole signal was notifyOperatorOfStaleData(),
+ * called from inside the SAME catch that means sends are already paused.
+ * Given the higher consequence, a longer runway than the other three
+ * datasets' shared 7-day window: enough that the smallest realistic
+ * re-verification batch (a handful of records sharing the oldest
+ * last_verified date) is a comfortable ask, not a 3-day scramble. */
+export const CPA_DEADLINES_STALENESS_WARNING_DAYS = 14;
+
+/** Rows whose 30-day staleness bar will trip within their dataset's own
+ * warning window, sorted soonest-first, across all four gated datasets
+ * combined -- one alert for the shared failure mode (batch-verification
+ * bursts), not four near-identical passes. Already-stale rows are excluded
+ * -- the gate itself has already refused by then, so this warning exists to
+ * make re-verification happen BEFORE that refusal, not after.
+ *
+ * The gate differs by dataset, which is exactly why cpa_deadlines gets its
+ * own longer warning window (AuditLab STALE-22, 2026-09-25): for
+ * cpe_hours/reinstatement/renewal_fees the 30-day bar is preship_gate.py's,
+ * a build-time failure an operator can't miss. For cpa_deadlines it's
+ * deadline.ts's checkDataFreshness(), a RUNTIME guard that pauses signups
+ * and every outbound send -- a live customer-facing outage, not a blocked
+ * deploy, and the highest-consequence of the four with previously the
+ * *weakest* pre-emptive coverage.
+ *
+ * Reads the bundled JSON directly, same "duplicate the import, don't reach
+ * into another module's already-built lookup tables" reasoning as
+ * mobilityRowsNearingExpiry() above. `age_days > 30` is what actually goes
+ * stale, so the first stale day is `verified + 31 days`, not `verified +
+ * 30`. */
 export function gatedDatasetRowsNearingExpiry(now: Date): GatedDatasetRowNearingExpiry[] {
   const results: GatedDatasetRowNearingExpiry[] = [];
   const thresholdMs = (GATED_DATASET_STALENESS_THRESHOLD_DAYS + 1) * 86_400_000;
-  const consider = (dataset: GatedDatasetRowNearingExpiry["dataset"], id: unknown, state: unknown, verifiedDateStr: unknown) => {
+  const consider = (
+    dataset: GatedDatasetRowNearingExpiry["dataset"],
+    id: unknown,
+    state: unknown,
+    verifiedDateStr: unknown,
+    warningDays: number = GATED_DATASET_STALENESS_WARNING_DAYS
+  ) => {
     if (typeof id !== "string" || typeof state !== "string" || typeof verifiedDateStr !== "string") return;
     const verified = Date.parse(verifiedDateStr);
     if (Number.isNaN(verified)) return;
     const daysUntilExpiry = Math.ceil((verified + thresholdMs - now.getTime()) / 86_400_000);
-    if (daysUntilExpiry <= 0 || daysUntilExpiry > GATED_DATASET_STALENESS_WARNING_DAYS) return;
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > warningDays) return;
     results.push({ dataset, id, state, daysUntilExpiry, expiresOn: new Date(verified + thresholdMs).toISOString().slice(0, 10) });
   };
   for (const raw of (cpeHoursDataForStaleness.records ?? []) as Record<string, unknown>[]) {
@@ -2566,6 +2593,9 @@ export function gatedDatasetRowsNearingExpiry(now: Date): GatedDatasetRowNearing
   }
   for (const raw of (renewalFeesDataForStaleness.records ?? []) as Record<string, unknown>[]) {
     consider("renewal_fees", raw.id, raw.state, raw.verified_date);
+  }
+  for (const raw of (cpaDataForDripCourse.records ?? []) as Record<string, unknown>[]) {
+    consider("cpa_deadlines", raw.id, raw.state, raw.last_verified, CPA_DEADLINES_STALENESS_WARNING_DAYS);
   }
   results.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return results;
