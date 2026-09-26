@@ -13,6 +13,8 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import * as validation from "../src/validation";
+import type { RateLimit } from "../src/validation";
 
 async function insertHit(ip: string, bucket: string, ts: number): Promise<void> {
   await env.DB.prepare(`INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)`).bind(ip, bucket, ts).run();
@@ -66,6 +68,32 @@ describe("store.purgeStaleRateLimitHits", () => {
     expect(deleted).toBe(1);
     const row = await env.DB.prepare("SELECT ip FROM rate_limit_hits WHERE ip = 'rl9-one-visit'").first();
     expect(row).toBeNull();
+  });
+});
+
+describe("RL-9 retention-drift gate, half 1 of 2 (SecurityLab/AuditLab, 2026-09-26): RATE_LIMIT_HITS_RETENTION_SECONDS must exceed every real window", () => {
+  // AuditLab's corrected note: this needs a SECOND assertion alongside it,
+  // not instead of it -- they catch different drift. This one imports
+  // validation.ts and evaluates the real runtime values, so it sees a
+  // COMPUTED windowSeconds (e.g. `7 * 86_400`) that a source-text scan
+  // could never evaluate. The complementary half -- no RateLimit definition
+  // exists outside validation.ts, which THIS assertion structurally cannot
+  // see -- lives in preship_gate.py instead of here: this suite runs
+  // inside vitest-pool-workers' workerd sandbox, which has no real
+  // filesystem access for a repo-wide source-text scan (confirmed by
+  // trying it: readdirSync/readFileSync both fail here in ways they don't
+  // in plain Node), while preship_gate.py already does exactly this kind
+  // of scan (see check_signin_ttl_copy_sync) as an ordinary Python process.
+  it("RATE_LIMIT_HITS_RETENTION_SECONDS is >= the largest windowSeconds among every exported RateLimit", () => {
+    const windows = Object.values(validation)
+      .filter((v): v is RateLimit => typeof v === "object" && v !== null && "max" in v && "windowSeconds" in v)
+      .map((v) => v.windowSeconds);
+    // A future refactor that renames/restructures these exports so this
+    // finds zero would make the assertion below vacuously true -- guard
+    // against silently checking nothing.
+    expect(windows.length).toBeGreaterThanOrEqual(70);
+    const maxWindowSeconds = Math.max(...windows);
+    expect(store.RATE_LIMIT_HITS_RETENTION_SECONDS).toBeGreaterThanOrEqual(maxWindowSeconds);
   });
 });
 

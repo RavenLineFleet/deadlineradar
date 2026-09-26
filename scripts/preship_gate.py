@@ -3436,6 +3436,44 @@ def check_signin_ttl_copy_sync(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_rate_limit_defined_only_in_validation_ts(repo_root: Path) -> list[str]:
+    """SecurityLab/AuditLab RL-9 retention-drift gate, half 2 of 2 (2026-09-26).
+    RATE_LIMIT_HITS_RETENTION_SECONDS (store.ts) must exceed every real
+    RateLimit.windowSeconds, and that half is enforced by a vitest test
+    (rl9-rate-limit-hits-purge.spec.ts) that imports worker/src/validation.ts
+    and evaluates the real runtime values -- it sees a COMPUTED window
+    (e.g. `7 * 86_400`) a source-text scan never could. But that same
+    import-based test structurally cannot see a RateLimit defined in some
+    OTHER file (AuditLab's "scope-inheritance trap": the gate's scope is a
+    coincidence of where these 75 definitions happen to live today, not a
+    constructed guarantee) -- vitest-pool-workers' sandbox has no real
+    filesystem access for a repo-wide source-text scan (confirmed by
+    trying it there), so this half lives here instead, as an ordinary
+    Python process with normal file access."""
+    validation_ts = repo_root / "worker" / "src" / "validation.ts"
+    worker_src = repo_root / "worker" / "src"
+    if not validation_ts.exists() or not worker_src.exists():
+        return ["[RL9-SCOPE] worker/src/validation.ts not found -- can't verify no RateLimit is "
+                "defined elsewhere."]
+
+    pattern = re.compile(r":\s*RateLimit\s*=")
+    errors = []
+    for ts_file in sorted(worker_src.glob("*.ts")):
+        if ts_file == validation_ts:
+            continue
+        text = ts_file.read_text(encoding="utf-8")
+        for m in pattern.finditer(text):
+            line_no = text.count("\n", 0, m.start()) + 1
+            errors.append(
+                f"[RL9-SCOPE] {ts_file.relative_to(repo_root)}:{line_no} defines a RateLimit outside "
+                "worker/src/validation.ts -- the retention-drift test in "
+                "rl9-rate-limit-hits-purge.spec.ts only ever checks validation.ts's own exports, so "
+                "this one's windowSeconds is invisible to it. Move the definition into validation.ts, "
+                "or widen that test to import this file too."
+            )
+    return errors
+
+
 def check_reminder_threshold_authorities_sync(repo_root: Path) -> list[str]:
     """AuditLab COPY-8 (MEDIUM, 2026-08-21, orchestrator-approved) subordinate
     note: the fixed 6-tier reminder schedule (60/30/14/7/3/1 days) is
@@ -7087,6 +7125,7 @@ def main():
     all_errors += check_sms_consent_version_sync(repo_root)
     all_errors += check_cpe_cycle_window_sync(repo_root)
     all_errors += check_signin_ttl_copy_sync(repo_root)
+    all_errors += check_rate_limit_defined_only_in_validation_ts(repo_root)
     all_errors += check_reminder_threshold_authorities_sync(repo_root)
     all_errors += check_document_size_limit_sync(repo_root)
     all_errors += check_retention_coverage(repo_root)
