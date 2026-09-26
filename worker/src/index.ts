@@ -9608,7 +9608,9 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     }
 
     if (url.pathname === "/health") {
-      return jsonResponse(200, { status: "ok" });
+      // AuditLab DEPLOY-4 (LOW, 2026-09-26): opaque deployment id only --
+      // never a git SHA -- see Env.CF_VERSION_METADATA's own comment for why.
+      return jsonResponse(200, { status: "ok", version: env.CF_VERSION_METADATA?.id ?? null });
     }
 
     // Orchestrator directive (2026-09-25): the MT Society of CPAs eConnect

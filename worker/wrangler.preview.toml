@@ -33,6 +33,11 @@ binding = "DB"
 database_name = "deadlineradar-preview"
 database_id = "0a91aa32-547b-4514-8a08-ff608f477306"
 
+# AuditLab DEPLOY-4 -- same as production's wrangler.toml, so /health's
+# behavior doesn't differ between the two configs.
+[version_metadata]
+binding = "CF_VERSION_METADATA"
+
 # Deliberately NO [[routes]] block -- this must never bind to the
 # deadline-radar.com zone. Leaving this worker on its default workers.dev
 # subdomain is what keeps it structurally separate from production.

@@ -113,10 +113,36 @@ async function postFirmLead(fields: Record<string, string>, ip = "203.0.113.1"):
 // returned zero matches.
 
 describe("GET /health", () => {
-  it("responds ok and bypasses rate limiting", async () => {
+  it("responds ok, with an opaque version id", async () => {
     const resp = await getAction("/health");
     expect(resp.status).toBe(200);
-    expect(await resp.json()).toEqual({ status: "ok" });
+    const body = await resp.json<{ status: string; version: string }>();
+    expect(body.status).toBe("ok");
+    // AuditLab DEPLOY-4 (2026-09-26): learned by running this, not assumed
+    // -- miniflare's local dev DOES simulate version_metadata with a real
+    // (locally-generated) opaque id, so this is a meaningful non-null
+    // assertion here too, not just in production.
+    expect(typeof body.version).toBe("string");
+    expect(body.version.length).toBeGreaterThan(0);
+  });
+
+  // The shape check above proves the binding is wired in this environment;
+  // it does NOT prove the value changes between two different real Worker
+  // deploys, which is the whole point of the finding. This test proves the
+  // CODE reads env.CF_VERSION_METADATA?.id dynamically (a value miniflare's
+  // own auto-generated id could never coincidentally match), which is the
+  // half unit-testable at all -- whether a live redeploy actually changes
+  // the served value needs a live check, same as MON-5's own "unit-tested
+  // but never dispatched proves nothing" lesson.
+  it("reads env.CF_VERSION_METADATA?.id, not a hardcoded value", async () => {
+    const worker = (await import("../src/index")).default;
+    const testEnv = { ...env, CF_VERSION_METADATA: { id: "test-version-id", tag: "" } };
+    const resp = await worker.fetch(
+      new Request("https://deadline-radar.com/api/health", { headers: { "cf-connecting-ip": "203.0.113.1" } }),
+      testEnv as never,
+      testExecutionContext()
+    );
+    expect(await resp.json()).toEqual({ status: "ok", version: "test-version-id" });
   });
 
   // AuditLab S-1, 2026-08-03 (MEDIUM): neither origin sent any of these 5
@@ -196,7 +222,13 @@ describe("/api prefix stripping (Workers Route binding)", () => {
       headers: { "cf-connecting-ip": "203.0.113.70" },
     });
     expect(resp.status).toBe(200);
-    expect(await resp.json()).toEqual({ status: "ok" });
+    const body = await resp.json<{ status: string; version: string }>();
+    // AuditLab DEPLOY-4 (2026-09-26): version is a real opaque id here too
+    // (see the "GET /health" describe block above) -- exact-matching
+    // `{ status: "ok" }` broke the moment that field was added, which is
+    // the intended behavior of this specific assertion, not a regression.
+    expect(body.status).toBe("ok");
+    expect(typeof body.version).toBe("string");
   });
 
   it("POST /api/subscribe stores a row exactly like POST /subscribe", async () => {

@@ -147,6 +147,17 @@
  */
 export interface Env {
   DB: D1Database;
+  /**
+   * AuditLab DEPLOY-4 (LOW, 2026-09-26): the only artifact that lets an
+   * independent reviewer -- who does not hold Devin's `wrangler
+   * deployments list` credentials -- verify which build is actually
+   * serving, versus a deploy report someone made. Cloudflare's own
+   * `version_metadata` binding, needing no build-time plumbing;
+   * deliberately just the opaque deployment id (`.id`), never a git SHA,
+   * so this closes the verification gap without disclosing anything about
+   * the source. See /health's own use of it.
+   */
+  CF_VERSION_METADATA?: { id: string; tag: string };
   TURNSTILE_SECRET_KEY?: string;
   RESEND_API_KEY?: string;
   /**
