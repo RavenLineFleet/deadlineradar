@@ -4557,6 +4557,27 @@ def _strip_html_comments(page_html: str) -> str:
     return "".join(out)
 
 
+def _json_ld_script_safe(s: dict) -> str:
+    """json.dumps() passes '<' straight through, so a value containing the
+    literal text '</script>' closes the tag early and anything after it
+    (e.g. '<img src=x onerror=...>') executes as markup, not JSON -- AuditLab
+    JSONLD-1 (2026-09-26), demonstrated with json.dumps({"name": "... </script>
+    <img ...>"}). Escaping '<' to the six literal characters backslash-u-0-0-
+    3-c defuses it while staying valid JSON (json.loads() round-trips it
+    unchanged) -- note this must be the SIX characters '\\u003c', not the
+    single character '<' that a bare "\\u003c" literal in Python source
+    actually is; that non-fix was caught and rejected before shipping.
+    Also escapes U+2028/U+2029, which ensure_ascii=False otherwise emits
+    raw and which historically confused some JS parsers as line
+    terminators inside a script body."""
+    return (
+        json.dumps(s, ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace(" ", "\\u2028")
+        .replace(" ", "\\u2029")
+    )
+
+
 def _json_ld_html(schemas: list[dict] | None) -> str:
     """Renders each schema dict as its own <script type="application/ld+json"> block.
     None/empty input renders nothing -- callers that have no non-null data to describe
@@ -4565,7 +4586,7 @@ def _json_ld_html(schemas: list[dict] | None) -> str:
     if not schemas:
         return ""
     return "\n".join(
-        f'<script type="application/ld+json">{json.dumps(s, ensure_ascii=False)}</script>'
+        f'<script type="application/ld+json">{_json_ld_script_safe(s)}</script>'
         for s in schemas
     )
 
