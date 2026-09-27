@@ -5649,7 +5649,12 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
     backslash in the escape sequence is ever accidentally unescaped in
     Python source -- exactly what happened when this was first drafted.
     So this asserts the ACTUAL runtime behavior against a hostile value,
-    not just that some replace() call exists."""
+    not just that some replace() call exists. Also asserts against a real
+    regression AssetLab hit while making the fix more reviewable: writing
+    the U+2028/U+2029 search argument as escape-sequence TEXT on both sides
+    of .replace() (instead of the actual character on the search side)
+    silently turns it into a no-op that leaks the raw separator -- caught
+    only by executing the code, never by reading the diff."""
     sys.path.insert(0, str(repo_root))
     try:
         import generate as generate_module
@@ -5658,7 +5663,10 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
             f"[JSONLD-1] generate.py could not be imported ({type(e).__name__}: {e}); "
             f"check_json_ld_script_breakout() is measuring nothing and must be repaired."
         ]
-    hostile = {"name": "CPA Board </script><img src=x onerror=alert(1)>"}
+    hostile = {
+        "name": "CPA Board </script><img src=x onerror=alert(1)>",
+        "sep": chr(0x2028) + chr(0x2029),
+    }
     try:
         html = generate_module._json_ld_html([hostile])
     except Exception as e:
@@ -5677,6 +5685,13 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
             "generate.py's JSON-LD <script> block -- this closes the tag early, letting anything after "
             "it (e.g. an <img onerror=...>) execute as markup. _json_ld_script_safe() must escape '<'."
         )
+    if chr(0x2028) in body or chr(0x2029) in body:
+        errors.append(
+            "[JSONLD-1] A raw U+2028/U+2029 separator survives unescaped inside generate.py's JSON-LD "
+            "<script> block -- the .replace() call for it is a no-op (its search argument no longer "
+            "matches the real character)."
+        )
+    if errors:
         return errors
     try:
         roundtripped = json.loads(body)
