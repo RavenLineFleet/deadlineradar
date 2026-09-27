@@ -179,12 +179,21 @@ export function isPreCutoverSignup(createdAt: string): boolean {
 /** The shared OR every one of #151's five gates uses -- a real paid tier, OR
  * grandfathered by signup date. One function so every call site (document
  * handlers, Slack/Teams connect + send passes, the dashboard-synthesis
- * response flag, the seat-cap lookup) audits identically, matching this
- * file's own "one thing to change when the rule changes" principle. NOT
- * used by Map/Practice Privilege Check -- those keep their own, different
- * exceptions (solo-free member-count, roadmap #153's query-budget trial) in
+ * response flag) audits identically, matching this file's own "one thing to
+ * change when the rule changes" principle. NOT used by Map/Practice
+ * Privilege Check -- those keep their own, different exceptions (solo-free
+ * member-count, roadmap #153's query-budget trial) in
  * requireFirmSessionAndPaidTier(), which this function has no relationship
- * to. */
+ * to.
+ *
+ * AuditLab (2026-09-26, found enumerating ENT-1's callers): the free-tier
+ * seat cap (tiers.ts's seatCapForFirmTier(), enforced at index.ts's roster
+ * creation gate, reported in the dashboard) does NOT go through this
+ * function -- it calls isPreCutoverSignup() directly, bypassing
+ * checkPaidFeatureAccess() entirely, since a paid firm's cap comes from
+ * FIRM_TIER_SEAT_CAPS instead. The "audits identically" claim above does
+ * not extend to it; the grandfathering-by-date rule is shared, but the
+ * paid-tier check is not. */
 export function hasValueLineAccess(firm: EntitlementSubject & { created_at: string }): boolean {
   return checkPaidFeatureAccess(firm).allowed || isPreCutoverSignup(firm.created_at);
 }
