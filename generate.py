@@ -4573,8 +4573,8 @@ def _json_ld_script_safe(s: dict) -> str:
     return (
         json.dumps(s, ensure_ascii=False)
         .replace("<", "\\u003c")
-        .replace(" ", "\\u2028")
-        .replace(" ", "\\u2029")
+        .replace(chr(0x2028), "\\u2028")
+        .replace(chr(0x2029), "\\u2029")
     )
 
 
