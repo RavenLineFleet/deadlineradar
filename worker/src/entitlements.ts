@@ -155,8 +155,25 @@ export const VALUE_LINE_CUTOVER_DATE = "2026-08-10T03:05:00Z";
 // sides to instants first is immune to precision drift permanently (the
 // generalizable risk AuditLab named: a hand-written date literal meeting a
 // machine-generated one), not just for this one date.
+//
+// SecurityLab ENT-1 (LOW, 2026-09-26), two-sided fix per AuditLab's
+// verification: `Date.parse(createdAt) < cutover` fails closed on malformed
+// input (empty/garbage/null) only as an ACCIDENT of `NaN < x` being `false`
+// -- an inverting, semantically-"equivalent" rewrite (`!(parse >= cutover)`)
+// flips that to fail-OPEN and grandfathers any firm with a bad created_at.
+// `Number.isFinite(t)` makes the fail-closed property explicit and
+// refactor-proof: verified an inverted rewrite of THIS form still denies
+// every malformed/spurious case. FLOOR (2020-01-01, well before this
+// product existed -- migration 0008 created the firms table 2026-07-28, so
+// no real row can predate it) additionally denies parseable-but-spurious
+// dates (epoch, "0", a pre-2020 backdated import) that would otherwise
+// grant grandfathered access under the bare NaN check. Not a live bug --
+// created_at always comes from nowIso() today.
+const PRE_CUTOVER_FLOOR_DATE = "2020-01-01T00:00:00Z";
+
 export function isPreCutoverSignup(createdAt: string): boolean {
-  return Date.parse(createdAt) < Date.parse(VALUE_LINE_CUTOVER_DATE);
+  const t = Date.parse(createdAt);
+  return Number.isFinite(t) && t >= Date.parse(PRE_CUTOVER_FLOOR_DATE) && t < Date.parse(VALUE_LINE_CUTOVER_DATE);
 }
 
 /** The shared OR every one of #151's five gates uses -- a real paid tier, OR

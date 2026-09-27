@@ -30,23 +30,31 @@ describe("isPreCutoverSignup() -- AuditLab TIER-1", () => {
   });
 });
 
-// SecurityLab ENT-1 (LOW, 2026-09-26), refined by AuditLab: isPreCutoverSignup()
-// fails CLOSED on malformed input only because Date.parse() returns NaN and every
-// NaN comparison is false -- undocumented, and a semantically-"equivalent" rewrite
-// (`!(Date.parse(c) >= Date.parse(CUTOVER))`) is fail-OPEN, granting grandfathered
-// paid-tier access to any firm with an empty/null/garbage created_at. All 7 tests
-// above pass under BOTH forms, so they cannot catch an inverting refactor. This
-// pins the fail-closed property directly, and also pins the boundary AuditLab
-// named: fail-closed covers UNPARSEABLE input only -- any PARSEABLE pre-cutover
-// instant (e.g. epoch/1970) is correctly meant to grant, not a second bug.
-describe("isPreCutoverSignup() -- malformed input, SecurityLab ENT-1", () => {
+// SecurityLab ENT-1 (LOW, 2026-09-26): isPreCutoverSignup() used to fail
+// CLOSED on malformed input only because Date.parse() returns NaN and every
+// NaN comparison is false -- undocumented, and a semantically-"equivalent"
+// rewrite (`!(Date.parse(c) >= Date.parse(CUTOVER))`) was fail-OPEN, granting
+// grandfathered paid-tier access to any firm with an empty/null/garbage
+// created_at. All 7 tests above pass under BOTH forms, so they could not
+// catch an inverting refactor. Fixed with `Number.isFinite()` (explicit,
+// refactor-proof: an inverted rewrite of THIS form still denies) plus a
+// PRE_CUTOVER_FLOOR_DATE (2020-01-01, before this product existed) that also
+// denies parseable-but-spurious dates (epoch, "0", a pre-2020 backdated
+// import) which the bare NaN check would have granted.
+describe("isPreCutoverSignup() -- malformed/spurious input, SecurityLab ENT-1", () => {
   it("unparseable created_at denies pre-cutover access (fails closed)", () => {
     expect(isPreCutoverSignup("")).toBe(false);
     expect(isPreCutoverSignup("garbage")).toBe(false);
   });
 
-  it("a parseable pre-cutover instant grants, even one this old -- not a second bug", () => {
-    expect(isPreCutoverSignup("1970-01-01T00:00:00Z")).toBe(true);
+  it("parseable-but-spurious pre-2020 dates now deny too -- the two-sided fix", () => {
+    expect(isPreCutoverSignup("1970-01-01T00:00:00Z")).toBe(false);
+    expect(isPreCutoverSignup("0")).toBe(false);
+    expect(isPreCutoverSignup("2019-12-31T23:59:59Z")).toBe(false);
+  });
+
+  it("a real pre-cutover instant on or after the floor still grants", () => {
+    expect(isPreCutoverSignup("2020-01-01T00:00:00Z")).toBe(true);
   });
 });
 
