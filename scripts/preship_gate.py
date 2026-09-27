@@ -5654,7 +5654,17 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
     the U+2028/U+2029 search argument as escape-sequence TEXT on both sides
     of .replace() (instead of the actual character on the search side)
     silently turns it into a no-op that leaks the raw separator -- caught
-    only by executing the code, never by reading the diff."""
+    only by executing the code, never by reading the diff.
+
+    GATE-32 (AuditLab, LOW, 2026-09-26): a real </script> breakout still
+    FAILS this gate, but not via the assertion written to catch it -- the
+    extraction regex below is non-greedy, so on a real breakout it stops
+    AT the injected closer and the captured body never contains '</script>'
+    (the closer sits just past the capture boundary). The gate used to fall
+    through to the JSON round-trip check instead, reporting "the escaping
+    broke the payload" -- true, but it points an operator at the escaping
+    helper rather than at a tag breakout. Counting closers in the RAW html,
+    before extraction, catches the same failure with the right message."""
     sys.path.insert(0, str(repo_root))
     try:
         import generate as generate_module
@@ -5671,6 +5681,15 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
         html = generate_module._json_ld_html([hostile])
     except Exception as e:
         return [f"[JSONLD-1] _json_ld_html() raised {type(e).__name__}: {e} on a hostile value it must handle safely."]
+    errors = []
+    if html.count("</script>") != 1:
+        errors.append(
+            f"[JSONLD-1][GATE-32] _json_ld_html([hostile]) produced {html.count('</script>')} '</script>' "
+            f"closer(s) instead of exactly 1 -- a value containing the literal text '</script>' is closing "
+            f"the tag early, letting anything after it (e.g. an <img onerror=...>) execute as markup. "
+            f"_json_ld_script_safe() must escape '<'."
+        )
+        return errors
     bodies = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
     if len(bodies) != 1:
         return [
@@ -5678,13 +5697,6 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
             f"for one schema instead of exactly 1 -- a breakout is splitting or multiplying the tag."
         ]
     body = bodies[0]
-    errors = []
-    if "</script>" in body:
-        errors.append(
-            "[JSONLD-1] A value containing the literal text '</script>' survives unescaped inside "
-            "generate.py's JSON-LD <script> block -- this closes the tag early, letting anything after "
-            "it (e.g. an <img onerror=...>) execute as markup. _json_ld_script_safe() must escape '<'."
-        )
     if chr(0x2028) in body or chr(0x2029) in body:
         errors.append(
             "[JSONLD-1] A raw U+2028/U+2029 separator survives unescaped inside generate.py's JSON-LD "
