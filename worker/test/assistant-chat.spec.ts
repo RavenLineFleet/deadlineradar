@@ -80,7 +80,7 @@ describe("POST /assistant/chat -- success path", () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe("https://deadlineradar-assistant.143-198-52-110.nip.io/chat");
+      expect(url).toBe("https://assistant.deadline-radar.com/chat");
       expect(init.method).toBe("POST");
       expect(JSON.parse(init.body as string)).toEqual({ message: "When does California renew?" });
     } finally {

@@ -34,7 +34,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-DROPLET_CHAT_URL = "https://deadlineradar-assistant.143-198-52-110.nip.io/chat"
+DROPLET_CHAT_URL = "https://assistant.deadline-radar.com/chat"
 ROOT = Path(__file__).resolve().parent.parent
 WORKER_DIR = ROOT / "worker"
 

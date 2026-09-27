@@ -5888,7 +5888,7 @@ function handleAssistantRuleChanges(url: URL): Response {
 // per-environment config -- rather than a new wrangler var/secret; if
 // orchestrator ever redeploys the droplet to a new address, update this
 // one line and redeploy, same as any other vendor-endpoint change here.
-const ASSISTANT_CHAT_DROPLET_URL = "https://deadlineradar-assistant.143-198-52-110.nip.io/chat";
+const ASSISTANT_CHAT_DROPLET_URL = "https://assistant.deadline-radar.com/chat";
 // AuditLab ASSIST-1 update (2026-08-28): live-measured successful replies at
 // 15.6-15.8s -- only ~4s of headroom against the original 20s budget below,
 // meaning any upstream slowdown on the droplet's own happy path would have
