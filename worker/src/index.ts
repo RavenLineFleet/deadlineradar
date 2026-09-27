@@ -9497,11 +9497,16 @@ async function handleSnooze(env: Env, token: string | null): Promise<Response> {
         day: "numeric",
       })
     : null;
+  // AuditLab (2026-09-26, no live bug -- toLocaleDateString's output alphabet
+  // provably can't contain <, > or ": verified hostile input to snoozed_until
+  // parses to "Invalid Date" instead). escapeHtml() here is a no-op today;
+  // it exists so a future edit (e.g. showing the raw ISO date instead) lands
+  // inside a guard rather than replacing one that was never there.
   return htmlResponse(
     200,
     htmlPage(
       "You're all set",
-      `<h1>Reminder paused</h1><p>We'll pick this back up${resumeDateStr ? ` on ${resumeDateStr}` : ` in ${SNOOZE_DAYS} days`}. ` +
+      `<h1>Reminder paused</h1><p>We'll pick this back up${resumeDateStr ? ` on ${escapeHtml(resumeDateStr)}` : ` in ${SNOOZE_DAYS} days`}. ` +
         `You'll still get at least one more reminder on or before your deadline. ` +
         `If you renew before then, use the link in your original reminder email to mark it done early.</p>`
     )
