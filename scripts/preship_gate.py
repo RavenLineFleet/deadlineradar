@@ -5637,6 +5637,60 @@ def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
+    """AuditLab JSONLD-1 (2026-09-26, latent not live): generate.py's
+    _json_ld_html() embeds json.dumps() output directly inside a <script
+    type="application/ld+json"> block. json.dumps() passes '<' straight
+    through, so a value containing the literal text '</script>' closes the
+    tag early -- everything after it renders as markup, not JSON. The fix
+    (_json_ld_script_safe()) escapes '<' to the six literal characters
+    '\\u003c'; a real regression here is a guard that LOOKS present (a
+    reader sees a .replace("<", ...) call) but resolves to a no-op if the
+    backslash in the escape sequence is ever accidentally unescaped in
+    Python source -- exactly what happened when this was first drafted.
+    So this asserts the ACTUAL runtime behavior against a hostile value,
+    not just that some replace() call exists."""
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as generate_module
+    except Exception as e:
+        return [
+            f"[JSONLD-1] generate.py could not be imported ({type(e).__name__}: {e}); "
+            f"check_json_ld_script_breakout() is measuring nothing and must be repaired."
+        ]
+    hostile = {"name": "CPA Board </script><img src=x onerror=alert(1)>"}
+    try:
+        html = generate_module._json_ld_html([hostile])
+    except Exception as e:
+        return [f"[JSONLD-1] _json_ld_html() raised {type(e).__name__}: {e} on a hostile value it must handle safely."]
+    bodies = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    if len(bodies) != 1:
+        return [
+            f"[JSONLD-1] _json_ld_html([hostile]) produced {len(bodies)} <script>...</script> block(s) "
+            f"for one schema instead of exactly 1 -- a breakout is splitting or multiplying the tag."
+        ]
+    body = bodies[0]
+    errors = []
+    if "</script>" in body:
+        errors.append(
+            "[JSONLD-1] A value containing the literal text '</script>' survives unescaped inside "
+            "generate.py's JSON-LD <script> block -- this closes the tag early, letting anything after "
+            "it (e.g. an <img onerror=...>) execute as markup. _json_ld_script_safe() must escape '<'."
+        )
+        return errors
+    try:
+        roundtripped = json.loads(body)
+    except json.JSONDecodeError as e:
+        errors.append(f"[JSONLD-1] The escaped JSON-LD body is not valid JSON ({e}) -- the escaping broke the payload.")
+        return errors
+    if roundtripped != hostile:
+        errors.append(
+            f"[JSONLD-1] The escaped JSON-LD body round-trips to {roundtripped!r}, not the original "
+            f"{hostile!r} -- the escaping changed the data, not just its script-safety."
+        )
+    return errors
+
+
 def check_email_link_helper_usage(repo_root: Path) -> list[str]:
     """AuditLab EMAIL-2 (LOW-MED, filed 2026-08-08, widened 2026-08-12): dark
     mode recolors links by CSS class (.dr-accent/.dr-btn), not by attribute --
@@ -7166,6 +7220,7 @@ def main():
     all_errors += check_mutating_get_coverage(repo_root)
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
+    all_errors += check_json_ld_script_breakout(repo_root)
     all_errors += check_security_header_layers()
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")
