@@ -72,8 +72,15 @@ export type EntitlementSubject = Pick<FirmRow, "plan_tier" | "status">;
  * null, so the self-serve checkout path 400'd on it) and zero real rows
  * ever had this value (confirmed against prod D1 before removing). Folded
  * into the free tier instead of ever being built -- see the solo-free
- * exception above. */
-const PAID_PLAN_TIERS = new Set([
+ * exception above.
+ *
+ * Exported (AuditLab/SecurityLab TIER-2, MEDIUM, 2026-09-26): tiers.ts's
+ * seatCapForFirmTier() reads this set so a tier recognised as PAID here
+ * gets a paid seat-cap fallback there too, by construction -- see its own
+ * comment. Before this, the two files could drift (three of these seven
+ * tiers had no seat-cap entry and silently fell through to the free-tier
+ * fallback despite being fully paid). */
+export const PAID_PLAN_TIERS = new Set([
   "firm",
   "firm_annual",
   "premium",

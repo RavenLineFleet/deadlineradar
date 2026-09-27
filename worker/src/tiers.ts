@@ -13,7 +13,7 @@
 
 import type { Env } from "./env";
 import { SELF_SERVE_SEAT_CAP } from "./validation";
-import { isPreCutoverSignup } from "./entitlements";
+import { isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
 
 /** Roadmap #151 (2026-08-10): the free-tier seat cap for a firm that signs
  * up AFTER the value-line cutover -- SELF_SERVE_SEAT_CAP (25) stays the cap
@@ -68,10 +68,29 @@ const FIRM_TIER_SEAT_CAPS: Record<string, number> = Object.fromEntries(
  * (25) for a firm that signed up before the roadmap #151 value-line
  * cutover (grandfathered), NEW_SIGNUP_FREE_SEAT_CAP (3) for one that
  * signed up after. A named paid tier's own FIRM_TIER_SEAT_CAPS entry is
- * unaffected either way -- this only changes what the FREE fallback means. */
+ * unaffected either way -- this only changes what the FREE fallback means.
+ *
+ * AuditLab/SecurityLab TIER-2 (MEDIUM, 2026-09-26): `firm`/`firm_annual`/
+ * `premium` are recognised as PAID by entitlements.ts's PAID_PLAN_TIERS
+ * (its own comment: "the original manually-set tiers... still honored") but
+ * had no entry in FIRM_TIER_SEAT_CAPS above -- so a post-cutover firm on one
+ * of them fell through to the FREE branch below and got capped at 3 despite
+ * being fully paid everywhere else. Deliberately NOT added as entries to
+ * FIRM_TIERS above -- that array is order-dependent (firmTierForSeatCount()
+ * finds the first/cheapest tier covering a headcount for CHECKOUT) and a
+ * legacy, non-purchasable tier appearing there could route a real customer
+ * to it, or change firmTierByPlanTier()'s null-vs-def behavior. Reading
+ * PAID_PLAN_TIERS directly instead of hand-listing these three slugs here
+ * makes the two files agree BY CONSTRUCTION -- a future paid tier added to
+ * entitlements.ts without a matching FIRM_TIER_SEAT_CAPS entry now gets a
+ * PAID default (SELF_SERVE_SEAT_CAP, 25 -- the uniform cap for any paid firm
+ * before the 2026-08-09 per-tier re-tier) instead of silently falling into
+ * the free-tier split below, closing the class of bug, not just today's
+ * three instances. */
 export function seatCapForFirmTier(planTier: string, createdAt: string): number {
   const namedCap = FIRM_TIER_SEAT_CAPS[planTier];
   if (namedCap !== undefined) return namedCap;
+  if (PAID_PLAN_TIERS.has(planTier)) return SELF_SERVE_SEAT_CAP;
   return isPreCutoverSignup(createdAt) ? SELF_SERVE_SEAT_CAP : NEW_SIGNUP_FREE_SEAT_CAP;
 }
 

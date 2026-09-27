@@ -35,6 +35,20 @@ describe("seatCapForFirmTier -- named tiers unaffected, free/unrecognised split 
       expect(seatCapForFirmTier("firm_scale", createdAt)).toBe(35);
     }
   });
+
+  // AuditLab TIER-2 (MEDIUM, 2026-09-26): entitlements.ts's PAID_PLAN_TIERS
+  // treats firm/firm_annual/premium as paid, but before this fix none of the
+  // three had a seat-cap entry, so a POST-cutover firm on one of them fell
+  // through to the free-tier fallback (NEW_SIGNUP_FREE_SEAT_CAP, 3) despite
+  // being fully paid -- the PRE-cutover case looked fine only by accident,
+  // since the grandfathering branch's 25 happened to match SELF_SERVE_SEAT_CAP.
+  it("firm/firm_annual/premium get their own named cap too, regardless of signup date", () => {
+    for (const createdAt of [PRE_CUTOVER, POST_CUTOVER]) {
+      expect(seatCapForFirmTier("firm", createdAt)).toBe(SELF_SERVE_SEAT_CAP);
+      expect(seatCapForFirmTier("firm_annual", createdAt)).toBe(SELF_SERVE_SEAT_CAP);
+      expect(seatCapForFirmTier("premium", createdAt)).toBe(SELF_SERVE_SEAT_CAP);
+    }
+  });
 });
 
 describe("firmTierForSeatCount -- the cheapest tier that covers a headcount (2026-08-09 4-band re-tier)", () => {
