@@ -30,6 +30,26 @@ describe("isPreCutoverSignup() -- AuditLab TIER-1", () => {
   });
 });
 
+// SecurityLab ENT-1 (LOW, 2026-09-26), refined by AuditLab: isPreCutoverSignup()
+// fails CLOSED on malformed input only because Date.parse() returns NaN and every
+// NaN comparison is false -- undocumented, and a semantically-"equivalent" rewrite
+// (`!(Date.parse(c) >= Date.parse(CUTOVER))`) is fail-OPEN, granting grandfathered
+// paid-tier access to any firm with an empty/null/garbage created_at. All 7 tests
+// above pass under BOTH forms, so they cannot catch an inverting refactor. This
+// pins the fail-closed property directly, and also pins the boundary AuditLab
+// named: fail-closed covers UNPARSEABLE input only -- any PARSEABLE pre-cutover
+// instant (e.g. epoch/1970) is correctly meant to grant, not a second bug.
+describe("isPreCutoverSignup() -- malformed input, SecurityLab ENT-1", () => {
+  it("unparseable created_at denies pre-cutover access (fails closed)", () => {
+    expect(isPreCutoverSignup("")).toBe(false);
+    expect(isPreCutoverSignup("garbage")).toBe(false);
+  });
+
+  it("a parseable pre-cutover instant grants, even one this old -- not a second bug", () => {
+    expect(isPreCutoverSignup("1970-01-01T00:00:00Z")).toBe(true);
+  });
+});
+
 function firm(over: Partial<{ plan_tier: string; status: string }> = {}) {
   return {
     plan_tier: "free",
