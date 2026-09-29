@@ -4,12 +4,12 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 4,
+  "gap_record_count": 3,
   "terminal_disclosure_count": 33,
-  "note_bearing_record_count": 37,
+  "note_bearing_record_count": 36,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 33
+    "data_gap_note": 32
   },
   "block_claim_count": 0,
   "entries": [
@@ -332,16 +332,6 @@
       "note": "Maryland's $63 individual and $151 firm renewal fees are codified in COMAR 09.24.01.09B, and the Board's own fee page shows the same figures -- confirmed in both places. That regulation only sets the dollar amounts; your renewal cycle is biennial, and how your exact expiration date is determined is covered on this site's Maryland individual-license renewal page.",
       "is_block_claim": false,
       "terminal_disclosure": true
-    },
-    {
-      "dataset": "renewal_fees.json",
-      "id": "nevada-renewal-fee",
-      "state": "Nevada",
-      "state_slug": "nevada",
-      "field": "data_gap_note",
-      "note": "Nevada's firm registration/annual-report fee amount (NAC 628.180/628.190, due January 31 alongside the individual renewal) is not published on any official page we could locate -- the individual $175 figure came from the Board's login-gated renewal.aspx portal, but no equivalent firm-specific renewal page was found. A pending proposed regulation (Nevada LCB file R054-25) would cap the firm annual-report fee at $200 (and a separate late-filing fee at $200), but that proposal is not yet adopted -- the currently effective rule (NAC 628.190) sets no cap at all, just \"the prescribed renewal fee.\" Confirm the current firm figure directly with the Board before budgeting for a firm renewal.",
-      "is_block_claim": false,
-      "terminal_disclosure": false
     },
     {
       "dataset": "renewal_fees.json",
