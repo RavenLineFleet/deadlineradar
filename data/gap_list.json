@@ -299,7 +299,7 @@
       "state": "Colorado",
       "state_slug": "colorado",
       "field": "data_gap_note",
-      "note": "The $66 figure above is confirmed by the Board directly for the individual CPA renewal only (the biennial cycle ending November 30, 2027). Colorado firm registrations renew on a separate triennial cycle (next due August 31, 2026); the Board has confirmed it is a different amount, but has not yet given the figure. We have asked the Board to confirm the firm figure on the same correspondence thread; this note will be updated once they answer.",
+      "note": "The $66 figure above is confirmed by the Board directly for the individual CPA renewal only (the biennial cycle ending November 30, 2027). Colorado firm registrations renew on a separate triennial cycle, expiring August 31 board-wide (last due 2026-08-31, next due 2029-08-31) -- the Colorado Board of Accountancy confirmed directly (2026-09-09 and 2026-09-14 correspondence) that the firm registration fee is a different amount and changes every renewal period, but does not disclose the figure. This amount is set by DORA each renewal period and is not published on any public-facing page; confirm the current firm registration fee directly with DORA.",
       "is_block_claim": false,
       "terminal_disclosure": false
     },
