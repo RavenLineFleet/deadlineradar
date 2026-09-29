@@ -339,7 +339,7 @@
       "state": "Northern Mariana Islands",
       "state_slug": "northern-mariana-islands",
       "field": "data_gap_note",
-      "note": "CNMI's codified administrative code still shows a $100 renewal fee -- that text hasn't changed. But CNMI's enabling statute, 4 CMC § 3422(b), makes clear a CPA certificate is issued and renewed on a three-year cycle, not annually, so the code table's \"Renewal/annual\" label is a legacy category name rather than a literal yearly requirement. CNMI's Board of Accountancy has no government website of its own -- NASBA administers CNMI licensing on the Board's behalf, and NASBA's current fee page lists the individual renewal fee at $355 for that same three-year (Sept 30-Dec 31) cycle, but cites no CNMI statute, regulation, or resolution number for that figure. No CNMI government page states $355 directly either, so this record keeps $100 as the codified figure -- the two sources disagree materially: verify the exact amount with NASBA or the Board before you pay.",
+      "note": "The codified NMIAC 1-10-1605(b)(2)(i) fee table still states $100 -- a figure the CNMI Board itself says is outdated and should not be used; NASBA's current $355 is confirmed by the Board's own 2026-09-29 email as the amount to publish.",
       "is_block_claim": false,
       "terminal_disclosure": false
     },
