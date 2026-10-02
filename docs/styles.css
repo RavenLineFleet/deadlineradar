@@ -245,7 +245,8 @@
   
   
   .dr-chat-widget {
-    position: fixed; right: 20px; bottom: 20px; z-index: 45;
+    position: fixed; right: 20px; z-index: 45;
+    bottom: calc(20px + var(--dr-cookie-notice-offset, 0px));
     display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
   }
   .dr-chat-bubble {
@@ -307,7 +308,8 @@
   .dr-chat-ticket-error { color: #c33737; font-size: 0.78rem; margin: 0.4rem 0 0; }
   .dr-chat-ticket-error[hidden], .dr-chat-ticket-email[hidden] { display: none; }
   @media (max-width: 480px) {
-    .dr-chat-widget { right: 12px; bottom: 12px; }
+    
+    .dr-chat-widget { right: 12px; bottom: calc(12px + var(--dr-cookie-notice-offset, 0px)); }
   }
   .table-wrap {
     position: relative; overflow-x: auto; margin: 1.1rem 0; border: 1px solid var(--border); border-radius: 8px;

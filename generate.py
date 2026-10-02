@@ -980,7 +980,8 @@ PAGE_CSS = """
      the more robust fix regardless of what his specific environment was
      doing. */
   .dr-chat-widget {
-    position: fixed; right: 20px; bottom: 20px; z-index: 45;
+    position: fixed; right: 20px; z-index: 45;
+    bottom: calc(20px + var(--dr-cookie-notice-offset, 0px));
     display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
   }
   .dr-chat-bubble {
@@ -1045,7 +1046,13 @@ PAGE_CSS = """
   .dr-chat-ticket-error { color: #c33737; font-size: 0.78rem; margin: 0.4rem 0 0; }
   .dr-chat-ticket-error[hidden], .dr-chat-ticket-email[hidden] { display: none; }
   @media (max-width: 480px) {
-    .dr-chat-widget { right: 12px; bottom: 12px; }
+    /* Phase 3 outside-review item 3 (2026-10-01): the cookie notice wraps
+       to 2 lines at this width and the chat bubble sat at a fixed 12px,
+       overlapping it. --dr-cookie-notice-offset (set by the cookie
+       notice's own script below, to its real rendered height) pushes the
+       bubble above it instead of a guessed pixel value that would drift
+       the moment the notice's copy or font size changes. */
+    .dr-chat-widget { right: 12px; bottom: calc(12px + var(--dr-cookie-notice-offset, 0px)); }
   }
   .table-wrap {
     position: relative; overflow-x: auto; margin: 1.1rem 0; border: 1px solid var(--border); border-radius: 8px;
@@ -4797,10 +4804,22 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
   var el = document.getElementById('dr-cookie-notice');
   if (!el) return;
   el.hidden = false;
+  // Phase 3 outside-review item 3 (2026-10-01): pushes the chat widget
+  // above this notice instead of letting the two overlap on narrow
+  // viewports, where the notice wraps to 2 lines. Measured after a layout
+  // frame so offsetHeight reflects the wrapped (not single-line) height,
+  // and re-measured on resize since a rotation/viewport change can change
+  // how many lines it wraps to.
+  function setOffset() {
+    document.documentElement.style.setProperty('--dr-cookie-notice-offset', el.hidden ? '0px' : el.offsetHeight + 'px');
+  }
+  requestAnimationFrame(setOffset);
+  window.addEventListener('resize', setOffset);
   var btn = document.getElementById('dr-cookie-notice-dismiss');
   if (btn) {
     btn.addEventListener('click', function () {
       el.hidden = true;
+      setOffset();
       try { window.localStorage.setItem('dr_cookie_notice_dismissed', '1'); } catch (e) {}
     });
   }
