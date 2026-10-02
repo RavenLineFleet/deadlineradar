@@ -410,24 +410,27 @@ def test_duplicated_source_disagreement_never_confirms_record():
         assert out["outcome"] == "FAILED" and out["checks"][0]["status"] == "AMBIGUOUS_ANCHOR"
 
 
-def test_stale21_tooling_gap_cleared_with_audit_trail_substantive_held():
-    """AuditLab STALE-21 ruling 10-02: clear tooling/fetch-failure markers on a real confirmation (quoting
-    them in history); never clear a substantive one -- the record is HELD and its date doesn't move."""
-    real = ["fetch not 200 (status=403, error=HTTPError 403)",
-            "the cited value '80' was not independently re-confirmed -- this is a PDF, whose text this function cannot search",
-            "claim-anchor check failed: normalized fetched page does not contain '24.201.2106' -- a bot wall, soft-404, or wrong page",
-            "the cited value '120' was not found on the fetched page"]
-    for gap in real:
-        assert runner.gap_is_tooling(gap), gap
+def test_stale25_only_structured_tooling_kind_is_cleared():
+    """AuditLab STALE-25: clearing keys on manual_verify_gap_kind == "tooling", never on prose. The 4
+    adversarial reasons that fooled the regex are held unless explicitly marked tooling."""
+    line = "2026-10-02 (automated re-verification, auto-anchor): x"
+    rec = {"manual_verify_gap_reason": "fetch not 200 (status=403, error=HTTPError 403)",
+           "manual_verify_gap_kind": "tooling", "verified_date": "2026-09-12", "verification_history": "old"}
+    assert runner.apply_confirmed(rec, "cpe_hours", line, "2026-10-02")
+    assert rec["manual_verify_gap_reason"] is None and rec["manual_verify_gap_kind"] is None
+    assert "cleared manual_verify_gap_reason" in rec["verification_history"] and "HTTPError 403" in rec["verification_history"]
+    for gap in ["the rule may have been superseded and was not re-confirmed",
+                "the chapter was rescinded; claim-anchor still matches the old text",
+                "board confirmed by email; cannot read the fee from any public page",
+                "awaiting board reply; was not independently re-confirmed",
+                "fetch not 200 (status=403, error=HTTPError 403)"]:          # even tooling prose, if UNMARKED
         rec = {"manual_verify_gap_reason": gap, "verified_date": "2026-09-12", "verification_history": "old"}
-        assert runner.apply_confirmed(rec, "cpe_hours", "2026-10-02 (automated re-verification, auto-anchor): x", "2026-10-02")
-        assert rec["manual_verify_gap_reason"] is None and rec["verified_date"] == "2026-10-02"
-        assert "cleared manual_verify_gap_reason" in rec["verification_history"] and gap in rec["verification_history"]
-    for gap in ["two official sources disagree on the hour count", "rule may have been superseded; needs human judgment"]:
-        assert not runner.gap_is_tooling(gap)
-        rec = {"manual_verify_gap_reason": gap, "verified_date": "2026-09-12", "verification_history": "old"}
-        assert runner.apply_confirmed(rec, "cpe_hours", "line", "2026-10-02") is False
+        assert not runner.gap_is_tooling(rec) and not runner.gap_is_tooling(gap)
+        assert runner.apply_confirmed(rec, "cpe_hours", line, "2026-10-02") is False
         assert rec["verified_date"] == "2026-09-12" and rec["manual_verify_gap_reason"] == gap
+    rec = {"manual_verify_gap_reason": "sources disagree", "manual_verify_gap_kind": "substantive",
+           "verified_date": "2026-09-12"}
+    assert runner.apply_confirmed(rec, "cpe_hours", line, "2026-10-02") is False
 
 
 def test_substantive_gap_record_reported_held_not_bumped(env):
@@ -442,28 +445,28 @@ def test_substantive_gap_record_reported_held_not_bumped(env):
 
 
 def test_replay_reapplies_confirmed_and_respects_changed_main(env, tmp_path):
-    """job.py lost-push-race path: replay saved CONFIRMED results onto fresh data without refetching;
-    if main changed a stored value since the run, that record is NOT bumped."""
+    """job.py lost-push-race path (REPLAY-1): replay saved CONFIRMED results onto fresh data without
+    refetching, but only for records unchanged since the fetch's base commit -- text-only fields included."""
     tmp, ff = env
     saved = runner.run(apply=False, all_records=True, fetcher=ff, today="2026-10-02")
     sp = tmp_path / "results.json"
     sp.write_text(json.dumps(saved, default=str), encoding="utf-8")
-    before = (tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8")
-    assert runner.replay(str(sp)) == 1                               # only a-fee was CONFIRMED
+    base_txt = (tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8")
+    base = lambda ds: json.loads(base_txt)["records"] if ds == "renewal_fees" else []
+    assert runner.replay(str(sp), base_loader=base) == 1               # only a-fee was CONFIRMED
     r = _recs(tmp)
     assert r["a-fee"]["verified_date"] == "2026-10-02" and r["a-fee"]["verified_method"] == "auto-anchor"
-    assert "sha256=abc123" in r["a-fee"]["verification_history"]      # original evidence, not re-fetched
-    assert r["b-fee"]["verified_date"] == "2026-09-01"                 # CHANGED stays untouched
-    recs = json.loads(before)
-    recs["records"][0]["fee_usd"] = 175                                # main changed a-fee meanwhile
+    assert "sha256=abc123" in r["a-fee"]["verification_history"]       # original evidence, not re-fetched
+    assert r["b-fee"]["verified_date"] == "2026-09-01"                  # CHANGED stays untouched
+    # main corrects a NON-numeric field mid-run (the 77 text-only recipes' case): must not be stamped
+    recs = json.loads(base_txt)
+    recs["records"][0]["fee_notes"] = "corrected on main mid-run"
     (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
-    assert runner.replay(str(sp)) == 0 and _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"
-
-
-def test_stale24_substantive_reasons_mentioning_pdf_or_numbers_are_held():
-    """AuditLab STALE-24: topic words must not classify as tooling."""
-    for gap in ["the board's PDF and its web fee page state different figures; a human must decide which governs",
-                "two sources disagree on whether the fee is 500 or 550; unresolved",
-                "the cited chapter may have been superseded; needs human judgment",
-                "needs a human to confirm which cycle this governs"]:
-        assert not runner.gap_is_tooling(gap), gap
+    assert runner.replay(str(sp), base_loader=base) == 0 and _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"
+    # and a numeric correction too
+    recs = json.loads(base_txt)
+    recs["records"][0]["fee_usd"] = 175
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    assert runner.replay(str(sp), base_loader=base) == 0
+    with pytest.raises(SystemExit):                                     # no base -> refuse (fail closed)
+        runner.replay(str(sp))

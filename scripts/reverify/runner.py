@@ -202,29 +202,31 @@ def history_line(day: str, check_results: list[dict], recipe: dict) -> str:
 # was a tooling/fetch failure (the old fetcher couldn't see the page). Substantive reasons (sources
 # disagree, rule may be superseded, needs judgment) are never cleared by an anchor match: the record is
 # HELD for a human and its date does not move.
-# STALE-24 (AuditLab 2026-10-02): match FAILURE SIGNATURES only, never topic words -- bare "PDF" or a
-# bare 3-digit number also occur in substantive reasons ("the PDF and the web page disagree", "500 or 550").
-# Too tight merely holds a record for a human (safe); too loose silently clears a hold (the STALE-21 harm).
-TOOLING_GAP_RE = re.compile(
-    r"fetch not 200|HTTP\s*Error|status=\d{3}|HTTP\s*[45]\d\d|timed?\s*out|"
-    r"connection (?:refused|reset|error)|bot wall|soft-404|wrong page|"
-    r"cannot be used to anchor a baseline|claim-anchor|anchor check failed|"
-    r"whose text this function cannot search|cannot (?:search|read|parse)|"
-    r"was not (?:independently )?re-confirmed|was not found on the fetched page",
-    re.I)
+# STALE-25 (AuditLab 2026-10-02): free-text matching of gap reasons cannot be made safe -- substantive
+# reasons naturally contain "was not re-confirmed", "claim-anchor", "cannot read". So the runner no longer
+# reads the prose at all. A gap marker is clearable ONLY if it carries the structured field
+# manual_verify_gap_kind == "tooling", which the tool that writes tooling failures sets (AssetLab's
+# manual-verify tool). Anything else -- hand-written, legacy, or unmarked -- is HELD for a human by
+# construction. (Closed-world: an unmarked reason can never be silently cleared.)
+TOOLING_KIND = "tooling"
 
 
-def gap_is_tooling(reason) -> bool:
-    return bool(reason) and bool(TOOLING_GAP_RE.search(str(reason)))
+def gap_is_tooling(rec_or_reason) -> bool:
+    """True only for a record whose gap marker is structurally declared a tooling failure."""
+    if not isinstance(rec_or_reason, dict):
+        return False           # bare prose is never enough (STALE-25)
+    return bool(rec_or_reason.get("manual_verify_gap_reason")) and \
+        rec_or_reason.get("manual_verify_gap_kind") == TOOLING_KIND
 
 
 def apply_confirmed(rec: dict, dataset: str, line: str, day: str) -> bool:
     """Bump the record. Returns False (and changes nothing) if a substantive gap marker must hold it."""
     gap = rec.get("manual_verify_gap_reason")
-    if gap and not gap_is_tooling(gap):
+    if gap and not gap_is_tooling(rec):
         return False
-    if gap:   # tooling failure now resolved by a real confirmation: clear it, quoting it in the history
+    if gap:   # declared tooling failure now resolved by a real confirmation: clear it, quoting it in the history
         rec["manual_verify_gap_reason"] = None
+        rec["manual_verify_gap_kind"] = None
         line = f"{line}; cleared manual_verify_gap_reason (tooling failure, resolved by this confirmation): '{gap}'"
     rec[DATE_FIELD[dataset]] = day
     rec["verified_method"] = "auto-anchor"
@@ -391,10 +393,30 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     return {"report": report, "results": results}
 
 
-def replay(results_path: str, today: str | None = None) -> int:
+REPLAY_WRITES = {"verified_date", "last_verified", "verified_method", "verification_history",
+                 "manual_verify_gap_reason", "manual_verify_gap_kind"}
+
+
+def _git_base_loader(base: str):
+    import subprocess
+    def load(ds):
+        out = subprocess.run(["git", "show", f"{base}:data/{ds}.json"], cwd=ROOT, capture_output=True,
+                             text=True, encoding="utf-8", check=True).stdout
+        return json.loads(out)["records"]
+    return load
+
+
+def replay(results_path: str, today: str | None = None, base: str | None = None, base_loader=None) -> int:
     """Re-apply a finished run's CONFIRMED records onto freshly-reset data. The fetch evidence (url, sha256,
     anchor) and the run date come from the saved results, so the history line is identical to the original.
-    A record whose stored value no longer matches what was extracted is NOT bumped (main changed it)."""
+    REPLAY-1 (AuditLab 2026-10-02): a record is bumped ONLY if it is unchanged since the commit the fetch
+    ran against -- every field compared except the ones replay itself writes -- so a correction landed on
+    main mid-run is never stamped as verified. This covers all recipes, text-only ones included. Without a
+    base the replay refuses to run (fail closed)."""
+    loader = base_loader or (_git_base_loader(base) if base else None)
+    if loader is None:
+        raise SystemExit("replay needs --base <commit the fetch ran against> (REPLAY-1: fail closed)")
+    base_recs = {r["id"]: r for ds in DATASETS for r in loader(ds)}
     with open(results_path, encoding="utf-8") as f:
         saved = json.load(f)
     day = today or saved["report"]["run_date"]
@@ -406,7 +428,11 @@ def replay(results_path: str, today: str | None = None) -> int:
         if res.get("outcome") != "CONFIRMED" or rid not in by_id or rid not in recipes:
             continue
         ds, rec = by_id[rid]
-        # re-judge against the CURRENT stored values using the saved extracted values (no network)
+        b = base_recs.get(rid)
+        strip = lambda r: {k: v for k, v in r.items() if k not in REPLAY_WRITES}
+        if b is None or strip(b) != strip(rec):
+            continue                      # main changed (or added) this record mid-run: not ours to stamp
+        # belt and braces: also re-judge numeric values against the CURRENT stored values (no network)
         stored_ok = True
         rcp = recipes[rid]
         for p, chk in zip(res["checks"], rcp["checks"]):
@@ -435,9 +461,10 @@ def main(argv=None):
     ap.add_argument("--sample", type=int, help="print N random CONFIRMED ids (AuditLab spot-check)")
     ap.add_argument("--replay", help="re-apply the CONFIRMED results saved by an earlier --out onto the current "
                                      "data (no fetching, no notes, no status); used by job.py after a lost push race")
+    ap.add_argument("--base", help="with --replay: the commit the original fetch ran against (REPLAY-1)")
     a = ap.parse_args(argv)
     if a.replay:
-        n = replay(a.replay)
+        n = replay(a.replay, base=a.base)
         print(json.dumps({"REPLAYED": n}))
         return 0
     out = run(apply=a.apply, all_records=a.all, ids=a.ids)
