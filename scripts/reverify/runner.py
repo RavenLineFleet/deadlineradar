@@ -269,8 +269,31 @@ def _age_days(rec: dict, dataset: str, today: date) -> int:
         return 10_000          # no/invalid date: treat as maximally stale (always due)
 
 
+def _excerpt_line(rec, ds, urls, fetcher, excerpter) -> str:
+    """One ticket line: a model-picked, code-verified verbatim excerpt with provenance, or why there isn't one.
+    Robots-disallowed sources are never fetched (the model doesn't change what we may fetch)."""
+    import llm_assist
+    for u in urls:
+        if not str(u).startswith("http"):
+            continue
+        u = str(u).split("#")[0]
+        try:
+            if not fetcher.allowed(u):
+                return f"  excerpt: none -- {u} disallows automated fetching (robots.txt); read it by hand"
+        except Exception:
+            pass
+        f = fetcher.get(u, "pdf" if u.lower().endswith(".pdf") else "http")
+        if not f.ok:
+            continue
+        ex = excerpter(rec, ds, f.text, f.url, f.sha256)
+        if ex:
+            return "  excerpt (verify against the source; offset is in the normalised page text):\n" + llm_assist.render(ex)
+        return f"  excerpt: none -- the model found no verbatim passage on {u}"
+    return "  excerpt: none -- no source could be fetched"
+
+
 def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None = None,
-        ids: list[str] | None = None) -> dict:
+        ids: list[str] | None = None, excerpter=None) -> dict:
     """Daily rolling mode (Orchestrator 2026-10-02 12:43, from AuditLab STALE-23): re-verify every
     automatable record whose verified date is older than DUE_DAYS, plus any with pending failures.
     all_records=True checks every record (acceptance dry run)."""
@@ -287,6 +310,9 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     fail_counts = dict(prev.get("fail_counts", {}))
     changed_open = dict(prev.get("changed_open", {}))   # rid -> extracted-value signature already notified
     fetcher = fetcher or Fetcher()
+    if excerpter is None and os.environ.get("REVERIFY_LLM_EXCERPTS") == "1":
+        import llm_assist
+        excerpter = llm_assist.excerpt_for       # opt-in; the job sets it for real runs
     results, missing_recipe = {}, sorted(set(by_id) - set(recipes))
     automatable = sorted(i for i in by_id if i in recipes and not recipes[i].get("manual"))
     if ids:
@@ -365,6 +391,8 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
         for i, ds, rec, vd in manual_due:
             urls = [rec.get(k) for k in ("source_url", "citation_url", "secondary_source_url") if rec.get(k)]
             lines.append(f"- **{i}** ({ds}, verified {vd or 'never'}): {recipes[i]['manual']}\n  sources: {urls}")
+            if excerpter:
+                lines.append(_excerpt_line(rec, ds, urls, fetcher, excerpter))
             manual_notified[i] = vd
         _note("assetlab", f"MANUAL_DUE_{len(manual_due)}", "\n".join(lines) + "\n", now)
     if apply and results:
