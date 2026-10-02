@@ -3480,10 +3480,18 @@ def site_header(
     if (sessionStorage.getItem('dr_no_firm_session') === '1') return;
   }} catch (e) {{}}
   fetch('{REMINDER_BACKEND_BASE_URL}/firm/licenses', {{credentials: 'include'}}).then(function(r) {{
-    if (!r.ok) {{
+    // AuditLab SESS-6 (LOW, 2026-10-02): !r.ok also catches a transient
+    // 500/502/503, which is NOT "no session" -- it's "we don't know".
+    // Setting the sticky flag on a server blip suppressed the Dashboard
+    // swap for a genuinely signed-in user for the rest of that tab's
+    // session, with no way to recover but closing it. Only 401/403 are a
+    // definitive "no session" answer; any other non-OK status just skips
+    // this one pageview's swap, same as the existing network-error path.
+    if (r.status === 401 || r.status === 403) {{
       try {{ sessionStorage.setItem('dr_no_firm_session', '1'); }} catch (e) {{}}
       return;
     }}
+    if (!r.ok) {{ return; }}
     // 2026-08-11, Devin's live report (screenshot: homepage nav still said
     // "Dashboard" after visiting the shared demo firm): this swap can't
     // tell a real firm's session from the shared demo one -- both return
