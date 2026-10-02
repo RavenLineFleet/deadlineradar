@@ -2535,63 +2535,92 @@ export async function hardDeleteExpiredFirms(db: D1Database, bucket: R2Bucket, a
     .all<{ id: string }>();
 
   const ids = results.map((r) => r.id);
+  const deleted: string[] = [];
   for (const firmId of ids) {
-    // Delete the R2 objects BEFORE the D1 rows that name them -- if this
-    // worker instance dies mid-loop, an orphaned documents row (pointing
-    // at an R2 object not yet deleted) is recoverable on the next cron
-    // pass; an orphaned R2 object with no row left to find it is not.
-    // Queried without a deleted_at filter -- a soft-deleted row's object
-    // should already be gone via removeDocument()'s own caller, but this
-    // is the LAST chance to catch one that wasn't, and a redundant delete
-    // on an already-gone key is a harmless no-op.
-    const { results: docs } = await db
-      .prepare(`SELECT r2_key FROM documents WHERE firm_id = ?1`)
-      .bind(firmId)
-      .all<{ r2_key: string }>();
-    for (const doc of docs) {
-      try {
-        await bucket.delete(doc.r2_key);
-      } catch {
-        // Best-effort: an R2 delete failure must never abort the D1
-        // cleanup for this firm (leaving them stuck un-deletable forever
-        // is worse than one orphaned object) -- same posture as every
-        // other best-effort side-effect in this codebase.
+    // RETAIN-4 (AuditLab, HIGH, 2026-10-02): one firm failing here must
+    // never stall every OTHER firm queued behind it in the same daily cron
+    // pass. RETAIN-3's own comment flagged this exact blast radius in
+    // August for one specific missing table; this closes it for the whole
+    // loop, for any cause. A firm whose attempt throws keeps its
+    // status/deletion_requested_at untouched, so it's simply re-selected
+    // and retried on the next daily pass -- never silently dropped.
+    try {
+      // Delete the R2 objects BEFORE the D1 rows that name them -- if this
+      // worker instance dies mid-loop, an orphaned documents row (pointing
+      // at an R2 object not yet deleted) is recoverable on the next cron
+      // pass; an orphaned R2 object with no row left to find it is not.
+      // Queried without a deleted_at filter -- a soft-deleted row's object
+      // should already be gone via removeDocument()'s own caller, but this
+      // is the LAST chance to catch one that wasn't, and a redundant delete
+      // on an already-gone key is a harmless no-op.
+      const { results: docs } = await db
+        .prepare(`SELECT r2_key FROM documents WHERE firm_id = ?1`)
+        .bind(firmId)
+        .all<{ r2_key: string }>();
+      for (const doc of docs) {
+        try {
+          await bucket.delete(doc.r2_key);
+        } catch {
+          // Best-effort: an R2 delete failure must never abort the D1
+          // cleanup for this firm (leaving them stuck un-deletable forever
+          // is worse than one orphaned object) -- same posture as every
+          // other best-effort side-effect in this codebase.
+        }
       }
+      // migration 0045: firms.primary_member_id is a foreign key INTO
+      // firm_members, which is itself firm-scoped and about to be deleted
+      // by the loop below (firm_members.firm_id -> firms.id, the other
+      // direction) -- a genuine circular reference between the two tables.
+      // Cleared here, before either delete, or the firm_members DELETE
+      // below fails its FK constraint while firms.primary_member_id still
+      // points at the row being removed.
+      await db.prepare(`UPDATE firms SET primary_member_id = NULL WHERE id = ?1`).bind(firmId).run();
+      // See FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES's own comment -- deleted
+      // here, before the loop's own firm_members DELETE, for the same
+      // circular-FK reasoning as primary_member_id above.
+      for (const table of FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES) {
+        await db
+          .prepare(`DELETE FROM ${table} WHERE member_id IN (SELECT id FROM firm_members WHERE firm_id = ?1)`)
+          .bind(firmId)
+          .run();
+      }
+      for (const table of FIRM_SCOPED_TABLES) {
+        await db.prepare(`DELETE FROM ${table} WHERE firm_id = ?1`).bind(firmId).run();
+      }
+      // RETAIN-2: see SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES's own comment --
+      // subscriber-scoped, not firm-scoped, so reached via a subquery rather
+      // than FIRM_SCOPED_TABLES's flat WHERE firm_id = ?1, and must run
+      // before the subscribers DELETE below or the subquery finds nothing.
+      for (const table of SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES) {
+        await db
+          .prepare(`DELETE FROM ${table} WHERE subscriber_id IN (SELECT id FROM subscribers WHERE firm_id = ?1)`)
+          .bind(firmId)
+          .run();
+      }
+      await db.prepare(`DELETE FROM subscribers WHERE firm_id = ?1`).bind(firmId).run();
+      // RETAIN-4 (AuditLab, HIGH, 2026-10-02): stripe_webhook_events is
+      // deliberately RETAINED (migration 0018's own comment -- a raw
+      // Stripe idempotency/audit ledger; erasing it could let a late-
+      // redelivered webhook for this firm be reprocessed as new), but its
+      // firm_id is an ENFORCED foreign key into firms(id) with no ON
+      // DELETE action, and nothing released it -- so the DELETE FROM
+      // firms below threw SQLITE_CONSTRAINT_FOREIGNKEY for any firm that
+      // ever had a Stripe event (every paying firm), leaving it half-
+      // deleted. recordWebhookEventIfNew()'s own docstring: idempotency
+      // keys on `id` (the PRIMARY KEY), never firm_id, so nulling it here
+      // doesn't weaken the duplicate-redelivery guard the ledger exists
+      // for -- the column is already nullable and already written null
+      // for non-firm events. Must run BEFORE the firms DELETE, or the
+      // WHERE clause's match is gone along with the row it would have
+      // matched.
+      await db.prepare(`UPDATE stripe_webhook_events SET firm_id = NULL WHERE firm_id = ?1`).bind(firmId).run();
+      await db.prepare(`DELETE FROM firms WHERE id = ?1`).bind(firmId).run();
+      deleted.push(firmId);
+    } catch (err) {
+      console.log(`[hard-delete-firm-failed] firmId=${firmId} err=${String(err)}`);
     }
-    // migration 0045: firms.primary_member_id is a foreign key INTO
-    // firm_members, which is itself firm-scoped and about to be deleted
-    // by the loop below (firm_members.firm_id -> firms.id, the other
-    // direction) -- a genuine circular reference between the two tables.
-    // Cleared here, before either delete, or the firm_members DELETE
-    // below fails its FK constraint while firms.primary_member_id still
-    // points at the row being removed.
-    await db.prepare(`UPDATE firms SET primary_member_id = NULL WHERE id = ?1`).bind(firmId).run();
-    // See FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES's own comment -- deleted
-    // here, before the loop's own firm_members DELETE, for the same
-    // circular-FK reasoning as primary_member_id above.
-    for (const table of FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES) {
-      await db
-        .prepare(`DELETE FROM ${table} WHERE member_id IN (SELECT id FROM firm_members WHERE firm_id = ?1)`)
-        .bind(firmId)
-        .run();
-    }
-    for (const table of FIRM_SCOPED_TABLES) {
-      await db.prepare(`DELETE FROM ${table} WHERE firm_id = ?1`).bind(firmId).run();
-    }
-    // RETAIN-2: see SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES's own comment --
-    // subscriber-scoped, not firm-scoped, so reached via a subquery rather
-    // than FIRM_SCOPED_TABLES's flat WHERE firm_id = ?1, and must run
-    // before the subscribers DELETE below or the subquery finds nothing.
-    for (const table of SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES) {
-      await db
-        .prepare(`DELETE FROM ${table} WHERE subscriber_id IN (SELECT id FROM subscribers WHERE firm_id = ?1)`)
-        .bind(firmId)
-        .run();
-    }
-    await db.prepare(`DELETE FROM subscribers WHERE firm_id = ?1`).bind(firmId).run();
-    await db.prepare(`DELETE FROM firms WHERE id = ?1`).bind(firmId).run();
   }
-  return ids;
+  return deleted;
 }
 
 /**

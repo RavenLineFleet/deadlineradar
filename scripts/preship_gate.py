@@ -5644,6 +5644,62 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
+# RETAIN-4 (AuditLab, HIGH, 2026-10-02): deliberately_excluded above is doing
+# two different jobs at once -- "not the firm's data to erase" and "safe to
+# ignore when deleting a firm" -- and stripe_webhook_events is the one
+# member where those diverge: it IS genuinely retained, but it ALSO holds an
+# enforced firm_id FK into firms(id) with no ON DELETE action, so retaining
+# it without releasing that FK made every paying firm (any firm with a
+# Stripe event) un-deletable. "firms" (the root row, deleted outright) and
+# "subscribers" (its own dedicated DELETE) don't need this -- this set is
+# only for a table that is BOTH retained AND FK-linked to the row being
+# deleted.
+RETAINED_TABLES_REQUIRING_FK_RELEASE = {"stripe_webhook_events"}
+
+
+def check_retained_table_fk_released(repo_root: Path) -> list[str]:
+    """RETAIN-4: asserts hardDeleteExpiredFirms() releases firm_id on every
+    table in RETAINED_TABLES_REQUIRING_FK_RELEASE -- an `UPDATE ... SET
+    firm_id = NULL WHERE firm_id = ?1`, the same statement shape migration
+    0045's primary_member_id release already uses for the analogous
+    circular-FK problem one table over -- and that it runs BEFORE the
+    `DELETE FROM firms`, not just somewhere in the function. A release
+    statement after the firms DELETE would never match anything: the row
+    the WHERE clause is looking for is already gone."""
+    store_ts = repo_root / "worker" / "src" / "store.ts"
+    if not store_ts.exists():
+        print("  (skipping retained-table-fk-released check -- worker/ tree not present in this checkout)")
+        return []
+    text = store_ts.read_text(encoding="utf-8")
+
+    m = re.search(r"export async function hardDeleteExpiredFirms\b[\s\S]*?\n\}", text)
+    if not m:
+        return ["[RETAIN-FK] hardDeleteExpiredFirms() not found in worker/src/store.ts -- can't verify FK release"]
+    body = m.group(0)
+
+    firms_delete_match = re.search(r"DELETE FROM firms\b", body)
+    if not firms_delete_match:
+        return ["[RETAIN-FK] hardDeleteExpiredFirms() has no `DELETE FROM firms` -- can't verify FK-release ordering"]
+
+    errors = []
+    for table in sorted(RETAINED_TABLES_REQUIRING_FK_RELEASE):
+        release_match = re.search(
+            rf"UPDATE\s+{re.escape(table)}\s+SET\s+firm_id\s*=\s*NULL\s+WHERE\s+firm_id\s*=\s*\?1", body
+        )
+        if not release_match:
+            errors.append(
+                f"[RETAIN-FK] {table} is retained (never deleted) but its firm_id FK into firms(id) is "
+                "never released in hardDeleteExpiredFirms() -- the firms DELETE will throw "
+                "SQLITE_CONSTRAINT_FOREIGNKEY for any firm with a row here"
+            )
+        elif release_match.start() > firms_delete_match.start():
+            errors.append(
+                f"[RETAIN-FK] {table}'s firm_id release runs AFTER `DELETE FROM firms` in "
+                "hardDeleteExpiredFirms() -- too late to prevent the FK violation"
+            )
+    return errors
+
+
 # GATE-8 (AuditLab, 2026-08-21, LOW, self-directed): the original pattern
 # only matched backtick-delimited SQL literals. This codebase also writes
 # SQL as `.prepare("...")` with double quotes (stop(), confirmIfPending(),
@@ -7641,6 +7697,7 @@ def main():
     all_errors += check_reminder_threshold_authorities_sync(repo_root)
     all_errors += check_document_size_limit_sync(repo_root)
     all_errors += check_retention_coverage(repo_root)
+    all_errors += check_retained_table_fk_released(repo_root)
     all_errors += check_snoozed_until_cleared_on_cycle_bump(repo_root)
     all_errors += check_sitemap_completeness(html_files, docs_dir)
     all_errors += check_noindex_set_matches_intent(html_files, docs_dir, repo_root)

@@ -524,6 +524,52 @@ describe("store.hardDeleteExpiredFirms", () => {
     expect(backupCodesAfter).toBeNull();
   });
 
+  // RETAIN-4 (AuditLab, HIGH, 2026-10-02): stripe_webhook_events.firm_id is
+  // an enforced FK into firms(id) with no ON DELETE action, and the table
+  // is deliberately retained (never deleted) as a raw Stripe idempotency/
+  // audit ledger -- but nothing released that FK, so the final `DELETE
+  // FROM firms` below threw SQLITE_CONSTRAINT_FOREIGNKEY for any firm that
+  // ever had a Stripe event (every paying firm), leaving it half-deleted.
+  // Because the sweep was one `for` loop with no per-firm try/catch, that
+  // throw also propagated out of the whole function before it could
+  // return -- silently stopping every OTHER firm queued behind it in the
+  // same pass too (queuedFirmId below, proving the loop isolation fix as
+  // a side effect of proving the FK fix, not a separate mocked scenario).
+  it("RETAIN-4: a firm with a stripe_webhook_events row deletes cleanly (FK released, row retained), and doesn't block a firm queued behind it", async () => {
+    const stripeFirmId = await deletedFirm(31);
+    const queuedFirmId = await deletedFirm(31);
+
+    const eventId = `evt_retain4_${Date.now()}`;
+    const recorded = await store.recordWebhookEventIfNew(env.DB, eventId, "invoice.paid", stripeFirmId);
+    expect(recorded).toBe(true);
+    expect(
+      await env.DB.prepare("SELECT firm_id FROM stripe_webhook_events WHERE id = ?1").bind(eventId).first<{ firm_id: string | null }>()
+    ).toMatchObject({ firm_id: stripeFirmId });
+
+    // The real regression: on the old code, this call threw and never
+    // returned at all. Both ids present (not just the first) is the proof
+    // the per-firm isolation works too, not just the FK release.
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    expect(deleted).toContain(stripeFirmId);
+    expect(deleted).toContain(queuedFirmId);
+    expect(await store.getFirmById(env.DB, stripeFirmId)).toBeNull();
+    expect(await store.getFirmById(env.DB, queuedFirmId)).toBeNull();
+
+    // The ledger row survives -- retained, not erased -- but its FK is
+    // released: firm_id is NULL, not still pointing at a deleted firm.
+    const eventRow = await env.DB.prepare("SELECT firm_id FROM stripe_webhook_events WHERE id = ?1")
+      .bind(eventId)
+      .first<{ firm_id: string | null }>();
+    expect(eventRow).not.toBeNull();
+    expect(eventRow!.firm_id).toBeNull();
+
+    // A late redelivery of the SAME event id is still rejected as not-new
+    // -- nulling firm_id must not weaken the idempotency guard the ledger
+    // exists for (recordWebhookEventIfNew keys on `id`, the PRIMARY KEY).
+    const redelivered = await store.recordWebhookEventIfNew(env.DB, eventId, "invoice.paid", null);
+    expect(redelivered).toBe(false);
+  });
+
   it("never touches a firm that hasn't been deleted at all", async () => {
     const { id: firmId } = await store.createFirm(env.DB, { name: "Untouched LLC", adminEmail: `untouched-${Date.now()}@example.com` });
     const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
