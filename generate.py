@@ -3737,7 +3737,7 @@ def _extra_fields_html(state_slug: str, records: list[dict], as_of: date) -> str
         return f"""<label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="{fmt_date_iso(min_date)}" max="{fmt_date_iso(max_date)}" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p>"""
     if state_slug in ANCHOR_DATE_PLUS_TERM_STATES:
         # Distinct from "bring your own date" above: this one is REAL
@@ -3768,7 +3768,7 @@ years after this date, same month and day, repeating.</p>"""
 </select>
 <label for="anchor_date">Original certificate date (individual license only)</label>
 <input type="date" id="anchor_date" name="anchor_date" max="{fmt_date_iso(as_of)}">
-<p class="field-hint">Only needed if you selected Individual CPA license above -- find it on your
+<p class="field-hint">Only needed if you selected Individual CPA license above &mdash; find it on your
 original Florida CPA certificate. Leave blank if you selected Firm license.</p>"""
     if state_slug in ANCHOR_YEAR_CHOSEN_TERM_SIGNUP_STATES:
         # Guam's individual and firm records use the IDENTICAL formula
@@ -3788,7 +3788,7 @@ original Florida CPA certificate. Leave blank if you selected Firm license.</p>"
   {term_options_html}
 </select>
 <p class="field-hint">Your renewal always lands on {esc(month_name)} {cfg['day']}, that many years
-after your anchor year -- works whether you mean your own individual license or your firm's permit.</p>"""
+after your anchor year &mdash; works whether you mean your own individual license or your firm's permit.</p>"""
     if state_slug in ANCHOR_YEAR_TERM_SIGNUP_STATES:
         # Washington's individual and firm records compute identically, so
         # one shared anchor-year field covers both -- see
@@ -3839,7 +3839,7 @@ after your anchor year -- works whether you mean your own individual license or 
         return f"""<label for="parity_number">{esc(cfg['input_label'])}</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="{esc(cfg['input_hint'])}">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p>"""
     computed = [r for r in records if r.get("next_deadline_computed")]
     if len(computed) > 1:
@@ -8113,7 +8113,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
        interstitial confirm page plus a "View the demo" button, two clicks.
        The valuable, true half (no signup, no credentials) stays; dropped
        the specific count instead of fixing the flow to match a number. -->
-  A shared account, seeded with sample staff &mdash; no signup, no credentials to type -- just click through.</p>
+  A shared account, seeded with sample staff &mdash; no signup, no credentials to type, just click through.</p>
 </div>
 {hero_right_html}
 </div>
@@ -8187,8 +8187,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across all datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
-  <p class="trust-footnote">In the {_cov["byod"]} jurisdictions where we can't compute a date from a
-  personal fact or a published rule, you enter the date on your license and we track it from there.</p>
+  <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
+  license type or cohort, you enter the date on your license and we track it from there.</p>
 </section>"""
 
     # ShopLab cold-read (2026-08-20, orchestrator-approved, "same fix batch" as
@@ -9921,14 +9921,14 @@ _INDIVIDUAL_FAQ = [
     (
         "Is this actually free?",
         "Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check "
-        "(one person, one target state) are all free, no card required, no time limit -- for any "
+        "(one person, one target state) are all free, no card required, no time limit, for any "
         "account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map "
         "and firm-level registration check.",
     ),
     (
         "How do you actually verify the dates?",
         "Every renewal date is sourced to the codified statute or board rule where we could confirm "
-        "it, and clearly labelled where we could only confirm it against the board's own page -- "
+        "it, and clearly labelled where we could only confirm it against the board's own page, "
         "cited and rechecked on a regular freshness cadence, never guessed or estimated. "
         "<a href=\"methodology/\">See exactly how, state by state.</a>",
     ),
@@ -9938,7 +9938,7 @@ _INDIVIDUAL_FAQ = [
         "unsubscribing is one click, anytime, with no account or login required.",
     ),
     (
-        "My state's rule depends on my birth month (or I already know my exact date) -- can you still track it?",
+        "My state's rule depends on my birth month (or I already know my exact date) — can you still track it?",
         "Yes. Some states compute your deadline from your birth month automatically; others let you "
         "enter your own known renewal or expiration date directly (\"bring your own date\"). Either "
         "way it shows up as one tracked deadline with the same escalating reminders.",
@@ -9950,8 +9950,8 @@ _INDIVIDUAL_FAQ = [
         "Always confirm your exact renewal date with your own board if you're ever unsure.",
     ),
     (
-        "I'm tracking a whole firm's staff, not just my own license -- is there something for that?",
-        "Yes -- see the <a href=\"for-firms/\">firm overview</a>. Roster, calendar, CPE tracking, and "
+        "I'm tracking a whole firm's staff, not just my own license — is there something for that?",
+        "Yes — see the <a href=\"for-firms/\">firm overview</a>. Roster, calendar, CPE tracking, and "
         "individual Practice Privilege Check are free there too; paid tiers add a multistate map and "
         "the firm-level registration check.",
     ),
@@ -10233,7 +10233,7 @@ only confirm it against the board's own page &mdash; not a recurring human check
 member's status.</p>
 <p>Card checkout works today across every tier, Essentials through Enterprise &mdash; create your firm
 account above and pick a plan, no invoice or sales call required. More than 35 staff?
-<a href="mailto:{esc(CONTACT_EMAIL)}">Contact us</a> -- no formula, we'll work out what fits. Not ready
+<a href="mailto:{esc(CONTACT_EMAIL)}">Contact us</a> &mdash; no formula, we'll work out what fits. Not ready
 to create an account yet? <a href="#firm-lead">Leave your email instead</a> and we'll follow up.</p>
 
 <div class="remind-panel" id="firm-lead">
@@ -24705,13 +24705,13 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
 - {hint_counts["birth_month"]} renew on a birth-month cycle (the exact date depends on your birth
   month, computed automatically once you provide it).
 - {hint_counts["varies"]} depend on your specific license type or cohort, or have no
-  independently verifiable published date -- the visitor enters their own license's date and we
+  independently verifiable published date, so the visitor enters their own license's date and we
   track it from there rather than guess or round up.
 
 ## How dates are verified
 
 Every published date is checked against two independent sources where both exist: the state board's
-own page, and the actual codified statute or administrative rule the requirement derives from -- not
+own page, and the actual codified statute or administrative rule the requirement derives from, not
 a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
 own page with no corresponding codified text to confirm it against; those dates are shown but clearly
 labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
@@ -24734,7 +24734,7 @@ labeled "Board-page sourced only" rather than presented as independently confirm
 
 ## What this site does not do
 
-Not legal, tax, or professional advice -- every page carries that disclosure. We do not verify CPE
+Not legal, tax, or professional advice; every page carries that disclosure. We do not verify CPE
 hour completion (self-reported wherever it appears) or a state's proposed-but-not-yet-effective rule
 changes; we wait for a rule to actually take effect before citing it as current.
 

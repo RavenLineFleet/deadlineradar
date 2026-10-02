@@ -22,7 +22,7 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "Moose & Raven LLC", "url": "https://deadline-radar.com"}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "name": "Deadline-Radar", "url": "https://deadline-radar.com", "publisher": {"@type": "Organization", "name": "Moose & Raven LLC"}}</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is this actually free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check (one person, one target state) are all free, no card required, no time limit -- for any account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map and firm-level registration check."}}, {"@type": "Question", "name": "How do you actually verify the dates?", "acceptedAnswer": {"@type": "Answer", "text": "Every renewal date is sourced to the codified statute or board rule where we could confirm it, and clearly labelled where we could only confirm it against the board's own page -- cited and rechecked on a regular freshness cadence, never guessed or estimated. See exactly how, state by state."}}, {"@type": "Question", "name": "Will you sell my email or spam me?", "acceptedAnswer": {"@type": "Answer", "text": "No. We only email you deadline reminders. We never sell or share your address, and unsubscribing is one click, anytime, with no account or login required."}}, {"@type": "Question", "name": "My state's rule depends on my birth month (or I already know my exact date) -- can you still track it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Some states compute your deadline from your birth month automatically; others let you enter your own known renewal or expiration date directly (\"bring your own date\"). Either way it shows up as one tracked deadline with the same escalating reminders."}}, {"@type": "Question", "name": "Are you affiliated with my state board of accountancy?", "acceptedAnswer": {"@type": "Answer", "text": "No. Deadline-Radar is an independent reminder and license-tracking service, not affiliated with, endorsed by, or connected to any state board of accountancy, NASBA, or the AICPA. Always confirm your exact renewal date with your own board if you're ever unsure."}}, {"@type": "Question", "name": "I'm tracking a whole firm's staff, not just my own license -- is there something for that?", "acceptedAnswer": {"@type": "Answer", "text": "Yes -- see the firm overview. Roster, calendar, CPE tracking, and individual Practice Privilege Check are free there too; paid tiers add a multistate map and the firm-level registration check."}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is this actually free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check (one person, one target state) are all free, no card required, no time limit, for any account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map and firm-level registration check."}}, {"@type": "Question", "name": "How do you actually verify the dates?", "acceptedAnswer": {"@type": "Answer", "text": "Every renewal date is sourced to the codified statute or board rule where we could confirm it, and clearly labelled where we could only confirm it against the board's own page, cited and rechecked on a regular freshness cadence, never guessed or estimated. See exactly how, state by state."}}, {"@type": "Question", "name": "Will you sell my email or spam me?", "acceptedAnswer": {"@type": "Answer", "text": "No. We only email you deadline reminders. We never sell or share your address, and unsubscribing is one click, anytime, with no account or login required."}}, {"@type": "Question", "name": "My state's rule depends on my birth month (or I already know my exact date) — can you still track it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Some states compute your deadline from your birth month automatically; others let you enter your own known renewal or expiration date directly (\"bring your own date\"). Either way it shows up as one tracked deadline with the same escalating reminders."}}, {"@type": "Question", "name": "Are you affiliated with my state board of accountancy?", "acceptedAnswer": {"@type": "Answer", "text": "No. Deadline-Radar is an independent reminder and license-tracking service, not affiliated with, endorsed by, or connected to any state board of accountancy, NASBA, or the AICPA. Always confirm your exact renewal date with your own board if you're ever unsure."}}, {"@type": "Question", "name": "I'm tracking a whole firm's staff, not just my own license — is there something for that?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — see the firm overview. Roster, calendar, CPE tracking, and individual Practice Privilege Check are free there too; paid tiers add a multistate map and the firm-level registration check."}}]}</script>
 
 <link rel="stylesheet" href="/styles.css?v=26b87022c8">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
@@ -86,7 +86,7 @@
   
   <a href="/api/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo: Roster view &rarr;</a>
   
-  A shared account, seeded with sample staff &mdash; no signup, no credentials to type -- just click through.</p>
+  A shared account, seeded with sample staff &mdash; no signup, no credentials to type, just click through.</p>
 </div>
 <div class="hero-right">
   <div class="hfc-wrap" id="hfc-wrap">
@@ -312,8 +312,8 @@
     <div class="item"><span class="n">246 of 246</span><span class="lbl">dated records across all datasets re-checked in the last 30 days</span></div>
     
   </div>
-  <p class="trust-footnote">In the 6 jurisdictions where we can't compute a date from a
-  personal fact or a published rule, you enter the date on your license and we track it from there.</p>
+  <p class="trust-footnote">In the 18 jurisdictions that depend on your specific
+  license type or cohort, you enter the date on your license and we track it from there.</p>
 </section>
 <section class="band-section dr-reveal" style="border-top:0; padding-top:0; margin-top:0;">
   <p class="eyebrow">What a lookup actually gives you</p>
@@ -539,18 +539,18 @@ verified renewal rule, with a link back to the official source and a "last verif
 <div class="faq-list">
 <details class="faq-item">
   <summary>Is this actually free?</summary>
-  <p>Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check (one person, one target state) are all free, no card required, no time limit -- for any account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map and firm-level registration check.</p>
+  <p>Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check (one person, one target state) are all free, no card required, no time limit, for any account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map and firm-level registration check.</p>
 </details>
 <details class="faq-item">
   <summary>How do you actually verify the dates?</summary>
-  <p>Every renewal date is sourced to the codified statute or board rule where we could confirm it, and clearly labelled where we could only confirm it against the board's own page -- cited and rechecked on a regular freshness cadence, never guessed or estimated. <a href="methodology/">See exactly how, state by state.</a></p>
+  <p>Every renewal date is sourced to the codified statute or board rule where we could confirm it, and clearly labelled where we could only confirm it against the board's own page, cited and rechecked on a regular freshness cadence, never guessed or estimated. <a href="methodology/">See exactly how, state by state.</a></p>
 </details>
 <details class="faq-item">
   <summary>Will you sell my email or spam me?</summary>
   <p>No. We only email you deadline reminders. We never sell or share your address, and unsubscribing is one click, anytime, with no account or login required.</p>
 </details>
 <details class="faq-item">
-  <summary>My state&#x27;s rule depends on my birth month (or I already know my exact date) -- can you still track it?</summary>
+  <summary>My state&#x27;s rule depends on my birth month (or I already know my exact date) — can you still track it?</summary>
   <p>Yes. Some states compute your deadline from your birth month automatically; others let you enter your own known renewal or expiration date directly ("bring your own date"). Either way it shows up as one tracked deadline with the same escalating reminders.</p>
 </details>
 <details class="faq-item">
@@ -558,8 +558,8 @@ verified renewal rule, with a link back to the official source and a "last verif
   <p>No. Deadline-Radar is an independent reminder and license-tracking service, not affiliated with, endorsed by, or connected to any state board of accountancy, NASBA, or the AICPA. Always confirm your exact renewal date with your own board if you're ever unsure.</p>
 </details>
 <details class="faq-item">
-  <summary>I&#x27;m tracking a whole firm&#x27;s staff, not just my own license -- is there something for that?</summary>
-  <p>Yes -- see the <a href="for-firms/">firm overview</a>. Roster, calendar, CPE tracking, and individual Practice Privilege Check are free there too; paid tiers add a multistate map and the firm-level registration check.</p>
+  <summary>I&#x27;m tracking a whole firm&#x27;s staff, not just my own license — is there something for that?</summary>
+  <p>Yes — see the <a href="for-firms/">firm overview</a>. Roster, calendar, CPE tracking, and individual Practice Privilege Check are free there too; paid tiers add a multistate map and the firm-level registration check.</p>
 </details>
 </div>
 </section>
@@ -721,7 +721,7 @@ verified renewal rule, with a link back to the official source and a "last verif
 </select>
 <label for="anchor_date">Original certificate date (individual license only)</label>
 <input type="date" id="anchor_date" name="anchor_date" max="2026-10-02">
-<p class="field-hint">Only needed if you selected Individual CPA license above -- find it on your
+<p class="field-hint">Only needed if you selected Individual CPA license above &mdash; find it on your
 original Florida CPA certificate. Leave blank if you selected Firm license.</p></div>
 <div class="signup-extra-fields" data-for-state="georgia" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -740,11 +740,11 @@ original Florida CPA certificate. Leave blank if you selected Firm license.</p><
   <option value="3">3 years</option>
 </select>
 <p class="field-hint">Your renewal always lands on June 30, that many years
-after your anchor year -- works whether you mean your own individual license or your firm's permit.</p></div>
+after your anchor year &mdash; works whether you mean your own individual license or your firm's permit.</p></div>
 <div class="signup-extra-fields" data-for-state="idaho" hidden><label for="parity_number">Birth year</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="e.g. 1985">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="illinois" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -767,12 +767,12 @@ display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="kansas" hidden><label for="parity_number">Kansas CPA certificate number</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="Just the last digit works too.">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="kentucky" hidden><label for="parity_number">Kentucky CPA license number</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="Just the last digit works too.">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="louisiana" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -783,12 +783,12 @@ display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="massachusetts" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="michigan" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="minnesota" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -811,7 +811,7 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="nebraska" hidden><label for="parity_number">Birth year</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="e.g. 1985">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="nevada" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -827,7 +827,7 @@ years after this date, same month and day, repeating.</p></div>
 <div class="signup-extra-fields" data-for-state="new-jersey" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="new-mexico" hidden><label for="birth_month">Birth month</label>
 <select id="birth_month" name="birth_month" required>
@@ -849,7 +849,7 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="new-york" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="north-dakota" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -890,7 +890,7 @@ years after this date, same month and day, repeating.</p></div>
 <div class="signup-extra-fields" data-for-state="oregon" hidden><label for="parity_number">Oregon CPA license number</label>
 <input type="text" inputmode="numeric" id="parity_number" name="parity_number" required
   placeholder="Just the last digit works too.">
-<p class="field-hint">Only whether it's odd or even changes your renewal year -- we never store or
+<p class="field-hint">Only whether it's odd or even changes your renewal year &mdash; we never store or
 display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="puerto-rico" hidden><label for="anchor_year">Year of your last renewal (or initial licensure, if never renewed)</label>
 <input type="number" inputmode="numeric" id="anchor_year" name="anchor_year"
@@ -900,7 +900,7 @@ display the number itself, just its parity.</p></div>
 <div class="signup-extra-fields" data-for-state="rhode-island" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="south-carolina" hidden><label for="license_type_id">Which license?</label>
 <select id="license_type_id" name="license_type_id" required>
@@ -911,7 +911,7 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="tennessee" hidden><label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
   min="2026-10-03" max="2030-04-04" required>
-<p class="field-hint">Enter the expiration date printed on your license -- we can't look this one
+<p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
 <div class="signup-extra-fields" data-for-state="texas" hidden><label for="birth_month">Birth month</label>
 <select id="birth_month" name="birth_month" required>
