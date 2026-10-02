@@ -64,6 +64,13 @@ def ensure_worktree():
     sh("git", "fetch", "origin", "main")
     sh("git", "checkout", "--detach", "--force", "origin/main")
     sh("git", "clean", "-fd", "data", "docs")
+    # generate.py refuses to build without terser (AuditLab LEAK-1); node_modules is untracked, so a
+    # fresh job worktree needs one install. Survives later resets (clean only touches data/ and docs/).
+    js = os.path.join(JOB_DIR, "scripts", "js_tools")
+    if not os.path.exists(os.path.join(js, "node_modules", "terser", "bin", "terser")):
+        npm = shutil.which("npm") or "npm"
+        sh(npm, "ci", "--no-audit", "--no-fund", cwd=js)
+        log("installed scripts/js_tools node_modules (npm ci)")
 
 
 def _publish_status(deployed: bool, reason: str = ""):
