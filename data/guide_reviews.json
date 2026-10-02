@@ -121,6 +121,10 @@
     "alaska-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-25",
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+    },
+    "nevada-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-10-02",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
     }
   }
 }

@@ -397,16 +397,29 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
 # practice-privilege-check -- the hand-written "trust" pages, never
 # data-driven), advisory everywhere else until that backlog is worked down
 # deliberately, then promote to a full hard gate.
+#
+# Extended same day (Orchestrator, 2026-10-02, Nevada round-2 approval): a
+# published blog post (Alaska) had 18 live double hyphens the gate never
+# caught, because every post is hand-written prose, same class as the 6
+# pages above -- there is no reason blog posts should sit in the advisory
+# bucket with the data-driven backlog. `docs/blog/*/index.html` is globbed
+# dynamically rather than listed by slug, so next Friday's post is covered
+# without anyone remembering to add it here.
 _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "index.html", "for-firms/index.html", "pricing/index.html",
     "methodology/index.html", "llms.txt", "practice-privilege-check/index.html",
 }
 
 
+def _double_hyphen_hard_gate_paths(docs_dir: Path) -> set[Path]:
+    paths = {docs_dir / rel for rel in _DOUBLE_HYPHEN_HARD_GATE_PAGES}
+    paths.update((docs_dir / "blog").glob("*/index.html"))
+    return paths
+
+
 def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
     errors = []
-    for rel in _DOUBLE_HYPHEN_HARD_GATE_PAGES:
-        f = docs_dir / rel
+    for f in sorted(_double_hyphen_hard_gate_paths(docs_dir)):
         if not f.exists():
             continue
         prose = _extract_rendered_prose(f.read_text(encoding="utf-8")) if f.suffix == ".html" else f.read_text(encoding="utf-8")
@@ -422,7 +435,7 @@ def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
 def print_double_hyphen_backlog_advisory(html_files: list[Path], docs_dir: Path) -> None:
     print("\n--- double-hyphen-in-prose advisory (does not affect gate exit code -- see COPY-23's own "
           "comment for why only the hand-copy pages are a hard gate) ---")
-    hard_gate_paths = {docs_dir / rel for rel in _DOUBLE_HYPHEN_HARD_GATE_PAGES}
+    hard_gate_paths = _double_hyphen_hard_gate_paths(docs_dir)
     count = 0
     for f in html_files:
         if f in hard_gate_paths:
@@ -430,7 +443,7 @@ def print_double_hyphen_backlog_advisory(html_files: list[Path], docs_dir: Path)
         prose = _extract_rendered_prose(f.read_text(encoding="utf-8"))
         count += len(_PROSE_DOUBLE_HYPHEN_RE.findall(prose))
     print(f"  {count} instance(s) remaining outside the hard-gated pages (data_gap_note/verification "
-          f"prose and some blog posts) -- tracked as a backlog, not blocking this ship.")
+          f"prose) -- tracked as a backlog, not blocking this ship.")
 
 
 # The Florida deadline-calculator bug (orchestrator, 2026-08-27): `computation.note`
