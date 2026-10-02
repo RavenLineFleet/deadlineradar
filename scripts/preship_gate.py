@@ -4313,6 +4313,110 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     return errors
 
 
+def _noindex_paths(html_files: list[Path], docs_dir: Path) -> set[str]:
+    """Shared by check_sitemap_completeness and check_noindex_set_matches_intent
+    (CRAWL-8) so the two checks can never disagree about what "noindexed"
+    means. Matches any robots directive whose comma-separated token list
+    includes "noindex" (SEO fix, 2026-10-02: a bare `content="noindex,follow"`
+    doesn't contain the literal substring `content="noindex"`, so the
+    original exact-match version misread those pages as indexable)."""
+    paths: set[str] = set()
+    for f in html_files:
+        if f.name != "index.html":
+            continue
+        text = f.read_text(encoding="utf-8")
+        robots_match = re.search(r'<meta\s+name="robots"\s+content="([^"]*)"', text)
+        if robots_match and "noindex" in {t.strip() for t in robots_match.group(1).split(",")}:
+            rel = f.relative_to(docs_dir).parent.as_posix()
+            paths.add("/" if rel == "." else f"/{rel}/")
+    return paths
+
+
+# CRAWL-8 (AuditLab, 2026-10-02): check_sitemap_completeness treats noindex as a
+# blanket exemption from the sitemap requirement -- correct for the 34 thin
+# reinstatement pages by design, but nothing anywhere asserted WHICH pages are
+# *supposed* to carry it. Proved by simulation: a throwaway /nevada/
+# noindex-added + sitemap-removal produced 0 gate errors, identical to
+# baseline -- scope #9's exact failure mode, reachable by a stray template
+# edit or a wrong slug added to SEO_NOINDEX_REINSTATEMENT_SLUGS. Fix is the
+# same idiom as BLOG-1's GRANDFATHERED.txt assertion below: the INTENDED
+# noindex set must equal the ACTUAL one, both directions. The slug set's
+# length+hash are pinned too, so adding or removing a slug is a deliberate
+# two-constant edit here, not a silent one in generate.py alone.
+NOINDEX_REINSTATEMENT_SLUG_COUNT = 34
+NOINDEX_REINSTATEMENT_SLUG_SHA256 = "39d1c3ff763d4d45a37e4f5348b6b68563dbb6653882ec9f08f9743e4f5d1855"
+
+# Signed-in app screens and mid-authentication utility pages -- noindexed for
+# an entirely different reason than the thinness exemption above (see each
+# builder's own "`noindex`: ..." docstring line in generate.py), so listed
+# explicitly here rather than derived from any single constant.
+NOINDEX_APP_AUTH_ALLOWLIST: frozenset[str] = frozenset({
+    "/firm-dashboard/", "/firm-login/2fa/", "/firm-mobility/", "/my/", "/set-password/",
+})
+
+
+def check_noindex_set_matches_intent(
+    html_files: list[Path], docs_dir: Path, repo_root: Path,
+    reinstatement_slugs: frozenset[str] | None = None,
+) -> list[str]:
+    """CRAWL-8: the actual noindexed set in docs/ must equal the intended one
+    -- SEO_NOINDEX_REINSTATEMENT_SLUGS's reinstatement pages plus
+    NOINDEX_APP_AUTH_ALLOWLIST -- exactly, both directions. A page missing
+    from `actual` was never built, or lost its noindex tag; a page present in
+    `actual` but not `expected` was silently de-indexed by a template edit or
+    an unreviewed slug addition. `reinstatement_slugs` is injectable for
+    tests; production leaves it None and imports the real generate.py."""
+    if reinstatement_slugs is None:
+        sys.path.insert(0, str(repo_root))
+        try:
+            import generate as generate_module
+        except ImportError:
+            return [
+                "[NOINDEX-GATE] generate.py could not be imported -- this check is measuring "
+                "nothing and must be repaired, not silently skipped"
+            ]
+        reinstatement_slugs = generate_module.SEO_NOINDEX_REINSTATEMENT_SLUGS
+
+    errors = []
+    if len(reinstatement_slugs) != NOINDEX_REINSTATEMENT_SLUG_COUNT:
+        errors.append(
+            f"[NOINDEX-GATE] SEO_NOINDEX_REINSTATEMENT_SLUGS has {len(reinstatement_slugs)} slug(s), "
+            f"expected {NOINDEX_REINSTATEMENT_SLUG_COUNT} -- changing this set requires deliberately "
+            f"updating NOINDEX_REINSTATEMENT_SLUG_COUNT and NOINDEX_REINSTATEMENT_SLUG_SHA256 in "
+            f"preship_gate.py too, not just generate.py"
+        )
+    digest = hashlib.sha256(("\n".join(sorted(reinstatement_slugs)) + "\n").encode("utf-8")).hexdigest()
+    if digest != NOINDEX_REINSTATEMENT_SLUG_SHA256:
+        errors.append(
+            f"[NOINDEX-GATE] SEO_NOINDEX_REINSTATEMENT_SLUGS content hash {digest} != expected "
+            f"{NOINDEX_REINSTATEMENT_SLUG_SHA256} -- an undeclared edit to the set, or the pinned "
+            f"constant is stale"
+        )
+
+    expected = {f"/{slug}-cpa-license-reinstatement/" for slug in reinstatement_slugs} | NOINDEX_APP_AUTH_ALLOWLIST
+    actual = _noindex_paths(html_files, docs_dir)
+
+    if not actual:
+        return errors + [
+            "[NOINDEX-GATE] found ZERO noindexed built pages -- noindex-detection is measuring "
+            "nothing and must be repaired, not silently skipped"
+        ]
+
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    if missing:
+        errors.append(
+            f"[NOINDEX-GATE] {len(missing)} page(s) expected to be noindexed but are not (or weren't "
+            f"built): {', '.join(missing)}"
+        )
+    if extra:
+        errors.append(
+            f"[NOINDEX-GATE] {len(extra)} page(s) are noindexed but not in the intended set -- a page "
+            f"may have been silently de-indexed: {', '.join(extra)}"
+        )
+    return errors
+
+
 def check_sitemap_completeness(html_files: list[Path], docs_dir: Path) -> list[str]:
     """AuditLab CRAWL-2 (LOW, 2026-08-07): the third hand-maintained-list
     decay found in ~24 hours (after CRAWL-1's /terms/ omission and RETAIN-1's
@@ -4334,24 +4438,13 @@ def check_sitemap_completeness(html_files: list[Path], docs_dir: Path) -> list[s
     # /path/ from a URL like https://deadline-radar.com/path/
     sitemap_paths = {re.sub(r"^https?://[^/]+", "", u) for u in sitemap_urls}
 
-    indexable_paths: set[str] = set()
+    all_index_paths: set[str] = set()
     for f in html_files:
         if f.name != "index.html":
             continue
-        text = f.read_text(encoding="utf-8")
-        # SEO fix (2026-10-02): this used to match only the exact literal
-        # content="noindex" -- a real noindex,follow page (GrowthLab's
-        # thin-page fix) carries content="noindex,follow" instead, which
-        # doesn't contain that substring, so this check called those pages
-        # "indexable" and flagged them as missing from the sitemap even
-        # though excluding them from the sitemap is the whole point. Now
-        # matches any robots directive whose comma-separated token list
-        # includes "noindex", not just the single bare value.
-        robots_match = re.search(r'<meta\s+name="robots"\s+content="([^"]*)"', text)
-        if robots_match and "noindex" in {t.strip() for t in robots_match.group(1).split(",")}:
-            continue
         rel = f.relative_to(docs_dir).parent.as_posix()
-        indexable_paths.add("/" if rel == "." else f"/{rel}/")
+        all_index_paths.add("/" if rel == "." else f"/{rel}/")
+    indexable_paths = all_index_paths - _noindex_paths(html_files, docs_dir)
 
     # GATE-11 (AuditLab, 2026-08-22): both sides of this comparison are
     # derived sets -- a URL-regex or noindex-detection change that empties
@@ -7501,6 +7594,7 @@ def main():
     all_errors += check_retention_coverage(repo_root)
     all_errors += check_snoozed_until_cleared_on_cycle_bump(repo_root)
     all_errors += check_sitemap_completeness(html_files, docs_dir)
+    all_errors += check_noindex_set_matches_intent(html_files, docs_dir, repo_root)
     all_errors += check_email_transport_scope(repo_root)
     all_errors += check_demo_locked_email_coverage(repo_root)
     all_errors += check_demo_locked_mutation_coverage(repo_root)
