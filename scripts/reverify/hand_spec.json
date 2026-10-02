@@ -1,0 +1,1307 @@
+{
+ "colorado-renewal-fee": {
+  "manual": "fee_basis=board_confirmed_correspondence: $66 was confirmed by the Board by email; no public document states it (CRS title 12 / 3 CCR 705-1 set no amount). Re-confirm with the Board by hand."
+ },
+ "delaware-renewal-fee": {
+  "manual": "fee_usd is null by design (29 Del. C. 8735(c): the Division sets fees administratively; no published flat fee). Nothing numeric to re-verify; the gap note is checked by hand."
+ },
+ "illinois-renewal-fee": {
+  "manual": "fee_usd is null (no flat fee published in 68 IAC 1420.400); nothing numeric to re-verify."
+ },
+ "hawaii-renewal-fee": {
+  "combine": "sum",
+  "field": "fee_usd",
+  "derivation": "HAR 16-53-38(7)(A) biennial individual license renewal $52 + 16-53-38(12)(A)(iii) biennial Compliance Resolution Fund $100 = $152",
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "expect": 52,
+    "anchor": "Biennial renewal fees: (A) Individual public accountant or certified public accountant license"
+   },
+   {
+    "url": 0,
+    "kind": "fee",
+    "expect": 100,
+    "anchor": "license (i) Compliance resolution fund fee $ 50 (ii) Annual compliance resolution fund fee $ 50 (iii) Biennial compliance resolution fund fee"
+   }
+  ]
+ },
+ "idaho-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Re-Exam $25 Active License"
+   }
+  ]
+ },
+ "kentucky-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Pay a non-refundable renewal fee in the amount of"
+   }
+  ]
+ },
+ "new-hampshire-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years"
+   }
+  ]
+ },
+ "new-york-renewal-fee": {
+  "keep_auto": false,
+  "derivation": "NYSED fee chart, CPA row: 6th $ column (triennial registration renewal) = $292",
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Certified Public Accountant",
+    "window": 80,
+    "pattern": "(?:\\$\\s*[\\d,]+\\s+){5}\\$\\s*([\\d,]+)"
+   }
+  ]
+ },
+ "pennsylvania-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Accountancy Firm - $100.00 Certified Public Accountant -"
+   }
+  ]
+ },
+ "puerto-rico-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Renovación de individuo -"
+   }
+  ]
+ },
+ "tennessee-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Late Fee Additional Requirements Active"
+   }
+  ]
+ },
+ "alabama-reinstatement": {
+  "manual": "all three numeric fields are null (no published reinstatement fee or penalty CPE); nothing numeric to re-verify"
+ },
+ "delaware-reinstatement": {
+  "manual": "all three numeric fields are null (DE sets fees administratively); nothing numeric to re-verify"
+ },
+ "california-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "The delinquency fee for CPA licenses expiring after June 30, 2026 is"
+   }
+  ]
+ },
+ "connecticut-reinstatement": {
+  "keep_auto": false,
+  "derivation": "Regs. Conn. State Agencies 20-280-25: a lapsed licensee 'shall pay the current year's renewal fee for reinstatement' -> reinstatement fee = annual renewal fee $565",
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Initial Fee : $150.00 Annual Renewal Fee :"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "Applicants for license reinstatement must report completion of"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "Connecticut CPA license holders must take"
+   }
+  ]
+ },
+ "dc-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Company/Firm - $175.00 Reinstated License -"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "shall provide proof of having completed since the previous issuance of the license,"
+   }
+  ]
+ },
+ "georgia-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "(a) A reinstatement fee of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "of the completion of continuing professional education as specified below: 1."
+   }
+  ]
+ },
+ "indiana-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "In order to reinstate a certificate under this section, a licensee shall complete"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "Auditing (A&A).",
+    "window": 30
+   }
+  ]
+ },
+ "kentucky-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Check or money order in the amount of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "required for the applicant; (b) Include"
+   }
+  ]
+ },
+ "maine-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Board of Accountancy Certified Public Accountant Public Accountant Firm Branch 1 yr 1 yr 1 yr 1 yr"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "applies for reinstatement pursuant to 32 M.R.S. §12234(2) shall demonstrate completion of"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "The 80 hours of continuing professional education must include"
+   }
+  ]
+ },
+ "massachusetts-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "not been renewed for at least two renewal periods the applicant will be required to complete at least"
+   }
+  ]
+ },
+ "montana-reinstatement": {
+  "manual": "all three numeric fields are null; nothing numeric to re-verify"
+ },
+ "mississippi-reinstatement": {
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "MSBPA fee schedule: Board Processing Fee for Reinstatement of License $200 + Registration Fee for Reinstatement of License $110 = $310",
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": null,
+    "anchor": "Board Processing Fee for Reinstatement of License",
+    "expect": 200
+   },
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": null,
+    "anchor": "Registration Fee for Reinstatement of License",
+    "expect": 110
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "minimum CPE credit hours missed as a result of not being registered,"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "Rule 4.1.3. A minimum of"
+   }
+  ]
+ },
+ "nevada-reinstatement": {
+  "manual": "all three numeric fields are null by design (fee/CPE depend on lapse length, NAC 628); nothing numeric to re-verify"
+ },
+ "new-hampshire-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://gc.nh.gov/rules/state_agencies/plc1000.html",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years"
+   }
+  ]
+ },
+ "north-carolina-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Application to Reinstate NC CPA License to Active Status from Inactive Status"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "evidence of satisfactory completion of"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "of CPE courses during the 12 months immediately preceding the application for change of status."
+   }
+  ]
+ },
+ "ohio-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "must first complete continuing education as follows: (1) A total of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "prior to application for an Ohio permit. (2) Within the total of one hundred twenty continuing education credits enumerated in paragraph (A)(1) of this rule, at least"
+   }
+  ]
+ },
+ "texas-reinstatement": {
+  "manual": "all three numeric fields are null; nothing numeric to re-verify"
+ },
+ "vermont-reinstatement": {
+  "manual": "all three numeric fields are null; nothing numeric to re-verify"
+ },
+ "west-virginia-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "7.4.b. Minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "7.4.b. Minimum of forty (40) hours of continuing education, including a minimum of"
+   }
+  ]
+ },
+ "ak-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "provide verification to the board that the applicant completed not less than"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(d) At least"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "during the concluding biennial licensing period. At least"
+   }
+  ]
+ },
+ "ar-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "except as otherwise provided in subsection (f) of this section, in the amount of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "(120) hours within thirty-six (36) months or"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "ETHICS: All license holders must have at least"
+   }
+  ]
+ },
+ "ca-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "As a condition for renewing a license in an active status, a licensee shall complete at least"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(b) Ethics Continuing Education Requirement. A licensee renewing a license in an active status shall complete"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "(1) A licensee renewing a license in an active status, shall complete a minimum of"
+   }
+  ]
+ },
+ "de-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "7.2.1.1 Each permit holder must have completed at least"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "credit hours in taxation and"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "7.2.1.2 Each permit holder must complete at a minimum"
+   }
+  ]
+ },
+ "ky-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "prior to the renewal date of his or her license shall complete"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(2) A licensee shall complete"
+   }
+  ]
+ },
+ "ma-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "applicants for biennial license renewal must complete"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "except as stated in 252 CMR 2.14 (6)."
+   }
+  ]
+ },
+ "ny-cpe": {
+  "keep_auto": false,
+  "derivation": "8 NYCRR 70.9: annual registration option of 40 contact hours (total = annual minimum = 40), 4 hours ethics",
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "subject to the continuing education requirement shall be required to complete at least"
+   }
+  ]
+ },
+ "ri-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "As a pre-requisite to renewing the CPA permit, the CPA must complete a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "E. Not less than"
+   }
+  ]
+ },
+ "mi-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "expire biennially and must be renewed every 2 years on or before the date indicated: Accountancy",
+    "expect_text": "7/31",
+    "window": 120
+   }
+  ]
+ },
+ "tx-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "Education (CPE) hours and pay the renewal fee",
+    "expect_text": "by the last day of your birth month"
+   }
+  ]
+ },
+ "ma-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "Each such license shall expire",
+    "expect_text": "on the last day of June"
+   }
+  ]
+ },
+ "ct-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "license and/or registration is renewed annually,",
+    "expect_text": "expiring on December 31st of each year"
+   }
+  ]
+ },
+ "ks-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "permit to practice issued or renewed on a biennial basis which shall expire on the next",
+    "expect_text": "July 1"
+   }
+  ]
+ },
+ "nm-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "will have staggered expiration dates based on the",
+    "expect_text": "birth month"
+   }
+  ]
+ },
+ "us-virgin-islands-all": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "CPA firm licenses are issued on an annual basis from",
+    "expect_text": "to June 30"
+   }
+  ]
+ },
+ "northern-mariana-islands-all": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "for periods of not more than three years but in any event shall expire on the",
+    "expect_text": "third year following issuance or renewal"
+   }
+  ]
+ },
+ "alaska-reinstatement": {
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "AuditLab 10-02 (raised 3x, CORRECT): 12 AAC 04.440(a) reinstatement = 12 AAC 02.340(4) biennial active license renewal fee $300 + 02.340(13) delayed renewal penalty fee $100 = $400",
+  "checks": [
+   {
+    "url": "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+    "kind": "fee",
+    "field": null,
+    "anchor": "(4) certified public accountant biennial active license renewal fee,",
+    "expect": 300
+   },
+   {
+    "url": "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+    "kind": "fee",
+    "field": null,
+    "anchor": "(13) delayed renewal penalty fee,",
+    "expect": 100
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/alaska/12-AAC-04.440",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "documentation showing the applicant's completion of at least"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/alaska/12-AAC-04.440",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "04.360(5) ; at least"
+   }
+  ]
+ },
+ "arizona-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-341",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "reinstatement of a certificate by submitting: 1. An application fee of"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "24 months have passed since the last registration due date for which CPE was completed."
+   }
+  ]
+ },
+ "arizona-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-345",
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "2. Biennial Registration Fee - a. Certification -"
+   }
+  ]
+ },
+ "in-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "renewal of a certificate as a CPA, PA, or AP must complete a minimum of"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(d) An ethics requirement of"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "prior to the expiration of certificates with a minimum of"
+   }
+  ]
+ },
+ "new-jersey-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-5",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Reinstatement of license:"
+   }
+  ]
+ },
+ "new-jersey-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-5",
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "3. Triennial registration:"
+   }
+  ]
+ },
+ "oh-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-02",
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "of the Revised Code, is"
+   },
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-02",
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "An Ohio permit holder must complete a minimum of"
+   },
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-11",
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(C) All Ohio permit holders - each three-year reporting period - must complete"
+   }
+  ]
+ },
+ "pennsylvania-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/pennsylvania/49-Pa-Code-SS-11-4",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Reinstatement of inactive or expired license",
+    "window": 80
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "At least 20 CPE hours completed in each calendar year.",
+    "window": 40
+   }
+  ]
+ },
+ "tx-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "(a) A licensee shall complete at least"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "CPE credits in each three-year period, and a minimum of"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-130",
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(a) A licensee must complete a board-approved"
+   }
+  ]
+ },
+ "washington-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Pay the reinstatement fee of"
+   },
+   {
+    "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "within the three-year CPE reporting period; (ii) Completion of a"
+   }
+  ]
+ },
+ "al-all": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-5",
+    "kind": "text",
+    "field": null,
+    "anchor": "(1) Annual permits to practice expire on the last day of",
+    "expect_text": "September"
+   }
+  ]
+ },
+ "ca-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/california/16-CCR-93",
+    "kind": "text",
+    "field": null,
+    "anchor": "Permits issued under these rules expire at 12 midnight on the",
+    "expect_text": "last day of the birth month"
+   }
+  ]
+ },
+ "nj-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-7",
+    "kind": "text",
+    "field": null,
+    "anchor": "(b) A licensee shall renew his or her license for a period of",
+    "expect_text": "three years from the last expiration date"
+   }
+  ]
+ },
+ "sc-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "kind": "text",
+    "field": null,
+    "anchor": "(28) \"Renewal due date\" is",
+    "expect_text": "February first"
+   }
+  ]
+ },
+ "sc-firm": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "kind": "text",
+    "field": null,
+    "anchor": "(28) \"Renewal due date\" is",
+    "expect_text": "February first"
+   }
+  ]
+ },
+ "idaho-reinstatement": {
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "IDAPA 24.30.01.400: Reinstatement License = 'Sum of unpaid license fees for the preceding 3 license renewal cycles' = 3 x Active License $120 = $360",
+  "checks": [
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "kind": "fee",
+    "field": null,
+    "anchor": "Re-Exam $25 Active License",
+    "expect": 120
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "kind": "fee",
+    "field": null,
+    "anchor": "Re-Exam $25 Active License",
+    "expect": 120
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "kind": "fee",
+    "field": null,
+    "anchor": "Re-Exam $25 Active License",
+    "expect": 120
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.400",
+    "kind": "text",
+    "field": null,
+    "anchor": "Reinstatement License",
+    "expect_text": "Sum of unpaid license fees for the preceding 3 license renewal cycles"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.117",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "is to complete no less than"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.117",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "hours of CPE, of which at least"
+   }
+  ]
+ },
+ "kansas-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/kansas/K-A-R-74-12-1",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "window": 110,
+    "anchor": "(e) Reinstatement of permit to practice as a certified public accountant whose permit has expired: (1) For more than one year of a biennial period"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "ALL APPLICANTS FOR REINSTATEMENT OF PERMIT M UST HAVE OBTAINED"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "WITHIN THE PREVIOUS 12 MONTHS OF THE DATE APPLICATION IS RECEIVED TO INCLUDE"
+   }
+  ]
+ },
+ "north-dakota-reinstatement": {
+  "keep_auto": false,
+  "derivation": "N.D. Admin. Code 3-02-02-08: reinstatement fee 'not to exceed two hundred dollars' (cap; stored as $200)",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-dakota/N-D-A-C-3-02-02-08",
+    "kind": "hours",
+    "field": "reinstatement_fee_usd",
+    "anchor": "is required to pay a reinstatement fee not to exceed"
+   }
+  ]
+ },
+ "south-carolina-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://llr.sc.gov/acct/fees.aspx",
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Annual CPA/AP/PA Renewal:"
+   }
+  ]
+ },
+ "ak-firm": {
+  "manual": "NOT YET AUTOMATED: statewide licensing period is stated only on the Board's renewal form (commerce.alaska.gov), which robots.txt disallows; 12 AAC 02.105 print view has no CPA period"
+ },
+ "ak-individual": {
+  "manual": "NOT YET AUTOMATED: same as ak-firm (commerce.alaska.gov disallowed by robots.txt)"
+ },
+ "az-firm": {
+  "manual": "NOT YET AUTOMATED: per-firm anniversary cycle is stated on azaccountancy.gov (robots.txt disallows); A.A.C. R4-1-345 on LII sets fees but not the schedule"
+ },
+ "az-individual": {
+  "manual": "NOT YET AUTOMATED: birth-year parity schedule (A.R.S. 32-730) only found on azaccountancy.gov / azsos.gov, both robots.txt-disallowed"
+ },
+ "co-firm": {
+  "manual": "NOT YET AUTOMATED: Aug 31 triennial date comes from a data.colorado.gov register and dpo.colorado.gov (robots.txt disallows); 3 CCR 705-1 has no expiry date"
+ },
+ "co-individual": {
+  "manual": "NOT YET AUTOMATED: Nov 30 odd-year date is on dpo.colorado.gov only (robots.txt disallows); data.colorado.gov page is a 267-char JS shell"
+ },
+ "florida-reinstatement": {
+  "keep_auto": false,
+  "derivation": "DBPR null & void guidance: two sets of CPE (reinstate to delinquent, then reactivate), each 120 h incl. 8 h ethics = '240 hour requirement', ethics 2 x 8 = 16; fee 61H1-31.015 $250",
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "reinstatement of a null and void license must be accompanied by an application fee of"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "Certificates beyond the 24 month window, may not be used to satisfy the"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "30 hours in accounting & auditing, ii.",
+    "multiply": 2
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "text",
+    "field": null,
+    "anchor": "complete the process by submitting",
+    "expect_text": "two sets of certificates of completion"
+   }
+  ]
+ },
+ "guam-firm": {
+  "manual": "NOT YET AUTOMATED: 22 GCA 35107(b) firm permit period: cached Guam texts don't state it verbatim; needs a better official source"
+ },
+ "illinois-reinstatement": {
+  "keep_auto": false,
+  "derivation": "68 Ill. Adm. Code 1420.40(g): restoration (other than from inactive) = $50 plus all lapsed renewal fees, not to exceed $260 (stored value is the cap). Record's citation_url points at 1420.60; the fee is in 1420.40 (AuditLab 10-02).",
+  "checks": [
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000400R.html",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "other than from inactive status, is $50 plus all lapsed renewal fees, not to exceed"
+   }
+  ]
+ },
+ "iowa-reinstatement": {
+  "manual": "NOT YET AUTOMATED: 4-hour ethics penalty not found in cached IAC 481-1032 text; LII URL guess returned an index page"
+ },
+ "ma-firm": {
+  "manual": "NOT YET AUTOMATED: June 30 firm cycle is on mass.gov (robots.txt disallows) and an eLicensing JS tool; MGL 112 s.87B1/2 text has no date"
+ },
+ "maryland-reinstatement": {
+  "keep_auto": false,
+  "derivation": "Reinstatement requires the standard renewal CE (80 hours incl. 4 ethics) earned within 2 years of filing (MD Board CE policy page); fee COMAR 09.24.01.09B(9)",
+  "checks": [
+   {
+    "url": "https://regs.maryland.gov/us/md/exec/comar/09.24.01.09",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "(9) Reinstatement of expired license -"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "An active CPA must earn a minimum of"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "A licensee can complete continuing education in technical and non-technical subject."
+   }
+  ]
+ },
+ "michigan-reinstatement": {
+  "manual": "NOT YET AUTOMATED: $320 is a published LARA line ('2 year CPA Relicensure Application and Fee: $320.00') = $100 (MCL 338.2211) + $20 (MCL 338.2206) + $200; LARA page is robots.txt-disallowed for automated fetch. Published, not a disclosure candidate (AuditLab 10-02)."
+ },
+ "michigan-renewal-fee": {
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "fee_usd",
+  "derivation": "MCL 338.2211(1)(b): license to practice $100.00 per year; licenses renew biennially (MCL 339.202), so the biennial fee = 2 x $100 = $200",
+  "checks": [
+   {
+    "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-338-2211.pdf",
+    "kind": "fee",
+    "field": null,
+    "anchor": "(b)License to practice for individuals and firms, per year",
+    "expect": 100,
+    "pattern": "([\\d,]+\\.\\d\\d)",
+    "window": 30
+   },
+   {
+    "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-338-2211.pdf",
+    "kind": "fee",
+    "field": null,
+    "anchor": "(b)License to practice for individuals and firms, per year",
+    "expect": 100,
+    "pattern": "([\\d,]+\\.\\d\\d)",
+    "window": 30
+   }
+  ]
+ },
+ "nc-cpe": {
+  "keep_auto": false,
+  "derivation": "21 NCAC 08G .0401(d) 2,000 CPE minutes annually = 40 hours (total = annual minimum); (e) 50 ethics minutes = 1 hour; 50 min per CPE hour",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "(d) Active CPAs shall complete",
+    "pattern": "([\\d,]+) CPE minutes",
+    "divide": 50
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "(d) Active CPAs shall complete",
+    "pattern": "([\\d,]+) CPE minutes",
+    "divide": 50
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(e) A CPA shall complete a minimum of",
+    "pattern": "([\\d,]+) CPE minutes",
+    "divide": 50
+   }
+  ]
+ },
+ "nebraska-reinstatement": {
+  "keep_auto": false,
+  "derivation": "NBPA fee schedule: reinstating to an active permit pays the Active Permit to Practice fee $200; CPE per 288 NAC 8 s.010",
+  "checks": [
+   {
+    "url": "https://nbpa.nebraska.gov/individuals/fee-schedule",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Board Fees Active Permit to Practice -"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "affidavit of attendance establishing that the permit holder has successfully completed"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "has successfully completed 120 hours, including"
+   }
+  ]
+ },
+ "nevada-renewal-fee": {
+  "manual": "NOT YET AUTOMATED: $175 is on the Board's renewal portal (glsuite, robots.txt disallows); NAC 628 sets no amount"
+ },
+ "nh-all": {
+  "manual": "NOT YET AUTOMATED: per-license biennial cycle (RSA 310:8, 309-B:7) only on oplc.nh.gov (robots.txt disallows)"
+ },
+ "nh-cpe": {
+  "manual": "NOT YET AUTOMATED: Ac 403.01 adopted text and OPLC CE page both on oplc.nh.gov (robots.txt disallows); LII URL guess returned an index page"
+ },
+ "nj-firm": {
+  "manual": "NOT YET AUTOMATED: N.J.A.C. 13:29-1A.11(b) on LII has no verbatim triennial wording matched; needs a reviewed text anchor"
+ },
+ "ny-individual": {
+  "manual": "NOT YET AUTOMATED: Educ. Law 6502 on nysenate.gov returns 403; op.nysed.gov home page has no registration-period text"
+ },
+ "ohio-renewal-fee": {
+  "keep_auto": false,
+  "derivation": "Ohio LSC 2026 state agency fee report (official): Accountancy Board, Ohio permit - 3 year, R.C. 4701.10(A),(H)(1)(b) = $180.00; acc.ohio.gov fee page 404s to automated fetch",
+  "checks": [
+   {
+    "url": "https://www.lsc.ohio.gov/assets/organizations/legislative-service-commission/files/2026-state-agency-fees.pdf",
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Ohio permit - 3 year* 4701.10(A) and (H)(1) (b)"
+   }
+  ]
+ },
+ "ok-individual": {
+  "manual": "NOT YET AUTOMATED: birth-month table on the Board page is HTML-in-JSON without a stable text anchor; OAC 10:15-21-2 LII guess had no match"
+ },
+ "south-carolina-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://llr.sc.gov/acct/faq.aspx",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "pay the $95 renewal fee, and pay a"
+   },
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "(C) A licensee shall document"
+   }
+  ]
+ },
+ "south-dakota-reinstatement": {
+  "manual": "NOT YET AUTOMATED: 24-hour figure not found in ARSD 20:75:04:08 text"
+ },
+ "utah-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "http://commerce.utah.gov//wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Less than two years since your license expired. - Submit"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-307",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "allowed their license to lapse; and (b)"
+   }
+  ]
+ },
+ "utah-renewal-fee": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://commerce.utah.gov/dopl/dopl-fee-schedule/",
+    "kind": "fee",
+    "field": "fee_usd",
+    "anchor": "Certified Public Accountant License $85.00"
+   }
+  ]
+ },
+ "virginia-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section20/",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Processing an application for reinstatement of a person's Virginia license"
+   },
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section90/",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "he shall have obtained at least 20 hours of continuing professional education, including an ethics course of at least"
+   }
+  ]
+ },
+ "wisconsin-reinstatement": {
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "$43 CPA renewal fee (DSPS fee table) + $25 late fee for renewal after expiration (DSPS page; codified Wis. Stat. 440.08(3)(a)) = $68 (AuditLab 10-02)",
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "field": null,
+    "expect": 43
+   },
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "field": null,
+    "expect": 25,
+    "anchor": "All Business and Health Credentials incur a"
+   }
+  ]
+ },
+ "wisconsin-renewal-fee": {
+  "keep_auto": false,
+  "derivation": "DSPS Credential Fees and Renewal Dates (JS-rendered table -> browser fetch): CPA renewal fee column $43",
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "wyoming-reinstatement": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Application to Activate a Certificate Information- From Expired-"
+   },
+   {
+    "url": "https://cpaboard.wyo.gov/individuals/certificate-application-information/reactivate-certificate",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "evidencing completion of a Board approved Wyoming Ethics",
+    "pattern": "(\\d+)-credit"
+   }
+  ]
+ }
+}
