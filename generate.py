@@ -5071,7 +5071,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
   function offerHuman(seedText) {
     removeEphemeral();
     var box = makeEl('div', 'dr-chat-msg dr-chat-msg--assistant dr-chat-offer');
-    box.appendChild(makeEl('div', null, "I couldn't get you an answer just now. Want someone on our team to take a look? They'll follow up by email."));
+    box.appendChild(makeEl('div', null, "I couldn't get you an answer just now. Want me to take a look? I'll follow up by email."));
     var actions = makeEl('div', 'dr-chat-actions');
     var yes = makeBtn('dr-chat-action-btn', 'Send to a human');
     var no = makeBtn('dr-chat-action-btn dr-chat-action-btn--quiet', 'No thanks');
@@ -5103,7 +5103,7 @@ _CHAT_WIDGET_HTML = """<div class="dr-chat-widget" id="dr-chat-widget">
     removeEphemeral();
     var card = makeEl('div', 'dr-chat-msg dr-chat-msg--assistant dr-chat-ticket');
     ticketCard = card;
-    card.appendChild(makeEl('p', 'dr-chat-ticket-intro', "Tell us what you need help with and someone on our team will follow up by email."));
+    card.appendChild(makeEl('p', 'dr-chat-ticket-intro', "Tell me what you need help with and I'll follow up by email."));
 
     var descLabel = makeEl('label', null, 'What can we help with?');
     descLabel.htmlFor = 'dr-chat-ticket-desc';
@@ -7378,7 +7378,7 @@ def build_us_map_html(by_slug: dict[str, list[dict]]) -> str:
 
     svg = (
         '<svg class="us-map" viewBox="0 0 959 593" xmlns="http://www.w3.org/2000/svg" role="img" '
-        'aria-label="Clickable map of US states -- select a state for its CPA renewal deadline">\n'
+        'aria-label="Clickable map of US states, select a state for its CPA renewal deadline">\n'
         + "\n".join(path_links) +
         "\n</svg>"
     )
@@ -7975,7 +7975,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             ""
             if fully_cited
             else '<div class="state-confidence" title="Sourced from the state board\'s own page; '
-            'not independently confirmed against codified statute or rule text -- see this state\'s '
+            'not independently confirmed against codified statute or rule text. See this state\'s '
             'own page for the full disclosure.">Board-page sourced only</div>'
         )
         cards.append(
@@ -10213,7 +10213,7 @@ Check are also <strong>free</strong> for a solo CPA &mdash;
     <p class="remind-copy"><strong>Self-serve, no card required.</strong></p>
     <ul class="remind-copy">
       <li>Your admin creates an account and adds staff directly &mdash; name, email, state, and license
-      type for each person. No concierge onboarding where our team enters a roster for you.</li>
+      type for each person. No concierge onboarding where we enter a roster for you.</li>
       <li>Reminders start right away for each person added, no confirmation step to wait on, so your
       firm's coverage never has a silent gap.</li>
       <li>Each staff member gets one transparent email the moment they're added, naming your firm, with
@@ -22257,7 +22257,7 @@ def _state_faq_html_and_schema(
             ethics_sentence = f"{note[0].upper()}{note[1:]}."
         qa.append((
             f"Does {state_name} require CPE hours to renew a CPA license?",
-            f"Yes -- {state_name} requires {cpe_record['total_hours']} {hours_word} of CPE every "
+            f"Yes, {state_name} requires {cpe_record['total_hours']} {hours_word} of CPE every "
             f"{cpe_record['period_years']} {years_word}. {ethics_sentence} See the full {state_name} "
             f"CPE requirements page for the exact citation.",
         ))
@@ -22271,7 +22271,7 @@ def _state_faq_html_and_schema(
     if firm_landing_slug:
         qa.append((
             f"Does a CPA firm need to register separately in {state_name}?",
-            f"Yes -- {state_name} has its own firm-level registration or permit requirement, separate "
+            f"Yes, {state_name} has its own firm-level registration or permit requirement, separate "
             f"from an individual CPA's license renewal. See the full {state_name} firm renewal page for "
             f"the exact cycle and citation.",
         ))
