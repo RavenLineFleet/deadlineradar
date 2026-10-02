@@ -4162,6 +4162,15 @@ _BOT_DEFENSE_FIELDS_HTML_ALT = _bot_defense_fields_html("-alt", shared_widget=Tr
 _BOT_DEFENSE_FIELDS_HTML_SIGNIN = _bot_defense_fields_html("-signin", shared_widget=True)
 _BOT_DEFENSE_FIELDS_HTML_MAGIC = _bot_defense_fields_html("-magic", shared_widget=True)
 
+# Attribution (Orchestrator directive, 2026-10-02): filled client-side by
+# _ATTRIBUTION_JS's document-level submit listener (same "fill whichever
+# form is actually submitted" pattern the Turnstile hidden field above
+# uses) from the visitor's own first-touch localStorage value -- never
+# server-rendered, since generate.py has no per-visitor state at build
+# time. Empty on every page that has no attribution JS wired in (there are
+# none, page_shell() includes it unconditionally) or no stored value yet.
+_SRC_HIDDEN_FIELD_HTML = '<input type="hidden" name="src" class="dr-src-field" value="">'
+
 
 def _turnstile_head_html() -> str:
     """Cloudflare Turnstile loader script for <head> -- only when a site key is
@@ -4333,6 +4342,7 @@ def signup_form_for_state(state_slug: str, state_name: str, records: list[dict],
   <form method="post" action="{esc(REMINDER_BACKEND_BASE_URL)}/subscribe">
     <input type="hidden" name="state" value="{esc(state_slug)}">
     {_BOT_DEFENSE_FIELDS_HTML}
+    {_SRC_HIDDEN_FIELD_HTML}
     {_FIRST_NAME_FIELD_HTML.format(id_prefix="")}
     <label for="email">Email address</label>
     <input type="email" id="email" name="email" required placeholder="you@example.com">
@@ -4373,6 +4383,7 @@ def signup_form_homepage(by_slug: dict[str, list[dict]], as_of: date) -> str:
   </div>
   <form method="post" action="{esc(REMINDER_BACKEND_BASE_URL)}/subscribe" id="homepage-signup-form">
     {_BOT_DEFENSE_FIELDS_HTML}
+    {_SRC_HIDDEN_FIELD_HTML}
     <label for="home-state">Your state</label>
     <select id="home-state" name="state" required onchange="drUpdateFields(this.value)">
       <option value="">Select your state</option>
@@ -4706,6 +4717,74 @@ _TABLE_SCROLL_HINT_JS = """<script>
   window.addEventListener('resize', update);
   window.drRefreshTableScrollHints = update;
 })();
+</script>"""
+
+
+# Privacy-safe source attribution (Orchestrator directive, 2026-10-02,
+# Devin: "measure what drives traffic and signups"). No cookies, no PII:
+# - Reads ?src=<tag> against the SAME allow-list as the Worker's
+#   ATTRIBUTION_SRC_ALLOWLIST (worker/src/validation.ts) -- kept in sync by
+#   hand, the two are deliberately not generated from one shared source.
+# - Fires ONE beacon per page-load-with-a-valid-src to POST /api/attr (a
+#   pure traffic-volume counter, see that route's own comment).
+# - Stores the FIRST-ever valid src in localStorage ('dr_src') and never
+#   overwrites it -- that's the "first touch" a signup later inherits.
+# - Fills every .dr-src-field hidden input (added to the /subscribe forms
+#   only -- generate.py's _SRC_HIDDEN_FIELD_HTML) from that stored value at
+#   submit time, same document-level capture-phase pattern the Turnstile
+#   hidden-field filler above uses, so a form added or swapped later is
+#   covered with no per-form wiring.
+# - Deliberately does NOT touch the canonical tag or rewrite the URL --
+#   page_shell()'s canonical_path is already a bare path with no query
+#   string (computed at build time, independent of any runtime ?src=), so
+#   there is nothing here that could make Google see ?src= as a distinct
+#   page in the first place.
+# Every storage/network call is wrapped in try/catch: a tracking beacon
+# must never be able to break a real page load or a real signup.
+_ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,li,bs,ma,x,blog,rd"
+_ATTRIBUTION_JS = f"""<script>
+(function () {{
+  var ALLOWED = {{}};
+  "{_ATTRIBUTION_SRC_ALLOWLIST_JS}".split(",").forEach(function (t) {{ ALLOWED[t] = true; }});
+  var STORAGE_KEY = "dr_src";
+
+  function getStoredSrc() {{
+    try {{ return window.localStorage.getItem(STORAGE_KEY); }} catch (err) {{ return null; }}
+  }}
+
+  try {{
+    var params = new URLSearchParams(window.location.search);
+    var src = params.get("src");
+    if (src && ALLOWED[src]) {{
+      // Traffic-volume beacon: every valid page-load-with-src counts,
+      // independent of whether this becomes (or already is) the stored
+      // first touch below.
+      try {{
+        var body = JSON.stringify({{ src: src }});
+        if (navigator.sendBeacon) {{
+          navigator.sendBeacon("/api/attr", new Blob([body], {{ type: "application/json" }}));
+        }} else {{
+          fetch("/api/attr", {{ method: "POST", headers: {{ "Content-Type": "application/json" }}, body: body, keepalive: true }});
+        }}
+      }} catch (err) {{}}
+      // First touch only -- never overwrite an existing stored value.
+      try {{
+        if (!window.localStorage.getItem(STORAGE_KEY)) {{
+          window.localStorage.setItem(STORAGE_KEY, src);
+        }}
+      }} catch (err) {{}}
+    }}
+  }} catch (err) {{}}
+
+  document.addEventListener("submit", function (e) {{
+    var f = e.target;
+    if (!f || f.tagName !== "FORM") return;
+    var field = f.querySelector(".dr-src-field");
+    if (!field) return;
+    var stored = getStoredSrc();
+    field.value = (stored && ALLOWED[stored]) ? stored : "";
+  }}, true);
+}})();
 </script>"""
 
 
@@ -5418,6 +5497,7 @@ def page_shell(
 {_TABLE_SCROLL_HINT_JS}
 {_STALE_BADGE_RUNTIME_JS}
 {_SEAL_RUNTIME_JS}
+{_ATTRIBUTION_JS}
 </body>
 </html>
 """
@@ -21885,6 +21965,7 @@ def _cpe_hours_signup_html(cpe_record: dict, renewal_records: list[dict], as_of:
   <form method="post" action="{esc(REMINDER_BACKEND_BASE_URL)}/subscribe">
     <input type="hidden" name="state" value="{esc(slug)}">
     {_BOT_DEFENSE_FIELDS_HTML}
+    {_SRC_HIDDEN_FIELD_HTML}
     <label for="cpe-email-{esc(slug)}" class="signup-form-compact-label">
       CPE hours and your renewal are on related clocks &mdash; get reminded before
       {esc(cpe_record['state'])}'s renewal date too:
@@ -21912,6 +21993,7 @@ def _reinstatement_signup_html(state_slug: str, state_name: str, renewal_records
   <form method="post" action="{esc(REMINDER_BACKEND_BASE_URL)}/subscribe">
     <input type="hidden" name="state" value="{esc(state_slug)}">
     {_BOT_DEFENSE_FIELDS_HTML}
+    {_SRC_HIDDEN_FIELD_HTML}
     <label for="reinstate-email-{esc(state_slug)}" class="signup-form-compact-label">
       Don't let it lapse again &mdash; get reminded before {esc(state_name)}'s next renewal date:
     </label>

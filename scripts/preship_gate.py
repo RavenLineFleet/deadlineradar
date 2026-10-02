@@ -6318,6 +6318,10 @@ PUBLIC_READ_HANDLERS = {
     "handleAssistantRenewalFee": "public-no-tenant-data",
     "handleAssistantMobility": "public-no-tenant-data",
     "handleAssistantRuleChanges": "public-no-tenant-data",
+    # Attribution summary (Orchestrator directive, 2026-10-02) -- dates,
+    # allow-listed channel tags, and aggregate counts only (attribution_daily,
+    # migration 0081); no subscriber/firm row is ever read by this route.
+    "handleAttrSummary": "public-no-tenant-data",
 }
 
 
@@ -6428,6 +6432,7 @@ MUTATING_GET_HANDLERS = {
     "handleFirmPacketExport": "infrastructural-write (rate-limit counter only)",
     "handleFirmSlackConnectStart": "infrastructural-write (rate-limit counter + OAuth state row, itself CSRF-inert -- the state row is looked up by its own random id, not trusted input)",
     "handleOauthStart": "infrastructural-write (rate-limit counter + OAuth state row, same reasoning)",
+    "handleAttrSummary": "infrastructural-write (rate-limit counter only, same reasoning as handleFirmPacketExport)",
     # OAuth callbacks (2) -- GET by protocol necessity; the only possible
     # defense is the `state` parameter, verified end to end by AuditLab:
     # consumeOauthState() requires state to exist, be unused, be unexpired,

@@ -179,6 +179,15 @@ export interface SubscriberRow {
   // the next December 31) is never stored here; see
   // deadline.ts's nextAnnualMonthEnd(asOf, 12).
   ptin_tracking_enabled: number;
+  // migration 0082 (Orchestrator directive, 2026-10-02): the allow-listed
+  // channel tag (validation.ts's ATTRIBUTION_SRC_ALLOWLIST) stored in the
+  // browser's localStorage as this person's FIRST-ever ?src= touch, carried
+  // through on whichever signup eventually happened. Write-once -- nothing
+  // in this codebase ever updates it after insert, same "first touch wins"
+  // contract the client JS enforces for the localStorage value itself. NULL
+  // for every row before this build and for any signup with no ?src= in its
+  // history -- never a guess.
+  first_touch_src: string | null;
 }
 
 function nowIso(): string {
@@ -428,6 +437,11 @@ export interface AddPendingInput {
    * ISO date -- when this person was originally licensed. Same
    * firm-dashboard-only, never-verified posture as officeTag above. */
   licenseIssueDate?: string | null;
+  /** migration 0082 (Orchestrator directive, 2026-10-02). The caller
+   * (index.ts's handleSubscribe) has already validated this against
+   * ATTRIBUTION_SRC_ALLOWLIST -- this function stores it as-is, same
+   * trust-the-caller-already-validated posture as deadlineSource above. */
+  firstTouchSrc?: string | null;
 }
 
 /**
@@ -515,6 +529,8 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
     // every other person-level preference above -- not part of the INSERT
     // column list either (matches the column's own DB default).
     ptin_tracking_enabled: 0,
+    // migration 0082: write-once at signup, see SubscriberRow's own comment.
+    first_touch_src: input.firstTouchSrc ?? null,
   };
   await db
     .prepare(
@@ -522,8 +538,9 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
        (id, email, cooldown_key, state_slug, deadline_fields, first_name, status,
         confirm_token, unsubscribe_token, renewed_token, created_at, confirmed_at,
         stopped_at, stop_reason, reminders_sent, cycle, deadline_source, user_deadline,
-        last_resend_at, resend_count, firm_id, staff_label, renewal_fee_cents, office_tag, license_issue_date)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25)`
+        last_resend_at, resend_count, firm_id, staff_label, renewal_fee_cents, office_tag, license_issue_date,
+        first_touch_src)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26)`
     )
     .bind(
       record.id,
@@ -550,7 +567,8 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
       record.staff_label,
       record.renewal_fee_cents,
       record.office_tag,
-      record.license_issue_date
+      record.license_issue_date,
+      record.first_touch_src
     )
     .run();
   return record;

@@ -1041,6 +1041,30 @@ export const RATE_LIMIT_ASSISTANT_CHAT: RateLimit = { max: 100, windowSeconds: 3
  * way to spam a human inbox at raven@. */
 export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3600 };
 
+// Privacy-safe source attribution (Orchestrator directive, 2026-10-02): the
+// only values POST /api/attr and subscribers.first_touch_src will ever
+// accept. An open-ended free-text channel tag would let `src` become a
+// surprise unbounded column -- the allow-list is what keeps
+// attribution_daily's row count bounded (migration 0081's own comment) and
+// keeps the stored value meaningful rather than arbitrary visitor input.
+// Add a new tag here AND to generate.py's matching JS allow-list -- the two
+// are deliberately not computed from one shared source (no runtime coupling
+// between the static site build and the Worker), so keep them in sync by hand.
+export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
+  "em-w1", "li", "bs", "ma", "x", "blog", "rd",
+]);
+
+// POST /api/attr -- a page-load beacon, not a per-visitor action: a real
+// page view with a valid ?src= fires at most one beacon, so this only needs
+// to be generous enough for one visitor reloading or navigating several
+// tagged pages in a session -- deliberately looser than RATE_LIMIT_SUBSCRIBE.
+export const RATE_LIMIT_ATTR_BEACON: RateLimit = { max: 60, windowSeconds: 3600 };
+
+// GET /api/attr/summary -- same posture as RATE_LIMIT_ASSISTANT_API: public,
+// read-only, aggregate counts only (no PII), rate-limited rather than
+// gated behind a secret.
+export const RATE_LIMIT_ATTR_SUMMARY: RateLimit = { max: 600, windowSeconds: 3600 };
+
 /** Returns true if this request is ALLOWED, false if it should be blocked. */
 export async function checkRateLimit(
   db: D1Database,
