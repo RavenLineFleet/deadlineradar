@@ -63,7 +63,8 @@ def ensure_worktree():
 def run(mode, push=True):
     ensure_worktree()
     py = sys.executable
-    r = sh(py, "scripts/reverify/runner.py", "--apply", check=False)
+    # --all: check every record, not only the >20-day ones (first live run, Orchestrator 10-02 13:08)
+    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []), check=False)
     log(f"runner rc={r.returncode}: {r.stdout.strip()[-300:]}")
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
