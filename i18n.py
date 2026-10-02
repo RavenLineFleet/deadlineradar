@@ -570,7 +570,7 @@ EN: dict[str, str] = {
         "You do, directly, through the self-serve dashboard: your admin adds each staff member's "
         "name, email, state, and license type, and their reminders start right away — no "
         "waiting on them to confirm anything, so your firm's coverage never has a silent gap. "
-        "There's no concierge onboarding where our team collects a roster by email and enters it "
+        "There's no concierge onboarding where we collect a roster by email and enter it "
         "for you. Each staff member gets one transparent email the moment they're added, naming "
         "your firm and with an equally prominent one-click opt-out, so nobody is tracked silently."
     ),

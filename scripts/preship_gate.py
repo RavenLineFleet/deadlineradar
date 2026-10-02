@@ -237,6 +237,18 @@ _PROSE_INTERNAL_NAME_RE = re.compile(
 # this site refers to itself by an internal tracker's finding ID.
 _PROSE_FINDING_ID_RE = re.compile(r"\b[A-Z]{2,10}-\d{1,4}\b")
 
+# COPY-23 (AuditLab, 2026-10-02, Phase 2 live-verify FAIL): a double-hyphen
+# used as an em dash ("-- ") survived 2 separate manual sweeps of the Phase 2
+# PR before shipping -- 23 instances remained live across home/for-firms/
+# llms.txt, one even mixing "&mdash;" and "--" in the same sentence. Manual
+# sweeps don't scale across 235+ pages; this is the mechanical equivalent of
+# the snake_case/finding-ID shapes above. `(?<!-)--(?!-)` avoids flagging a
+# real em/en dash rendered as a literal "--" triple+ (none expected, but a
+# future typo like "---" would be its own separate problem) and a markdown
+# table rule row ("|---|---|") would read as a single long run, not matched
+# by this 2-dash-exact pattern -- there are none in HTML prose anyway.
+_PROSE_DOUBLE_HYPHEN_RE = re.compile(r"(?<!-)--(?!-)")
+
 # LEAK-2 (AuditLab, 2026-08-27) + the Florida deadline-calculator bug it
 # shares a root cause with (orchestrator, same night): a maintainer note
 # written to document a CORRECTION to the data itself -- self-critique,
@@ -366,6 +378,59 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
                 f"the editorial-history case above)"
             )
     return errors
+
+
+# COPY-23 (AuditLab, 2026-10-02, Phase 2 live-verify FAIL): a double-hyphen
+# used as an em dash survived 2 manual sweeps of the Phase 2 PR before
+# shipping -- 23 instances remained live on home/for-firms/llms.txt.
+# Orchestrator asked for a build-time check. A full site-wide hard gate was
+# tried first and found 295 PRE-EXISTING instances the Phase 2 PR never
+# touched: hand-written prose embedded in data_gap_note/cycle_description/
+# verification notes across the cpa_deadlines/cpe_hours/reinstatement/
+# renewal_fees datasets (scattered across ~150 individual records) plus
+# several blog posts -- a backlog nobody had audited before, not something
+# one PR should bulk-rewrite under time pressure (this is FACTUAL legal
+# prose; a rushed find-replace risks changing meaning, not just style).
+# Same resolution as check_firm_fee_disclosure's own precedent (FEE-1/
+# FEE-5, 2026-09-09): hard-gate only the pages this PR actually owns and
+# just cleaned (home, for-firms, pricing, methodology, llms.txt,
+# practice-privilege-check -- the hand-written "trust" pages, never
+# data-driven), advisory everywhere else until that backlog is worked down
+# deliberately, then promote to a full hard gate.
+_DOUBLE_HYPHEN_HARD_GATE_PAGES = {
+    "index.html", "for-firms/index.html", "pricing/index.html",
+    "methodology/index.html", "llms.txt", "practice-privilege-check/index.html",
+}
+
+
+def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
+    errors = []
+    for rel in _DOUBLE_HYPHEN_HARD_GATE_PAGES:
+        f = docs_dir / rel
+        if not f.exists():
+            continue
+        prose = _extract_rendered_prose(f.read_text(encoding="utf-8")) if f.suffix == ".html" else f.read_text(encoding="utf-8")
+        for m in _PROSE_DOUBLE_HYPHEN_RE.finditer(prose):
+            snippet = prose[max(0, m.start() - 60): m.end() + 60].replace("\n", " ").strip()
+            errors.append(
+                f"[COPY-23][{f}] double hyphen used as a dash in rendered prose -- "
+                f"...{snippet}... (use an em dash (&mdash;) or rewrite the sentence)"
+            )
+    return errors
+
+
+def print_double_hyphen_backlog_advisory(html_files: list[Path], docs_dir: Path) -> None:
+    print("\n--- double-hyphen-in-prose advisory (does not affect gate exit code -- see COPY-23's own "
+          "comment for why only the hand-copy pages are a hard gate) ---")
+    hard_gate_paths = {docs_dir / rel for rel in _DOUBLE_HYPHEN_HARD_GATE_PAGES}
+    count = 0
+    for f in html_files:
+        if f in hard_gate_paths:
+            continue
+        prose = _extract_rendered_prose(f.read_text(encoding="utf-8"))
+        count += len(_PROSE_DOUBLE_HYPHEN_RE.findall(prose))
+    print(f"  {count} instance(s) remaining outside the hard-gated pages (data_gap_note/verification "
+          f"prose and some blog posts) -- tracked as a backlog, not blocking this ship.")
 
 
 # The Florida deadline-calculator bug (orchestrator, 2026-08-27): `computation.note`
@@ -7179,6 +7244,7 @@ def main():
     all_errors += check_copy_hygiene(html_files)
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
+    all_errors += check_double_hyphen_hand_copy_pages(docs_dir)
     all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
@@ -7274,6 +7340,7 @@ def main():
         print_gap_list_advisory(repo_root)
         print_es_translation_review_advisory(repo_root)
         print_seo_length_drift_advisory(html_files, repo_root)
+        print_double_hyphen_backlog_advisory(html_files, docs_dir)
         sys.exit(1)
     print("\nPASS -- no violations found.")
     print_worker_deploy_staleness_advisory(repo_root)
@@ -7295,6 +7362,7 @@ def main():
     print_gap_list_advisory(repo_root)
     print_es_translation_review_advisory(repo_root)
     print_seo_length_drift_advisory(html_files, repo_root)
+    print_double_hyphen_backlog_advisory(html_files, docs_dir)
     sys.exit(0)
 
 
