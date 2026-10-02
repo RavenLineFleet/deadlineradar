@@ -5,11 +5,11 @@
   },
   "total_records": 246,
   "gap_record_count": 3,
-  "terminal_disclosure_count": 32,
-  "note_bearing_record_count": 35,
+  "terminal_disclosure_count": 33,
+  "note_bearing_record_count": 36,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 31
+    "data_gap_note": 32
   },
   "block_claim_count": 0,
   "entries": [
@@ -310,6 +310,16 @@
       "state_slug": "dc",
       "field": "data_gap_note",
       "note": "D.C. doesn't codify this fee in a rule: neither DCMR Title 17 Chapter 25 (Board of Accountancy) nor Chapter 40 (general licensing) contains a fee schedule. The fee is set administratively instead, and the regulator publishes the current amounts on DLCP's Board of Accountancy page -- $110 for renewal, $50 for late renewal. Because the amount isn't fixed by rule, it can change without a rule filing, so confirm the current figure with DLCP before you pay.",
+      "is_block_claim": false,
+      "terminal_disclosure": true
+    },
+    {
+      "dataset": "renewal_fees.json",
+      "id": "delaware-renewal-fee",
+      "state": "Delaware",
+      "state_slug": "delaware",
+      "field": "data_gap_note",
+      "note": "Delaware doesn't publish a flat renewal fee, by design. State law (29 Del. C. 8735(c)) has the Division of Professional Regulation set license fees to cover its own costs rather than fixing a dollar figure in the code, and DPR's own fee page confirms it: you're notified of the amount directly when you renew. Since no schedule exists to publish, your renewal notice from DPR is the source for the current figure.",
       "is_block_claim": false,
       "terminal_disclosure": true
     },
