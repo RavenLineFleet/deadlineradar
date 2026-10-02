@@ -408,3 +408,34 @@ def test_duplicated_source_disagreement_never_confirms_record():
     for stored in (100, 150):
         out = runner.judge_record(r, {"fee_usd": stored}, {0: ok(text)})
         assert out["outcome"] == "FAILED" and out["checks"][0]["status"] == "AMBIGUOUS_ANCHOR"
+
+
+def test_stale21_tooling_gap_cleared_with_audit_trail_substantive_held():
+    """AuditLab STALE-21 ruling 10-02: clear tooling/fetch-failure markers on a real confirmation (quoting
+    them in history); never clear a substantive one -- the record is HELD and its date doesn't move."""
+    real = ["fetch not 200 (status=403, error=HTTPError 403)",
+            "the cited value '80' was not independently re-confirmed -- this is a PDF, whose text this function cannot search",
+            "claim-anchor check failed: normalized fetched page does not contain '24.201.2106' -- a bot wall, soft-404, or wrong page",
+            "the cited value '120' was not found on the fetched page"]
+    for gap in real:
+        assert runner.gap_is_tooling(gap), gap
+        rec = {"manual_verify_gap_reason": gap, "verified_date": "2026-09-12", "verification_history": "old"}
+        assert runner.apply_confirmed(rec, "cpe_hours", "2026-10-02 (automated re-verification, auto-anchor): x", "2026-10-02")
+        assert rec["manual_verify_gap_reason"] is None and rec["verified_date"] == "2026-10-02"
+        assert "cleared manual_verify_gap_reason" in rec["verification_history"] and gap in rec["verification_history"]
+    for gap in ["two official sources disagree on the hour count", "rule may have been superseded; needs human judgment"]:
+        assert not runner.gap_is_tooling(gap)
+        rec = {"manual_verify_gap_reason": gap, "verified_date": "2026-09-12", "verification_history": "old"}
+        assert runner.apply_confirmed(rec, "cpe_hours", "line", "2026-10-02") is False
+        assert rec["verified_date"] == "2026-09-12" and rec["manual_verify_gap_reason"] == gap
+
+
+def test_substantive_gap_record_reported_held_not_bumped(env):
+    tmp, ff = env
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    recs["records"][0]["manual_verify_gap_reason"] = "two official sources disagree"
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    out = runner.run(apply=True, fetcher=ff, today="2026-10-01")
+    assert out["results"]["a-fee"]["outcome"] == "HELD"
+    assert _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"
+    assert any("HELD_a-fee" in n for n in os.listdir(tmp / "asset"))
