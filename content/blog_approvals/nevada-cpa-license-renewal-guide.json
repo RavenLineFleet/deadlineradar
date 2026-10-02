@@ -1,0 +1,17 @@
+{
+  "slug": "nevada-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "309a312424171d2ef9f966055ac0fa89eee3f900e0a59b86fd6aec79e856081d",
+      "verdict_file": "auditlab_20261002_blog_APPROVED_nevada_309a3124.md",
+      "sent": "2026-10-02 15:35 MDT"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "309a312424171d2ef9f966055ac0fa89eee3f900e0a59b86fd6aec79e856081d",
+      "verdict_file": "Orchestrator/state/orch_blog_APPROVED_nevada_309a3124.md",
+      "sent": "2026-10-02 15:40 MDT"
+    }
+  ]
+}
