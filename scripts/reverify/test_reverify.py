@@ -44,6 +44,19 @@ def test_anchor_matching_survives_pdf_whitespace_and_quotes():
     assert runner.judge_check(chk(expect=150), text)[0] == "MATCH"
 
 
+def test_digits_inside_anchor_are_not_the_value():
+    text = "Rule 1.6(G)(2) requires 80 hours of CPE"
+    c = chk(anchor="Rule 1.6(G)(2) requires", pattern=r"\b(\d{1,3})\b", expect=80)
+    assert runner.judge_check(c, text) == ("MATCH", "80")
+
+
+def test_spelled_out_numbers():
+    assert runner._num("one hundred twenty") == 120 and runner._num("eighty") == 80
+    assert runner._num("twenty-four") == 24 and runner._num("forty") == 40 and runner._num("banana") is None
+    c = chk(anchor="in the amount of", pattern=rf"\b({runner.WORD_NUM_RE}|\d{{1,3}})\b", expect=120)
+    assert runner.judge_check(c, "in the amount of one hundred twenty (120) hours")[0] == "MATCH"
+
+
 def test_expect_text_mode():
     c = chk(anchor="Fee schedule", pattern=None, expect_text="biennial")
     assert runner.judge_check(c, PAGE)[0] == "MATCH"
