@@ -78,7 +78,7 @@
   </div>
 </form>
 <p id="dr-cdit-fl-individual-result" class="dr-bf-result" hidden></p>
-<script>(function(){var input=document.getElementById("dr-cdit-fl-individual-date");var goBtn=document.getElementById("dr-cdit-fl-individual-go");var result=document.getElementById("dr-cdit-fl-individual-result");var periodEndMonth=6,periodEndDay=30;var renewalMonth=12,renewalDay=31;var initialPeriods=3,termYears=2;var asOf=new Date(Date.UTC(2026,8,23));var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];function fmt(d){return MONTHS[d.getUTCMonth()]+" "+d.getUTCDate()+", "+d.getUTCFullYear()}function show(){if(!input.value){result.hidden=false;result.textContent="Enter your certificate date to see your next deadline.";return}var parts=input.value.split("-");var certDate=new Date(Date.UTC(parseInt(parts[0],10),parseInt(parts[1],10)-1,parseInt(parts[2],10)));var y0=certDate.getUTCFullYear();var periodEndY0=new Date(Date.UTC(y0,periodEndMonth-1,periodEndDay));var firstFollowingYear=certDate.getTime()<periodEndY0.getTime()?y0:y0+1;var y=firstFollowingYear+(initialPeriods-1);var d=new Date(Date.UTC(y,renewalMonth-1,renewalDay));while(d.getTime()<asOf.getTime()){y+=termYears;d=new Date(Date.UTC(y,renewalMonth-1,renewalDay))}result.hidden=false;result.textContent="Your next license renewal: "+fmt(d);if(renewalMonth!==periodEndMonth||renewalDay!==periodEndDay){result.textContent+=" (your CPE for that cycle is due "+fmt(new Date(Date.UTC(d.getUTCFullYear(),periodEndMonth-1,periodEndDay)))+")"}}goBtn.addEventListener("click",show);input.addEventListener("change",show)})();</script>
+<script>(function(){var input=document.getElementById("dr-cdit-fl-individual-date");var goBtn=document.getElementById("dr-cdit-fl-individual-go");var result=document.getElementById("dr-cdit-fl-individual-result");var periodEndMonth=6,periodEndDay=30;var renewalMonth=12,renewalDay=31;var initialPeriods=3,termYears=2;var asOf=new Date(Date.UTC(2026,9,2));var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];function fmt(d){return MONTHS[d.getUTCMonth()]+" "+d.getUTCDate()+", "+d.getUTCFullYear()}function show(){if(!input.value){result.hidden=false;result.textContent="Enter your certificate date to see your next deadline.";return}var parts=input.value.split("-");var certDate=new Date(Date.UTC(parseInt(parts[0],10),parseInt(parts[1],10)-1,parseInt(parts[2],10)));var y0=certDate.getUTCFullYear();var periodEndY0=new Date(Date.UTC(y0,periodEndMonth-1,periodEndDay));var firstFollowingYear=certDate.getTime()<periodEndY0.getTime()?y0:y0+1;var y=firstFollowingYear+(initialPeriods-1);var d=new Date(Date.UTC(y,renewalMonth-1,renewalDay));while(d.getTime()<asOf.getTime()){y+=termYears;d=new Date(Date.UTC(y,renewalMonth-1,renewalDay))}result.hidden=false;result.textContent="Your next license renewal: "+fmt(d);if(renewalMonth!==periodEndMonth||renewalDay!==periodEndDay){result.textContent+=" (your CPE for that cycle is due "+fmt(new Date(Date.UTC(d.getUTCFullYear(),periodEndMonth-1,periodEndDay)))+")"}}goBtn.addEventListener("click",show);input.addEventListener("change",show)})();</script>
 <div class="sheet">
   <div class="sheethead">
     <span>Firm license</span>
@@ -102,11 +102,7 @@
   requirements and deadlines can change.
 </div>
 <p class="flag-wrong"><a href="mailto:support@deadline-radar.com?subject=Data%20correction%3A%20Florida&amp;body=I%20think%20something%20on%20the%20Florida%20page%20looks%20wrong%3A%0Ahttps%3A//deadline-radar.com/florida/%0A%0AWhat%20I%27m%20seeing%3A%0A">Something on this page look wrong? Flag it &rarr;</a></p>
-<div class="callout" style="border-left-color:var(--gold);">
-  <p class="label">Heads up</p>
-  <p>A CPA regulatory/statutory change is coming to Florida, effective 2026-09-30.
-  The Florida Board of Accountancy finalized amendments to Rule 61H1-33.003 (Continuing Professional Education / re-establishment of professional knowledge and competency), moving the rule from Proposed to Final/Adopted status with a new effective date of September 30, 2026, superseding the prior 10/26/2023 version. <a href="https://flrules.org/gateway/ruleno.asp?id=61H1-33.003">See the citation</a>.</p>
-</div>
+
 <div class="remind-panel" id="remind">
   <div>
     <h2>Reminders, right up to your deadline.</h2>
@@ -134,7 +130,7 @@
   <option value="fl-firm">Firm license</option>
 </select>
 <label for="anchor_date">Original certificate date (individual license only)</label>
-<input type="date" id="anchor_date" name="anchor_date" max="2026-09-23">
+<input type="date" id="anchor_date" name="anchor_date" max="2026-10-02">
 <p class="field-hint">Only needed if you selected Individual CPA license above -- find it on your
 original Florida CPA certificate. Leave blank if you selected Firm license.</p>
     <button type="submit">Remind me</button>
