@@ -6318,10 +6318,6 @@ PUBLIC_READ_HANDLERS = {
     "handleAssistantRenewalFee": "public-no-tenant-data",
     "handleAssistantMobility": "public-no-tenant-data",
     "handleAssistantRuleChanges": "public-no-tenant-data",
-    # Attribution summary (Orchestrator directive, 2026-10-02) -- dates,
-    # allow-listed channel tags, and aggregate counts only (attribution_daily,
-    # migration 0081); no subscriber/firm row is ever read by this route.
-    "handleAttrSummary": "public-no-tenant-data",
 }
 
 
@@ -6332,7 +6328,12 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
     requireFirmSession/requireFirmSessionWithFirm/
     requireFirmSessionAndPaidTier/requireSubscriberSession, or
     requireFirmRole, which doesn't carry "Session" in its name -- in its
-    own body, or be named (with a reason) in PUBLIC_READ_HANDLERS above.
+    own body, OR call constantTimeEqual() as evidence of the X-Debug-Secret
+    shared-secret pattern (handleAttrSummary, Orchestrator ruling
+    2026-10-02: traffic-attribution counts are business data, gated the
+    same way POST /debug/run-reminder-pass already was -- no session
+    exists for an internal/fleet caller to establish), or be named (with a
+    reason) in PUBLIC_READ_HANDLERS above.
     Matching by the "Session" substring rather than an exact name list on
     purpose: a first draft hardcoded 3 names, missed
     requireFirmSessionWithFirm/AndPaidTier entirely, and produced 9 false
@@ -6385,7 +6386,7 @@ def check_read_route_auth_coverage(repo_root: Path) -> list[str]:
     # above for why an exact list already produced 9 false positives here.
     # requireFirmRole() doesn't carry "Session" in its name, so it needs
     # its own alternative.
-    session_helper_re = re.compile(r"require\w*Session\w*\(|requireFirmRole\(")
+    session_helper_re = re.compile(r"require\w*Session\w*\(|requireFirmRole\(|constantTimeEqual\(")
     # GATE-25 follow-up (AuditLab, 2026-09-10) -- see check_origin_check_coverage's
     # sibling comment for the async-only body-lookup fix this mirrors.
     for name in sorted(read_handlers - set(PUBLIC_READ_HANDLERS)):

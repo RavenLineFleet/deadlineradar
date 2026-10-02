@@ -6350,11 +6350,17 @@ async function handleAssistantTicket(request: Request, env: Env, ip: string): Pr
  * Devin: "measure what drives traffic and signups"). Two routes:
  *   - POST /api/attr -- a page-load beacon fired by generate.py's
  *     attribution JS. One row per (date, src) in attribution_daily
- *     (migration 0081), incremented -- never one row per visitor. No IP,
- *     user-agent, referrer, or cookie recorded anywhere in this path.
- *   - GET /api/attr/summary -- the aggregate readout, same public +
- *     rate-limited posture as /assistant/* (no secret to protect --
- *     dates, tags, and counts, nothing sensitive).
+ *     (migration 0081), incremented -- never one row per visitor. No user-
+ *     agent, referrer, or cookie is ever recorded by this path, and
+ *     attribution_daily itself holds no IP. The caller's IP is held only
+ *     by checkRateLimit()'s own site-wide rate_limit_hits table (purged
+ *     after its window, 1 hour here -- see RATE_LIMIT_ATTR_BEACON), the
+ *     same bookkeeping every other rate-limited route on this Worker
+ *     already does; this route doesn't add a new place IP is kept.
+ *   - GET /api/attr/summary -- traffic-attribution counts are business
+ *     data (Orchestrator ruling, 2026-10-02), not public: gated behind
+ *     ATTR_SUMMARY_SECRET (env.ts has the full rationale), same posture as
+ *     POST /debug/run-reminder-pass.
  * ATTRIBUTION_SRC_ALLOWLIST (validation.ts) is what keeps `src` a bounded
  * channel tag rather than an open-ended free-text column -- both routes
  * reject anything off it rather than storing it.
@@ -6380,17 +6386,29 @@ async function handleAttrBeacon(request: Request, env: Env, ip: string): Promise
       `INSERT INTO attribution_daily (date, src, hit_count) VALUES (?1, ?2, 1)
        ON CONFLICT(date, src) DO UPDATE SET hit_count = hit_count + 1`
     ).bind(today, src).run();
-  } catch {
-    // A logging failure must never surface as an error to the beacon caller
-    // -- same reasoning as /go/mtcpa's own click-log insert.
+  } catch (err) {
+    // A logging failure must never surface as an error to the beacon
+    // caller -- same reasoning as /go/mtcpa's own click-log insert -- but
+    // Orchestrator (2026-10-02) wants it visible rather than silent. No IP
+    // in the log line: `src` is the only input this route accepts, and
+    // it's already allow-list-validated above, not raw user text.
+    console.error(`[attr-beacon-write-failed] src=${src} err=${String(err)}`);
   }
   return new Response(null, { status: 204 });
 }
 
 /** GET /api/attr/summary -- last 90 days, newest first. Bounded by the date
  * filter (not a full-table scan) regardless of how large attribution_daily
- * grows -- at most 90 x allow-list-size rows are ever read. */
-async function handleAttrSummary(env: Env, ip: string): Promise<Response> {
+ * grows -- at most 90 x allow-list-size rows are ever read. Business data
+ * (Orchestrator ruling, 2026-10-02), not public -- see ATTR_SUMMARY_SECRET's
+ * own comment (env.ts) for the auth rationale. */
+async function handleAttrSummary(request: Request, env: Env, ip: string): Promise<Response> {
+  const configuredSecret = env.ATTR_SUMMARY_SECRET;
+  const suppliedSecret = request.headers.get("X-Debug-Secret");
+  if (!configuredSecret || !suppliedSecret ||
+      !constantTimeEqual(new TextEncoder().encode(suppliedSecret), new TextEncoder().encode(configuredSecret))) {
+    return errorPage(404, "Not found.");
+  }
   const allowed = await checkRateLimit(env.DB, ip, "attr_summary", RATE_LIMIT_ATTR_SUMMARY);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many requests." });
@@ -9802,7 +9820,7 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
 
       if (url.pathname === "/attr/summary") {
         try {
-          return await handleAttrSummary(env, ip);
+          return await handleAttrSummary(request, env, ip);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
