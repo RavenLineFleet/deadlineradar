@@ -279,6 +279,14 @@ def cmd_teardown() -> None:
         f"DELETE FROM firm_sessions WHERE firm_id IN {test_tenant_ids};",
         f"DELETE FROM cpe_entries WHERE firm_id IN {test_tenant_ids};",
         f"DELETE FROM subscribers WHERE firm_id IN {test_tenant_ids};",
+        # firms.primary_member_id -> firm_members.id is a circular FK (live
+        # 2026-10-02: the first real teardown run failed on statement 4/5
+        # with SQLITE_CONSTRAINT_FOREIGNKEY precisely here) -- a firm's own
+        # row points at its partner's firm_members row, so firm_members
+        # cannot be deleted while any firm still points at it. Null it out
+        # first, scoped the same is_test_tenant way as every other
+        # statement here.
+        f"UPDATE firms SET primary_member_id = NULL WHERE id IN {ids} AND is_test_tenant = 1;",
         f"DELETE FROM firm_members WHERE firm_id IN {test_tenant_ids};",
         f"DELETE FROM firms WHERE id IN {ids} AND is_test_tenant = 1;",
     ]
