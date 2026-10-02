@@ -8,18 +8,20 @@
 
 - 55 jurisdictions listed (the 50 states, DC, Puerto Rico, Guam, US Virgin Islands, and
   the Northern Mariana Islands).
-- 49 of those have their exact next renewal date computed automatically from the
-  published rule or the visitor's own input (birth month, license issue date, etc., depending on the
-  jurisdiction's own cycle).
-- 6 jurisdictions have no independently verifiable published date -- the visitor enters
-  their own license's date and we track it from there rather than guess or round up.
+- 31 have a single fixed renewal date shown directly.
+- 6 renew on a birth-month cycle (the exact date depends on your birth
+  month, computed automatically once you provide it).
+- 18 depend on your specific license type or cohort, or have no
+  independently verifiable published date -- the visitor enters their own license's date and we
+  track it from there rather than guess or round up.
 
 ## How dates are verified
 
-Every published date traces to two independent sources before it ships: the state board's own page,
-and the actual codified statute or administrative rule the requirement derives from -- not a summary
-of it, the primary legal text. If the second source can't be found or confirmed, the date is not
-published as a confirmed fact; the page says so plainly instead of guessing. Full method:
+Every published date is checked against two independent sources where both exist: the state board's
+own page, and the actual codified statute or administrative rule the requirement derives from -- not
+a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
+own page with no corresponding codified text to confirm it against; those dates are shown but clearly
+labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
 https://deadline-radar.com/methodology/
 
 ## Datasets tracked, per jurisdiction where applicable

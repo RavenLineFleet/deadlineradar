@@ -52,6 +52,7 @@ EN: dict[str, str] = {
     "nav.how_we_verify": "How We Verify",
     "nav.guides": "Guides",
     "nav.for_firms": "For Firms",
+    "nav.pricing": "Pricing",
     "nav.live_demo": "Live Demo",
     "nav.sign_in": "Sign In",
     "nav.get_reminders": "Get reminders",
@@ -405,8 +406,7 @@ EN: dict[str, str] = {
     "pricing.h2_included": "What's actually included, free vs. paid",
     "pricing.included_intro": (
         "Every paid tier (Essentials through Enterprise) has the identical feature set, priced "
-        "only by staff count. This table is the real, code-verified breakdown — not a "
-        "marketing summary."
+        "only by staff count."
     ),
     "pricing.table_caption": "Free vs. paid firm plan feature comparison",
     "pricing.table_th_feature": "Feature",
@@ -445,22 +445,20 @@ EN: dict[str, str] = {
     "pricing.row_invite": "Invite teammates to sign in",
     "pricing.row_invite_free": "Just you",
     "pricing.row_map": "Multistate Map view",
-    "pricing.row_map_free": "Solo accounts only*",
+    "pricing.row_map_free": "Free for one person*",
     "pricing.row_firm_reg_check": "Firm-level registration check",
     "pricing.row_referral": "Refer firms: 10% off per referral, up to 100%",
     "pricing.cell_yes": "Yes",
     "pricing.cell_no": "No",
     "pricing.footnote_solo": (
-        "* A solo account (you're the only person signed in, no team invited) gets the Map and "
-        "the firm-level registration check free too — inviting a teammate is itself a "
-        "paid-tier feature, so a genuinely one-person account is where \"free\" and \"everything "
-        "included\" overlap."
+        "* Free for one person. Paid plans start when you invite a teammate — inviting someone "
+        "is itself a paid-tier feature, so a genuinely one-person account gets the Map and the "
+        "firm-level registration check free too."
     ),
     "pricing.h2_plans": "Plans",
     "pricing.plans_intro": (
         "If you don't already have a firm account, the buttons below start free signup first; if "
-        "you're already signed in, they go straight to checkout for that tier, same as the "
-        "dashboard's own upgrade panel."
+        "you're already signed in, they go straight to checkout for that tier."
     ),
     "pricing.card_individual_title": "Individual",
     "pricing.card_individual_price": "Free",
@@ -475,6 +473,8 @@ EN: dict[str, str] = {
     "pricing.card_more_title": "More than 35 staff?",
     "pricing.card_more_detail": "{contact_link} — no formula, we'll work out what fits.",
     "pricing.contact_us_link_text": "Contact us",
+    "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
+    "pricing.includes_admin_digest": "Daily firm-wide digest",
     "pricing.includes_map": "Multistate Map",
     "pricing.includes_firm_reg": "Firm-level registration check",
     "pricing.includes_slack_teams": "Slack &amp; Teams alerts",
@@ -503,7 +503,8 @@ EN: dict[str, str] = {
         "against the state board or CPAverify.org on your behalf. Signup itself is self-serve: "
         "your admin adds the roster directly, and reminders start right away for each person — "
         "no confirmation step to wait on. Each staff member still gets one transparent email the "
-        "moment they're added, naming your firm and with an equally prominent one-click opt-out."
+        "moment they're added, naming your firm and with an equally prominent one-click opt-out. "
+        "If someone opts out, you'll see it in your activity log."
     ),
     "faq.firm.2_q": "What if my staff are licensed in a birth-month or “bring your own date” state?",
     "faq.firm.2_a": (
@@ -564,7 +565,7 @@ EN: dict[str, str] = {
         "roster, one place to see who's current and who's at risk, plus the firm's own "
         "registration — not 20 inboxes to hope someone's watching."
     ),
-    "faq.firm.8_q": "Who actually sets up my staff -- your team, or us?",
+    "faq.firm.8_q": "Who actually sets up my staff — your team, or us?",
     "faq.firm.8_a": (
         "You do, directly, through the self-serve dashboard: your admin adds each staff member's "
         "name, email, state, and license type, and their reminders start right away — no "
@@ -649,7 +650,7 @@ ES: dict[str, dict] = {
     },
     'calc.how_it_works_body': {
         "text": 'Seleccionar su estado arriba lo busca en el mismo conjunto de datos exacto del que se renderiza la propia página de ese estado — no hay una segunda fórmula distinta ejecutándose aquí. La mayoría de los estados se resuelven a una sola fecha de inmediato. Los estados cuya norma depende de un dato personal — su mes de nacimiento, o a qué grupo de cohorte pertenece su licencia — solicitan ese dato antes de responder, usando exactamente los mismos datos que la norma de ese estado realmente usa. De cualquier forma, la fecha que obtiene nunca se estima ni se adivina — si no podemos confirmarla contra una fuente primaria, la calculadora lo indica en lugar de mostrar un número, igual que la fila de Florida arriba.',
-        "en_hash": 'a39d4ac700bbe10e',
+        "en_hash": '139dafec7bb4f60d',
         "reviewed": False,
     },
     'calc.intro': {
@@ -769,7 +770,7 @@ ES: dict[str, dict] = {
     },
     'contact.meta_description': {
         "text": 'Contacte a Deadline-Radar — preguntas, correcciones de fechas límite, o ayuda con sus recordatorios de renovación de licencia de CPA. Escríbanos por correo o inicie un chat en vivo.',
-        "en_hash": 'deb602834aebfe2f',
+        "en_hash": '60a7cfd676f97646',
         "reviewed": False,
     },
     'contact.stop_reminders_body': {
@@ -894,7 +895,7 @@ ES: dict[str, dict] = {
     },
     'methodology.fall_short_body': {
         "text": 'Algunas fuentes son genuinamente más difíciles de verificar por medios automatizados — un puñado de citas remiten a documentos PDF o páginas renderizadas con JavaScript que nuestras herramientas no pueden extraer automáticamente. Cuando ese es el caso, esas citas fueron confirmadas individualmente a mano en el momento en que se publicaron; revelamos la limitación de la herramienta en lugar de fingir que una verificación más sencilla la cubre. Si una norma cambia entre nuestras verificaciones, use el enlace de contacto abajo para señalarlo y la volveremos a verificar y corregir rápidamente.',
-        "en_hash": 'aa7c72c8e46f75e6',
+        "en_hash": '8a47387ad08b6ab0',
         "reviewed": False,
     },
     'methodology.freshness_stat': {
@@ -1213,7 +1214,7 @@ ES: dict[str, dict] = {
         "reviewed": False,
     },
     'ppc.run_check': {
-        "text": 'Cree una cuenta gratuita y ejecute una verificación →',
+        "text": 'Ejecute una verificación gratuita ahora →',
         "en_hash": 'ba920255af861584',
         "reviewed": False,
     },

@@ -3521,6 +3521,7 @@ def site_header(
       <a href="/methodology/">{esc(_t("nav.how_we_verify", lang))}</a>
       <a href="/blog/">{esc(_t("nav.guides", lang))}</a>
       <a href="/for-firms/">{esc(_t("nav.for_firms", lang))}</a>
+      <a href="/pricing/">{esc(_t("nav.pricing", lang))}</a>
       <a href="{REMINDER_BACKEND_BASE_URL}/firm/demo-login">{esc(_t("nav.live_demo", lang))}</a>
       {signin_link_html}<a href="{esc(remind_href)}" class="cta">{esc(_t("nav.get_reminders", lang))}</a>
     </div>
@@ -7254,6 +7255,34 @@ def state_hint(records: list[dict]) -> str:
     return "Varies — check your license"
 
 
+def _home_list_hint_counts(by_slug: dict[str, list[dict]]) -> dict[str, int]:
+    """Phase 2.2 fix (DR outside review 2026-10-01): the home page's old single
+    '{determined} where we determine your exact date' stat counted every
+    engine-computable jurisdiction (including ones needing a license-type
+    cohort the engine can resolve but the home list still labels 'Varies --
+    check your license'), so it claimed 49 while the visible list showed only
+    31 real dates + 6 birth-month. Breaks the SAME count the list itself
+    renders (state_hint()) into its 3 real buckets, so the stat can never
+    drift from what a visitor actually sees again."""
+    fixed = birth_month = varies = 0
+    for recs in by_slug.values():
+        hint = state_hint(recs)
+        if hint == "By birth month":
+            birth_month += 1
+        elif hint.startswith("Varies"):
+            varies += 1
+        else:
+            fixed += 1
+    total = fixed + birth_month + varies
+    if total != len(by_slug):
+        raise SystemExit(
+            f"home list hint counts: fixed({fixed}) + birth_month({birth_month}) + varies({varies}) "
+            f"= {total} != {len(by_slug)} jurisdictions -- state_hint() must return exactly one of the "
+            f"3 known buckets for every jurisdiction."
+        )
+    return {"fixed": fixed, "birth_month": birth_month, "varies": varies}
+
+
 def _hint_is_variable(hint: str) -> bool:
     """True for the two state_hint() outcomes that mean 'no single date to show'
     (birth-month or the collapsed 'varies' bucket) -- used to give those state-grid
@@ -7925,6 +7954,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # the public coverage claim cannot drift away from what we actually do.
     _cov = _coverage_counts(by_slug)
     verify_coverage_counts(_cov, by_slug)
+    _hint_counts = _home_list_hint_counts(by_slug)
     sorted_states = sorted(states, key=lambda s: s["state"])
     cards = []
     for s in sorted_states:
@@ -8021,7 +8051,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
         <div class="hfc-sub">{esc(r['license_type_label'])}</div>
       </div>
     </div>
-    <span class="hfc-stamp" title="Verified {esc(r['last_verified'])}" data-verified="{esc(r['last_verified'])}">{_VERIFIED_ICON_SVG}{esc(_short_verified(r['last_verified']))}</span>
+    <span class="hfc-stamp" title="Verified {esc(r['last_verified'])}" data-verified="{esc(r['last_verified'])}">{_VERIFIED_ICON_SVG}Checked {esc(_short_verified(r['last_verified']))}</span>
   </div>
   <div class="hfc-date-block">
     <div class="hfc-date-label">Next renewal date</div>
@@ -8048,8 +8078,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   <div class="hfc-wrap" id="hfc-wrap">
     {chr(10).join(hfc_cards)}
   </div>
-  <div class="hfc-coverage">We list all <b>{_cov["total"]}</b> jurisdictions &middot; exact date
-  determined in <b>{_cov["determined"]}</b> &middot; for the rest you enter your date and we track it</div>
+  <div class="hfc-coverage">We list all <b>{_cov["total"]}</b> jurisdictions &middot; <b>{_hint_counts["fixed"]}</b> with
+  a fixed date &middot; <b>{_hint_counts["birth_month"]}</b> by birth month &middot; the rest depend on your license type</div>
 </div>
 <script>{_HERO_REGION_JS}</script>"""
 
@@ -8151,14 +8181,14 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     stats_band_html = f"""<section class="band-section band-section--alt dr-reveal">
   <div class="trust-row">
     <div class="item"><span class="n">{_cov["total"]}</span><span class="lbl">jurisdictions listed</span></div>
-    <div class="item"><span class="n">{_cov["determined"]}</span><span class="lbl">where we determine your exact date</span></div>
+    <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
+    <div class="item"><span class="n">{_hint_counts["birth_month"]}</span><span class="lbl">by birth month</span></div>
+    <div class="item"><span class="n">{_hint_counts["varies"]}</span><span class="lbl">depend on your license type</span></div>
     <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across all datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
-  <p class="trust-footnote">In the {_cov["byod"]} jurisdictions where we can't compute a date,
-  renewal turns on a personal fact &mdash; your birth month, cohort or issue date &mdash; or the
-  board publishes no verifiable date. You enter the date on your license and we track it. We would
-  rather say that than round up.</p>
+  <p class="trust-footnote">In the {_cov["byod"]} jurisdictions where we can't compute a date from a
+  personal fact or a published rule, you enter the date on your license and we track it from there.</p>
 </section>"""
 
     # ShopLab cold-read (2026-08-20, orchestrator-approved, "same fix batch" as
@@ -8170,7 +8200,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # asserting it, so the lead-in sentence is cut rather than reworded.
     method_band_html = f"""<section class="band-section band-section--alt dr-reveal">
   <p class="eyebrow">How we verify</p>
-  <h2>Two independent sources, or we don't publish a date.</h2>
+  <h2>Two independent sources where available, clearly labeled when only the board page confirms it.</h2>
   <div class="method-grid">
     <div class="mcard">
       <div class="step">STANDARD 01</div>
@@ -8224,12 +8254,13 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   <div class="dr-showcase-frame">
     <img src="/showcase/roster.jpg" alt="Real screenshot of the Deadline-Radar firm roster: who's current, who's at risk, at a glance." width="1568" height="778" loading="lazy">
   </div>
-  <p class="mock-caption">Real screenshot of our own shared live demo account &mdash; the same one
-  you land on if you click "Live Demo" above &mdash; not a mockup. <a href="for-firms/" style="font-weight:600;">See the full product tour &rarr;</a></p>
-  <p class="how-it-works"><strong>Roster, calendar, and CPE tracking are free, up to 3 staff</strong>,
-  no card required, no time limit. Firm plans from $199/year (up to 5 staff) to $549/year (up to 35
-  staff) add the multistate map and practice-privilege check &mdash; every paid tier has the identical
-  feature set, gated only by staff count. <a href="for-firms/" style="font-weight:600;">See the firm overview
+  <p class="mock-caption">Screenshot of our own shared live demo account &mdash; the same one
+  you land on if you click "Live Demo" above. <a href="for-firms/" style="font-weight:600;">See the full product tour &rarr;</a></p>
+  <p class="how-it-works"><strong>Roster, calendar, CPE tracking, and individual Practice Privilege
+  Check are free, up to 3 staff</strong>, no card required, no time limit. Firm plans from $199/year
+  (up to 5 staff) to $549/year (up to 35 staff) add the multistate map and the firm-level registration
+  check &mdash; every paid tier has the identical feature set, gated only by staff count.
+  <a href="for-firms/" style="font-weight:600;">See the firm overview
   &rarr;</a> &middot; <a href="pricing/">Full pricing (incl. individual) &rarr;</a></p>
 </section>"""
 
@@ -8499,6 +8530,8 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
 # paid-only rows above, just compacted.
 def _paid_tier_includes_html(lang: str = "en") -> str:
     return f"""<ul class="pricing-includes">
+      <li>{_t("pricing.includes_coverage_overview", lang)}</li>
+      <li>{_t("pricing.includes_admin_digest", lang)}</li>
       <li>{_t("pricing.includes_map", lang)}</li>
       <li>{_t("pricing.includes_firm_reg", lang)}</li>
       <li>{_t("pricing.includes_slack_teams", lang)}</li>
@@ -9848,8 +9881,8 @@ def _product_showcase_html() -> str:
   <div class="dr-showcase-frame">
     <img src="/{esc(first_src)}" alt="{esc(first_caption)}" id="dr-showcase-img" width="1568" height="778" loading="lazy">
   </div>
-  <p class="mock-caption" id="dr-showcase-caption">{esc(first_caption)} Real screenshot of our own shared
-  live demo account &mdash; the same one you land on if you click "Live Demo" above &mdash; not a mockup.</p>
+  <p class="mock-caption" id="dr-showcase-caption">{esc(first_caption)} Screenshot of our own shared
+  live demo account &mdash; the same one you land on if you click "Live Demo" above.</p>
 </div>
 <script>
 (function () {{
@@ -9865,7 +9898,7 @@ def _product_showcase_html() -> str:
       img.src = entry.src;
       img.alt = entry.caption;
       if (caption) {{
-        caption.textContent = entry.caption + ' Real screenshot of our own shared live demo account -- the same one you land on if you click "Live Demo" above -- not a mockup.';
+        caption.textContent = entry.caption + ' Screenshot of our own shared live demo account — the same one you land on if you click "Live Demo" above.';
       }}
       tabs.forEach(function (t) {{
         t.classList.toggle('dr-showcase-tab--active', t === tab);
@@ -24657,6 +24690,7 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
     publishes one at getcanopy.com/llms.txt and links it from robots.txt;
     we 404 today on both /llms.txt and /llms-full.txt."""
     cov = _coverage_counts(by_slug)
+    hint_counts = _home_list_hint_counts(by_slug)
     return f"""# {SITE_NAME}
 
 > CPA license renewal deadlines by state, each traced to the state board's own page plus the
@@ -24667,18 +24701,20 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
 
 - {cov["total"]} jurisdictions listed (the 50 states, DC, Puerto Rico, Guam, US Virgin Islands, and
   the Northern Mariana Islands).
-- {cov["determined"]} of those have their exact next renewal date computed automatically from the
-  published rule or the visitor's own input (birth month, license issue date, etc., depending on the
-  jurisdiction's own cycle).
-- {cov["byod"]} jurisdictions have no independently verifiable published date -- the visitor enters
-  their own license's date and we track it from there rather than guess or round up.
+- {hint_counts["fixed"]} have a single fixed renewal date shown directly.
+- {hint_counts["birth_month"]} renew on a birth-month cycle (the exact date depends on your birth
+  month, computed automatically once you provide it).
+- {hint_counts["varies"]} depend on your specific license type or cohort, or have no
+  independently verifiable published date -- the visitor enters their own license's date and we
+  track it from there rather than guess or round up.
 
 ## How dates are verified
 
-Every published date traces to two independent sources before it ships: the state board's own page,
-and the actual codified statute or administrative rule the requirement derives from -- not a summary
-of it, the primary legal text. If the second source can't be found or confirmed, the date is not
-published as a confirmed fact; the page says so plainly instead of guessing. Full method:
+Every published date is checked against two independent sources where both exist: the state board's
+own page, and the actual codified statute or administrative rule the requirement derives from -- not
+a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
+own page with no corresponding codified text to confirm it against; those dates are shown but clearly
+labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
 {SITE_BASE_URL}/methodology/
 
 ## Datasets tracked, per jurisdiction where applicable
