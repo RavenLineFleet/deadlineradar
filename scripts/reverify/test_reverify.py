@@ -97,6 +97,18 @@ def test_sum_plus_fielded_checks_mixed():
     assert runner.judge_record(r, {"reinstatement_fee_usd": 310, "penalty_cpe_hours": 80}, fx)["outcome"] == "CHANGED"
 
 
+def test_sum_with_formula_text_guard_idaho():
+    """IDAPA 24.30.01.400: reinstatement = sum of unpaid license fees for the preceding 3 cycles = 3 x $120."""
+    text = "Active License $120 ... Reinstatement License Sum of unpaid license fees for the preceding 3 license renewal cycles"
+    lic = chk(anchor="Active License", expect=120)
+    r = {"field": "reinstatement_fee_usd", "combine": "sum", "checks": [lic, lic, lic,
+         chk(anchor="Reinstatement License", pattern=None, expect_text="preceding 3 license renewal cycles")]}
+    fx = {i: ok(text) for i in range(4)}
+    assert runner.judge_record(r, {"reinstatement_fee_usd": 360}, fx)["outcome"] == "CONFIRMED"
+    r2 = dict(r, checks=r["checks"][:3] + [dict(r["checks"][3], expect_text="preceding 4 license renewal cycles")])
+    assert runner.judge_record(r2, {"reinstatement_fee_usd": 360}, fx)["outcome"] == "CHANGED"
+
+
 def test_per_check_fields():
     text = "total of 80 hours ... at least 4 hours in ethics"
     r = {"checks": [chk(anchor="total of", pattern=r"(\d+) hours", field="total_hours"),
