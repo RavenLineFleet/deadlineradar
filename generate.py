@@ -22552,7 +22552,7 @@ BLOG_ARTICLES = [
         "title": "What Your State Board Actually Promises About Renewal Reminders",
         "meta_description": (
             "We checked what ten state boards actually commit to about renewal notices, in their "
-            "own rules -- and one state promises the opposite of what you'd expect."
+            "own rules — and one state promises the opposite of what you'd expect."
         ),
         "body_html": """
 <p class="intro">Most CPAs assume their board will remind them before a license lapses. We checked
@@ -22906,11 +22906,11 @@ you don't have to hold all three in your head.</p>
 """,
     },
     {
-        # First Moderate-tier article (2026-07-10) -- Tier-A format #1 (per-state renewal
+        # First Moderate-tier article (2026-07-10) — Tier-A format #1 (per-state renewal
         # guide, the Missouri template rolled to a new state). Sequenced OUT of the standing
         # "largest-population-first" default deliberately: this state was chosen because a
         # real confirmed-organic Google referrer landed on ITS state page the same day the
-        # trigger fired (see the trigger filing for the raw-log cross-check) -- a real signal
+        # trigger fired (see the trigger filing for the raw-log cross-check) — a real signal
         # beats a population-based guess. Resume largest-population-first + alternating with
         # a CPE guide next week absent a similarly strong reason not to.
         "slug": "arizona-cpa-license-renewal-guide",
@@ -23023,7 +23023,7 @@ guess.</p>
 """,
     },
     {
-        # 2026-07-17: GSC-steered pick -- "cpa renewal illinois" / "illinois cpa license renewal" /
+        # 2026-07-17: GSC-steered pick — "cpa renewal illinois" / "illinois cpa license renewal" /
         # "il cpa license renewal" are Illinois's strongest real query cluster in Search Console
         # (12 impressions at position 19.2 for the top variant, several more nearby), already next
         # in the standing blog queue (Illinois, then Connecticut, then Wisconsin) before this
@@ -23183,17 +23183,17 @@ for you instead of sneaking up on you.</p>
     {
         # 2026-08-07: standing weekly blog post, GSC-steered (Florida was the
         # highest-impressions state page with no dedicated guide yet and a
-        # poor position -- see the 2026-08-07 GSC pull, 28-day window,
+        # poor position — see the 2026-08-07 GSC pull, 28-day window,
         # 82 impressions/position ~18.1/0% CTR, ranked above every other
         # uncovered state). Repackages fl-individual/fl-firm (data/cpa_deadlines.json)
-        # and fl-cpe (data/cpe_hours.json) -- zero new legal research, same
+        # and fl-cpe (data/cpe_hours.json) — zero new legal research, same
         # process as every prior post in this series.
         "slug": "florida-cpa-license-renewal-guide",
         "published": "2026-08-07",  # first-introduction commit date, from git history
         "title": "Florida CPA License Renewal: Why There's No Single Date to Give You",
         "meta_description": (
             "Florida CPA license renewal doesn't follow a public odd/even pattern for "
-            "individuals -- here's why, what actually determines your date, the firm-license "
+            "individuals — here's why, what actually determines your date, the firm-license "
             "rule that IS fixed, and the 80-hour CPE requirement."
         ),
         "body_html": """
@@ -23214,7 +23214,7 @@ from our Florida page</a> &mdash; it's the only way to know your actual date.</p
 
 <h2>Firm licenses: this part IS fixed &mdash; December 31 of odd-numbered years</h2>
 <p>Unlike the individual-license picture, Florida firm licenses are simple: a single cohort expiring
-December 31 of each odd-numbered year. This isn't a guess -- Florida's own public CPA license records
+December 31 of each odd-numbered year. This isn't a guess — Florida's own public CPA license records
 (DBPR's published license-data file, reviewed 2026-07-30) show 4,932 of 4,933 active firm licenses
 sharing that same December 31, 2027 expiration, about as close to a universal rule as operational data
 gets. If you're a firm owner rather than tracking your own individual license, this is the date that
@@ -23224,14 +23224,14 @@ actually applies to you.</p>
 <p>Florida requires 80 CPE hours per 2-year re-establishment period (Fla. Admin. Code Ann. R.
 61H1-33.003): at least 8 hours in accounting/auditing, at least 4 hours of Board-approved ethics (a
 review of Chapters 455 and 473, Florida Statutes, and related rules), and no more than 20 hours in
-behavioral subjects. There's no separate annual minimum written into the rule itself -- the 80-hour
+behavioral subjects. There's no separate annual minimum written into the rule itself — the 80-hour
 count is checked against the full 2-year period. One date worth flagging separately from your license
 renewal itself: CPE reporting is due <strong>July 31</strong>, ahead of the biennial renewal, not on
-the renewal date itself -- <strong>through September 29, 2026</strong>. An adopted rule amendment moves
+the renewal date itself — <strong>through September 29, 2026</strong>. An adopted rule amendment moves
 that reporting deadline to <strong>December 31</strong> starting September 30, 2026 (Fla. Admin. Code
 R. 61H1-33.003, amended); if you're reading this on or after that date, December 31 is correct.</p>
 
-<p><strong>Bottom line</strong>: if you're an individual Florida CPA, don't trust an odd/even guess --
+<p><strong>Bottom line</strong>: if you're an individual Florida CPA, don't trust an odd/even guess —
 confirm your exact date on DBPR's own license lookup, since it's tied to your personal certificate
 date, not a public calendar rule. If you're tracking a firm license instead, December 31 of odd years
 is the real, confirmed date. Either way, your 80-hour/2-year CPE count (with its July 31 reporting
@@ -23240,14 +23240,14 @@ deadline through September 29, 2026, then December 31 after) runs on its own sep
 """,
     },
     {
-        # 2026-08-27: GSC-steered pick -- /california/ is the top-impression state page
+        # 2026-08-27: GSC-steered pick — /california/ is the top-impression state page
         # with no dedicated guide (22 impressions/28-day window, position 47.3, 8 real
         # renewal-intent queries like "cpa license renewal california" at positions
         # 40-55, zero clicks), despite California already appearing in two mobility
         # posts (california-to-nevada, california-to-texas). Repackages ca-individual
         # (data/cpa_deadlines.json), ca-cpe (data/cpe_hours.json),
         # california-renewal-fee (data/renewal_fees.json), and
-        # california-reinstatement (data/reinstatement.json) -- zero new legal
+        # california-reinstatement (data/reinstatement.json) — zero new legal
         # research. Two-party approved round 1: orchestrator verified the math and
         # citations; AuditLab verified every figure against its source record
         # (including cross-checking the worked birth-year example against the live
@@ -23258,7 +23258,7 @@ deadline through September 29, 2026, then December 31 after) runs on its own sep
         "title": "California CPA License Renewal: Birth Month, CPE, and Fees",
         # AuditLab SEO-5 (2026-08-28): round-1 measured the `title` field, not
         # the rendered <title> tag (title + " — Deadline-Radar" = 75 chars,
-        # over the 60 budget) -- seo_title is the shorter <title>-only string;
+        # over the 60 budget) — seo_title is the shorter <title>-only string;
         # the H1 above keeps the full descriptive text unchanged.
         "seo_title": "California CPA License Renewal Rules",
         "meta_description": (
@@ -23312,13 +23312,13 @@ license renewal page</a>.</p>
 """,
     },
     {
-        # 2026-08-22: GSC-steered pick -- /minnesota/ is the site's highest-impression
+        # 2026-08-22: GSC-steered pick — /minnesota/ is the site's highest-impression
         # guide-less state page (43 impressions/28-day window, position 24.7, real
         # repeated renewal-intent queries like "mn cpa license renewal" not yet ranking
         # well), ahead of every other uncovered state (Georgia 39, Massachusetts 36,
         # South Dakota 32). Repackages mn-individual/mn-firm (data/cpa_deadlines.json),
         # mn-cpe (data/cpe_hours.json), minnesota-renewal-fee (data/renewal_fees.json),
-        # and minnesota-reinstatement (data/reinstatement.json) -- zero new legal
+        # and minnesota-reinstatement (data/reinstatement.json) — zero new legal
         # research beyond confirming the certificate-vs-firm-permit citation split
         # (Minn. Stat. § 326A.04 vs § 326A.05, per § 326A.01's own definitions) that
         # both AuditLab and the orchestrator caught in the first review round.
@@ -23391,7 +23391,7 @@ deadline here</a> so none of these get missed.</p>
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "New York CPA Practicing in New Jersey — What Actually Applies",
         "meta_description": (
-            "New Jersey rewrote its practice-privilege rule in 2026 -- moving from an "
+            "New Jersey rewrote its practice-privilege rule in 2026 — moving from an "
             "NASBA-verified test to individual criteria. Here's exactly what a New York CPA "
             "needs to qualify, sourced to the actual statute."
         ),
@@ -23456,7 +23456,7 @@ registration date here</a>.</p>
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "California CPA Practicing in Nevada — What Actually Applies",
         "meta_description": (
-            "Nevada runs one of the simplest mobility rules in the country -- open CPA=CPA, "
+            "Nevada runs one of the simplest mobility rules in the country — open CPA=CPA, "
             "no notice, no fee. Here's what actually applies for a California-licensed CPA, "
             "and the one condition that trips people up on attest work."
         ),
@@ -23558,7 +23558,7 @@ of those conditions and the registration requirement comes back.</p>
 <p>Mobility privilege covers out-of-state CPAs whose principal place of business stays outside
 Oklahoma. Two separate things can end that: taking employment with a public accounting firm
 <strong>located in Oklahoma</strong>, or <strong>engaging in the practice</strong> of public
-accounting in Oklahoma at all -- either one, not just your firm's office physically relocating --
+accounting in Oklahoma at all — either one, not just your firm's office physically relocating —
 starts a 120-day clock to file for a reciprocal certificate/permit (OAC 10:15-21-1(b)). That's a
 broader trigger than "your firm relocates": taking a job with an Oklahoma-based firm while you
 personally still live elsewhere starts the same 120-day clock.</p>
@@ -23568,7 +23568,7 @@ subsection, OAC 10:15-21-1(b), also requires an Oklahoma certificate for anyone 
 <strong>regardless of where their firm office stays</strong>. That means a Texas CPA who moves to
 Oklahoma personally but keeps working for a Texas-based firm office (and doesn't otherwise work for
 an Oklahoma firm or practice in Oklahoma) doesn't get to rely on principal-place-of-business mobility
-at all: the residency rule applies to them directly, on top of -- not instead of -- the
+at all: the residency rule applies to them directly, on top of — not instead of — the
 employment/practice trigger above. Those are two independent tests in the same subsection &mdash;
 where you work or practice, and where you yourself live &mdash; and as of this rule change, either
 one alone can require an Oklahoma certificate.</p>
@@ -23651,7 +23651,7 @@ track &mdash; it's easy to lose track of since it's not tied to your license's o
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "California CPA Practicing in Texas — What Actually Applies",
         "meta_description": (
-            "Texas moved to an individual-criteria mobility test in September 2025 -- and "
+            "Texas moved to an individual-criteria mobility test in September 2025 — and "
             "the state board's own website still describes the old rule. Here's what a "
             "California CPA actually needs, sourced to the current statute."
         ),
@@ -23704,7 +23704,7 @@ renewal while you're at it &mdash; it runs on a birth-month/odd-even cycle that'
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Illinois CPA Practicing in Indiana — What Actually Applies",
         "meta_description": (
-            "Indiana is one of the few states with NO firm mobility -- a firm permit is "
+            "Indiana is one of the few states with NO firm mobility — a firm permit is "
             "required regardless of whether you have an Indiana office. Here's what an "
             "Illinois CPA actually needs to know before doing attest work there."
         ),
@@ -23754,7 +23754,7 @@ Illinois renewal on track &mdash; it's a 3-year cycle, easy to lose track of.
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Florida CPA Practicing in Georgia — What Actually Applies",
         "meta_description": (
-            "Georgia rewrote its mobility rule effective January 2026 -- but the board's own "
+            "Georgia rewrote its mobility rule effective January 2026 — but the board's own "
             "compiled rules still describe the old test and directly contradict the new firm "
             "rule. Here's what a Florida CPA needs to know, and where the state disagrees "
             "with itself."
@@ -23925,7 +23925,7 @@ renewal date here</a>.</p>
         "title": "Virginia CPA Practicing in Washington, D.C. — What Actually Applies (and the November 8 Catch)",
         "meta_description": (
             "D.C. rewrote its CPA practice-privilege rule by emergency act effective August 10, "
-            "2026 -- and that act expires November 8, 2026. Here's what a Virginia CPA needs "
+            "2026 — and that act expires November 8, 2026. Here's what a Virginia CPA needs "
             "to know, including exactly what's settled and what isn't."
         ),
         "body_html": """
@@ -23995,15 +23995,15 @@ due every June 30. <a href="../../virginia/">Check your Virginia renewal date he
         # orchestrator_20260828_blog_APPROVED_why-third-party-cpe-numbers-go-stale.md,
         # auditlab_20260828_blog_APPROVED_why-third-party-cpe-numbers-go-stale.md. Every
         # figure restates data/cpe_hours.json's wa-cpe record (verified_date 2026-08-13),
-        # zero new legal research -- ValueLab independently re-verified the same rule text
+        # zero new legal research — ValueLab independently re-verified the same rule text
         # against the WA code-reviser site before filing the rec, so this is a second
         # independent check landing on the same figures, not one source repeated. The
         # unnamed vendor is Canopy (getcanopy.com/blog/ultimate-guide-managing-cpe-credits-
-        # courses/) -- deliberately not named or linked here per Devin's framing call, and
+        # courses/) — deliberately not named or linked here per Devin's framing call, and
         # check_named_vendor_disparagement enforces that at the gate level, not just
         # editorially. Publish-day re-check (AuditLab's own required condition): fetched
         # the live page again today, 2026-08-28, HTTP 200, still reads "no more than 72
-        # non-technical" -- the "is wrong" claim is safe.
+        # non-technical" — the "is wrong" claim is safe.
         "slug": "why-third-party-cpe-numbers-go-stale",
         "published": "2026-08-28",  # first-introduction commit date, from git history
         "title": "Why the CPE Numbers on a Vendor Blog Can Be Wrong Even When They Used to Be Right",
@@ -24171,7 +24171,7 @@ so both clocks work for you instead of quietly running past you.</p>
     },
     {
         # 2026-09-04: standing weekly post. Topic picked from a live GSC pull
-        # (see draft memo) -- closest-to-page-1 real-demand state query
+        # (see draft memo) — closest-to-page-1 real-demand state query
         # without an existing guide. Repackages sc-individual/sc-firm
         # (data/cpa_deadlines.json), sc-cpe (data/cpe_hours.json),
         # south-carolina-reinstatement (data/reinstatement.json) and
@@ -24221,14 +24221,14 @@ so both clocks work for you instead of quietly running past you.</p>
     },
     {
         # 2026-09-09: standing weekly post. Topic picked from a live GSC pull
-        # (see round-1 draft memo) -- highest combined real-demand signal of
+        # (see round-1 draft memo) — highest combined real-demand signal of
         # any uncovered state, and timed to the 2026-09-08 board confirmation
         # that resolved tn-all's firm-permit annual-vs-biennial question.
         # Repackages tn-all (data/cpa_deadlines.json), tn-cpe
         # (data/cpe_hours.json), tennessee-reinstatement
         # (data/reinstatement.json) and tennessee-renewal-fee
         # (data/renewal_fees.json, updated 2026-09-09 by FEE-1 to disclose
-        # the separate firm fee); no live re-fetch this pass -- all four
+        # the separate firm fee); no live re-fetch this pass — all four
         # records verified 2026-08-14 through 2026-09-08/09, no open
         # data_gap_note. Round 3 per AuditLab review: round 1 fixed the
         # omitted firm fee, an overclaimed "Board confirmed no other page"
@@ -24244,29 +24244,29 @@ so both clocks work for you instead of quietly running past you.</p>
             "Tennessee CPA renewal runs two clocks: individuals biennial (odd/even), firms annual at $50/year. The firm cycle is confirmed directly by the Board."
         ),
         "body_html": """
-<p class="intro">Tennessee runs two different renewal clocks under one roof -- and the Board's own renewal page describes them in a way that makes it easy to think there's only one. We asked the Board directly which clock actually applies to firm permits, and got a clear, on-the-record answer. Here's exactly how individual and firm renewal work in Tennessee, sourced to the Tennessee Code, the Board's own rules, and that direct confirmation.</p>
+<p class="intro">Tennessee runs two different renewal clocks under one roof — and the Board's own renewal page describes them in a way that makes it easy to think there's only one. We asked the Board directly which clock actually applies to firm permits, and got a clear, on-the-record answer. Here's exactly how individual and firm renewal work in Tennessee, sourced to the Tennessee Code, the Board's own rules, and that direct confirmation.</p>
 
 <h2>Two clocks: individual certificates run biennial, firm permits run annual</h2>
-<p>Individual CPA certificates and PA registrations renew every <strong>two years</strong>, assigned to an odd- or even-year cohort by your own license number -- if your license number is odd, you renew in odd-numbered years, and the same for even. This is codified directly: Tenn. Code Ann. &sect; 62-1-107(b) authorizes "procedures for odd-numbered certificates and registrations to be renewed... on odd-numbered years and even-numbered certificates and registrations to be renewed... on even-numbered years."</p>
-<p>Firm permits run on a completely separate clock: <strong>every single year</strong>, always expiring <strong>December 31</strong> -- regardless of what cohort year your own individual certificate falls in. That's set by Tenn. Comp. R. & Regs. 0020-01-.11(2), and we confirmed it directly with the Board rather than relying on the rule text alone: the Board's own Licensing Coordinator told us plainly, "Firm permits expire annually on December 31. There should be no conflicting guidance on official TN websites."</p>
-<p><a href="../../tennessee/">Confirm your own next Tennessee renewal deadline here</a> -- individual and firm renewals are tracked separately, since they run on genuinely different cycles.</p>
+<p>Individual CPA certificates and PA registrations renew every <strong>two years</strong>, assigned to an odd- or even-year cohort by your own license number — if your license number is odd, you renew in odd-numbered years, and the same for even. This is codified directly: Tenn. Code Ann. &sect; 62-1-107(b) authorizes "procedures for odd-numbered certificates and registrations to be renewed... on odd-numbered years and even-numbered certificates and registrations to be renewed... on even-numbered years."</p>
+<p>Firm permits run on a completely separate clock: <strong>every single year</strong>, always expiring <strong>December 31</strong> — regardless of what cohort year your own individual certificate falls in. That's set by Tenn. Comp. R. & Regs. 0020-01-.11(2), and we confirmed it directly with the Board rather than relying on the rule text alone: the Board's own Licensing Coordinator told us plainly, "Firm permits expire annually on December 31. There should be no conflicting guidance on official TN websites."</p>
+<p><a href="../../tennessee/">Confirm your own next Tennessee renewal deadline here</a> — individual and firm renewals are tracked separately, since they run on genuinely different cycles.</p>
 
 <h2>Why the Board's own page can read like one shared cycle</h2>
-<p>If you've read Tennessee's renewal-requirements page and come away thinking firm permits follow the same two-year cycle as individual licenses, you're not misreading it by accident. The page's "[Year] Renewal Requirements" heading states: "Renewal applications for CPA/PA licenses and firm permits with an expiration date of December 31, [year] are available beginning November 2, [year]." Read at a glance, that sentence's modifying clause -- "with an expiration date of December 31, [year]" -- appears to describe both license types sharing one dated expiration in the same year.</p>
-<p>It doesn't -- the rule itself is unambiguous even if the page's phrasing isn't. We asked the Board's Licensing Coordinator directly, and got a clear answer: firm permits expire annually on December 31, full stop, and there should be no conflicting guidance anywhere on the Board's official site. They also asked us to point them at anything that reads otherwise so they could get it corrected -- so we did, flagging this exact page and sentence. Until any wording change goes up, know that the sentence above is only describing whichever individuals happen to fall in that year's odd/even cohort <em>and</em> firm permits, which land on December 31 every year without exception -- two groups that share a date in some years by coincidence of the cohort cycle, not because they run on the same schedule.</p>
-<p>One more distinction worth knowing: a license that's 1 day to 6 months past its expiration date is "delinquent" (a $100 late fee applies, per 0020-01-.08(6)) -- it isn't dead yet. Only past the 6-month mark does a license become "expired" and require full reinstatement (0020-01-.08(7)), covered below.</p>
+<p>If you've read Tennessee's renewal-requirements page and come away thinking firm permits follow the same two-year cycle as individual licenses, you're not misreading it by accident. The page's "[Year] Renewal Requirements" heading states: "Renewal applications for CPA/PA licenses and firm permits with an expiration date of December 31, [year] are available beginning November 2, [year]." Read at a glance, that sentence's modifying clause — "with an expiration date of December 31, [year]" — appears to describe both license types sharing one dated expiration in the same year.</p>
+<p>It doesn't — the rule itself is unambiguous even if the page's phrasing isn't. We asked the Board's Licensing Coordinator directly, and got a clear answer: firm permits expire annually on December 31, full stop, and there should be no conflicting guidance anywhere on the Board's official site. They also asked us to point them at anything that reads otherwise so they could get it corrected — so we did, flagging this exact page and sentence. Until any wording change goes up, know that the sentence above is only describing whichever individuals happen to fall in that year's odd/even cohort <em>and</em> firm permits, which land on December 31 every year without exception — two groups that share a date in some years by coincidence of the cohort cycle, not because they run on the same schedule.</p>
+<p>One more distinction worth knowing: a license that's 1 day to 6 months past its expiration date is "delinquent" (a $100 late fee applies, per 0020-01-.08(6)) — it isn't dead yet. Only past the 6-month mark does a license become "expired" and require full reinstatement (0020-01-.08(7)), covered below.</p>
 
 <h2>CPE: 80 hours every 2 years, with a Tennessee-specific ethics course</h2>
-<p>Tennessee requires <strong>80 hours</strong> of CPE per 2-year period immediately preceding renewal, with a minimum of <strong>20 hours completed each year</strong> -- so you can't bank all 80 in a single year and coast the next. Of those 80 hours, at least <strong>40 must be in technical subjects</strong>, and you need a <strong>board-approved 2-hour Tennessee-specific ethics course</strong> -- not just any generic ethics CPE. All four figures are set directly in Tenn. Comp. R. & Regs. 0020-05-.03(1).</p>
+<p>Tennessee requires <strong>80 hours</strong> of CPE per 2-year period immediately preceding renewal, with a minimum of <strong>20 hours completed each year</strong> — so you can't bank all 80 in a single year and coast the next. Of those 80 hours, at least <strong>40 must be in technical subjects</strong>, and you need a <strong>board-approved 2-hour Tennessee-specific ethics course</strong> — not just any generic ethics CPE. All four figures are set directly in Tenn. Comp. R. & Regs. 0020-05-.03(1).</p>
 <p><a href="../../tennessee-cpa-cpe-requirements/">See the full Tennessee CPE breakdown here</a>.</p>
 
 <h2>The renewal fee: two different numbers for two different clocks</h2>
-<p>Individuals pay a flat <strong>$110</strong> every two years, set at Tenn. Comp. R. & Regs. 0020-01-.04(1)(c) -- described in the rule text itself as "biennially," matching the individual certificate cycle above. Firms pay something else entirely: a flat <strong>$50 every single year</strong>, set two lines below at 0020-01-.04(1)(e) ("Renewal of firm permit... Fifty dollars ($50.00)"). If you're renewing a firm permit, $110 biennially isn't your number at all -- budget $50 annually instead.</p>
-<p>Either way, renew between 31 days and 6 months late, and a <strong>$100 late fee</strong> applies on top of whichever renewal fee is yours (0020-01-.04(1)(f) and .08(6)) -- but note that fee only attaches starting at day 31 of delinquency, not from the first day you're late.</p>
+<p>Individuals pay a flat <strong>$110</strong> every two years, set at Tenn. Comp. R. & Regs. 0020-01-.04(1)(c) — described in the rule text itself as "biennially," matching the individual certificate cycle above. Firms pay something else entirely: a flat <strong>$50 every single year</strong>, set two lines below at 0020-01-.04(1)(e) ("Renewal of firm permit... Fifty dollars ($50.00)"). If you're renewing a firm permit, $110 biennially isn't your number at all — budget $50 annually instead.</p>
+<p>Either way, renew between 31 days and 6 months late, and a <strong>$100 late fee</strong> applies on top of whichever renewal fee is yours (0020-01-.04(1)(f) and .08(6)) — but note that fee only attaches starting at day 31 of delinquency, not from the first day you're late.</p>
 
 <h2>If a license fully expires: what reinstatement costs</h2>
-<p>Cross the 6-month delinquent window and a license is "deemed to have expired," which triggers full reinstatement rather than a simple late renewal. Tennessee sets this at a flat <strong>$250 reinstatement application fee</strong>, codified at 0020-01-.04(1)(g) -- "Fee for application for reinstatement Two hundred and fifty dollars ($250.00)."</p>
-<p>The CPE side is steeper than a normal renewal: <strong>80 "penalty hours"</strong> in technical fields of study, including <strong>2 ethics hours</strong>, and all of it has to be earned in the <strong>6 months immediately preceding</strong> the reinstatement application -- per 0020-05-.03(6). These hours are explicitly labeled penalty hours and can't be recycled toward your next normal renewal cycle's CPE; it's a dedicated 80-hour catch-up on top of whatever you'll owe going forward.</p>
+<p>Cross the 6-month delinquent window and a license is "deemed to have expired," which triggers full reinstatement rather than a simple late renewal. Tennessee sets this at a flat <strong>$250 reinstatement application fee</strong>, codified at 0020-01-.04(1)(g) — "Fee for application for reinstatement Two hundred and fifty dollars ($250.00)."</p>
+<p>The CPE side is steeper than a normal renewal: <strong>80 "penalty hours"</strong> in technical fields of study, including <strong>2 ethics hours</strong>, and all of it has to be earned in the <strong>6 months immediately preceding</strong> the reinstatement application — per 0020-05-.03(6). These hours are explicitly labeled penalty hours and can't be recycled toward your next normal renewal cycle's CPE; it's a dedicated 80-hour catch-up on top of whatever you'll owe going forward.</p>
 <p><a href="../../tennessee-cpa-license-reinstatement/">Walk through the full Tennessee reinstatement math here</a>.</p>
 
 <p><strong>Bottom line</strong>: know which clock applies to you. Individual certificates and PA registrations renew every two years on an odd/even cohort tied to your license number, for $110; firm permits renew every single year on December 31 for $50, confirmed directly by the Board despite renewal-page wording that can read otherwise. Either way, budget 80 CPE hours per 2-year period (20 minimum each year, 2 of them a Tennessee-specific ethics course), and if a license does lapse past 6 months, plan on $250 plus 80 penalty hours earned in the 6 months before you reapply. <a href="../../tennessee/">Set a reminder for your own Tennessee deadline here</a> so you're never the one re-reading that renewal page trying to figure out which clock you're on.</p>
@@ -24274,18 +24274,18 @@ so both clocks work for you instead of quietly running past you.</p>
     },
     {
         # 2026-09-10/11: standing weekly post. Topic picked from a live GSC
-        # pull -- highest combined real-demand signal of any uncovered state
+        # pull — highest combined real-demand signal of any uncovered state
         # (Massachusetts scored higher raw volume but ma-individual/ma-firm
         # still carry an open data_gap_note pending a board reply, same
         # blocker that passed it over for Tennessee). Repackages pa-individual
         # (data/cpa_deadlines.json), pa-cpe (data/cpe_hours.json),
         # pennsylvania-reinstatement (data/reinstatement.json) and
         # pennsylvania-renewal-fee (data/renewal_fees.json); no live re-fetch
-        # this pass -- all four records verified 2026-08-13 through
+        # this pass — all four records verified 2026-08-13 through
         # 2026-09-10, no open data_gap_note/verification_note. Round 2 per
         # AuditLab review: round 1 attributed the $100+$35=$135 reinstatement
         # total to 49 Pa. Code Sec11.4, which lists the two fees separately
-        # but never states they stack -- fixed in both this post and the
+        # but never states they stack — fixed in both this post and the
         # source record (commit e590eb49d) to frame $135 as a budgeting
         # estimate, not a codified total.
         "slug": "pennsylvania-cpa-license-renewal-guide",
@@ -24293,33 +24293,33 @@ so both clocks work for you instead of quietly running past you.</p>
         "title": "Pennsylvania CPA Renewal: No Grace Period, and a Dead Rule Citation Still in Circulation",
         "seo_title": "Pennsylvania CPA Renewal: No Grace Period",
         "meta_description": (
-            "Pennsylvania CPA licenses expire Dec. 31 of odd years with no grace period. See the real CPE rule -- not the reserved section still cited elsewhere."
+            "Pennsylvania CPA licenses expire Dec. 31 of odd years with no grace period. See the real CPE rule — not the reserved section still cited elsewhere."
         ),
         "body_html": """
-<p class="intro">Pennsylvania's CPA renewal cycle is simpler than most states in one respect -- every individual license expires on the exact same date, no personal cohort to track -- and stricter than most in another: miss that date, even by a day, and there's no cushion at all. Here's exactly how Pennsylvania renewal, CPE, and reinstatement work, sourced to the CPA Law itself and the Pennsylvania Code.</p>
+<p class="intro">Pennsylvania's CPA renewal cycle is simpler than most states in one respect — every individual license expires on the exact same date, no personal cohort to track — and stricter than most in another: miss that date, even by a day, and there's no cushion at all. Here's exactly how Pennsylvania renewal, CPE, and reinstatement work, sourced to the CPA Law itself and the Pennsylvania Code.</p>
 
 <h2>One date for everyone: December 31 of odd-numbered years</h2>
-<p>Every individual Pennsylvania CPA license expires on the same calendar date -- <strong>December 31 of odd-numbered years</strong> -- regardless of when you were originally licensed. That's set directly in the CPA Law itself: 63 P.S. &sect; 9.8b states "Licenses to practice shall expire on the last day of December of odd-numbered years..." The Board's own renewal-information page confirms the same date. The current cycle ends <strong>2027-12-31</strong>.</p>
+<p>Every individual Pennsylvania CPA license expires on the same calendar date — <strong>December 31 of odd-numbered years</strong> — regardless of when you were originally licensed. That's set directly in the CPA Law itself: 63 P.S. &sect; 9.8b states "Licenses to practice shall expire on the last day of December of odd-numbered years..." The Board's own renewal-information page confirms the same date. The current cycle ends <strong>2027-12-31</strong>.</p>
 <p><a href="../../pennsylvania/">Confirm your own next Pennsylvania renewal deadline here</a>.</p>
 
-<h2>No grace period -- and a rule citation that's been dead since 2012</h2>
+<h2>No grace period — and a rule citation that's been dead since 2012</h2>
 <p>Two things about Pennsylvania's rules are easy to get wrong from a quick search, and both matter more than they look.</p>
-<p>First: there is <strong>no grace period</strong>. The Board states this explicitly -- a license not renewed by 11:59pm on December 31 of an odd year lapses effective January 1, full stop. That's a real difference from states like Tennessee, where a lapsed license still gets a multi-month "delinquent" window with just a late fee before it's treated as fully expired. In Pennsylvania, there's no delinquent stage at all: miss the date and you're straight into reactivation, covered below.</p>
-<p>Second: if you've seen a CPE-vendor site cite "49 Pa. Code &sect; 11.65" for Pennsylvania's CPE requirements, that citation is stale. Section 11.65 has been <strong>RESERVED</strong> -- meaning it carries no substantive text -- since 2012. The rules that actually govern Pennsylvania CPE today are &sect; 11.62 (hours and timing) and &sect; 11.63 (subject areas, including the ethics requirement), covered next. A citation to a reserved section isn't just outdated cosmetically; it points a reader at a rule that no longer says anything.</p>
+<p>First: there is <strong>no grace period</strong>. The Board states this explicitly — a license not renewed by 11:59pm on December 31 of an odd year lapses effective January 1, full stop. That's a real difference from states like Tennessee, where a lapsed license still gets a multi-month "delinquent" window with just a late fee before it's treated as fully expired. In Pennsylvania, there's no delinquent stage at all: miss the date and you're straight into reactivation, covered below.</p>
+<p>Second: if you've seen a CPE-vendor site cite "49 Pa. Code &sect; 11.65" for Pennsylvania's CPE requirements, that citation is stale. Section 11.65 has been <strong>RESERVED</strong> — meaning it carries no substantive text — since 2012. The rules that actually govern Pennsylvania CPE today are &sect; 11.62 (hours and timing) and &sect; 11.63 (subject areas, including the ethics requirement), covered next. A citation to a reserved section isn't just outdated cosmetically; it points a reader at a rule that no longer says anything.</p>
 
 <h2>CPE: 80 hours every 2 years, with a 4-hour ethics minimum</h2>
-<p>Pennsylvania requires <strong>80 hours</strong> of CPE per 2-year renewal period, with a minimum of <strong>20 hours completed each year</strong> -- so, as in most states with an annual floor, you can't bank all 80 hours in one year and skip the next. Of those 80 hours, <strong>4 must be ethics</strong>. Both figures are set directly in 49 Pa. Code &sect; 11.62(b) (hours/timing for renewal) and &sect; 11.63(a)(7) (ethics) -- not &sect; 11.65, despite what some third-party sites still say. The Board's own renewal page states the reporting window in plain terms: CPE is tracked "January 1 of even-numbered years to December 31 of odd-numbered years."</p>
+<p>Pennsylvania requires <strong>80 hours</strong> of CPE per 2-year renewal period, with a minimum of <strong>20 hours completed each year</strong> — so, as in most states with an annual floor, you can't bank all 80 hours in one year and skip the next. Of those 80 hours, <strong>4 must be ethics</strong>. Both figures are set directly in 49 Pa. Code &sect; 11.62(b) (hours/timing for renewal) and &sect; 11.63(a)(7) (ethics) — not &sect; 11.65, despite what some third-party sites still say. The Board's own renewal page states the reporting window in plain terms: CPE is tracked "January 1 of even-numbered years to December 31 of odd-numbered years."</p>
 <p><a href="../../pennsylvania-cpa-cpe-requirements/">See the full Pennsylvania CPE breakdown here</a>.</p>
 
 <h2>The renewal fee: a flat $100, written into the rule itself</h2>
-<p>The biennial renewal fee is a flat <strong>$100</strong>, codified directly in 49 Pa. Code &sect; 11.4: "Biennial renewal of license of certified public accountant, public accountant or public accounting firm... $100." Unlike states where the board sets the figure administratively each cycle, Pennsylvania's fee is written into the rule text itself -- so it doesn't change without an actual rule filing.</p>
+<p>The biennial renewal fee is a flat <strong>$100</strong>, codified directly in 49 Pa. Code &sect; 11.4: "Biennial renewal of license of certified public accountant, public accountant or public accounting firm... $100." Unlike states where the board sets the figure administratively each cycle, Pennsylvania's fee is written into the rule text itself — so it doesn't change without an actual rule filing.</p>
 
 <h2>If a license lapses: budget $135 plus the same 80 hours, compressed</h2>
-<p>Because there's no grace period, a license that lapses on January 1 needs a reactivation application, not a late renewal. Pennsylvania's fee schedule lists a <strong>$35 reinstatement fee</strong> for an inactive or expired license, on top of the <strong>$100 biennial renewal fee</strong> itself -- both individually codified at 49 Pa. Code &sect; 11.4. The rule states the two figures separately rather than stacking them explicitly, so budget <strong>$135 total</strong>, plus whatever your CPE courses cost, as a planning figure rather than a codified line item.</p>
-<p>The CPE side isn't a separate penalty on top of your normal requirement -- it's the <strong>same 80 hours, including the same 4 ethics hours</strong>, you'd owe for an ordinary renewal. The only real difference is timing: those 80 hours have to fall within the <strong>24 months immediately preceding</strong> your reactivation filing, per &sect; 11.62(c), rather than the fixed biennial period everyone else renews against. If you lapse early in the cycle, that compressed 24-month window can be tighter to fill than it sounds.</p>
+<p>Because there's no grace period, a license that lapses on January 1 needs a reactivation application, not a late renewal. Pennsylvania's fee schedule lists a <strong>$35 reinstatement fee</strong> for an inactive or expired license, on top of the <strong>$100 biennial renewal fee</strong> itself — both individually codified at 49 Pa. Code &sect; 11.4. The rule states the two figures separately rather than stacking them explicitly, so budget <strong>$135 total</strong>, plus whatever your CPE courses cost, as a planning figure rather than a codified line item.</p>
+<p>The CPE side isn't a separate penalty on top of your normal requirement — it's the <strong>same 80 hours, including the same 4 ethics hours</strong>, you'd owe for an ordinary renewal. The only real difference is timing: those 80 hours have to fall within the <strong>24 months immediately preceding</strong> your reactivation filing, per &sect; 11.62(c), rather than the fixed biennial period everyone else renews against. If you lapse early in the cycle, that compressed 24-month window can be tighter to fill than it sounds.</p>
 <p><a href="../../pennsylvania-cpa-license-reinstatement/">Walk through the full Pennsylvania reinstatement math here</a>.</p>
 
-<p><strong>Bottom line</strong>: every Pennsylvania CPA renews on the same date -- December 31 of odd-numbered years -- with 80 CPE hours (4 ethics, 20 minimum per year) and a flat $100 fee written directly into the rule. The part that catches people off guard is what happens if you miss it: no grace period, straight to reactivation, budgeting around $135 (a codified $100 renewal fee plus a codified $35 reinstatement fee) with the same 80 hours squeezed into the 24 months before you refile. And if you're checking your CPE requirement against a site that cites &sect; 11.65, you're reading a rule that's said nothing since 2012 -- &sect; 11.62 and &sect; 11.63 are the ones that actually govern. <a href="../../pennsylvania/">Set a reminder for your own Pennsylvania deadline here</a> so December 31 doesn't sneak up on you.</p>
+<p><strong>Bottom line</strong>: every Pennsylvania CPA renews on the same date — December 31 of odd-numbered years — with 80 CPE hours (4 ethics, 20 minimum per year) and a flat $100 fee written directly into the rule. The part that catches people off guard is what happens if you miss it: no grace period, straight to reactivation, budgeting around $135 (a codified $100 renewal fee plus a codified $35 reinstatement fee) with the same 80 hours squeezed into the 24 months before you refile. And if you're checking your CPE requirement against a site that cites &sect; 11.65, you're reading a rule that's said nothing since 2012 — &sect; 11.62 and &sect; 11.63 are the ones that actually govern. <a href="../../pennsylvania/">Set a reminder for your own Pennsylvania deadline here</a> so December 31 doesn't sneak up on you.</p>
 """,
     },
     {
@@ -24328,92 +24328,122 @@ so both clocks work for you instead of quietly running past you.</p>
         # highest combined page + query demand signal of any uncovered state.
         # Passed over twice before (Tennessee's and Pennsylvania's picks) for
         # ma-individual/ma-firm's then-open data_gap_note pending a board
-        # reply; that blocker is resolved -- AuditLab's 2026-09-13 gap-
+        # reply; that blocker is resolved — AuditLab's 2026-09-13 gap-
         # reclassify batch3 verdict independently endorsed terminal_
         # disclosure=true on both records. Repackages ma-individual/ma-firm
         # (data/cpa_deadlines.json), ma-cpe (data/cpe_hours.json),
         # massachusetts-renewal-fee (data/renewal_fees.json) and
         # massachusetts-reinstatement (data/reinstatement.json); no live
-        # re-fetch this pass -- all five records verified 2026-09-04 through
+        # re-fetch this pass — all five records verified 2026-09-04 through
         # 2026-09-12, no open (non-terminal) data_gap_note. 4-round approval
-        # trail: B1-B3 (round 2), B4 (round 3), B5 (round 4) -- see
+        # trail: B1-B3 (round 2), B4 (round 3), B5 (round 4) — see
         # AssetLab/inbox/assetlab_20260919_blog_draft_massachusetts-cpa-license-renewal-guide_round4.md
         # for the full history.
         "slug": "massachusetts-cpa-license-renewal-guide",
         "published": "2026-09-19",
-        "title": "Massachusetts CPA Renewal: Every Two Years, Always June 30 -- But No One Publishes Which Year Is Yours",
+        "title": "Massachusetts CPA Renewal: Every Two Years, Always June 30 — But No One Publishes Which Year Is Yours",
         "seo_title": "Massachusetts CPA Renewal: Which Year Is Yours?",
         "meta_description": (
-            "Massachusetts CPA licenses renew every 2 years on June 30 -- but which year is never published. Here's what checking real license records showed."
+            "Massachusetts CPA licenses renew every 2 years on June 30 — but which year is never published. Here's what checking real license records showed."
         ),
         "body_html": """
-<p class="intro">Every Massachusetts CPA license renews on the same date -- June 30 -- but not the same year as every other licensee. Whether yours falls on an odd or even year is fixed for life once it's assigned, and no state source says how that assignment happens. Here's exactly what Massachusetts does say, sourced to the statute and the Code of Massachusetts Regulations, plus what we found checking real license records to fill the gap the state leaves open.</p>
+<p class="intro">Every Massachusetts CPA license renews on the same date — June 30 — but not the same year as every other licensee. Whether yours falls on an odd or even year is fixed for life once it's assigned, and no state source says how that assignment happens. Here's exactly what Massachusetts does say, sourced to the statute and the Code of Massachusetts Regulations, plus what we found checking real license records to fill the gap the state leaves open.</p>
 
 <h2>The pattern: every 2 years, always June 30</h2>
-<p>Massachusetts CPA licenses -- individual and firm -- renew on a <strong>2-year cycle expiring June 30</strong>, confirmed on the Board's own Division of Occupational Licensure fee and renewal-schedule page: "Biennial (2 years)," "30-Jun / ODD &amp; EVEN YEAR." That last part is the catch -- the Board splits licensees across odd- and even-numbered years, and once your license lands on one parity, it stays there. The Board's own reinstatement guidance confirms a lapsed license returns to its <em>original</em> parity on reactivation, never a new one.</p>
+<p>Massachusetts CPA licenses — individual and firm — renew on a <strong>2-year cycle expiring June 30</strong>, confirmed on the Board's own Division of Occupational Licensure fee and renewal-schedule page: "Biennial (2 years)," "30-Jun / ODD &amp; EVEN YEAR." That last part is the catch — the Board splits licensees across odd- and even-numbered years, and once your license lands on one parity, it stays there. The Board's own reinstatement guidance confirms a lapsed license returns to its <em>original</em> parity on reactivation, never a new one.</p>
 <p><a href="../../massachusetts/">Confirm your own next Massachusetts renewal deadline here</a>.</p>
 
 <h2>The closest thing to an answer: a Board FAQ table, not a stated rule</h2>
-<p>Here's what no statute or rule states outright: which parity a <strong>brand-new</strong> license starts on. But it isn't a total blank, either. 252 CMR 2.14(2) itself codifies the hook: <em>"The Board may provide for prorated continuing professional education requirements to be met by applicants whose initial licenses were issued substantially less than two years prior to the renewal date"</em> -- and the Board's own FAQ page publishes a first-renewal CPE-proration table that, read together with that provision, strongly suggests how a new license's first cycle is set. Neither one states the assignment rule as a flat sentence you could quote, so we're not shipping it as a computed date -- but it's a real, citable pointer, not nothing.</p>
+<p>Here's what no statute or rule states outright: which parity a <strong>brand-new</strong> license starts on. But it isn't a total blank, either. 252 CMR 2.14(2) itself codifies the hook: <em>"The Board may provide for prorated continuing professional education requirements to be met by applicants whose initial licenses were issued substantially less than two years prior to the renewal date"</em> — and the Board's own FAQ page publishes a first-renewal CPE-proration table that, read together with that provision, strongly suggests how a new license's first cycle is set. Neither one states the assignment rule as a flat sentence you could quote, so we're not shipping it as a computed date — but it's a real, citable pointer, not nothing.</p>
 
-<h2>We checked 9 real license records -- 8 fit a pattern, the 9th broke it</h2>
-<p>To see how that plays out in practice, we pulled real firm license records -- issue dates, statuses, and actual assigned expirations -- directly from the Commonwealth's own eLIPSE license-lookup tool: 9 licenses (LLCs and business corporations), issued between 1998 and 2026, a mix of active and lapsed. <strong>8 of the 9</strong> fit a clean pattern: first renewal lands on the <em>second</em> June 30 after issuance, then a fixed 2-year cycle on that same parity forever after. The <strong>9th</strong> -- the most recently issued firm in the sample, licensed July 2026 -- broke it: its real assigned expiration is a full year later than the pattern predicts, the <em>third</em> June 30 after issuance, not the second.</p>
-<p>Read plainly, that means the "second June 30" shape has held for licenses issued as far back as 1998, but the newest license in our sample landed differently -- so we can't tell you it's a reliable rule for a license issued today. If you were licensed recently, confirm your specific renewal year directly with the Board (617-701-8635) or via eLIPSE rather than assuming either pattern.</p>
+<h2>We checked 9 real license records — 8 fit a pattern, the 9th broke it</h2>
+<p>To see how that plays out in practice, we pulled real firm license records — issue dates, statuses, and actual assigned expirations — directly from the Commonwealth's own eLIPSE license-lookup tool: 9 licenses (LLCs and business corporations), issued between 1998 and 2026, a mix of active and lapsed. <strong>8 of the 9</strong> fit a clean pattern: first renewal lands on the <em>second</em> June 30 after issuance, then a fixed 2-year cycle on that same parity forever after. The <strong>9th</strong> — the most recently issued firm in the sample, licensed July 2026 — broke it: its real assigned expiration is a full year later than the pattern predicts, the <em>third</em> June 30 after issuance, not the second.</p>
+<p>Read plainly, that means the "second June 30" shape has held for licenses issued as far back as 1998, but the newest license in our sample landed differently — so we can't tell you it's a reliable rule for a license issued today. If you were licensed recently, confirm your specific renewal year directly with the Board (617-701-8635) or via eLIPSE rather than assuming either pattern.</p>
 <p><a href="../../massachusetts-cpa-license-reinstatement/">See the full reinstatement math, including how a lapsed license keeps its original parity</a>.</p>
 
 <h2>CPE: 80 hours every 2 years, 4 ethics, no carryover</h2>
-<p>Massachusetts requires <strong>80 hours</strong> of CPE in the 2-year period immediately preceding relicensing, including <strong>4 hours of ethics</strong> -- codified directly in 252 CMR 2.14(2): "During the two year period immediately preceding re licensing, applicants for biennial license renewal must complete 80 hours of acceptable continuing education, except as stated in 252 CMR 2.14(6). Four hours of acceptable continuing education shall be in the area of professional ethics." That exception isn't nothing, either -- 2.14(6) lets the Board excuse a licensee for reasons of health (certified by a doctor), active duty with the Armed Services of the United States, or other good cause, so if a real hardship gets in the way, there's a documented path to ask. Within the ordinary 80 hours, and as covered above, the Board may also prorate the requirement for a license issued substantially less than two years before its renewal date. Unlike several other states in the CPE-hours cluster we've verified so far, Massachusetts allows <strong>no carryover</strong> of excess hours into the next 2-year period -- every cycle starts at zero (Vermont, one of Massachusetts' neighbors, is a rare exception that does allow some carryover, so this isn't universal even regionally).</p>
+<p>Massachusetts requires <strong>80 hours</strong> of CPE in the 2-year period immediately preceding relicensing, including <strong>4 hours of ethics</strong> — codified directly in 252 CMR 2.14(2): "During the two year period immediately preceding re licensing, applicants for biennial license renewal must complete 80 hours of acceptable continuing education, except as stated in 252 CMR 2.14(6). Four hours of acceptable continuing education shall be in the area of professional ethics." That exception isn't nothing, either — 2.14(6) lets the Board excuse a licensee for reasons of health (certified by a doctor), active duty with the Armed Services of the United States, or other good cause, so if a real hardship gets in the way, there's a documented path to ask. Within the ordinary 80 hours, and as covered above, the Board may also prorate the requirement for a license issued substantially less than two years before its renewal date. Unlike several other states in the CPE-hours cluster we've verified so far, Massachusetts allows <strong>no carryover</strong> of excess hours into the next 2-year period — every cycle starts at zero (Vermont, one of Massachusetts' neighbors, is a rare exception that does allow some carryover, so this isn't universal even regionally).</p>
 <p><a href="../../massachusetts-cpa-cpe-requirements/">See the full Massachusetts CPE breakdown here</a>.</p>
 
-<h2>The fee: $161 individual, $324 firm -- set by the Board, not fixed in the rule</h2>
-<p>The biennial renewal fee is <strong>$161</strong> for an individual CPA and <strong>$324</strong> for a firm (CPA Corporation, Partnership, Business Corporation, LLC, or LLP) -- both listed on the same official DOL fee-schedule page, both due on the same June 30 cycle. Neither figure is written into the accountancy statute or 252 CMR itself; the amount is set administratively by the Secretary of Administration and Finance under M.G.L. c. 7, &sect;3B, so it can change without a formal rule filing.</p>
+<h2>The fee: $161 individual, $324 firm — set by the Board, not fixed in the rule</h2>
+<p>The biennial renewal fee is <strong>$161</strong> for an individual CPA and <strong>$324</strong> for a firm (CPA Corporation, Partnership, Business Corporation, LLC, or LLP) — both listed on the same official DOL fee-schedule page, both due on the same June 30 cycle. Neither figure is written into the accountancy statute or 252 CMR itself; the amount is set administratively by the Secretary of Administration and Finance under M.G.L. c. 7, &sect;3B, so it can change without a formal rule filing.</p>
 
 <h2>If it lapses: it forks four ways, not three</h2>
 <p>Massachusetts doesn't publish a single reinstatement fee, because the amount depends on how long you lapsed and, for a longer lapse, whether you kept practicing. 252 CMR 2.16 breaks it down like this:</p>
 <ul>
-  <li><strong>Lapsed one renewal cycle or less</strong> (2.16(1)): the back license fee, a <strong>$57 late fee</strong>, and the current <strong>$161</strong> renewal fee -- regardless of whether you kept practicing.</li>
+  <li><strong>Lapsed one renewal cycle or less</strong> (2.16(1)): the back license fee, a <strong>$57 late fee</strong>, and the current <strong>$161</strong> renewal fee — regardless of whether you kept practicing.</li>
   <li><strong>Lapsed more than one cycle, and practiced in Massachusetts</strong> during the lapse (2.16(2)(a)): all back license fees for each missed cycle, plus the $57 late fee, plus the current $161 fee, plus re-examination and a formal acknowledgment of practicing while unlicensed.</li>
-  <li><strong>Lapsed more than one cycle, and didn't practice</strong> (2.16(2)(b)): no back fees -- just the $57 late fee, the current $161 fee, re-examination, and a sworn affidavit of non-practice.</li>
-  <li><strong>Lapsed more than one cycle, and practiced under another state's license</strong> (2.16(2)(c)): no back fees, the $57 late fee, the current $161 fee, and a certificate of good standing from that state -- no re-examination required.</li>
+  <li><strong>Lapsed more than one cycle, and didn't practice</strong> (2.16(2)(b)): no back fees — just the $57 late fee, the current $161 fee, re-examination, and a sworn affidavit of non-practice.</li>
+  <li><strong>Lapsed more than one cycle, and practiced under another state's license</strong> (2.16(2)(c)): no back fees, the $57 late fee, the current $161 fee, and a certificate of good standing from that state — no re-examination required.</li>
 </ul>
-<p>Re-examination shows up in two of these four paths: (a) and (b), the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all. The two that skip it are the short-lapse case and (c) -- the one where you kept practicing under another state's license. Practising under a live license somewhere else is what excuses the re-exam.</p>
-<p>A lapse of <strong>two or more renewal cycles</strong> (roughly 4+ years) also triggers an enhanced CPE requirement: <strong>160 hours</strong> within the 24 months before reissue -- double the normal 80 -- with at least <strong>80 of those hours in the attest function</strong>, per M.G.L. c. 112, &sect;87B(c). A shorter lapse only requires the normal CPE already due.</p>
+<p>Re-examination shows up in two of these four paths: (a) and (b), the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all. The two that skip it are the short-lapse case and (c) — the one where you kept practicing under another state's license. Practising under a live license somewhere else is what excuses the re-exam.</p>
+<p>A lapse of <strong>two or more renewal cycles</strong> (roughly 4+ years) also triggers an enhanced CPE requirement: <strong>160 hours</strong> within the 24 months before reissue — double the normal 80 — with at least <strong>80 of those hours in the attest function</strong>, per M.G.L. c. 112, &sect;87B(c). A shorter lapse only requires the normal CPE already due.</p>
 
-<p><strong>Bottom line</strong>: Massachusetts CPAs renew every 2 years, always on June 30, for a flat $161 ($324 for firms) -- but which year is yours is something no statute or rule states as a flat sentence, though a Board FAQ table plus a codified proration provision point toward an answer. Checking 9 real license records ourselves added more evidence: 8 fit a "second June 30 after issuance" pattern, and the newest one broke it. If you lapse, there's no flat reinstatement fee either -- a short lapse owes back fees regardless of practice status, a longer one forks three further ways by whether and where you kept practicing, and re-examination applies to just two of those four paths -- the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all, not the one where you kept a license active in another state. Past a 4-year gap, CPE doubles too. <a href="../../massachusetts/">Set a reminder for your own Massachusetts deadline here</a> so you're not the one trying to reconstruct your renewal year from a license lookup tool.</p>
+<p><strong>Bottom line</strong>: Massachusetts CPAs renew every 2 years, always on June 30, for a flat $161 ($324 for firms) — but which year is yours is something no statute or rule states as a flat sentence, though a Board FAQ table plus a codified proration provision point toward an answer. Checking 9 real license records ourselves added more evidence: 8 fit a "second June 30 after issuance" pattern, and the newest one broke it. If you lapse, there's no flat reinstatement fee either — a short lapse owes back fees regardless of practice status, a longer one forks three further ways by whether and where you kept practicing, and re-examination applies to just two of those four paths — the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all, not the one where you kept a license active in another state. Past a 4-year gap, CPE doubles too. <a href="../../massachusetts/">Set a reminder for your own Massachusetts deadline here</a> so you're not the one trying to reconstruct your renewal year from a license lookup tool.</p>
 """,
     },
     {
         "slug": "alaska-cpa-license-renewal-guide",
         "published": "2026-09-25",
-        "title": "Alaska CPA Renewal: December 31 of Odd Years -- and Why You Won't Find It in the Statute",
+        "title": "Alaska CPA Renewal: December 31 of Odd Years — and Why You Won't Find It in the Statute",
         "seo_title": "Alaska CPA Renewal: December 31, Odd Years",
         "meta_description": (
-            "Alaska CPA licenses renew every 2 years, Dec. 31 of odd years -- a date the statute never states. Here's what the Board's forms say, plus the 90-day exception."
+            "Alaska CPA licenses renew every 2 years, Dec. 31 of odd years — a date the statute never states. Here's what the Board's forms say, plus the 90-day exception."
         ),
         "body_html": """
-<p class="intro">Alaska CPA and public-accountant licenses renew every two years, on December 31 of odd-numbered years. That much is easy to find. What's harder to pin down: for an <strong>individual</strong> license, no statute or regulation states that date at all -- only the Board's own renewal form does. Firm permits are closer to codified (12 AAC 04.280(c) does fix a December 31 deadline), but even that section doesn't name which year is current. Here's exactly what's codified, what isn't, and the one CPE rule that's new for this cycle.</p>
+<p class="intro">Alaska CPA and public-accountant licenses renew every two years, on December 31 of odd-numbered years. That much is easy to find. What's harder to pin down: for an <strong>individual</strong> license, no statute or regulation states that date at all — only the Board's own renewal form does. Firm permits are closer to codified (12 AAC 04.280(c) does fix a December 31 deadline), but even that section doesn't name which year is current. Here's exactly what's codified, what isn't, and the one CPE rule that's new for this cycle.</p>
 
-<h2>The pattern: every 2 years, always December 31 -- and only half of it is in the regulation</h2>
-<p>Alaska's current biennial window is <strong>January 1, 2026 to December 31, 2027</strong>, for both individual licenses and firm permits -- but the two get there differently. For <strong>individual</strong> licenses, AS 08.04.105(a) states only the general mechanic -- a license is "valid for the remainder of the biennial licensing period during which the initial license was granted" -- never a specific date. We read the Division's complete current compilation of AS 08.04 and 12 AAC 04, all 6 statute articles and all 9 regulation articles, specifically hunting for a codified individual-license date, and found none. The current window for individuals is stated only on the Board's own renewal form (cpa4060.pdf): "regardless of the date of issuance," licenses "expire on December 31 of odd-numbered years." <strong>Firm permits</strong> are different -- 12 AAC 04.280(c) does codify a December 31 filing deadline for firm renewals -- but even that regulation doesn't name which year is current; that comes from the Board's firm form (cpa4062.pdf) too.</p>
+<h2>The pattern: every 2 years, always December 31 — and only half of it is in the regulation</h2>
+<p>Alaska's current biennial window is <strong>January 1, 2026 to December 31, 2027</strong>, for both individual licenses and firm permits — but the two get there differently. For <strong>individual</strong> licenses, AS 08.04.105(a) states only the general mechanic — a license is "valid for the remainder of the biennial licensing period during which the initial license was granted" — never a specific date. We read the Division's complete current compilation of AS 08.04 and 12 AAC 04, all 6 statute articles and all 9 regulation articles, specifically hunting for a codified individual-license date, and found none. The current window for individuals is stated only on the Board's own renewal form (cpa4060.pdf): "regardless of the date of issuance," licenses "expire on December 31 of odd-numbered years." <strong>Firm permits</strong> are different — 12 AAC 04.280(c) does codify a December 31 filing deadline for firm renewals — but even that regulation doesn't name which year is current; that comes from the Board's firm form (cpa4062.pdf) too.</p>
 <p><a href="../../alaska/">Confirm your own next Alaska renewal deadline here</a>.</p>
 
 <h2>The 90-day exception: licensed late in the cycle, your first renewal lands two years later than you'd guess</h2>
-<p>Both renewal forms disclose the same exception, in near-identical language: a license or permit <strong>issued within 90 days of the expiration date</strong> is issued to the <em>next</em> biennial expiration instead of the current one -- still a December 31 date, just an odd year further out. Concretely -- someone newly licensed in the last 90 days of 2027 isn't due December 31, 2027; they're due December 31, 2029, a full cycle later. It's a reasonable rule once you know it exists, but it's disclosed only in the fine print of an operational renewal form, not anywhere a new applicant would necessarily look before assuming the nearest date applies to them.</p>
+<p>Both renewal forms disclose the same exception, in near-identical language: a license or permit <strong>issued within 90 days of the expiration date</strong> is issued to the <em>next</em> biennial expiration instead of the current one — still a December 31 date, just an odd year further out. Concretely — someone newly licensed in the last 90 days of 2027 isn't due December 31, 2027; they're due December 31, 2029, a full cycle later. It's a reasonable rule once you know it exists, but it's disclosed only in the fine print of an operational renewal form, not anywhere a new applicant would necessarily look before assuming the nearest date applies to them.</p>
 
 <h2>CPE: 80 hours, split 20/year, and a brand-new daily cap</h2>
-<p>Alaska requires <strong>80 hours</strong> of CPE per biennial period (12 AAC 04.300), with at least <strong>20 hours completed in each of the two years</strong> -- you can't front-load or back-load the whole 80 into one year. At least <strong>4 hours</strong> must be ethics, and Alaska doesn't mandate a state-specific ethics course: AICPA Ethics, Circular 230 Ethics, or general Behavioral Ethics all qualify. Two caps worth knowing: no more than <strong>10 of the 80 hours</strong> may come from micro-learning (activities under one hour each), and -- new starting with licensing periods beginning on or after January 1, 2026, meaning the <em>current</em> 2026-2027 cycle is the first one it applies to -- no more than <strong>12 CPE hours may be earned in a single day</strong>. If you've earned more than 12 hours in a single day before (a marathon conference day, say), the hours past 12 that day won't count this cycle.</p>
+<p>Alaska requires <strong>80 hours</strong> of CPE per biennial period (12 AAC 04.300), with at least <strong>20 hours completed in each of the two years</strong> — you can't front-load or back-load the whole 80 into one year. At least <strong>4 hours</strong> must be ethics, and Alaska doesn't mandate a state-specific ethics course: AICPA Ethics, Circular 230 Ethics, or general Behavioral Ethics all qualify. Two caps worth knowing: no more than <strong>10 of the 80 hours</strong> may come from micro-learning (activities under one hour each), and — new starting with licensing periods beginning on or after January 1, 2026, meaning the <em>current</em> 2026-2027 cycle is the first one it applies to — no more than <strong>12 CPE hours may be earned in a single day</strong>. If you've earned more than 12 hours in a single day before (a marathon conference day, say), the hours past 12 that day won't count this cycle.</p>
 <p><a href="../../alaska-cpa-cpe-requirements/">See the full Alaska CPE breakdown here</a>.</p>
 
-<h2>The fee: $300 individual / $400 firm -- plan on the full amount</h2>
-<p>The codified biennial renewal fee (12 AAC 02.340) is <strong>$300</strong> for an individual CPA and <strong>$400</strong> for a firm permit -- plan on the full amount. On the Board's most recent renewal forms (for the 2026-2027 cycle), licenses or permits first issued on or after January 1, 2025 were prorated to <strong>$150</strong> individual / <strong>$200</strong> firm -- but that renewal was due December 31, 2025, already past. The form for the next renewal (2028-2029) isn't published yet, so if you were licensed in 2026 or later, don't assume the same proration applies to you until the Board posts it.</p>
+<h2>The fee: $300 individual / $400 firm — plan on the full amount</h2>
+<p>The codified biennial renewal fee (12 AAC 02.340) is <strong>$300</strong> for an individual CPA and <strong>$400</strong> for a firm permit — plan on the full amount. On the Board's most recent renewal forms (for the 2026-2027 cycle), licenses or permits first issued on or after January 1, 2025 were prorated to <strong>$150</strong> individual / <strong>$200</strong> firm — but that renewal was due December 31, 2025, already past. The form for the next renewal (2028-2029) isn't published yet, so if you were licensed in 2026 or later, don't assume the same proration applies to you until the Board posts it.</p>
 <p><a href="../../alaska-cpa-firm-renewal/">Firm permit renewal details here</a>.</p>
 
 <h2>If it lapses: fees add up by cycle, CPE jumps to 120 hours, and past 5 years it's over</h2>
-<p>Miss the deadline and the license lapses immediately, but the fee doesn't jump right away: renew within <strong>60 days</strong> and it's still just the standard $300. Past 60 days -- and up to a year -- a <strong>$100</strong> delayed-renewal penalty attaches on top of the $300 fee, $400 total. Lapse longer than a year and the fees don't stop at one penalty: the <strong>$300</strong> renewal fee is owed for <em>each additional</em> lapsed biennial period, so a multi-cycle gap adds up. A lapse of a year or more also raises the CPE bar sharply -- <strong>120 hours</strong> completed in the 36 months before reinstatement, versus the normal 80 hours over 2 years, with no more than 16 of those hours from micro-learning. And there's a hard stop: a lapse of <strong>five years or more cannot be reinstated at all</strong> -- the cutoff is in the reinstatement rule itself, 12 AAC 04.440(f).</p>
+<p>Miss the deadline and the license lapses immediately, but the fee doesn't jump right away: renew within <strong>60 days</strong> and it's still just the standard $300. Past 60 days — and up to a year — a <strong>$100</strong> delayed-renewal penalty attaches on top of the $300 fee, $400 total. Lapse longer than a year and the fees don't stop at one penalty: the <strong>$300</strong> renewal fee is owed for <em>each additional</em> lapsed biennial period, so a multi-cycle gap adds up. A lapse of a year or more also raises the CPE bar sharply — <strong>120 hours</strong> completed in the 36 months before reinstatement, versus the normal 80 hours over 2 years, with no more than 16 of those hours from micro-learning. And there's a hard stop: a lapse of <strong>five years or more cannot be reinstated at all</strong> — the cutoff is in the reinstatement rule itself, 12 AAC 04.440(f).</p>
 <p><a href="../../alaska-cpa-license-reinstatement/">Full Alaska reinstatement math here</a>.</p>
 
-<p><strong>Bottom line</strong>: Alaska CPAs renew every 2 years, always December 31 of an odd year, for $300 ($400 for firms) -- but for individual licenses, that specific date is something no statute or regulation states outright, only the Board's own renewal form. Firm permits are the one part that's actually codified -- 12 AAC 04.280(c) fixes the December 31 deadline -- though even that section doesn't name the current year. Get licensed in the last 90 days of a cycle and your first renewal lands two years further out than you'd guess, still on a December 31. Let it lapse, and the cost isn't flat either: no penalty in the first 60 days, then $100 on top of the $300 fee up to a year, a full extra $300 for every additional lapsed cycle after that, a CPE requirement that jumps to 120 hours, and -- past five years -- no path back at all. <a href="../../alaska/">Set a reminder for your own Alaska deadline here</a> so a 90-day exception or an added-up lapse fee isn't something you find out about after the fact.</p>
+<p><strong>Bottom line</strong>: Alaska CPAs renew every 2 years, always December 31 of an odd year, for $300 ($400 for firms) — but for individual licenses, that specific date is something no statute or regulation states outright, only the Board's own renewal form. Firm permits are the one part that's actually codified — 12 AAC 04.280(c) fixes the December 31 deadline — though even that section doesn't name the current year. Get licensed in the last 90 days of a cycle and your first renewal lands two years further out than you'd guess, still on a December 31. Let it lapse, and the cost isn't flat either: no penalty in the first 60 days, then $100 on top of the $300 fee up to a year, a full extra $300 for every additional lapsed cycle after that, a CPE requirement that jumps to 120 hours, and — past five years — no path back at all. <a href="../../alaska/">Set a reminder for your own Alaska deadline here</a> so a 90-day exception or an added-up lapse fee isn't something you find out about after the fact.</p>
 """,
+    },
+    {
+        "slug": "nevada-cpa-license-renewal-guide",
+        "published": "2026-10-02",
+        "title": "Nevada CPA Renewal: Annual, December 31 — Why Some CPE Trackers Get the Hours Wrong",
+        "seo_title": "Nevada CPA Renewal: December 31, Every Year",
+        "meta_description": (
+            "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not 80 over two years like most states. Here's the exact rule, the fee, and what happens if you lapse."
+        ),
+        "body_html": '''
+<p class="intro">Nevada CPA licenses renew every year, not every two, an annual cycle that makes Nevada an outlier next to most of its neighbors. The permit expires December 31, but renewal fees can be paid without penalty through January 31 of the following year. CPE follows the same annual rhythm: 40 hours a year, not the 80-hours-over-two-years figure a few third-party CPE trackers have published for Nevada. Here's what's actually codified, what the Board confirmed directly, and what it costs if you miss the window.</p>
+
+<h2>The pattern: individual permits expire annually, firm registration never does</h2>
+<p>An individual CPA permit to practice expires <strong>December 31 of each year</strong> (NRS 628.380(2)), but the statute also gives a one-month grace window: renewal fees may be paid without a late penalty through <strong>January 31</strong> of the following year, even though the permit itself expired a month earlier. Firms work differently. NRS 628.335 establishes <strong>continuous registration</strong> for a CPA firm office, with no provision anywhere in NRS 628.335/340/343/345 or NAC 628.180/190/210/250 stating a firm-registration expiration date. The annual report-filing and fee requirement under NAC 628.180/628.190, due <strong>January 31</strong> each year, is the entire renewal mechanism for firms, not a true expiring-and-renewing permit the way the individual license works.</p>
+<p><a href="../../nevada/">Confirm your own next Nevada renewal deadline here</a>.</p>
+
+<h2>CPE: 40 hours every year, not 80 over two, and that's not a typo</h2>
+<p>Nevada requires <strong>40 hours</strong> of CPE every calendar year, codified at NAC 628.210(1): an applicant for renewal of a permit "must complete at least 40 hours of continuing education each calendar year, of which: (a) Two hours must be in professional ethics." Worth stating plainly because it's a real, documented point of confusion: some third-party CPE-vendor summaries describe Nevada as an "80 hours per 2 years / 4 hours ethics" state. That doesn't match the Board's own education page or the codified NAC text, both of which confirm the 40-hour annual cycle. If a licensee performed audit, review, full disclosure compilation, or attestation services in a given calendar year, an additional <strong>8 hours</strong> in accounting and auditing are required for that same year on top of the 40 (NAC 628.210(1)(b)); the requirement is keyed to the calendar year the work was performed in, not a rolling 12-month lookback. The rule grants no carryover of excess hours into the next year, though it doesn't expressly prohibit it either. A licensee's first annual renewal after initial licensure is exempt from the CPE requirement.</p>
+<p><a href="../../nevada-cpa-cpe-requirements/">See the full Nevada CPE breakdown here</a>.</p>
+
+<h2>The fee: $175 individual, and two firm figures the Board had to confirm directly</h2>
+<p>The individual annual renewal fee is <strong>$175</strong>, payable online or by mail, set by the Board under NRS 628.380 within a <strong>$200</strong> statutory cap (NAC 628.016(3)(g)). A <strong>$150</strong> late fee applies after the January 31 grace deadline passes. Firm fees aren't published on any Board page. We asked the Nevada State Board of Accountancy directly, and the Board confirmed by email (2026-09-29): the firm registration fee is $250 and the firm annual-report fee is $200. Both sit at their own codified caps, not just the Board's say-so: $250 at NAC 628.016(2)(b) (firm registration) and $200 at NAC 628.016(3)(a): a dedicated firm cap, separate from the individual $200 cap above.</p>
+<p><a href="../../nevada-cpa-firm-renewal/">Firm registration and renewal details here</a>.</p>
+
+<h2>If it lapses: a late fee first, then a separate reinstatement fee if you let your status drop</h2>
+<p>Miss the January 31 grace deadline and the math is additive, not a single flat number: a <strong>$150</strong> late fee (itself capped at $200 by NAC 628.016(3)(d)) on top of the <strong>$175</strong> standard annual fee covers a simple late renewal. That's a different scenario from <strong>reinstatement from retired or inactive status</strong>, which carries its own separate <strong>$250</strong> fee under NAC 628.016/628.110(4), not something you owe for an ordinary late renewal, only if your license status actually lapsed to retired or inactive first.</p>
+<p><a href="../../nevada-cpa-license-reinstatement/">Full Nevada reinstatement math here</a>.</p>
+
+<p><strong>Bottom line</strong>: Nevada CPAs renew every year, not every two, always December 31 with a January 31 grace window, for $175, and the CPE requirement follows the same annual rhythm at 40 hours a year (2 of them ethics), not the 80-hours-over-two-years figure a few CPE trackers have gotten wrong. Firms work on a genuinely different mechanism: continuous registration with an annual report, not an expiring permit, and their fees ($250 registration, $200 renewal) weren't published anywhere until the Board confirmed them directly. Miss the window and it's a $150 late fee on top of the standard $175, a different and separate $250 if your status actually lapsed to retired or inactive. <a href="../../nevada/">Set a reminder for your own Nevada deadline here</a> so an annual cycle in a mostly-biennial region doesn't catch you off guard.</p>
+''',
     },
 ]
 
