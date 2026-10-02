@@ -651,7 +651,7 @@ ES: dict[str, dict] = {
     'calc.how_it_works_body': {
         "text": 'Seleccionar su estado arriba lo busca en el mismo conjunto de datos exacto del que se renderiza la propia página de ese estado — no hay una segunda fórmula distinta ejecutándose aquí. La mayoría de los estados se resuelven a una sola fecha de inmediato. Los estados cuya norma depende de un dato personal — su mes de nacimiento, o a qué grupo de cohorte pertenece su licencia — solicitan ese dato antes de responder, usando exactamente los mismos datos que la norma de ese estado realmente usa. De cualquier forma, la fecha que obtiene nunca se estima ni se adivina — si no podemos confirmarla contra una fuente primaria, la calculadora lo indica en lugar de mostrar un número, igual que la tabla de arriba muestra para un estado donde eso es cierto. Un estado cuyo registro de firma se renueva en un calendario separado al de la licencia individual recibe un enlace a la página completa de ese estado — la calculadora de arriba responde únicamente la pregunta individual.',
         "en_hash": '139dafec7bb4f60d',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.intro': {
         "text": 'Seleccione su estado abajo — y su mes de nacimiento o grupo de cohorte, si la norma de su estado lo requiere — para ver su fecha límite de renovación exacta aquí mismo. Gratis, sin registro, sin cuenta requerida. Cada fecha tiene fuente — al estatuto o norma codificada de la junta de su estado donde pudimos confirmarla contra la ley primaria, y claramente etiquetada donde solo pudimos confirmarla contra la propia página de la junta — {methodology_link}.',
@@ -771,7 +771,7 @@ ES: dict[str, dict] = {
     'contact.meta_description': {
         "text": 'Contacte a Deadline-Radar — preguntas, correcciones de fechas límite, o ayuda con sus recordatorios de renovación de licencia de CPA. Leemos cada mensaje.',
         "en_hash": '60a7cfd676f97646',
-        "reviewed": False,
+        "reviewed": True,
     },
     'contact.stop_reminders_body': {
         "text": 'La forma más rápida de detener los recordatorios es el enlace de baja de un clic al final de cualquier correo que enviemos — es instantáneo y permanente. También puede escribirnos por correo.',
@@ -896,7 +896,7 @@ ES: dict[str, dict] = {
     'methodology.fall_short_body': {
         "text": 'Algunas fuentes son genuinamente más difíciles de verificar por medios automatizados — un puñado de citas remiten a documentos PDF o páginas renderizadas con JavaScript que nuestras herramientas no pueden extraer automáticamente. Cuando ese es el caso, esas citas fueron confirmadas individualmente a mano en el momento en que se publicaron; revelamos la limitación de la herramienta en lugar de fingir que una verificación más sencilla la cubre. Si una norma cambia entre nuestras verificaciones, use el enlace de contacto abajo para señalarlo y la volveremos a verificar y corregir rápidamente. Los artículos aquí se atribuyen a Moose & Raven LLC, la empresa detrás de Deadline-Radar, en lugar de a un autor individual con nombre propio — la construcción honesta para un equipo de este tamaño, y cada dato se sostiene en su propia fuente citada sin importar la firma.',
         "en_hash": '8a47387ad08b6ab0',
-        "reviewed": False,
+        "reviewed": True,
     },
     'methodology.freshness_stat': {
         "text": 'registros con fecha en los conjuntos de datos de este sitio (fechas límite de renovación, horas de CPE, reincorporación, tarifas de renovación) fueron verificados individualmente contra su fuente en los últimos {threshold_days} días, a la fecha de la última compilación de esta página ({build_date}). La línea “Última verificación” de cada página estatal muestra la fecha propia de esa cita específica — es el mismo dato, agregado para todo el sitio.',
@@ -964,9 +964,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.see_for_yourself_body': {
-        "text": 'Elija cualquier página estatal y busque la línea “Fuente oficial” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
+        "text": 'Elija cualquier página estatal y busque la línea “Source of record” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
         "en_hash": 'a8ceea4d0a4bee54',
-        "reviewed": True,
+        "reviewed": False,
     },
     'methodology.title': {
         "text": 'Cómo verificamos cada fecha límite',
@@ -989,9 +989,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.two_source_item2': {
-        "text": '<strong>El estatuto codificado o la norma administrativa real</strong> de la que se deriva el requisito de la junta — no un resumen, sino el texto legal primario mismo. Esa cita y un enlace directo a ella se muestran debajo de cada fecha verificada en este sitio, con la etiqueta “Fuente oficial”.',
+        "text": '<strong>El estatuto codificado o la norma administrativa real</strong> de la que se deriva el requisito de la junta — no un resumen, sino el texto legal primario mismo. Esa cita y un enlace directo a ella se muestran debajo de cada fecha verificada en este sitio, con la etiqueta “Source of record”.',
         "en_hash": 'fad15d7df2de1f83',
-        "reviewed": True,
+        "reviewed": False,
     },
     'methodology.verified_badge_body': {
         "text": 'Un recuadro destacado muestra una insignia <strong>Verificado</strong> solo cuando esa fecha específica tiene una cita real a la ley codificada que la respalda, verificada de la manera descrita arriba. Un registro sin ella nunca muestra la insignia — no existe un estado intermedio donde una fecha parezca confirmada sin estarlo.',
@@ -1216,7 +1216,7 @@ ES: dict[str, dict] = {
     'ppc.run_check': {
         "text": 'Cree una cuenta gratuita y ejecute una verificación →',
         "en_hash": 'ba920255af861584',
-        "reviewed": False,
+        "reviewed": True,
     },
     'ppc.subhead': {
         "text": '¿Puede este CPA prestar este servicio en este estado — y qué tiene que suceder primero? Cada respuesta está vinculada a la norma de la que proviene.',
