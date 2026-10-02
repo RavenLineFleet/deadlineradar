@@ -197,11 +197,35 @@ def history_line(day: str, check_results: list[dict], recipe: dict) -> str:
     return f"{day} (automated re-verification, auto-anchor): " + "; ".join(parts)
 
 
-def apply_confirmed(rec: dict, dataset: str, line: str, day: str) -> None:
+# AuditLab STALE-21 ruling (2026-10-02 16:15): a manual_verify_gap_reason means "the old manual-verify
+# pass did NOT confirm this". An auto-anchor CONFIRMED makes that marker false -- but ONLY when the reason
+# was a tooling/fetch failure (the old fetcher couldn't see the page). Substantive reasons (sources
+# disagree, rule may be superseded, needs judgment) are never cleared by an anchor match: the record is
+# HELD for a human and its date does not move.
+TOOLING_GAP_RE = re.compile(
+    r"fetch not 200|HTTP\s*Error|status=\d{3}|\b40[13]\b|\b5\d\d\b|timed?\s*out|connection|bot wall|soft-404|"
+    r"PDF|cannot search|could not (?:read|search|parse)|claim-anchor|anchor check failed|"
+    r"not (?:independently )?re-confirmed|was not found on the fetched page|not found on the page|wrong page",
+    re.I)
+
+
+def gap_is_tooling(reason) -> bool:
+    return bool(reason) and bool(TOOLING_GAP_RE.search(str(reason)))
+
+
+def apply_confirmed(rec: dict, dataset: str, line: str, day: str) -> bool:
+    """Bump the record. Returns False (and changes nothing) if a substantive gap marker must hold it."""
+    gap = rec.get("manual_verify_gap_reason")
+    if gap and not gap_is_tooling(gap):
+        return False
+    if gap:   # tooling failure now resolved by a real confirmation: clear it, quoting it in the history
+        rec["manual_verify_gap_reason"] = None
+        line = f"{line}; cleared manual_verify_gap_reason (tooling failure, resolved by this confirmation): '{gap}'"
     rec[DATE_FIELD[dataset]] = day
     rec["verified_method"] = "auto-anchor"
     prev = rec.get("verification_history")
     rec["verification_history"] = (prev.rstrip() + "\n\n" + line) if isinstance(prev, str) and prev.strip() else line
+    return True
 
 
 # ---------------- io ----------------
@@ -283,9 +307,19 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
         if not apply:
             continue
         if res["outcome"] == "CONFIRMED":
-            apply_confirmed(rec, ds, history_line(day, res["checks"], recipe), day)
-            fail_counts.pop(rid, None)
-            changed_open.pop(rid, None)
+            if apply_confirmed(rec, ds, history_line(day, res["checks"], recipe), day):
+                fail_counts.pop(rid, None)
+                changed_open.pop(rid, None)
+            else:
+                res["outcome"] = "HELD"
+                res["detail"] = f"source confirms, but a substantive manual_verify_gap_reason holds it: {rec.get('manual_verify_gap_reason')!r}"
+                sig = "HELD:" + str(rec.get("manual_verify_gap_reason"))
+                if changed_open.get(rid) != sig:      # one finding per distinct hold, not one per day
+                    changed_open[rid] = sig
+                    _note("assetlab", f"HELD_{rid}",
+                          f"---\nfrom: reverify-runner\nkind: finding\nneeds_devin: no\n"
+                          f"summary: {rid} confirmed at source but HELD by a substantive gap reason; date NOT moved\n---\n"
+                          f"{res['detail']}\nA human must resolve the gap reason (STALE-21 ruling, AuditLab 2026-10-02).\n", now)
         elif res["outcome"] == "CHANGED":
             sig = json.dumps([p.get("got") for p in res["checks"]], default=str)
             if changed_open.get(rid) != sig:          # one note per distinct change, not one per day
