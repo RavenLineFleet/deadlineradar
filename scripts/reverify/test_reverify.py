@@ -396,3 +396,15 @@ def test_watchdog_covers_manual_records_too(env):
     assert "m-fee" in st["verified_dates"] and st["stale_records"] == ["m-fee"]
     ok, msg = wd.check(st, D.fromisoformat(st["finished"]).astimezone(TZ.utc))
     assert ok is False and "m-fee" in msg                       # the MANUAL record alone trips the alert
+
+
+def test_duplicated_source_disagreement_never_confirms_record():
+    """Orchestrator 10-02 13:08 / AuditLab: force two verbatim copies to disagree -> FAILED, never CONFIRMED,
+    whichever copy happens to match the stored value."""
+    text = ("(2) Pay a non-refundable renewal fee in the amount of $100; and (3) ... "
+            "(2) Pay a non-refundable renewal fee in the amount of $150; and (3)")
+    c = chk(anchor="Pay a non-refundable renewal fee in the amount of", duplicated_source=True, field="fee_usd")
+    r = {"checks": [c]}
+    for stored in (100, 150):
+        out = runner.judge_record(r, {"fee_usd": stored}, {0: ok(text)})
+        assert out["outcome"] == "FAILED" and out["checks"][0]["status"] == "AMBIGUOUS_ANCHOR"
