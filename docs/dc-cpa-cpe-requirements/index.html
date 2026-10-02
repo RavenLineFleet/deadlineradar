@@ -22,7 +22,7 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Deadline-Radar", "item": "https://deadline-radar.com/"}, {"@type": "ListItem", "position": 2, "name": "District of Columbia CPA CPE Requirements", "item": "https://deadline-radar.com/dc-cpa-cpe-requirements/"}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=26b87022c8">
+<link rel="stylesheet" href="/styles.css?v=4e8c84d6ea">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -52,7 +52,7 @@
     </div>
   </div>
 </nav>
-<script>(function(){var link=document.getElementById("dr-nav-signin");if(!link)return;fetch("/api/firm/licenses",{credentials:"include"}).then(function(r){if(!r.ok)return;r.json().then(function(data){if(data&&data.demo_locked){fetch("/api/firm/logout",{method:"POST",credentials:"include"}).catch(function(){});return}link.textContent="Dashboard";link.href="/firm-dashboard/";link.classList.remove("nav-quiet");link.classList.add("cta")}).catch(function(){})}).catch(function(){})})();</script>
+<script>(function(){var link=document.getElementById("dr-nav-signin");if(!link)return;try{if(sessionStorage.getItem("dr_no_firm_session")==="1")return}catch(e){}fetch("/api/firm/licenses",{credentials:"include"}).then(function(r){if(!r.ok){try{sessionStorage.setItem("dr_no_firm_session","1")}catch(e){}return}r.json().then(function(data){if(data&&data.demo_locked){fetch("/api/firm/logout",{method:"POST",credentials:"include"}).catch(function(){});return}link.textContent="Dashboard";link.href="/firm-dashboard/";link.classList.remove("nav-quiet");link.classList.add("cta")}).catch(function(){})}).catch(function(){})})();</script>
 <script>(function(){var btn=document.getElementById("dr-nav-toggle");var links=document.getElementById("dr-nav-links");if(!btn||!links)return;btn.addEventListener("click",function(){var open=links.classList.toggle("dr-nav-open");btn.setAttribute("aria-expanded",open?"true":"false")});links.addEventListener("click",function(ev){if(ev.target.tagName==="A"){links.classList.remove("dr-nav-open");btn.setAttribute("aria-expanded","false")}})})();</script>
 <div class="wrap">
 <header class="site-header">

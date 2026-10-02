@@ -3083,7 +3083,7 @@ PAGE_CSS = """
      sign-in form stretched to a content column is one of the tells that made
      the old page read unfinished. */
   .dr-auth-card { max-width: 26rem; margin: 0 auto; }
-  .dr-auth-card h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+  .dr-auth-card h1, .dr-auth-card .dr-auth-heading { font-size: 1.5rem; margin-bottom: 0.4rem; }
   .dr-auth-card .subhead { font-size: 0.92rem; margin-bottom: 1.4rem; }
   .dr-auth-card form { background: var(--card-bg); border: 1px solid var(--border); border-radius: 11px; padding: 1.3rem 1.4rem; }
   .dr-auth-card label, .dr-account-panel label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0.9rem 0 0.3rem; }
@@ -3461,8 +3461,22 @@ def site_header(
 (function() {{
   var link = document.getElementById('dr-nav-signin');
   if (!link) return;
+  // Phase 3 outside-review item 2 (2026-10-01): this check fired on every
+  // single page load, including every anonymous visitor who will never
+  // have a session -- a 401 on every pageview, sitewide. sessionStorage
+  // (cleared when the tab closes, unlike localStorage) remembers a "no
+  // session" result for the rest of THIS browsing session, so the same
+  // anonymous visitor's next page navigation skips the fetch entirely.
+  // A fresh tab/visit (or clearing site data) re-checks normally, so a
+  // real login is still detected promptly.
+  try {{
+    if (sessionStorage.getItem('dr_no_firm_session') === '1') return;
+  }} catch (e) {{}}
   fetch('{REMINDER_BACKEND_BASE_URL}/firm/licenses', {{credentials: 'include'}}).then(function(r) {{
-    if (!r.ok) return;
+    if (!r.ok) {{
+      try {{ sessionStorage.setItem('dr_no_firm_session', '1'); }} catch (e) {{}}
+      return;
+    }}
     // 2026-08-11, Devin's live report (screenshot: homepage nav still said
     // "Dashboard" after visiting the shared demo firm): this swap can't
     // tell a real firm's session from the shared demo one -- both return
@@ -10407,7 +10421,7 @@ def build_firm_login_page() -> str:
 </div>
 
 <div class="dr-auth-view" id="dr-view-signup">
-  <h1>Create your firm account</h1>
+  <h2 class="dr-auth-heading">Create your firm account</h2>
   <p class="subhead">Free, no time limit, no card required.</p>
   <!-- ValueLab pre-outreach walkthrough (2026-08-24, finding #7): a visitor
        arriving via "Get Essentials" (?tier=firm_starter) saw this exact
@@ -10443,7 +10457,7 @@ def build_firm_login_page() -> str:
 </div>
 
 <div class="dr-auth-view" id="dr-view-magic">
-  <h1 id="dr-magic-heading">Email me a sign-in link</h1>
+  <h2 id="dr-magic-heading" class="dr-auth-heading">Email me a sign-in link</h2>
   <p class="subhead" id="dr-magic-sub">Works whether or not you've set a password.</p>
   <form method="post" action="{REMINDER_BACKEND_BASE_URL}/firm/login" id="dr-magic-form">
     {_BOT_DEFENSE_FIELDS_HTML_MAGIC}
