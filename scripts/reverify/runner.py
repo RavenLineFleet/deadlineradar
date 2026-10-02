@@ -101,6 +101,17 @@ def _num(s):
     return int(f) if f.is_integer() else f
 
 
+def _scaled(got, check: dict):
+    """Extracted value in the record's unit. `divide` converts e.g. CPE minutes -> hours (50 min = 1 hour,
+    NASBA), so '2,000 CPE minutes' verifies a stored 40 hours."""
+    v = _num(got)
+    d = check.get("divide")
+    if v is None or not d:
+        return v
+    q = v / d
+    return int(q) if float(q).is_integer() else q
+
+
 def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     """-> (status, extracted). status in MATCH, DIFFERENT, NO_ANCHOR, NO_TEXT."""
     if not text:
@@ -122,7 +133,7 @@ def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     want = check.get("expect")
     if want is None:
         return "MATCH", got        # value is compared at record level (field)
-    same = (_num(got) == _num(want)) if _num(want) is not None else (normalise(got).lower() == normalise(str(want)).lower())
+    same = (_scaled(got, check) == _num(want)) if _num(want) is not None else (normalise(got).lower() == normalise(str(want)).lower())
     return ("MATCH" if same else "DIFFERENT"), got
 
 
@@ -149,14 +160,14 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
         if recipe.get("combine") == "sum":
             # only checks WITHOUT their own field are summed into `field`; fielded checks compare alone below
             # text checks (expect_text) guard the formula's wording and are never summed
-            vals = [_num(p["got"]) for p, c in zip(per, recipe["checks"]) if not c.get("field") and not c.get("expect_text")]
+            vals = [_scaled(p["got"], c) for p, c in zip(per, recipe["checks"]) if not c.get("field") and not c.get("expect_text")]
             got_val = sum(vals) if vals and None not in vals else None
             if got_val != have:
                 return {"outcome": "CHANGED", "checks": per, "detail": f"sum {got_val} != stored {field}={have}"}
     # "each": every check compares to its own field (check.field) or the record-level field
     for p, chk in zip(per, recipe["checks"]):
         f = chk.get("field") or (field if recipe.get("combine") != "sum" else None)
-        if f and chk.get("pattern") and _num(p["got"]) != _num(stored.get(f)):
+        if f and chk.get("pattern") and _scaled(p["got"], chk) != _num(stored.get(f)):
             return {"outcome": "CHANGED", "checks": per,
                     "detail": f"check {p['i']}: extracted {p['got']!r} != stored {f}={stored.get(f)!r}"}
     return {"outcome": "CONFIRMED", "checks": per}
