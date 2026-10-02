@@ -90,7 +90,12 @@
     padding: 0.9rem 0; border-bottom: 2px solid transparent; white-space: nowrap;
   }
   .nav-links a:hover { color: var(--fg); }
-  .nav-links a.cta { color: var(--accent); font-weight: 600; }
+  
+  .nav-links a.cta {
+    color: var(--on-accent); background: var(--accent); font-weight: 600;
+    padding: 0.5rem 0.9rem; border-radius: 7px; border-bottom: none;
+  }
+  .nav-links a.cta:hover { color: var(--on-accent); opacity: 0.9; }
   
   .nav-toggle {
     display: none; border: 1px solid var(--border-strong); background: var(--card-bg); color: var(--fg);
