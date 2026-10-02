@@ -1248,10 +1248,43 @@
   ]
  },
  "wisconsin-reinstatement": {
-  "manual": "NOT YET AUTOMATED: $68 is on the DSPS 'Renewal Dates and Fees' PDF, which now 404s"
+  "keep_auto": false,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "$43 CPA renewal fee (DSPS fee table) + $25 late fee for renewal after expiration (DSPS page; codified Wis. Stat. 440.08(3)(a)) = $68 (AuditLab 10-02)",
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "field": null,
+    "expect": 43
+   },
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "field": null,
+    "expect": 25,
+    "anchor": "All Business and Health Credentials incur a"
+   }
+  ]
  },
  "wisconsin-renewal-fee": {
-  "manual": "NOT YET AUTOMATED: $43 is on the same DSPS PDF (404)"
+  "keep_auto": false,
+  "derivation": "DSPS Credential Fees and Renewal Dates (JS-rendered table -> browser fetch): CPA renewal fee column $43",
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "method": "browser",
+    "kind": "fee",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "field": "fee_usd"
+   }
+  ]
  },
  "wyoming-reinstatement": {
   "keep_auto": false,
