@@ -9,6 +9,7 @@ data/manifest drift, missing legal copy), not wording quality.
 
 Usage: python scripts/preship_gate.py [repo_root]
 """
+import hashlib
 import html
 import json
 import re
@@ -438,6 +439,159 @@ def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
                 f"[COPY-23][{f}] double hyphen used as a dash in rendered prose -- "
                 f"...{snippet}... (use an em dash (&mdash;) or rewrite the sentence)"
             )
+    return errors
+
+
+# --- BLOG-1 (AuditLab spec, 2026-10-02T14:41 MDT): the two-party approval
+# gate. A real, genuine approval for one draft got applied to shipped
+# content that had grown a new section after that approval -- the review
+# and the shipped bytes silently diverged. Every rule below is an ERROR,
+# never a skip: a gate has two failure modes, a wrong verdict and never
+# running, and an early return on a missing directory only ever hides the
+# second (the RC-29 shape AuditLab named explicitly -- do not reproduce it).
+BLOG_APPROVALS_DIRNAME = "blog_approvals"
+BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
+# The 31 posts shipped before this gate existed. Editing GRANDFATHERED.txt
+# (adding OR removing a slug) must fail the build until both constants below
+# are updated to match -- that is the point: the edit becomes a visible,
+# reviewable act in a diff, not a silent way to skip review for a new post.
+BLOG_GRANDFATHERED_COUNT = 31
+BLOG_GRANDFATHERED_SHA256 = "13190130680c92a3a3261aa23bf38b2106567eeddaa3f348d321d0247a1ceaf2"
+_BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _load_blog_grandfathered(approvals_dir: Path) -> tuple[set[str], list[str]]:
+    path = approvals_dir / BLOG_GRANDFATHERED_FILENAME
+    if not path.exists():
+        return set(), [f"[BLOG-GATE] {path} is missing"]
+    raw = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
+    normalized = ("\n".join(lines) + "\n").encode("utf-8")
+    digest = hashlib.sha256(normalized).hexdigest()
+    errors = []
+    if len(lines) != BLOG_GRANDFATHERED_COUNT:
+        errors.append(
+            f"[BLOG-GATE] {path} has {len(lines)} slug(s), expected {BLOG_GRANDFATHERED_COUNT} -- "
+            f"editing this file requires deliberately updating BLOG_GRANDFATHERED_COUNT and "
+            f"BLOG_GRANDFATHERED_SHA256 in this file too, not just GRANDFATHERED.txt"
+        )
+    if digest != BLOG_GRANDFATHERED_SHA256:
+        errors.append(
+            f"[BLOG-GATE] {path} content hash {digest} != expected {BLOG_GRANDFATHERED_SHA256} -- "
+            f"an undeclared edit to the grandfathered list, or the constant is stale"
+        )
+    return set(lines), errors
+
+
+def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None = None) -> list[str]:
+    """Every slug in BLOG_ARTICLES must be either grandfathered (shipped
+    before this gate existed) or carry a committed two-party approval record
+    (content/blog_approvals/<slug>.json) whose recorded digest matches the
+    canonical payload hash of what would actually ship today
+    (scripts/blog_payload_hash.py). `blog_articles` is injectable for tests;
+    production leaves it None and imports the real generate.py."""
+    if blog_articles is None:
+        sys.path.insert(0, str(repo_root))
+        try:
+            import generate as generate_module
+        except ImportError:
+            return [
+                "[BLOG-GATE] generate.py could not be imported -- this check is measuring nothing "
+                "and must be repaired, not silently skipped"
+            ]
+        blog_articles = generate_module.BLOG_ARTICLES
+
+    approvals_dir = repo_root / "content" / BLOG_APPROVALS_DIRNAME
+    if blog_articles and not approvals_dir.exists():
+        return [
+            f"[BLOG-GATE] {approvals_dir} is missing entirely but BLOG_ARTICLES has "
+            f"{len(blog_articles)} entries -- the approval gate cannot run (rule 2, enablement)"
+        ]
+
+    sys.path.insert(0, str(repo_root / "scripts"))
+    import blog_payload_hash as _bph  # noqa: E402
+
+    errors: list[str] = []
+    grandfathered, gf_errors = _load_blog_grandfathered(approvals_dir)
+    errors.extend(gf_errors)
+
+    for article in blog_articles:
+        slug = article["slug"]
+        approval_path = approvals_dir / f"{slug}.json"
+        is_grandfathered = slug in grandfathered
+        has_approval_file = approval_path.exists()
+
+        if is_grandfathered and has_approval_file:
+            errors.append(
+                f"[BLOG-GATE][{slug}] present in BOTH {BLOG_GRANDFATHERED_FILENAME} and "
+                f"{BLOG_APPROVALS_DIRNAME}/ -- ambiguous, remove one"
+            )
+            continue
+        if not is_grandfathered and not has_approval_file:
+            errors.append(f"[BLOG-GATE][{slug}] not grandfathered and no approval file at {approval_path}")
+            continue
+        if is_grandfathered:
+            continue
+
+        try:
+            data = json.loads(approval_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            errors.append(f"[BLOG-GATE][{slug}] {approval_path} is not valid JSON: {e}")
+            continue
+        if not isinstance(data, dict) or data.get("slug") != slug:
+            errors.append(f"[BLOG-GATE][{slug}] approval file's own 'slug' field does not match {slug!r}")
+            continue
+        approvals = data.get("approvals")
+        if not isinstance(approvals, list):
+            errors.append(f"[BLOG-GATE][{slug}] missing or malformed 'approvals' list")
+            continue
+
+        parties_seen: set[str] = set()
+        malformed = False
+        for entry in approvals:
+            if not isinstance(entry, dict):
+                errors.append(f"[BLOG-GATE][{slug}] an approval entry is not an object")
+                malformed = True
+                continue
+            party = entry.get("party")
+            sha = entry.get("payload_sha256")
+            if party not in _BLOG_APPROVAL_PARTIES:
+                errors.append(f"[BLOG-GATE][{slug}] approval party {party!r} not in {sorted(_BLOG_APPROVAL_PARTIES)}")
+                malformed = True
+            else:
+                parties_seen.add(party)
+            if not isinstance(sha, str) or not _SHA256_HEX_RE.match(sha):
+                errors.append(f"[BLOG-GATE][{slug}] approval payload_sha256 {sha!r} is not 64 lowercase hex chars")
+                malformed = True
+            if not entry.get("verdict_file"):
+                errors.append(f"[BLOG-GATE][{slug}] approval entry missing 'verdict_file'")
+                malformed = True
+
+        if len(parties_seen) < 2:
+            errors.append(f"[BLOG-GATE][{slug}] fewer than 2 distinct-party approvals (have: {sorted(parties_seen)})")
+
+        if malformed:
+            continue
+
+        fields = {
+            "slug": article["slug"],
+            "published": article["published"],
+            "title": article["title"],
+            "seo_title": article.get("seo_title", ""),
+            "meta_description": article["meta_description"],
+            "body_html": article["body_html"],
+        }
+        computed = _bph.payload_sha256_from_fields(fields)
+        for entry in approvals:
+            recorded = entry.get("payload_sha256")
+            if recorded != computed:
+                errors.append(
+                    f"[BLOG-GATE][{slug}] approval from {entry.get('party')} recorded digest {recorded} "
+                    f"but the content that would ship today hashes to {computed} -- content changed "
+                    f"after approval (this is the BLOG-1 shape)"
+                )
+
     return errors
 
 
@@ -7267,6 +7421,7 @@ def main():
     all_errors += check_rendering_integrity(html_files)
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_double_hyphen_hand_copy_pages(docs_dir)
+    all_errors += check_blog_approval_gate(repo_root)
     all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
