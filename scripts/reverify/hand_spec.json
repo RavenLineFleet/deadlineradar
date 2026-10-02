@@ -1028,7 +1028,16 @@
   "manual": "NOT YET AUTOMATED: 22 GCA 35107(b) firm permit period: cached Guam texts don't state it verbatim; needs a better official source"
  },
  "illinois-reinstatement": {
-  "manual": "NOT YET AUTOMATED: $260 restoration fee not found in 68 IAC 1420.40 (LII) or IDFPR page text; likely an assembled figure"
+  "keep_auto": false,
+  "derivation": "68 Ill. Adm. Code 1420.40(g): restoration (other than from inactive) = $50 plus all lapsed renewal fees, not to exceed $260 (stored value is the cap). Record's citation_url points at 1420.60; the fee is in 1420.40 (AuditLab 10-02).",
+  "checks": [
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000400R.html",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "other than from inactive status, is $50 plus all lapsed renewal fees, not to exceed"
+   }
+  ]
  },
  "iowa-reinstatement": {
   "manual": "NOT YET AUTOMATED: 4-hour ethics penalty not found in cached IAC 481-1032 text; LII URL guess returned an index page"
@@ -1061,7 +1070,7 @@
   ]
  },
  "michigan-reinstatement": {
-  "manual": "NOT YET AUTOMATED: 40/2 hours automatable (R 338.5230); $320 is an assembled total with no single public line (data_gap_note); LARA fee page robots.txt-disallowed"
+  "manual": "NOT YET AUTOMATED: $320 is a published LARA line ('2 year CPA Relicensure Application and Fee: $320.00') = $100 (MCL 338.2211) + $20 (MCL 338.2206) + $200; LARA page is robots.txt-disallowed for automated fetch. Published, not a disclosure candidate (AuditLab 10-02)."
  },
  "michigan-renewal-fee": {
   "keep_auto": false,
