@@ -202,10 +202,15 @@ def history_line(day: str, check_results: list[dict], recipe: dict) -> str:
 # was a tooling/fetch failure (the old fetcher couldn't see the page). Substantive reasons (sources
 # disagree, rule may be superseded, needs judgment) are never cleared by an anchor match: the record is
 # HELD for a human and its date does not move.
+# STALE-24 (AuditLab 2026-10-02): match FAILURE SIGNATURES only, never topic words -- bare "PDF" or a
+# bare 3-digit number also occur in substantive reasons ("the PDF and the web page disagree", "500 or 550").
+# Too tight merely holds a record for a human (safe); too loose silently clears a hold (the STALE-21 harm).
 TOOLING_GAP_RE = re.compile(
-    r"fetch not 200|HTTP\s*Error|status=\d{3}|\b40[13]\b|\b5\d\d\b|timed?\s*out|connection|bot wall|soft-404|"
-    r"PDF|cannot search|could not (?:read|search|parse)|claim-anchor|anchor check failed|"
-    r"not (?:independently )?re-confirmed|was not found on the fetched page|not found on the page|wrong page",
+    r"fetch not 200|HTTP\s*Error|status=\d{3}|HTTP\s*[45]\d\d|timed?\s*out|"
+    r"connection (?:refused|reset|error)|bot wall|soft-404|wrong page|"
+    r"cannot be used to anchor a baseline|claim-anchor|anchor check failed|"
+    r"whose text this function cannot search|cannot (?:search|read|parse)|"
+    r"was not (?:independently )?re-confirmed|was not found on the fetched page",
     re.I)
 
 
