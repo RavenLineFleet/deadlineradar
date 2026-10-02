@@ -122,8 +122,10 @@ def run(mode, push=True):
     for gate in ([py, "-m", "pytest", "scripts/reverify", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
         g = sh(*gate, check=False)
         if g.returncode != 0:
+            # head carries the FAIL/violation lines; tail carries the traceback for crashes -- keep both
+            out = g.stdout if len(g.stdout) <= 6000 else g.stdout[:4000] + "\n...[snip]...\n" + g.stdout[-1500:]
             note("GATE_FAILED_no_deploy", f"gate `{' '.join(gate[1:])}` failed (rc={g.returncode}); nothing committed or pushed.\n"
-                                         f"```\n{g.stdout[-2500:]}\n{g.stderr[-1500:]}\n```")
+                                         f"```\n{out}\n{g.stderr[-1500:]}\n```")
             sh("git", "checkout", "--force", "--", ".")
             if push:
                 _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
