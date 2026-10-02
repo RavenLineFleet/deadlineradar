@@ -265,6 +265,8 @@ def run(apply: bool, retry_only: bool, fetcher=None, today: str | None = None, i
               "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "total_records": len(by_id), "checked": len(todo), "counts": counts,
               "missing_recipe": missing_recipe, "unconfirmed_ids": unconfirmed,
+              "manual_ids": sorted(i for i in by_id if recipes.get(i, {}).get("manual")),
+              "unconfirmed_automatable": sorted(i for i in unconfirmed if i in recipes and not recipes[i].get("manual")),
               "fail_counts": prev.get("fail_counts", {}), "confirmed": prev.get("confirmed", [])}
     if apply:
         _dump(status_path, report)
