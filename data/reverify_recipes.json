@@ -2406,12 +2406,31 @@
  },
  "michigan-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": "NOT YET AUTOMATED: MCL 338.2211 fee text not in the cached excerpt; LARA fee page robots.txt-disallowed",
-  "combine": "each",
-  "field": null,
-  "derivation": null,
+  "manual": null,
+  "combine": "sum",
+  "field": "fee_usd",
+  "derivation": "MCL 338.2211(1)(b): license to practice $100.00 per year; licenses renew biennially (MCL 339.202), so the biennial fee = 2 x $100 = $200",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-338-2211.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(b)License to practice for individuals and firms, per year",
+    "window": 30,
+    "pattern": "([\\d,]+\\.\\d\\d)",
+    "expect": 100
+   },
+   {
+    "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-338-2211.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(b)License to practice for individuals and firms, per year",
+    "window": 30,
+    "pattern": "([\\d,]+\\.\\d\\d)",
+    "expect": 100
+   }
+  ]
  },
  "minnesota-reinstatement": {
   "dataset": "reinstatement",
@@ -2893,12 +2912,43 @@
  },
  "nc-cpe": {
   "dataset": "cpe_hours",
-  "manual": "NOT YET AUTOMATED: 21 NCAC 08G .0401 states 2,000 CPE minutes (= 40 hours) but the 1-hour ethics figure was not found; minutes->hours needs a reviewed recipe",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "21 NCAC 08G .0401(d) 2,000 CPE minutes annually = 40 hours (total = annual minimum); (e) 50 ethics minutes = 1 hour; 50 min per CPE hour",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(d) Active CPAs shall complete",
+    "window": 60,
+    "pattern": "([\\d,]+) CPE minutes",
+    "field": "total_hours",
+    "divide": 50
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(d) Active CPAs shall complete",
+    "window": 60,
+    "pattern": "([\\d,]+) CPE minutes",
+    "field": "annual_minimum_hours",
+    "divide": 50
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(e) A CPA shall complete a minimum of",
+    "window": 60,
+    "pattern": "([\\d,]+) CPE minutes",
+    "field": "ethics_hours",
+    "divide": 50
+   }
+  ]
  },
  "nd-cpe": {
   "dataset": "cpe_hours",
@@ -3754,12 +3804,22 @@
  },
  "ohio-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": "NOT YET AUTOMATED: $180 board schedule page (acc.ohio.gov/about/fees) is 404; ORC 4701.10 only caps the fee",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "Ohio LSC 2026 state agency fee report (official): Accountancy Board, Ohio permit - 3 year, R.C. 4701.10(A),(H)(1)(b) = $180.00; acc.ohio.gov fee page 404s to automated fetch",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://www.lsc.ohio.gov/assets/organizations/legislative-service-commission/files/2026-state-agency-fees.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Ohio permit - 3 year* 4701.10(A) and (H)(1) (b)",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
  },
  "ok-cpe": {
   "dataset": "cpe_hours",
@@ -4682,21 +4742,50 @@
  },
  "utah-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: 80 hours automatable (R156-26a-307); $113 fee is set administratively (63J-1-504) and not published in fetched text",
+  "manual": null,
   "combine": "each",
   "field": null,
   "derivation": null,
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "http://commerce.utah.gov//wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Less than two years since your license expired. - Submit",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-307",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "allowed their license to lapse; and (b)",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
  },
  "utah-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": "NOT YET AUTOMATED: $63 set administratively (63J-1-504); DOPL renew page text doesn't state it",
+  "manual": null,
   "combine": "each",
   "field": null,
   "derivation": null,
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://commerce.utah.gov/dopl/dopl-fee-schedule/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Certified Public Accountant License $85.00",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
  },
  "va-cpe": {
   "dataset": "cpe_hours",
@@ -4803,12 +4892,31 @@
  },
  "virginia-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: fee ($350) automatable; 2-hour ethics penalty not found in 18VAC5-22-180 text",
+  "manual": null,
   "combine": "each",
   "field": null,
   "derivation": null,
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section20/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Processing an application for reinstatement of a person's Virginia license",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section90/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "he shall have obtained at least 20 hours of continuing professional education, including an ethics course of at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
  },
  "virginia-renewal-fee": {
   "dataset": "renewal_fees",

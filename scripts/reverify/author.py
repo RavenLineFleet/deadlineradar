@@ -110,12 +110,14 @@ def build(cache_dir, spec_path):
                 chk["expect_text"] = c["expect_text"]
             if "expect" in c:
                 chk["expect"] = c["expect"]
+            if "divide" in c:
+                chk["divide"] = c["divide"]
             if text is None:
                 errors[rid] = f"no cached text for {url} (method={chk['method']}); check unverified offline"
             else:
                 st, got = runner.judge_check(chk, text)
                 want = c.get("expect", rec.get(c["field"]) if c.get("field") else None)
-                if st != "MATCH" or (want is not None and kind != "text" and runner._num(got) != runner._num(want)):
+                if st != "MATCH" or (want is not None and kind != "text" and runner._scaled(got, chk) != runner._num(want)):
                     errors[rid] = f"selftest {st} got={got!r} want={want!r} anchor={c['anchor']!r}"
             checks.append(chk)
         recipes[rid] = {"dataset": ds, "manual": None, "combine": s.get("combine", "each"),

@@ -109,6 +109,16 @@ def test_sum_with_formula_text_guard_idaho():
     assert runner.judge_record(r2, {"reinstatement_fee_usd": 360}, fx)["outcome"] == "CHANGED"
 
 
+def test_minutes_to_hours_divide_nc():
+    """21 NCAC 08G .0401: 2,000 CPE minutes (= 40 h) and 50 ethics minutes (= 1 h); 50 min per hour."""
+    text = "(d) Active CPAs shall complete 2,000 CPE minutes ... (e) A CPA shall complete a minimum of 50 CPE minutes annually in ethics"
+    r = {"checks": [chk(anchor="(d) Active CPAs shall complete", pattern=r"([\d,]+) CPE minutes", divide=50, field="total_hours"),
+                    chk(anchor="(e) A CPA shall complete a minimum of", pattern=r"([\d,]+) CPE minutes", divide=50, field="ethics_hours")]}
+    fx = {0: ok(text), 1: ok(text)}
+    assert runner.judge_record(r, {"total_hours": 40, "ethics_hours": 1}, fx)["outcome"] == "CONFIRMED"
+    assert runner.judge_record(r, {"total_hours": 2000, "ethics_hours": 1}, fx)["outcome"] == "CHANGED"
+
+
 def test_per_check_fields():
     text = "total of 80 hours ... at least 4 hours in ethics"
     r = {"checks": [chk(anchor="total of", pattern=r"(\d+) hours", field="total_hours"),
