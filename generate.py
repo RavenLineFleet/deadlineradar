@@ -24418,7 +24418,7 @@ so both clocks work for you instead of quietly running past you.</p>
     {
         "slug": "nevada-cpa-license-renewal-guide",
         "published": "2026-10-02",
-        "title": "Nevada CPA Renewal: Annual, December 31 — Why Some CPE Trackers Get the Hours Wrong",
+        "title": "Nevada CPA Renewal: Annual, December 31 — The Outlier in a Biennial Region",
         "seo_title": "Nevada CPA Renewal: December 31, Every Year",
         "meta_description": (
             "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not 80 over two years like most states. Here's the exact rule, the fee, and what happens if you lapse."
