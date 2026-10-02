@@ -741,7 +741,17 @@ PAGE_CSS = """
     padding: 0.9rem 0; border-bottom: 2px solid transparent; white-space: nowrap;
   }
   .nav-links a:hover { color: var(--fg); }
-  .nav-links a.cta { color: var(--accent); font-weight: 600; }
+  /* Phase 3 outside-review item 1 (2026-10-01): "the nav 'Get reminders' is
+     plain text" -- .cta only ever set color+weight here, no background or
+     shape, so it read as emphasized text next to Sign In, not a button. A
+     real button needs its own vertical rhythm (the nav's shared `a` rule
+     above is tuned for a text link's padding/border, not a filled shape),
+     so this is a full override rather than an addition to it. */
+  .nav-links a.cta {
+    color: var(--on-accent); background: var(--accent); font-weight: 600;
+    padding: 0.5rem 0.9rem; border-radius: 7px; border-bottom: none;
+  }
+  .nav-links a.cta:hover { color: var(--on-accent); opacity: 0.9; }
   /* Hamburger nav (2026-08-06) -- below ~680px, 6 nav items wrapped onto
      2-3 stacked rows above the fold (.nav-links's own flex-wrap was the
      entire mobile strategy). Hidden by default; the media query below is
