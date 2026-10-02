@@ -306,16 +306,17 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     counts = {}
     for r in results.values():
         counts[r["outcome"]] = counts.get(r["outcome"], 0) + 1
-    verified = {i: str(by_id[i][1].get(DATE_FIELD[by_id[i][0]]) or "") for i in automatable}
-    ages = {i: _age_days(by_id[i][1], by_id[i][0], tday) for i in automatable}
+    # Devin's bar (Orchestrator 10-02 12:48): EVERY record is watched, automated or MANUAL
+    verified = {i: str(by_id[i][1].get(DATE_FIELD[by_id[i][0]]) or "") for i in sorted(by_id)}
+    ages = {i: _age_days(by_id[i][1], by_id[i][0], tday) for i in sorted(by_id)}
     report = {"mode": "apply" if apply else "dry-run", "selection": "ids" if ids else ("all" if all_records else "due"),
               "run_date": day, "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "total_records": len(by_id), "checked": len(todo), "counts": counts,
               "missing_recipe": missing_recipe,
               "manual_ids": sorted(i for i in by_id if recipes.get(i, {}).get("manual")),
               "not_confirmed_this_run": sorted(i for i, r in results.items() if r["outcome"] != "CONFIRMED"),
-              "stale_automatable": sorted(i for i, a in ages.items() if a > STALE_DAYS),
-              "oldest_automatable_age_days": max(ages.values()) if ages else None,
+              "stale_records": sorted(i for i, a in ages.items() if a > STALE_DAYS),
+              "oldest_record_age_days": max(ages.values()) if ages else None,
               "verified_dates": verified,
               "fail_counts": fail_counts, "changed_open": changed_open,
               "manual_notified": manual_notified,
