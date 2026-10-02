@@ -22,7 +22,7 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 
-<link rel="stylesheet" href="/styles.css?v=26b87022c8">
+<link rel="stylesheet" href="/styles.css?v=4e8c84d6ea">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -107,7 +107,7 @@
 </div>
 
 <div class="dr-auth-view" id="dr-view-signup">
-  <h1>Create your firm account</h1>
+  <h2 class="dr-auth-heading">Create your firm account</h2>
   <p class="subhead">Free, no time limit, no card required.</p>
   
   <p class="field-hint" id="dr-firmlogin-tier-note" hidden></p>
@@ -139,7 +139,7 @@
 </div>
 
 <div class="dr-auth-view" id="dr-view-magic">
-  <h1 id="dr-magic-heading">Email me a sign-in link</h1>
+  <h2 id="dr-magic-heading" class="dr-auth-heading">Email me a sign-in link</h2>
   <p class="subhead" id="dr-magic-sub">Works whether or not you've set a password.</p>
   <form method="post" action="/api/firm/login" id="dr-magic-form">
     <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;"><label for="hp_website-magic">Leave this field blank</label><input type="text" id="hp_website-magic" name="hp_website" tabindex="-1" autocomplete="off"></div>
