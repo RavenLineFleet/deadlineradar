@@ -36,6 +36,43 @@
    }
   ]
  },
+ "ak-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: statewide licensing period is stated only on the Board's renewal form (commerce.alaska.gov), which robots.txt disallows; 12 AAC 02.105 print view has no CPA period",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "ak-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: same as ak-firm (commerce.alaska.gov disallowed by robots.txt)",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "al-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(1) Annual permits to practice expire on the last day of",
+    "window": 49,
+    "pattern": null,
+    "expect_text": "September"
+   }
+  ]
+ },
  "al-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -98,6 +135,52 @@
     "window": 22,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"
+   }
+  ]
+ },
+ "alaska-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "AuditLab 10-02 (raised 3x, CORRECT): 12 AAC 04.440(a) reinstatement = 12 AAC 02.340(4) biennial active license renewal fee $300 + 02.340(13) delayed renewal penalty fee $100 = $400",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(4) certified public accountant biennial active license renewal fee,",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 300
+   },
+   {
+    "url": "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(13) delayed renewal penalty fee,",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 100
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/alaska/12-AAC-04.440",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "documentation showing the applicant's completion of at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/alaska/12-AAC-04.440",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "04.360(5) ; at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
    }
   ]
  },
@@ -195,6 +278,53 @@
    }
   ]
  },
+ "arizona-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-341",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "reinstatement of a certificate by submitting: 1. An application fee of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "24 months have passed since the last registration due date for which CPE was completed.",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "arizona-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-345",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "2. Biennial Registration Fee - a. Certification -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
  "arkansas-reinstatement": {
   "dataset": "reinstatement",
   "manual": null,
@@ -261,6 +391,24 @@
    }
   ]
  },
+ "az-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: per-firm anniversary cycle is stated on azaccountancy.gov (robots.txt disallows); A.A.C. R4-1-345 on LII sets fees but not the schedule",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "az-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: birth-year parity schedule (A.R.S. 32-730) only found on azaccountancy.gov / azsos.gov, both robots.txt-disallowed",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "ca-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -295,6 +443,25 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "ca-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/california/16-CCR-93",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Permits issued under these rules expire at 12 midnight on the",
+    "window": 67,
+    "pattern": null,
+    "expect_text": "last day of the birth month"
    }
   ]
  },
@@ -363,6 +530,24 @@
     "field": "ethics_hours"
    }
   ]
+ },
+ "co-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: Aug 31 triennial date comes from a data.colorado.gov register and dpo.colorado.gov (robots.txt disallows); 3 CCR 705-1 has no expiry date",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "co-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: Nov 30 odd-year date is on dpo.colorado.gov only (robots.txt disallows); data.colorado.gov page is a 267-char JS shell",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "colorado-reinstatement": {
   "dataset": "reinstatement",
@@ -748,6 +933,15 @@
    }
   ]
  },
+ "florida-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: fee ($250) automatable, but the 240 CPE / 16 ethics penalty is only on myfloridalicense custhelp (robots.txt disallows); not in 61H1-31.015 / -33.006",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "florida-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -888,6 +1082,15 @@
     "field": "fee_usd"
    }
   ]
+ },
+ "guam-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: 22 GCA 35107(b) firm permit period: cached Guam texts don't state it verbatim; needs a better official source",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "guam-individual": {
   "dataset": "cpa_deadlines",
@@ -1171,6 +1374,70 @@
    }
   ]
  },
+ "idaho-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "IDAPA 24.30.01.400: Reinstatement License = 'Sum of unpaid license fees for the preceding 3 license renewal cycles' = 3 x Active License $120 = $360",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Re-Exam $25 Active License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 120
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Re-Exam $25 Active License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 120
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Re-Exam $25 Active License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 120
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.400",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reinstatement License",
+    "window": 109,
+    "pattern": null,
+    "expect_text": "Sum of unpaid license fees for the preceding 3 license renewal cycles"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.117",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "is to complete no less than",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.117",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of CPE, of which at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
  "idaho-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -1256,6 +1523,15 @@
    }
   ]
  },
+ "illinois-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: $260 restoration fee not found in 68 IAC 1420.40 (LII) or IDFPR page text; likely an assembled figure",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "illinois-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": "fee_usd is null (no flat fee published in 68 IAC 1420.400); nothing numeric to re-verify.",
@@ -1264,6 +1540,43 @@
   "derivation": null,
   "provenance": "hand 2026-10-02",
   "checks": []
+ },
+ "in-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "renewal of a certificate as a CPA, PA, or AP must complete a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(d) An ethics requirement of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "prior to the expiration of certificates with a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
  },
  "in-firm": {
   "dataset": "cpa_deadlines",
@@ -1350,6 +1663,15 @@
    }
   ]
  },
+ "iowa-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: 4-hour ethics penalty not found in cached IAC 481-1032 text; LII URL guess returned an index page",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "iowa-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -1366,6 +1688,43 @@
     "window": 19,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"
+   }
+  ]
+ },
+ "kansas-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/kansas/K-A-R-74-12-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(e) Reinstatement of permit to practice as a certified public accountant whose permit has expired: (1) For more than one year of a biennial period",
+    "window": 110,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://ksboa.kansas.gov/wp-content/uploads/Reinstatement-of-Permit-2021.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ALL APPLICANTS FOR REINSTATEMENT OF PERMIT M UST HAVE OBTAINED",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://ksboa.kansas.gov/wp-content/uploads/Reinstatement-of-Permit-2021.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "WITHIN THE PREVIOUS 12 MONTHS OF THE DATE APPLICATION IS RECEIVED TO INCLUDE",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
    }
   ]
  },
@@ -1708,6 +2067,15 @@
    }
   ]
  },
+ "ma-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: June 30 firm cycle is on mass.gov (robots.txt disallows) and an eLicensing JS tool; MGL 112 s.87B1/2 text has no date",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "ma-individual": {
   "dataset": "cpa_deadlines",
   "manual": null,
@@ -1782,6 +2150,15 @@
     "field": "fee_usd"
    }
   ]
+ },
+ "maryland-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: fee ($126) automatable; 80 CPE / 4 ethics not found in cached COMAR text (09.24.04 LII URL was an index page)",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "maryland-renewal-fee": {
   "dataset": "renewal_fees",
@@ -2017,6 +2394,24 @@
     "expect_text": "7/31"
    }
   ]
+ },
+ "michigan-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: 40/2 hours automatable (R 338.5230); $320 is an assembled total with no single public line (data_gap_note); LARA fee page robots.txt-disallowed",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "michigan-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "NOT YET AUTOMATED: MCL 338.2211 fee text not in the cached excerpt; LARA fee page robots.txt-disallowed",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "minnesota-reinstatement": {
   "dataset": "reinstatement",
@@ -2496,6 +2891,15 @@
    }
   ]
  },
+ "nc-cpe": {
+  "dataset": "cpe_hours",
+  "manual": "NOT YET AUTOMATED: 21 NCAC 08G .0401 states 2,000 CPE minutes (= 40 hours) but the 1-hour ethics figure was not found; minutes->hours needs a reviewed recipe",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "nd-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -2637,6 +3041,15 @@
    }
   ]
  },
+ "nebraska-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: 120/4 hours automatable (288 NAC 8 s.010); $200 fee not found in cached Board/NAC text",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "nebraska-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -2659,6 +3072,15 @@
  "nevada-reinstatement": {
   "dataset": "reinstatement",
   "manual": "all three numeric fields are null by design (fee/CPE depend on lapse length, NAC 628); nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "nevada-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "NOT YET AUTOMATED: $175 is on the Board's renewal portal (glsuite, robots.txt disallows); NAC 628 sets no amount",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -2697,6 +3119,44 @@
     "alt_urls": [],
     "method": "http",
     "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "new-jersey-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reinstatement of license:",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "new-jersey-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "3. Triennial registration:",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"
@@ -2797,6 +3257,24 @@
    }
   ]
  },
+ "nh-all": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: per-license biennial cycle (RSA 310:8, 309-B:7) only on oplc.nh.gov (robots.txt disallows)",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "nh-cpe": {
+  "dataset": "cpe_hours",
+  "manual": "NOT YET AUTOMATED: Ac 403.01 adopted text and OPLC CE page both on oplc.nh.gov (robots.txt disallows); LII URL guess returned an index page",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "nj-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -2831,6 +3309,34 @@
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "nj-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: N.J.A.C. 13:29-1A.11(b) on LII has no verbatim triennial wording matched; needs a reviewed text anchor",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "nj-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-7",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(b) A licensee shall renew his or her license for a period of",
+    "window": 81,
+    "pattern": null,
+    "expect_text": "three years from the last expiration date"
    }
   ]
  },
@@ -2962,6 +3468,25 @@
     "window": 18,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"
+   }
+  ]
+ },
+ "north-dakota-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": "N.D. Admin. Code 3-02-02-08: reinstatement fee 'not to exceed two hundred dollars' (cap; stored as $200)",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/north-dakota/N-D-A-C-3-02-02-08",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "is required to pay a reinstatement fee not to exceed",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "reinstatement_fee_usd"
    }
   ]
  },
@@ -3134,6 +3659,52 @@
    }
   ]
  },
+ "ny-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: Educ. Law 6502 on nysenate.gov returns 403; op.nysed.gov home page has no registration-period text",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "oh-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-02",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of the Revised Code, is",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-02",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "An Ohio permit holder must complete a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   },
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-11",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(C) All Ohio permit holders - each three-year reporting period - must complete",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
  "oh-individual": {
   "dataset": "cpa_deadlines",
   "manual": null,
@@ -3180,6 +3751,15 @@
     "field": "penalty_ethics_hours"
    }
   ]
+ },
+ "ohio-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "NOT YET AUTOMATED: $180 board schedule page (acc.ohio.gov/about/fees) is 404; ORC 4701.10 only caps the fee",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "ok-cpe": {
   "dataset": "cpe_hours",
@@ -3236,6 +3816,15 @@
     "expect_text": "JUNE 30"
    }
   ]
+ },
+ "ok-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": "NOT YET AUTOMATED: birth-month table on the Board page is HTML-in-JSON without a stable text anchor; OAC 10:15-21-2 LII guess had no match",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "oklahoma-reinstatement": {
   "dataset": "reinstatement",
@@ -3453,6 +4042,34 @@
    }
   ]
  },
+ "pennsylvania-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/pennsylvania/49-Pa-Code-SS-11-4",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reinstatement of inactive or expired license",
+    "window": 80,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "At least 20 CPE hours completed in each calendar year.",
+    "window": 40,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
  "pennsylvania-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -3641,6 +4258,44 @@
    }
   ]
  },
+ "sc-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(28) \"Renewal due date\" is",
+    "window": 54,
+    "pattern": null,
+    "expect_text": "February first"
+   }
+  ]
+ },
+ "sc-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(28) \"Renewal due date\" is",
+    "window": 54,
+    "pattern": null,
+    "expect_text": "February first"
+   }
+  ]
+ },
  "sd-all": {
   "dataset": "cpa_deadlines",
   "manual": null,
@@ -3687,6 +4342,43 @@
     "field": "annual_minimum_hours"
    }
   ]
+ },
+ "south-carolina-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: $500 fee not on llr.sc.gov/acct/fees.aspx or in Title 40 ch.2; CPE 40 automatable",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "south-carolina-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://llr.sc.gov/acct/fees.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Annual CPA/AP/PA Renewal:",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "south-dakota-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: 24-hour figure not found in ARSD 20:75:04:08 text",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "south-dakota-renewal-fee": {
   "dataset": "renewal_fees",
@@ -3847,6 +4539,43 @@
    }
   ]
  },
+ "tx-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(a) A licensee shall complete at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE credits in each three-year period, and a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-130",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(a) A licensee must complete a board-approved",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
  "tx-individual": {
   "dataset": "cpa_deadlines",
   "manual": null,
@@ -3951,6 +4680,24 @@
    }
   ]
  },
+ "utah-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: 80 hours automatable (R156-26a-307); $113 fee is set administratively (63J-1-504) and not published in fetched text",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "utah-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "NOT YET AUTOMATED: $63 set administratively (63J-1-504); DOPL renew page text doesn't state it",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "va-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -4053,6 +4800,15 @@
     "field": "fee_usd"
    }
   ]
+ },
+ "virginia-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: fee ($350) automatable; 2-hour ethics penalty not found in 18VAC5-22-180 text",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "virginia-renewal-fee": {
   "dataset": "renewal_fees",
@@ -4214,6 +4970,34 @@
    }
   ]
  },
+ "washington-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://acb.wa.gov/individual-licensing/reinstate-cpa-license",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Pay the reinstatement fee of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "within the three-year CPE reporting period; (ii) Completion of a",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
  "washington-renewal-fee": {
   "dataset": "renewal_fees",
   "manual": null,
@@ -4355,6 +5139,24 @@
    }
   ]
  },
+ "wisconsin-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: $68 is on the DSPS 'Renewal Dates and Fees' PDF, which now 404s",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "wisconsin-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "NOT YET AUTOMATED: $43 is on the same DSPS PDF (404)",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
  "wv-cpe": {
   "dataset": "cpe_hours",
   "manual": null,
@@ -4495,6 +5297,15 @@
     "expect_text": "December 31"
    }
   ]
+ },
+ "wyoming-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "NOT YET AUTOMATED: fee ($300) automatable; 4-hour ethics penalty is in a rule cited only as a Google Drive link",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
  },
  "wyoming-renewal-fee": {
   "dataset": "renewal_fees",

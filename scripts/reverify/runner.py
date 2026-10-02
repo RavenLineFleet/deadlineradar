@@ -146,7 +146,8 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
         have = _num(stored.get(field))
         if recipe.get("combine") == "sum":
             # only checks WITHOUT their own field are summed into `field`; fielded checks compare alone below
-            vals = [_num(p["got"]) for p, c in zip(per, recipe["checks"]) if not c.get("field")]
+            # text checks (expect_text) guard the formula's wording and are never summed
+            vals = [_num(p["got"]) for p, c in zip(per, recipe["checks"]) if not c.get("field") and not c.get("expect_text")]
             got_val = sum(vals) if vals and None not in vals else None
             if got_val != have:
                 return {"outcome": "CHANGED", "checks": per, "detail": f"sum {got_val} != stored {field}={have}"}
