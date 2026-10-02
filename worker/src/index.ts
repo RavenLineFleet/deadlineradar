@@ -12984,38 +12984,28 @@ export default {
     // unrelated to email/SendGrid, same "shares a trigger, not a concern"
     // posture as the account-deletion pass just above -- must keep working
     // even in an environment with no SendGrid key configured.
+    //
+    // AuditLab outside-review DEMO-1/16 (2026-10-01): the shared demo is
+    // publicly editable with no reset, so junk and wrong data accumulate
+    // indefinitely (a real visitor can type a real wrong state into a CPE
+    // course name, or add extra rows -- reseed/reconcile alone only ever
+    // touch state_slug/license_type_id/staff_label, never CPE entries or
+    // extra rows). resetDemoFirmToCleanState() clears that junk, THEN
+    // calls reseedDemoFirmRosterIfBelowFloor()/reconcileDemoFirmRosterDeadlines()
+    // itself at its own end (store.ts) -- running those two standalone
+    // first, in the same tick, was pure duplicate work (AuditLab's read-
+    // count review, 2026-10-02: ~8 of 22 D1 reads were this redundancy).
+    // Once daily (0 18 * * *, noon MDT -- NOT overnight, despite the name
+    // other comments nearby give it), not per-login -- a full wipe on
+    // every demo login would erase a visitor's own just-added exploration
+    // mid-session.
     ctx.waitUntil(
       (async () => {
         try {
-          const result = await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
-          if (result.seeded) {
-            console.log(`[demo-roster-cron] reseeded shared demo firm, now ${result.count} on roster`);
-          }
-        } catch (err) {
-          console.log(`[demo-roster-cron] error: ${String(err)}`);
-        }
-        try {
-          // DEMO-11 (2026-08-27): keeps an already-populated roster's picks
-          // current -- reseed above only ever fills an empty-below-floor one.
-          const result = await store.reconcileDemoFirmRosterDeadlines(env.DB);
-          if (result.updated > 0) {
-            console.log(`[demo-roster-cron] reconciled ${result.updated} demo roster row(s) to current nearest-deadline picks`);
-          }
-        } catch (err) {
-          console.log(`[demo-roster-cron] reconcile error: ${String(err)}`);
-        }
-        try {
-          // AuditLab outside-review DEMO-1/16 (2026-10-01): the shared demo
-          // is publicly editable with no reset, so junk and wrong data
-          // accumulate indefinitely (a real visitor can type a real wrong
-          // state into a CPE course name -- that's not a bug the two passes
-          // above can catch, since both only ever touch state_slug/
-          // license_type_id/staff_label, never CPE entries or extra rows).
-          // Nightly-only, not per-login -- a full wipe on every demo login
-          // would erase a visitor's own just-added exploration mid-session.
           const result = await store.resetDemoFirmToCleanState(env.DB);
           console.log(
-            `[demo-reset-cron] removed ${result.removedSubscribers} extra subscriber(s), wiped ${result.wipedCpeEntries} cpe_entries row(s)`
+            `[demo-reset-cron] removed ${result.removedSubscribers} extra subscriber(s), wiped ${result.wipedCpeEntries} cpe_entries row(s), ` +
+              `reseeded=${result.reseeded}, rosterReconciled=${result.rosterReconciled}, activityLabelsBackfilled=${result.activityLabelsBackfilled}`
           );
         } catch (err) {
           console.log(`[demo-reset-cron] error: ${String(err)}`);
