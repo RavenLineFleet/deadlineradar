@@ -1232,11 +1232,22 @@ def build_manual_verification_update(
         update["manual_verified_raw_byte_length"] = len(result.body)
         update["manual_verified_anchor"] = claim_anchor_for_record(dataset_filename, record)
         update["manual_verify_gap_reason"] = None
+        update["manual_verify_gap_kind"] = None
     else:
         update["manual_verified_raw_hash"] = None
         update["manual_verified_raw_byte_length"] = None
         update["manual_verified_anchor"] = None
-        update["manual_verify_gap_reason"] = reason if not (ok and result.body is not None) else value_reason
+        fetch_failed = not (ok and result.body is not None)
+        update["manual_verify_gap_reason"] = reason if fetch_failed else value_reason
+        # STALE-25 (AuditLab/HomeLab, 2026-10-02): the runner only clears a gap it finds
+        # structurally marked "tooling" -- it no longer reads gap-reason prose at all. A fetch/
+        # identity/anchor failure is a tool limitation (tooling); a successful fetch whose text
+        # genuinely lacks the cited HTML value is a real discrepancy for a human (substantive).
+        # A PDF value left unconfirmed is tooling either way -- this function cannot search PDF text.
+        if fetch_failed or _expected_pdf(actual_url):
+            update["manual_verify_gap_kind"] = "tooling"
+        else:
+            update["manual_verify_gap_kind"] = "substantive"
     return update
 
 
@@ -1810,6 +1821,7 @@ def _selftest() -> None:
     assert update["manual_verified_raw_byte_length"] == len(real_pdf_bytes)
     assert update["manual_verified_anchor"] == "34-1-7"
     assert update["manual_verify_gap_reason"] is None, f"SELFTEST FAILED (build_manual_verification_update): an anchorable fetch left a gap reason -- {update['manual_verify_gap_reason']!r}"
+    assert update["manual_verify_gap_kind"] is None, f"SELFTEST FAILED (STALE-25): a confirmed record must not carry a gap_kind -- {update['manual_verify_gap_kind']!r}"
 
     # Non-anchorable case (bot wall): DATE-8 -- last_manual_verified_date
     # must NOT be set (a fetch happened, but nothing was confirmed; a
@@ -1828,6 +1840,7 @@ def _selftest() -> None:
     assert update2["manual_verified_raw_byte_length"] is None
     assert update2["manual_verified_anchor"] is None
     assert update2["manual_verify_gap_reason"], "SELFTEST FAILED (build_manual_verification_update): a non-anchorable fetch must record WHY, not leave a silent gap"
+    assert update2["manual_verify_gap_kind"] == "tooling", f"SELFTEST FAILED (STALE-25): an identity/anchor failure is a tool limitation, not a substantive disagreement -- got {update2['manual_verify_gap_kind']!r}"
 
     # Stale-field control: a record with an OLD baseline from a prior pass
     # must have it explicitly cleared (None), not left stale, when THIS
@@ -1865,6 +1878,7 @@ def _selftest() -> None:
     )
     assert update_date1_html["manual_verified_anchor"] is None
     assert "120" in (update_date1_html["manual_verify_gap_reason"] or ""), f"SELFTEST FAILED (DATE-8): gap reason should name the unconfirmed cited value -- got {update_date1_html['manual_verify_gap_reason']!r}"
+    assert update_date1_html["manual_verify_gap_kind"] == "substantive", f"SELFTEST FAILED (STALE-25): the fetch succeeded and identity passed, but the cited figure is genuinely absent from the text -- a human must look, this is not a tool limitation; got {update_date1_html['manual_verify_gap_kind']!r}"
 
     # Positive control -- same shape, but the cited value IS on the page:
     # must confirm and bump normally, proving the gate isn't just always-off.
@@ -1896,6 +1910,7 @@ def _selftest() -> None:
         "byte match -- pdf_value_manually_confirmed defaults to False and must be honored"
     )
     assert update_date1_pdf_default["manual_verified_anchor"] is None
+    assert update_date1_pdf_default["manual_verify_gap_kind"] == "tooling", f"SELFTEST FAILED (STALE-25): this function cannot search PDF text -- an unconfirmed PDF value is always a tool limitation, never substantive; got {update_date1_pdf_default['manual_verify_gap_kind']!r}"
 
     update_date1_pdf_confirmed = build_manual_verification_update(
         "https://example.test/real.pdf", "cpe_hours.json", date1_pdf_record,
