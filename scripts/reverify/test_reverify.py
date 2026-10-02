@@ -494,6 +494,55 @@ def test_excerpt_fabricated_or_abstained_or_model_down_is_dropped():
     assert llm_assist.ollama_json("hi", opener=down) is None                                      # fail closed
 
 
+def test_excerpt_invented_citation_prefix_is_dropped():
+    # bake-off 2026-10-02: 7b AND 14b both prefixed a real nj-firm passage with "N.J.A.C. 13:29-1A.11(b)"
+    pre = lambda p: {"quote": "N.J.A.C. 13:29-1A.11(b) The reinstatement fee for a lapsed certificate is $150"}
+    assert llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "u", "s", ask=pre) is None
+
+
+class _Resp:
+    def __init__(self, quote):
+        self.b = json.dumps({"response": json.dumps({"quote": quote})}).encode()
+    def __enter__(self):
+        return self
+    def __exit__(self, *a):
+        return False
+    def read(self):
+        return self.b
+
+
+def _opener(answers, calls):
+    def op(req, timeout=None):
+        model = json.loads(req.data.decode())["model"]
+        calls.append(model)
+        a = answers[model]
+        if isinstance(a, Exception):
+            raise a
+        return _Resp(a)
+    return op
+
+
+def test_fallback_model_only_when_primary_gives_no_answer(monkeypatch):
+    good = "The reinstatement fee for a lapsed certificate is $150 payable to the board."
+    m, fb = llm_assist.MODEL, llm_assist.FALLBACK_MODEL
+    assert m == "qwen2.5:14b-instruct" and fb == "qwen2.5:7b-instruct"
+    calls = []                                                           # 14b times out -> 7b answers
+    out, used = llm_assist.ask_with_fallback("p", opener=_opener({m: TimeoutError("timed out"), fb: good}, calls))
+    assert calls == [m, fb] and used == fb and out == {"quote": good}
+    calls = []                                                           # 14b abstains -> final, no 7b retry
+    out, used = llm_assist.ask_with_fallback("p", opener=_opener({m: "", fb: good}, calls))
+    assert calls == [m] and used == m and out == {"quote": ""}
+    calls = []                                                           # both down -> fail closed
+    down = OSError("connection refused")
+    assert llm_assist.ask_with_fallback("p", opener=_opener({m: down, fb: down}, calls)) == (None, None)
+    calls = []                                                           # provenance names the model that answered
+    real = llm_assist._post
+    monkeypatch.setattr(llm_assist, "_post", lambda p, model, opener=None:
+                        real(p, model, _opener({m: TimeoutError("t"), fb: good}, calls)))
+    ex = llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "u", "s")
+    assert ex and ex["model"] == fb
+
+
 def test_excerpt_render_is_inert_text():
     ex = {"offset": 3, "quote": "a ```html<script>x</script>``` b", "before": "", "after": "", "url": "u", "sha256": "s"}
     out = llm_assist.render(ex)
