@@ -6353,8 +6353,11 @@ async function handleAssistantTicket(request: Request, env: Env, ip: string): Pr
  *     (migration 0081), incremented -- never one row per visitor. No user-
  *     agent, referrer, or cookie is ever recorded by this path, and
  *     attribution_daily itself holds no IP. The caller's IP is held only
- *     by checkRateLimit()'s own site-wide rate_limit_hits table (purged
- *     after its window, 1 hour here -- see RATE_LIMIT_ATTR_BEACON), the
+ *     by checkRateLimit()'s own site-wide rate_limit_hits table, under
+ *     that table's own site-wide retention (RATE_LIMIT_HITS_RETENTION_
+ *     SECONDS = 86_400, purged by the daily cron, store.ts) -- NOT this
+ *     route's own rate-limit window (AuditLab ATTR-1, 2026-10-02: the
+ *     prior wording conflated the two and understated retention 24x), the
  *     same bookkeeping every other rate-limited route on this Worker
  *     already does; this route doesn't add a new place IP is kept.
  *   - GET /api/attr/summary -- traffic-attribution counts are business

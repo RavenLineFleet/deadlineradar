@@ -1060,9 +1060,11 @@ export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
 // tagged pages in a session -- deliberately looser than RATE_LIMIT_SUBSCRIBE.
 export const RATE_LIMIT_ATTR_BEACON: RateLimit = { max: 60, windowSeconds: 3600 };
 
-// GET /api/attr/summary -- same posture as RATE_LIMIT_ASSISTANT_API: public,
-// read-only, aggregate counts only (no PII), rate-limited rather than
-// gated behind a secret.
+// GET /api/attr/summary -- gated behind ATTR_SUMMARY_SECRET (AuditLab
+// ATTR-2, 2026-10-02: this comment used to say "public", which was true
+// before 3fe614d3c gated the route and false after -- the index.ts sibling
+// comment got corrected then, this one didn't). Rate-limited in addition to
+// the secret gate, same as every other authenticated route here.
 export const RATE_LIMIT_ATTR_SUMMARY: RateLimit = { max: 600, windowSeconds: 3600 };
 
 /** Returns true if this request is ALLOWED, false if it should be blocked. */
