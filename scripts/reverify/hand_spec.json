@@ -1025,7 +1025,17 @@
   ]
  },
  "guam-firm": {
-  "manual": "NOT YET AUTOMATED: 22 GCA 35107(b) firm permit period: cached Guam texts don't state it verbatim; needs a better official source"
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://col.guamcourts.gov/sites/default/files/22gc035.pdf",
+    "kind": "text",
+    "field": null,
+    "anchor": "(b) Firm Permits to Practice shall be initially",
+    "expect_text": "the last day of June",
+    "window": 150
+   }
+  ]
  },
  "illinois-reinstatement": {
   "keep_auto": false,
@@ -1040,7 +1050,16 @@
   ]
  },
  "iowa-reinstatement": {
-  "manual": "NOT YET AUTOMATED: 4-hour ethics penalty not found in cached IAC 481-1032 text; LII URL guess returned an index page"
+  "keep_auto": false,
+  "derivation": "reinstatement_fee_usd/penalty_cpe_hours stay null by design (formula, not flat figures -- see 1032.2(1)'s $100+renewal+$25/mo, already confirmed by hand 2026-10-02); only penalty_ethics_hours was missing an anchor. IAC 481-1030.7(2) sets the mandatory 4-hour ethics CPE every reinstating licensee must carry within the standard 120-hour 1030.5(7) requirement.",
+  "checks": [
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1030.pdf",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "1030.7(2) Every CPA certificate holder or LPA license holder needs to complete a minimum of"
+   }
+  ]
  },
  "ma-firm": {
   "manual": "NOT YET AUTOMATED: June 30 firm cycle is on mass.gov (robots.txt disallows) and an eLicensing JS tool; MGL 112 s.87B1/2 text has no date"
@@ -1162,7 +1181,16 @@
   "manual": "NOT YET AUTOMATED: Ac 403.01 adopted text and OPLC CE page both on oplc.nh.gov (robots.txt disallows); LII URL guess returned an index page"
  },
  "nj-firm": {
-  "manual": "NOT YET AUTOMATED: N.J.A.C. 13:29-1A.11(b) on LII has no verbatim triennial wording matched; needs a reviewed text anchor"
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1A-11",
+    "kind": "text",
+    "field": null,
+    "anchor": "(b) Each registered firm shall",
+    "expect_text": "triennially register"
+   }
+  ]
  },
  "ny-individual": {
   "manual": "NOT YET AUTOMATED: Educ. Law 6502 on nysenate.gov returns 403; op.nysed.gov home page has no registration-period text"
@@ -1180,7 +1208,17 @@
   ]
  },
  "ok-individual": {
-  "manual": "NOT YET AUTOMATED: birth-month table on the Board page is HTML-in-JSON without a stable text anchor; OAC 10:15-21-2 LII guess had no match"
+  "keep_auto": false,
+  "derivation": "oscn.net (the statute host for 59 O.S. Sec15.14A's exact 'last day of the individual's birth month' wording) is robots.txt-disallowed; the Board's own licensing page publishes a live birth-month renewal-deadline table, confirming the renewal_pattern=birth_month claim operationally even without the statute's exact phrase.",
+  "checks": [
+   {
+    "url": "https://oklahoma.gov/oab/departments/licensing.html",
+    "kind": "text",
+    "field": null,
+    "anchor": "Birth Month:</b></td>",
+    "expect_text": "Registration Deadline:"
+   }
+  ]
  },
  "south-carolina-reinstatement": {
   "keep_auto": false,
@@ -1200,7 +1238,16 @@
   ]
  },
  "south-dakota-reinstatement": {
-  "manual": "NOT YET AUTOMATED: 24-hour figure not found in ARSD 20:75:04:08 text"
+  "keep_auto": false,
+  "derivation": "Root cause (fixed 2026-10-02, HomeLab P0 sweep): sdlegislature.gov serves these pages as UTF-16LE with no BOM; _extract_html() decoded every body as UTF-8, which never raised but produced unmatchable character-spaced text. Fixed in scripts/source_check.py's _decode_html_body(); re-cached both URLs with the corrected extractor before authoring this check.",
+  "checks": [
+   {
+    "url": "https://sdlegislature.gov/api/Rules/20:75:04:08.html",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "lapsed over 12 months before the application for renewal is submitted must complete at least"
+   }
+  ]
  },
  "utah-reinstatement": {
   "keep_auto": false,
