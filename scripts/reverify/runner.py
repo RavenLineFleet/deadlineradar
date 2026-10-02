@@ -1,8 +1,8 @@
 """Monthly deterministic re-verification of every DeadlineRadar record.
 
-    python scripts/reverify/runner.py            # dry run: fetch + judge, write nothing but a report
-    python scripts/reverify/runner.py --apply    # live: bump CONFIRMED, file CHANGED/FAILED, write status
-    python scripts/reverify/runner.py --retry    # live, only ids not yet CONFIRMED this cycle (daily task)
+    python scripts/reverify/runner.py --all          # dry run over every record (acceptance); writes nothing
+    python scripts/reverify/runner.py --apply        # DAILY task: re-verify records older than 20 days + failed
+                                                     # retries; bump CONFIRMED, file CHANGED/FAILED, write status
 
 Recipes live in data/reverify_recipes.json (schema: see RECIPE_DOC below). No LLM anywhere.
 
@@ -13,8 +13,8 @@ Outcomes per record (Orchestrator directive 2026-10-02):
              last_manual_verified_date is NEVER written.
   CHANGED    an anchor was found but the value next to it differs from the stored value.
              Never auto-edited; a note is filed to the AssetLab and AuditLab inboxes.
-  FAILED     a fetch failed, robots disallowed it, or the anchor wasn't found. Retried daily; after
-             2 consecutive failures, a recipe-fix note is filed to AssetLab.
+  FAILED     a fetch failed, robots disallowed it, or the anchor wasn't found. Retried on the next
+             daily run; after 2 consecutive failures, a recipe-fix note is filed to AssetLab.
   MANUAL     the recipe says this record can't be automated (reason recorded). Never bumped.
 """
 from __future__ import annotations
@@ -44,6 +44,8 @@ DATASETS = ("cpa_deadlines", "cpe_hours", "reinstatement", "renewal_fees")
 DATE_FIELD = {"cpa_deadlines": "last_verified", "cpe_hours": "verified_date",
               "reinstatement": "last_verified", "renewal_fees": "verified_date"}
 FAILS_BEFORE_ESCALATION = 2
+DUE_DAYS = 20      # re-verify anything older than this (daily rolling run)
+STALE_DAYS = 25    # watchdog alert threshold
 
 RECIPE_DOC = """
 { "<record id>": {
@@ -199,10 +201,22 @@ def _note(inbox_key, slug, body, now):
     return p
 
 
-def run(apply: bool, retry_only: bool, fetcher=None, today: str | None = None, ids: list[str] | None = None) -> dict:
+def _age_days(rec: dict, dataset: str, today: date) -> int:
+    v = rec.get(DATE_FIELD[dataset])
+    try:
+        return (today - date.fromisoformat(str(v)[:10])).days
+    except ValueError:
+        return 10_000          # no/invalid date: treat as maximally stale (always due)
+
+
+def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None = None,
+        ids: list[str] | None = None) -> dict:
+    """Daily rolling mode (Orchestrator 2026-10-02 12:43, from AuditLab STALE-23): re-verify every
+    automatable record whose verified date is older than DUE_DAYS, plus any with pending failures.
+    all_records=True checks every record (acceptance dry run)."""
     now = datetime.now(timezone.utc).astimezone()
     day = today or date.today().isoformat()
-    cycle = day[:7]
+    tday = date.fromisoformat(day)
     recipes = _load(RECIPES)
     data = {ds: _load(os.path.join(DATA, ds + ".json")) for ds in DATASETS}
     by_id = {r["id"]: (ds, r) for ds in DATASETS for r in data[ds]["records"]}
@@ -210,13 +224,17 @@ def run(apply: bool, retry_only: bool, fetcher=None, today: str | None = None, i
         os.makedirs(STATE_DIR, exist_ok=True)
     status_path = os.path.join(STATE_DIR, "reverify_status.json")
     prev = _load(status_path) if os.path.exists(status_path) else {}
-    if prev.get("cycle") != cycle:
-        prev = {"cycle": cycle, "fail_counts": {}, "confirmed": []}
+    fail_counts = dict(prev.get("fail_counts", {}))
+    changed_open = dict(prev.get("changed_open", {}))   # rid -> extracted-value signature already notified
     fetcher = fetcher or Fetcher()
     results, missing_recipe = {}, sorted(set(by_id) - set(recipes))
-    todo = ids or sorted(set(by_id) & set(recipes))
-    if retry_only:
-        todo = [i for i in todo if i not in set(prev.get("confirmed", []))]
+    automatable = sorted(i for i in by_id if i in recipes and not recipes[i].get("manual"))
+    if ids:
+        todo = ids
+    elif all_records:
+        todo = sorted(set(by_id) & set(recipes))
+    else:
+        todo = [i for i in automatable if _age_days(by_id[i][1], by_id[i][0], tday) > DUE_DAYS or i in fail_counts]
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for rid in todo:
         ds, rec = by_id[rid]
@@ -237,37 +255,43 @@ def run(apply: bool, retry_only: bool, fetcher=None, today: str | None = None, i
             continue
         if res["outcome"] == "CONFIRMED":
             apply_confirmed(rec, ds, history_line(day, res["checks"], recipe), day)
-            prev["fail_counts"].pop(rid, None)
-            prev["confirmed"] = sorted(set(prev.get("confirmed", [])) | {rid})
+            fail_counts.pop(rid, None)
+            changed_open.pop(rid, None)
         elif res["outcome"] == "CHANGED":
-            body = (f"---\nfrom: reverify-runner\nkind: data-change\nneeds_devin: no\n"
-                    f"summary: {rid} source value CHANGED; record NOT edited\n---\n"
-                    f"{json.dumps(res, indent=2, default=str)}\n")
-            _note("assetlab", f"CHANGED_{rid}", body, now)
-            _note("auditlab", f"CHANGED_{rid}", body, now)
+            sig = json.dumps([p.get("got") for p in res["checks"]], default=str)
+            if changed_open.get(rid) != sig:          # one note per distinct change, not one per day
+                changed_open[rid] = sig
+                body = (f"---\nfrom: reverify-runner\nkind: data-change\nneeds_devin: no\n"
+                        f"summary: {rid} source value CHANGED; record NOT edited\n---\n"
+                        f"{json.dumps(res, indent=2, default=str)}\n")
+                _note("assetlab", f"CHANGED_{rid}", body, now)
+                _note("auditlab", f"CHANGED_{rid}", body, now)
         elif res["outcome"] == "FAILED":
-            n = prev["fail_counts"].get(rid, 0) + 1
-            prev["fail_counts"][rid] = n
+            n = fail_counts.get(rid, 0) + 1
+            fail_counts[rid] = n
             if n == FAILS_BEFORE_ESCALATION:
                 _note("assetlab", f"RECIPE_FIX_{rid}",
                       f"---\nfrom: reverify-runner\nkind: recipe-fix\nneeds_devin: no\n"
                       f"summary: {rid} failed {n} runs in a row; please fix its recipe\n---\n"
                       f"{json.dumps(res, indent=2, default=str)}\n", now)
-    if apply:
+    if apply and results:
         for ds in DATASETS:
             _dump(os.path.join(DATA, ds + ".json"), data[ds])
     counts = {}
     for r in results.values():
         counts[r["outcome"]] = counts.get(r["outcome"], 0) + 1
-    unconfirmed = sorted(set(by_id) - set(prev.get("confirmed", []))) if apply else \
-        sorted(i for i, r in results.items() if r["outcome"] != "CONFIRMED")
-    report = {"cycle": cycle, "mode": "apply" if apply else "dry-run", "retry_only": retry_only,
-              "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    verified = {i: str(by_id[i][1].get(DATE_FIELD[by_id[i][0]]) or "") for i in automatable}
+    ages = {i: _age_days(by_id[i][1], by_id[i][0], tday) for i in automatable}
+    report = {"mode": "apply" if apply else "dry-run", "selection": "ids" if ids else ("all" if all_records else "due"),
+              "run_date": day, "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "total_records": len(by_id), "checked": len(todo), "counts": counts,
-              "missing_recipe": missing_recipe, "unconfirmed_ids": unconfirmed,
+              "missing_recipe": missing_recipe,
               "manual_ids": sorted(i for i in by_id if recipes.get(i, {}).get("manual")),
-              "unconfirmed_automatable": sorted(i for i in unconfirmed if i in recipes and not recipes[i].get("manual")),
-              "fail_counts": prev.get("fail_counts", {}), "confirmed": prev.get("confirmed", [])}
+              "not_confirmed_this_run": sorted(i for i, r in results.items() if r["outcome"] != "CONFIRMED"),
+              "stale_automatable": sorted(i for i, a in ages.items() if a > STALE_DAYS),
+              "oldest_automatable_age_days": max(ages.values()) if ages else None,
+              "verified_dates": verified,
+              "fail_counts": fail_counts, "changed_open": changed_open}
     if apply:
         _dump(status_path, report)
     return {"report": report, "results": results}
@@ -276,12 +300,12 @@ def run(apply: bool, retry_only: bool, fetcher=None, today: str | None = None, i
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--retry", action="store_true")
+    ap.add_argument("--all", action="store_true", help="check every record, not just the due ones")
     ap.add_argument("--ids", nargs="*")
     ap.add_argument("--out", help="write full per-record results JSON here")
     ap.add_argument("--sample", type=int, help="print N random CONFIRMED ids (AuditLab spot-check)")
     a = ap.parse_args(argv)
-    out = run(apply=a.apply, retry_only=a.retry, ids=a.ids)
+    out = run(apply=a.apply, all_records=a.all, ids=a.ids)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, default=str)

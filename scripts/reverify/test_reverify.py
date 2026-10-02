@@ -181,10 +181,10 @@ def _recs(tmp):
     return {r["id"]: r for r in json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))["records"]}
 
 
-def test_dry_run_writes_nothing(env):
+def test_dry_run_all_writes_nothing(env):
     tmp, ff = env
     before = (tmp / "data" / "renewal_fees.json").read_bytes()
-    out = runner.run(apply=False, retry_only=False, fetcher=ff, today="2026-10-01")
+    out = runner.run(apply=False, all_records=True, fetcher=ff, today="2026-10-01")
     assert out["report"]["counts"] == {"CONFIRMED": 1, "CHANGED": 1, "FAILED": 1}
     assert (tmp / "data" / "renewal_fees.json").read_bytes() == before
     assert not (tmp / "state").exists() and not (tmp / "asset").exists()
@@ -192,7 +192,7 @@ def test_dry_run_writes_nothing(env):
 
 def test_apply_bumps_confirmed_never_edits_changed_and_files_notes(env):
     tmp, ff = env
-    runner.run(apply=True, retry_only=False, fetcher=ff, today="2026-10-01")
+    runner.run(apply=True, fetcher=ff, today="2026-10-01")
     r = _recs(tmp)
     assert r["a-fee"]["verified_date"] == "2026-10-01" and r["a-fee"]["verified_method"] == "auto-anchor"
     assert r["a-fee"]["last_manual_verified_date"] == "2026-09-01"
@@ -201,25 +201,38 @@ def test_apply_bumps_confirmed_never_edits_changed_and_files_notes(env):
     assert any("CHANGED_b-fee" in n for n in os.listdir(tmp / "asset"))
     assert any("CHANGED_b-fee" in n for n in os.listdir(tmp / "audit"))
     st = json.loads((tmp / "state" / "reverify_status.json").read_text(encoding="utf-8"))
-    assert st["unconfirmed_ids"] == ["b-fee", "c-fee"] and st["fail_counts"] == {"c-fee": 1}
+    assert st["not_confirmed_this_run"] == ["b-fee", "c-fee"] and st["fail_counts"] == {"c-fee": 1}
+    assert st["stale_automatable"] == ["b-fee", "c-fee"] and st["verified_dates"]["a-fee"] == "2026-10-01"
     assert "https://x.gov/gone" in ff.calls                                                  # alt url tried
 
 
-def test_failed_escalates_after_two_runs_and_retry_skips_confirmed(env):
+def test_daily_selection_only_due_records(env):
     tmp, ff = env
-    runner.run(apply=True, retry_only=False, fetcher=ff, today="2026-10-01")
-    assert not any("RECIPE_FIX" in n for n in os.listdir(tmp / "asset"))
+    runner.run(apply=True, fetcher=ff, today="2026-10-01")          # a-fee confirmed today
     ff.calls.clear()
-    runner.run(apply=True, retry_only=True, fetcher=ff, today="2026-10-02")
-    assert "https://x.gov/a" not in ff.calls                                                 # confirmed: skipped
-    assert any("RECIPE_FIX_c-fee" in n for n in os.listdir(tmp / "asset"))
+    out = runner.run(apply=True, fetcher=ff, today="2026-10-05")   # a-fee 4 days old: not due
+    assert "https://x.gov/a" not in ff.calls and out["report"]["checked"] == 2
+    ff.calls.clear()
+    runner.run(apply=True, fetcher=ff, today="2026-10-22")         # 21 days old: due again
+    assert "https://x.gov/a" in ff.calls
 
 
-def test_new_month_resets_cycle(env):
+def test_failed_escalates_after_two_runs_and_changed_notified_once(env):
     tmp, ff = env
-    runner.run(apply=True, retry_only=False, fetcher=ff, today="2026-10-01")
-    out = runner.run(apply=True, retry_only=True, fetcher=ff, today="2026-11-01")
-    assert out["report"]["cycle"] == "2026-11" and out["report"]["checked"] == 3
+    runner.run(apply=True, fetcher=ff, today="2026-10-01")
+    assert not any("RECIPE_FIX" in n for n in os.listdir(tmp / "asset"))
+    runner.run(apply=True, fetcher=ff, today="2026-10-02")
+    names = os.listdir(tmp / "asset")
+    assert any("RECIPE_FIX_c-fee" in n for n in names)
+    assert sum("CHANGED_b-fee" in n for n in names) == 1          # same change on day 2: no second note
+
+
+def test_missing_date_is_always_due(env):
+    tmp, ff = env
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    recs["records"][0]["verified_date"] = None
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    assert "a-fee" in runner.run(apply=False, fetcher=ff, today="2026-09-02")["results"]
 
 
 # ---------------- fetcher politeness (fake network) ----------------
@@ -282,13 +295,12 @@ def test_403_retried_once_404_decisive():
 # ---------------- watchdog check (directive item 4) ----------------
 def test_watchdog_alerts():
     import watchdog_check as wd
-    from datetime import datetime as D
-    assert wd.check(None, D(2026, 11, 1, 5, 0))[0] is True                      # before 06:00 on the 1st
-    assert wd.check(None, D(2026, 11, 1, 6, 0))[0] is False                     # not started by 06:00
-    st = {"cycle": "2026-10", "mode": "apply", "unconfirmed_automatable": []}
-    assert wd.check(st, D(2026, 11, 2, 9, 0))[0] is False                       # last month's status only
-    st = {"cycle": "2026-11", "mode": "apply", "unconfirmed_automatable": ["a-fee"], "manual_ids": ["m"]}
-    assert wd.check(st, D(2026, 11, 6, 9, 0))[0] is True                        # pending allowed until the 7th
-    assert wd.check(st, D(2026, 11, 7, 0, 1))[0] is False                       # still pending on the 7th
-    assert wd.check(dict(st, unconfirmed_automatable=[]), D(2026, 11, 20))[0] is True   # manual never alerts
-    assert wd.check(dict(st, mode="dry-run"), D(2026, 11, 3))[0] is False        # a dry run is not the monthly run
+    from datetime import datetime as D, timezone as TZ
+    now = D(2026, 10, 20, 15, 0, tzinfo=TZ.utc)
+    assert wd.check(None, now)[0] is False                                              # never ran
+    st = {"mode": "apply", "finished": "2026-10-20T08:02:00+00:00",
+          "verified_dates": {"a": "2026-10-01", "b": "2026-09-25"}}
+    assert wd.check(st, now)[0] is True                                                 # 19 and 25 days: fine
+    assert wd.check(dict(st, verified_dates={"a": "2026-09-24"}), now)[0] is False      # 26 days > 25
+    assert wd.check(dict(st, finished="2026-10-18T08:00:00+00:00"), now)[0] is False    # silent > 30h
+    assert wd.check(dict(st, mode="dry-run"), now)[0] is False                          # dry run != daily job
