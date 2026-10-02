@@ -12,13 +12,13 @@
 - 6 renew on a birth-month cycle (the exact date depends on your birth
   month, computed automatically once you provide it).
 - 18 depend on your specific license type or cohort, or have no
-  independently verifiable published date -- the visitor enters their own license's date and we
+  independently verifiable published date, so the visitor enters their own license's date and we
   track it from there rather than guess or round up.
 
 ## How dates are verified
 
 Every published date is checked against two independent sources where both exist: the state board's
-own page, and the actual codified statute or administrative rule the requirement derives from -- not
+own page, and the actual codified statute or administrative rule the requirement derives from, not
 a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
 own page with no corresponding codified text to confirm it against; those dates are shown but clearly
 labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
@@ -41,7 +41,7 @@ https://deadline-radar.com/methodology/
 
 ## What this site does not do
 
-Not legal, tax, or professional advice -- every page carries that disclosure. We do not verify CPE
+Not legal, tax, or professional advice; every page carries that disclosure. We do not verify CPE
 hour completion (self-reported wherever it appears) or a state's proposed-but-not-yet-effective rule
 changes; we wait for a rule to actually take effect before citing it as current.
 
