@@ -141,7 +141,10 @@ EN: dict[str, str] = {
     "methodology.last_verified_item2": "any sign the underlying rule has since been amended.",
     "methodology.last_verified_followup": (
         "When either turns up, we re-verify by hand before changing anything a visitor sees — an "
-        "automated flag never silently rewrites a published date by itself."
+        "automated flag never silently rewrites a published date by itself. Most “Last verified” "
+        "dates now come from that same automated check succeeding — re-fetching the primary source and "
+        "matching the exact cited text — which is still a direct re-check against the primary source, "
+        "not a substitute for one; a mismatch is never auto-applied, only flagged for a human to confirm."
     ),
     "methodology.h2_fall_short": "Where this can still fall short, honestly",
     "methodology.fall_short_body": (
