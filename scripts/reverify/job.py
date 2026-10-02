@@ -123,7 +123,9 @@ def run(mode, push=True):
     os.makedirs(PENDING, exist_ok=True)
     if os.path.exists(STATUS):
         shutil.copyfile(STATUS, os.path.join(PENDING, "reverify_status.json"))
-    env = dict(os.environ, REVERIFY_STATE_DIR=PENDING)
+    # REVERIFY_LLM_EXCERPTS: MANUAL_DUE tickets gain model-picked, code-verified verbatim excerpts with
+    # provenance (AuditLab design PASS 2026-10-02, condition 4). Fail-closed: no model -> no excerpt.
+    env = dict(os.environ, REVERIFY_STATE_DIR=PENDING, REVERIFY_LLM_EXCERPTS="1")
     # --all: check every record, not only the >20-day ones (first live run, Orchestrator 10-02 13:08)
     results = os.path.join(PENDING, "results.json")
     base = sh("git", "rev-parse", "HEAD").stdout.strip()     # the commit this fetch runs against (REPLAY-1)
