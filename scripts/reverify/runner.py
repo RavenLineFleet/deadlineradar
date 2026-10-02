@@ -143,13 +143,13 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
         return {"outcome": "FAILED", "checks": per}
     field = recipe.get("field")
     if field:
-        vals = [_num(p["got"]) for p in per]
         have = _num(stored.get(field))
         if recipe.get("combine") == "sum":
-            got_val = sum(v for v in vals if v is not None) if None not in vals else None
+            # only checks WITHOUT their own field are summed into `field`; fielded checks compare alone below
+            vals = [_num(p["got"]) for p, c in zip(per, recipe["checks"]) if not c.get("field")]
+            got_val = sum(vals) if vals and None not in vals else None
             if got_val != have:
                 return {"outcome": "CHANGED", "checks": per, "detail": f"sum {got_val} != stored {field}={have}"}
-            return {"outcome": "CONFIRMED", "checks": per}
     # "each": every check compares to its own field (check.field) or the record-level field
     for p, chk in zip(per, recipe["checks"]):
         f = chk.get("field") or (field if recipe.get("combine") != "sum" else None)

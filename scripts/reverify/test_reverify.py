@@ -87,6 +87,16 @@ def test_composite_sum_alaska_300_plus_100():
     assert runner.judge_record(r, {"reinstatement_fee_usd": 350}, {0: ok(text), 1: ok(text)})["outcome"] == "CHANGED"
 
 
+def test_sum_plus_fielded_checks_mixed():
+    text = "Processing Fee $200 ... Registration Fee $110 ... must report 40 CPE credit hours"
+    r = {"field": "reinstatement_fee_usd", "combine": "sum", "checks": [
+        chk(anchor="Processing Fee", expect=200), chk(anchor="Registration Fee", expect=110),
+        chk(anchor="must report", pattern=r"(\d+)", field="penalty_cpe_hours")]}
+    fx = {0: ok(text), 1: ok(text), 2: ok(text)}
+    assert runner.judge_record(r, {"reinstatement_fee_usd": 310, "penalty_cpe_hours": 40}, fx)["outcome"] == "CONFIRMED"
+    assert runner.judge_record(r, {"reinstatement_fee_usd": 310, "penalty_cpe_hours": 80}, fx)["outcome"] == "CHANGED"
+
+
 def test_per_check_fields():
     text = "total of 80 hours ... at least 4 hours in ethics"
     r = {"checks": [chk(anchor="total of", pattern=r"(\d+) hours", field="total_hours"),
