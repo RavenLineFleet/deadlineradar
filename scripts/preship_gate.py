@@ -451,12 +451,16 @@ def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
 # second (the RC-29 shape AuditLab named explicitly -- do not reproduce it).
 BLOG_APPROVALS_DIRNAME = "blog_approvals"
 BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
-# The 31 posts shipped before this gate existed. Editing GRANDFATHERED.txt
-# (adding OR removing a slug) must fail the build until both constants below
-# are updated to match -- that is the point: the edit becomes a visible,
-# reviewable act in a diff, not a silent way to skip review for a new post.
-BLOG_GRANDFATHERED_COUNT = 31
-BLOG_GRANDFATHERED_SHA256 = "13190130680c92a3a3261aa23bf38b2106567eeddaa3f348d321d0247a1ceaf2"
+# The 30 posts shipped before this gate existed (nevada-cpa-license-renewal-
+# guide, the 31st, was deliberately NOT grandfathered -- it is the post that
+# caused BLOG-1, a real approval record was constructible, and AuditLab ruled
+# against exempting the one post the gate exists because of). Editing
+# GRANDFATHERED.txt (adding OR removing a slug) must fail the build until
+# both constants below are updated to match -- that is the point: the edit
+# becomes a visible, reviewable act in a diff, not a silent way to skip
+# review for a new post.
+BLOG_GRANDFATHERED_COUNT = 30
+BLOG_GRANDFATHERED_SHA256 = "e4bc83971df2229ce503c784ce2c3326d957dafab7251cbb2cc1ee570ed40af2"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -574,14 +578,18 @@ def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None =
         if malformed:
             continue
 
-        fields = {
-            "slug": article["slug"],
-            "published": article["published"],
-            "title": article["title"],
-            "seo_title": article.get("seo_title", ""),
-            "meta_description": article["meta_description"],
-            "body_html": article["body_html"],
-        }
+        try:
+            fields = {
+                "slug": article["slug"],
+                "published": article["published"],
+                "title": article["title"],
+                "seo_title": article.get("seo_title", ""),
+                "meta_description": article["meta_description"],
+                "body_html": article["body_html"],
+            }
+        except KeyError as e:
+            errors.append(f"[BLOG-GATE][{slug}] BLOG_ARTICLES entry is missing required field {e} -- cannot compute its payload digest")
+            continue
         computed = _bph.payload_sha256_from_fields(fields)
         for entry in approvals:
             recorded = entry.get("payload_sha256")
