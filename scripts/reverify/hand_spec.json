@@ -365,5 +365,269 @@
     "anchor": "7.4.b. Minimum of forty (40) hours of continuing education, including a minimum of"
    }
   ]
+ },
+ "ak-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "provide verification to the board that the applicant completed not less than"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(d) At least"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "during the concluding biennial licensing period. At least"
+   }
+  ]
+ },
+ "ar-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "except as otherwise provided in subsection (f) of this section, in the amount of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "(120) hours within thirty-six (36) months or"
+   },
+   {
+    "url": 1,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "ETHICS: All license holders must have at least"
+   }
+  ]
+ },
+ "ca-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "As a condition for renewing a license in an active status, a licensee shall complete at least"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(b) Ethics Continuing Education Requirement. A licensee renewing a license in an active status shall complete"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "(1) A licensee renewing a license in an active status, shall complete a minimum of"
+   }
+  ]
+ },
+ "de-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "7.2.1.1 Each permit holder must have completed at least"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "credit hours in taxation and"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "7.2.1.2 Each permit holder must complete at a minimum"
+   }
+  ]
+ },
+ "ky-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "prior to the renewal date of his or her license shall complete"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "(2) A licensee shall complete"
+   }
+  ]
+ },
+ "ma-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "applicants for biennial license renewal must complete"
+   },
+   {
+    "url": 2,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "except as stated in 252 CMR 2.14 (6)."
+   }
+  ]
+ },
+ "ny-cpe": {
+  "keep_auto": false,
+  "derivation": "8 NYCRR 70.9: annual registration option of 40 contact hours (total = annual minimum = 40), 4 hours ethics",
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "annual_minimum_hours",
+    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "subject to the continuing education requirement shall be required to complete at least"
+   }
+  ]
+ },
+ "ri-cpe": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "total_hours",
+    "anchor": "As a pre-requisite to renewing the CPA permit, the CPA must complete a minimum of"
+   },
+   {
+    "url": 0,
+    "kind": "hours",
+    "field": "ethics_hours",
+    "anchor": "E. Not less than"
+   }
+  ]
+ },
+ "mi-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "expire biennially and must be renewed every 2 years on or before the date indicated: Accountancy",
+    "expect_text": "7/31",
+    "window": 120
+   }
+  ]
+ },
+ "tx-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "Education (CPE) hours and pay the renewal fee",
+    "expect_text": "by the last day of your birth month"
+   }
+  ]
+ },
+ "ma-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "Each such license shall expire",
+    "expect_text": "on the last day of June"
+   }
+  ]
+ },
+ "ct-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "license and/or registration is renewed annually,",
+    "expect_text": "expiring on December 31st of each year"
+   }
+  ]
+ },
+ "ks-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "permit to practice issued or renewed on a biennial basis which shall expire on the next",
+    "expect_text": "July 1"
+   }
+  ]
+ },
+ "nm-individual": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "will have staggered expiration dates based on the",
+    "expect_text": "birth month"
+   }
+  ]
+ },
+ "us-virgin-islands-all": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "text",
+    "field": null,
+    "anchor": "CPA firm licenses are issued on an annual basis from",
+    "expect_text": "to June 30"
+   }
+  ]
+ },
+ "northern-mariana-islands-all": {
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 0,
+    "kind": "text",
+    "field": null,
+    "anchor": "for periods of not more than three years but in any event shall expire on the",
+    "expect_text": "third year following issuance or renewal"
+   }
+  ]
  }
 }
