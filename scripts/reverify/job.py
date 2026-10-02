@@ -101,8 +101,24 @@ def _publish_status(deployed: bool, reason: str = ""):
 
 
 def run(mode, push=True):
+    me = os.path.abspath(__file__)
+    with open(me, "rb") as f:
+        before = f.read()
     ensure_worktree()
     py = sys.executable
+    # The scheduled task runs THIS file from the job worktree, which ensure_worktree() just reset to
+    # origin/main. If main changed job.py, the code in memory is stale: re-launch the fresh copy once so
+    # the job logic always matches the runner it drives (REVERIFY_REEXEC stops a loop).
+    if me.lower().startswith(os.path.abspath(JOB_DIR).lower()) and not os.environ.get("REVERIFY_REEXEC"):
+        with open(me, "rb") as f:
+            if f.read() != before:
+                log("job.py changed on origin/main; re-launching the updated copy")
+                os.environ["REVERIFY_REEXEC"] = "1"
+                try:
+                    os.remove(LOCK)               # the fresh process takes the lock itself
+                except OSError:
+                    pass
+                return subprocess.run([py, me, *sys.argv[1:]], env=os.environ).returncode
     # the runner writes to a PENDING state dir; the real status is only updated by _publish_status
     os.makedirs(PENDING, exist_ok=True)
     if os.path.exists(STATUS):
