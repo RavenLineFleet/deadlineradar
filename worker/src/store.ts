@@ -2254,9 +2254,11 @@ const DEMO_RESET_CPE_SEED: { staffEmail: string; hours: number; category: "ethic
  * data with no audit-trail value to preserve, the opposite posture from a
  * real customer's data.
  */
-export async function resetDemoFirmToCleanState(db: D1Database): Promise<{ removedSubscribers: number; wipedCpeEntries: number }> {
+export async function resetDemoFirmToCleanState(
+  db: D1Database
+): Promise<{ removedSubscribers: number; wipedCpeEntries: number; reseeded: boolean; rosterReconciled: number; activityLabelsBackfilled: number }> {
   const firm = await getDemoFirm(db);
-  if (!firm) return { removedSubscribers: 0, wipedCpeEntries: 0 };
+  if (!firm) return { removedSubscribers: 0, wipedCpeEntries: 0, reseeded: false, rosterReconciled: 0, activityLabelsBackfilled: 0 };
 
   const reservedEmails = DEMO_ROSTER_IDENTITIES.map((d) => d.email);
   const placeholders = reservedEmails.map((_, i) => `?${i + 2}`).join(", ");
@@ -2299,10 +2301,33 @@ export async function resetDemoFirmToCleanState(db: D1Database): Promise<{ remov
     });
   }
 
-  await reseedDemoFirmRosterIfBelowFloor(db);
-  await reconcileDemoFirmRosterDeadlines(db);
+  const reseedResult = await reseedDemoFirmRosterIfBelowFloor(db);
+  const reconcileResult = await reconcileDemoFirmRosterDeadlines(db);
 
-  return { removedSubscribers: extraIds.length, wipedCpeEntries: wiped.meta.changes ?? 0 };
+  // AuditLab outside-review DEMO defect (2026-10-02, Phase 1 live verify):
+  // activity_log.staff_label is a SNAPSHOT taken when each event was first
+  // logged, not a live join against subscribers -- a roster row seeded
+  // before staffLabel existed (or backfilled by reconcileDemoFirmRosterDeadlines
+  // above) left its historical "added to the roster" entry showing the raw
+  // email forever, even after the roster itself got a name. Backfill is a
+  // no-op (writes the same NULL back) for any row whose subscriber genuinely
+  // still has no staff_label, so this is always safe to run unconditionally.
+  const activityBackfill = await db
+    .prepare(
+      `UPDATE activity_log SET staff_label = (SELECT s.staff_label FROM subscribers s WHERE s.id = activity_log.subscriber_id)
+       WHERE firm_id = ?1 AND staff_label IS NULL
+       AND (SELECT s.staff_label FROM subscribers s WHERE s.id = activity_log.subscriber_id) IS NOT NULL`
+    )
+    .bind(firm.id)
+    .run();
+
+  return {
+    removedSubscribers: extraIds.length,
+    wipedCpeEntries: wiped.meta.changes ?? 0,
+    reseeded: reseedResult.seeded,
+    rosterReconciled: reconcileResult.updated,
+    activityLabelsBackfilled: activityBackfill.meta.changes ?? 0,
+  };
 }
 
 /**

@@ -294,6 +294,39 @@ describe("resetDemoFirmToCleanState", () => {
 
   it("no-ops cleanly when there is no demo firm at all", async () => {
     const result = await store.resetDemoFirmToCleanState(env.DB);
-    expect(result).toEqual({ removedSubscribers: 0, wipedCpeEntries: 0 });
+    expect(result).toEqual({
+      removedSubscribers: 0,
+      wipedCpeEntries: 0,
+      reseeded: false,
+      rosterReconciled: 0,
+      activityLabelsBackfilled: 0,
+    });
+  });
+
+  it("backfills a historical activity_log row's staff_label once the subscriber has one", async () => {
+    // AuditLab outside-review (2026-10-02, Phase 1 live verify defect #1):
+    // a roster row's "added to the roster" event was logged back when the
+    // seed had no staffLabel -- activity_log.staff_label is a snapshot, not
+    // a live join, so the dashboard kept showing the raw email forever even
+    // after the roster itself got a name.
+    const firmId = await makeDemoFirm("activity-backfill");
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+    const seeded = await store.listFirmLicenses(env.DB, firmId);
+    const jordan = seeded.find((r) => r.email === "jordan.mitchell@demo.deadline-radar.com")!;
+
+    // Simulate a historical event logged before staff_label existed.
+    await env.DB.prepare(
+      `INSERT INTO activity_log (id, firm_id, subscriber_id, staff_label, email, event_type, created_at)
+       VALUES ('legacy-event-1', ?1, ?2, NULL, ?3, 'added', '2026-08-01T00:00:00.000Z')`
+    )
+      .bind(firmId, jordan.id, jordan.email)
+      .run();
+
+    const result = await store.resetDemoFirmToCleanState(env.DB);
+    expect(result.activityLabelsBackfilled).toBeGreaterThanOrEqual(1);
+
+    const row = await env.DB.prepare(`SELECT staff_label FROM activity_log WHERE id = 'legacy-event-1'`)
+      .first<{ staff_label: string | null }>();
+    expect(row?.staff_label).toBe("Jordan Mitchell");
   });
 });
