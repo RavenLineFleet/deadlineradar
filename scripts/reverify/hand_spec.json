@@ -993,7 +993,36 @@
   "manual": "NOT YET AUTOMATED: Nov 30 odd-year date is on dpo.colorado.gov only (robots.txt disallows); data.colorado.gov page is a 267-char JS shell"
  },
  "florida-reinstatement": {
-  "manual": "NOT YET AUTOMATED: fee ($250) automatable, but the 240 CPE / 16 ethics penalty is only on myfloridalicense custhelp (robots.txt disallows); not in 61H1-31.015 / -33.006"
+  "keep_auto": false,
+  "derivation": "DBPR null & void guidance: two sets of CPE (reinstate to delinquent, then reactivate), each 120 h incl. 8 h ethics = '240 hour requirement', ethics 2 x 8 = 16; fee 61H1-31.015 $250",
+  "checks": [
+   {
+    "url": 0,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "reinstatement of a null and void license must be accompanied by an application fee of"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "Certificates beyond the 24 month window, may not be used to satisfy the"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "30 hours in accounting & auditing, ii.",
+    "multiply": 2
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "kind": "text",
+    "field": null,
+    "anchor": "complete the process by submitting",
+    "expect_text": "two sets of certificates of completion"
+   }
+  ]
  },
  "guam-firm": {
   "manual": "NOT YET AUTOMATED: 22 GCA 35107(b) firm permit period: cached Guam texts don't state it verbatim; needs a better official source"
@@ -1008,7 +1037,28 @@
   "manual": "NOT YET AUTOMATED: June 30 firm cycle is on mass.gov (robots.txt disallows) and an eLicensing JS tool; MGL 112 s.87B1/2 text has no date"
  },
  "maryland-reinstatement": {
-  "manual": "NOT YET AUTOMATED: fee ($126) automatable; 80 CPE / 4 ethics not found in cached COMAR text (09.24.04 LII URL was an index page)"
+  "keep_auto": false,
+  "derivation": "Reinstatement requires the standard renewal CE (80 hours incl. 4 ethics) earned within 2 years of filing (MD Board CE policy page); fee COMAR 09.24.01.09B(9)",
+  "checks": [
+   {
+    "url": "https://regs.maryland.gov/us/md/exec/comar/09.24.01.09",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "(9) Reinstatement of expired license -"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "An active CPA must earn a minimum of"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "A licensee can complete continuing education in technical and non-technical subject."
+   }
+  ]
  },
  "michigan-reinstatement": {
   "manual": "NOT YET AUTOMATED: 40/2 hours automatable (R 338.5230); $320 is an assembled total with no single public line (data_gap_note); LARA fee page robots.txt-disallowed"
@@ -1070,7 +1120,28 @@
   ]
  },
  "nebraska-reinstatement": {
-  "manual": "NOT YET AUTOMATED: 120/4 hours automatable (288 NAC 8 s.010); $200 fee not found in cached Board/NAC text"
+  "keep_auto": false,
+  "derivation": "NBPA fee schedule: reinstating to an active permit pays the Active Permit to Practice fee $200; CPE per 288 NAC 8 s.010",
+  "checks": [
+   {
+    "url": "https://nbpa.nebraska.gov/individuals/fee-schedule",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Board Fees Active Permit to Practice -"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "affidavit of attendance establishing that the permit holder has successfully completed"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "has successfully completed 120 hours, including"
+   }
+  ]
  },
  "nevada-renewal-fee": {
   "manual": "NOT YET AUTOMATED: $175 is on the Board's renewal portal (glsuite, robots.txt disallows); NAC 628 sets no amount"
@@ -1103,7 +1174,21 @@
   "manual": "NOT YET AUTOMATED: birth-month table on the Board page is HTML-in-JSON without a stable text anchor; OAC 10:15-21-2 LII guess had no match"
  },
  "south-carolina-reinstatement": {
-  "manual": "NOT YET AUTOMATED: $500 fee not on llr.sc.gov/acct/fees.aspx or in Title 40 ch.2; CPE 40 automatable"
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": "https://llr.sc.gov/acct/faq.aspx",
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "pay the $95 renewal fee, and pay a"
+   },
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "kind": "hours",
+    "field": "penalty_cpe_hours",
+    "anchor": "(C) A licensee shall document"
+   }
+  ]
  },
  "south-dakota-reinstatement": {
   "manual": "NOT YET AUTOMATED: 24-hour figure not found in ARSD 20:75:04:08 text"
@@ -1160,6 +1245,21 @@
   "manual": "NOT YET AUTOMATED: $43 is on the same DSPS PDF (404)"
  },
  "wyoming-reinstatement": {
-  "manual": "NOT YET AUTOMATED: fee ($300) automatable; 4-hour ethics penalty is in a rule cited only as a Google Drive link"
+  "keep_auto": false,
+  "checks": [
+   {
+    "url": 1,
+    "kind": "fee",
+    "field": "reinstatement_fee_usd",
+    "anchor": "Application to Activate a Certificate Information- From Expired-"
+   },
+   {
+    "url": "https://cpaboard.wyo.gov/individuals/certificate-application-information/reactivate-certificate",
+    "kind": "hours",
+    "field": "penalty_ethics_hours",
+    "anchor": "evidencing completion of a Board approved Wyoming Ethics",
+    "pattern": "(\\d+)-credit"
+   }
+  ]
  }
 }

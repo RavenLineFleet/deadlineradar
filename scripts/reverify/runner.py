@@ -105,15 +105,15 @@ def _scaled(got, check: dict):
     """Extracted value in the record's unit. `divide` converts e.g. CPE minutes -> hours (50 min = 1 hour,
     NASBA), so '2,000 CPE minutes' verifies a stored 40 hours."""
     v = _num(got)
-    d = check.get("divide")
-    if v is None or not d:
+    d, m = check.get("divide"), check.get("multiply")
+    if v is None or not (d or m):
         return v
-    q = v / d
+    q = v * (m or 1) / (d or 1)       # multiply: e.g. FL 8 ethics hours per set x 2 sets = 16
     return int(q) if float(q).is_integer() else q
 
 
 def judge_check(check: dict, text: str | None) -> tuple[str, object]:
-    """-> (status, extracted). status in MATCH, DIFFERENT, NO_ANCHOR, NO_TEXT."""
+    """-> (status, extracted). status in MATCH, DIFFERENT, NO_ANCHOR, AMBIGUOUS_ANCHOR, NO_TEXT."""
     if not text:
         return "NO_TEXT", None
     anchor = normalise(check["anchor"]).lower()
@@ -121,6 +121,21 @@ def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     i = low.find(anchor)
     if i < 0:
         return "NO_ANCHOR", None
+    # AuditLab 10-02: an anchor that occurs more than once is pinned by document order, not content
+    # (NH's row label occurred 98x with 27 amounts). Fail closed instead of trusting the first hit.
+    if low.find(anchor, i + 1) >= 0:
+        if not check.get("duplicated_source"):
+            return "AMBIGUOUS_ANCHOR", None
+        # explicitly flagged: the source repeats the same passage verbatim (e.g. a rule rendered twice).
+        # Accept only if EVERY occurrence yields the same result; any disagreement is still ambiguous.
+        results, j = set(), i
+        sub = dict(check, duplicated_source=False)
+        while j >= 0:
+            nxt = low.find(anchor, j + 1)
+            end = j + len(anchor) + int(check.get("window", 600))
+            results.add(judge_check(sub, text[j: end if nxt < 0 else min(end, nxt)]))   # each copy judged alone
+            j = nxt
+        return results.pop() if len(results) == 1 else ("AMBIGUOUS_ANCHOR", None)
     window = text[i: i + len(anchor) + int(check.get("window", 600))]
     if check.get("expect_text"):
         want = normalise(check["expect_text"]).lower()
@@ -152,7 +167,7 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
         per.append({"i": idx, "status": st, "got": got, "url": f.url, "sha256": f.sha256})
     if any(p["status"] == "DIFFERENT" for p in per):
         return {"outcome": "CHANGED", "checks": per}
-    if any(p["status"] in ("FETCH_FAILED", "NO_ANCHOR", "NO_TEXT") for p in per):
+    if any(p["status"] in ("FETCH_FAILED", "NO_ANCHOR", "NO_TEXT", "AMBIGUOUS_ANCHOR") for p in per):
         return {"outcome": "FAILED", "checks": per}
     field = recipe.get("field")
     if field:

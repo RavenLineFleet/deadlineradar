@@ -321,7 +321,8 @@
     "anchor": "2. Biennial Registration Fee - a. Certification -",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd"
+    "field": "fee_usd",
+    "duplicated_source": true
    }
   ]
  },
@@ -833,7 +834,7 @@
     "url": "https://archive.regulations.delaware.gov/AdminCode/title24/100.shtml",
     "alt_urls": [],
     "method": "http",
-    "anchor": "credit hours in taxation and",
+    "anchor": "7.2.1.1 Each permit holder must have completed at least 80 hours of acceptable CPE each biennial reporting period. Each biennial reporting period ends on June 30 of each odd-numbered year. The 80 hours of acceptable CPE submitted must have been completed in the immediately preceding 2-year period and must include 8 credit hours in accounting or auditing and 8 credit hours in taxation and",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "ethics_hours"
@@ -935,12 +936,50 @@
  },
  "florida-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: fee ($250) automatable, but the 240 CPE / 16 ethics penalty is only on myfloridalicense custhelp (robots.txt disallows); not in 61H1-31.015 / -33.006",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "DBPR null & void guidance: two sets of CPE (reinstate to delinquent, then reactivate), each 120 h incl. 8 h ethics = '240 hour requirement', ethics 2 x 8 = 16; fee 61H1-31.015 $250",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=12439006&type=1&file=61H1-31.015.doc",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "reinstatement of a null and void license must be accompanied by an application fee of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Certificates beyond the 24 month window, may not be used to satisfy the",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "30 hours in accounting & auditing, ii.",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours",
+    "multiply": 2
+   },
+   {
+    "url": "https://www2.myfloridalicense.com/cpa/documents/guidanceandproceduresfornullandvoid.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "complete the process by submitting",
+    "window": 78,
+    "pattern": null,
+    "expect_text": "two sets of certificates of completion"
+   }
+  ]
  },
  "florida-renewal-fee": {
   "dataset": "renewal_fees",
@@ -1637,7 +1676,7 @@
     "url": "https://www.in.gov/pla/files/Reinstatement_Exp_License_Packet5.pdf",
     "alt_urls": [],
     "method": "pdf",
-    "anchor": "Auditing (A&A).",
+    "anchor": "filed.  A minimum of 10% of the total hours required for the reporting period, must be in Accounting and/or Auditing (A&A).",
     "window": 30,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
@@ -1771,7 +1810,8 @@
     "anchor": "required for the applicant; (b) Include",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_ethics_hours"
+    "field": "penalty_ethics_hours",
+    "duplicated_source": true
    }
   ]
  },
@@ -1790,7 +1830,8 @@
     "anchor": "Pay a non-refundable renewal fee in the amount of",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd"
+    "field": "fee_usd",
+    "duplicated_source": true
    }
   ]
  },
@@ -1853,7 +1894,7 @@
     "url": "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0010.html",
     "alt_urls": [],
     "method": "http",
-    "anchor": "permit to practice issued or renewed on a biennial basis which shall expire on the next",
+    "anchor": "odd number, who is qualified under K.S.A. 1-302b , and amendments thereto, shall have a permit to practice issued or renewed on a biennial basis which shall expire on the next",
     "window": 46,
     "pattern": null,
     "expect_text": "July 1"
@@ -1875,7 +1916,8 @@
     "anchor": "prior to the renewal date of his or her license shall complete",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "duplicated_source": true
    },
    {
     "url": "https://apps.legislature.ky.gov/law/kar/titles/201/001/100/",
@@ -1884,7 +1926,8 @@
     "anchor": "(2) A licensee shall complete",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "duplicated_source": true
    }
   ]
  },
@@ -2153,12 +2196,40 @@
  },
  "maryland-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: fee ($126) automatable; 80 CPE / 4 ethics not found in cached COMAR text (09.24.04 LII URL was an index page)",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "Reinstatement requires the standard renewal CE (80 hours incl. 4 ethics) earned within 2 years of filing (MD Board CE policy page); fee COMAR 09.24.01.09B(9)",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://regs.maryland.gov/us/md/exec/comar/09.24.01.09",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(9) Reinstatement of expired license -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "An active CPA must earn a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://labor.maryland.gov/license/cpa/cpapolicy.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "A licensee can complete continuing education in technical and non-technical subject.",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
  },
  "maryland-renewal-fee": {
   "dataset": "renewal_fees",
@@ -3093,12 +3164,40 @@
  },
  "nebraska-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: 120/4 hours automatable (288 NAC 8 s.010); $200 fee not found in cached Board/NAC text",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "NBPA fee schedule: reinstating to an active permit pays the Active Permit to Practice fee $200; CPE per 288 NAC 8 s.010",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://nbpa.nebraska.gov/individuals/fee-schedule",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Board Fees Active Permit to Practice -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "affidavit of attendance establishing that the permit holder has successfully completed",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://rules.nebraska.gov/api/fileStorage/GetAsByteArray/chapter-pdfs/288%20NAC%208%20(07-25-2026).pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "has successfully completed 120 hours, including",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
  },
  "nebraska-renewal-fee": {
   "dataset": "renewal_fees",
@@ -3149,7 +3248,7 @@
     "url": "https://gc.nh.gov/rules/state_agencies/plc1000.html",
     "alt_urls": [],
     "method": "http",
-    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years",
+    "anchor": "(CPA) license application processing and licensing: Initial, renewal, or reinstatement after expiration of license 2 years",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "reinstatement_fee_usd"
@@ -3168,7 +3267,7 @@
     "url": "https://gc.nh.gov/rules/state_agencies/plc1000.html",
     "alt_urls": [],
     "method": "http",
-    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years",
+    "anchor": "(CPA) license application processing and licensing: Initial, renewal, or reinstatement after expiration of license 2 years",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"
@@ -3187,7 +3286,7 @@
     "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1-5",
     "alt_urls": [],
     "method": "http",
-    "anchor": "Reinstatement of license:",
+    "anchor": "4. Reinstatement of license:",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "reinstatement_fee_usd"
@@ -3571,7 +3670,7 @@
     "url": "https://cnmilaw.gov/docs/public_laws/13/pl13-52.pdf",
     "alt_urls": [],
     "method": "pdf",
-    "anchor": "for periods of not more than three years but in any event shall expire on the",
+    "anchor": "renewed, for periods of not more than three years but in any event shall expire on the",
     "window": 80,
     "pattern": null,
     "expect_text": "third year following issuance or renewal"
@@ -3684,7 +3783,7 @@
     "url": "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/part-70",
     "alt_urls": [],
     "method": "http",
-    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of",
+    "anchor": "year, other than those that are exempt from the continuing education requirements pursuant to paragraph (2) of subdivision (a) of this section shall have the option of: completing a minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "total_hours"
@@ -3693,7 +3792,7 @@
     "url": "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/part-70",
     "alt_urls": [],
     "method": "http",
-    "anchor": "subdivision (a) of this section shall have the option of: completing a minimum of",
+    "anchor": "year, other than those that are exempt from the continuing education requirements pursuant to paragraph (2) of subdivision (a) of this section shall have the option of: completing a minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "annual_minimum_hours"
@@ -3702,7 +3801,7 @@
     "url": "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/part-70",
     "alt_urls": [],
     "method": "http",
-    "anchor": "subject to the continuing education requirement shall be required to complete at least",
+    "anchor": "31, 2011, a registered licensee who is subject to the continuing education requirement shall be required to complete at least",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "ethics_hours"
@@ -4123,7 +4222,7 @@
     "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
     "alt_urls": [],
     "method": "http",
-    "anchor": "At least 20 CPE hours completed in each calendar year.",
+    "anchor": "i>\\r\\n<li>At least 20 CPE hours completed in each calendar year.",
     "window": 40,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
@@ -4405,12 +4504,31 @@
  },
  "south-carolina-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: $500 fee not on llr.sc.gov/acct/fees.aspx or in Title 40 ch.2; CPE 40 automatable",
+  "manual": null,
   "combine": "each",
   "field": null,
   "derivation": null,
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://llr.sc.gov/acct/faq.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "pay the $95 renewal fee, and pay a",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(C) A licensee shall document",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
  },
  "south-carolina-renewal-fee": {
   "dataset": "renewal_fees",
@@ -5408,12 +5526,31 @@
  },
  "wyoming-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: fee ($300) automatable; 4-hour ethics penalty is in a rule cited only as a Google Drive link",
+  "manual": null,
   "combine": "each",
   "field": null,
   "derivation": null,
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://cpaboard.wyo.gov/individuals/certificate-application-information/reactivate-certificate",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Application to Activate a Certificate Information- From Expired-",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://cpaboard.wyo.gov/individuals/certificate-application-information/reactivate-certificate",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "evidencing completion of a Board approved Wyoming Ethics",
+    "window": 60,
+    "pattern": "(\\d+)-credit",
+    "field": "penalty_ethics_hours"
+   }
+  ]
  },
  "wyoming-renewal-fee": {
   "dataset": "renewal_fees",

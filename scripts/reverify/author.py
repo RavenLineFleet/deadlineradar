@@ -110,8 +110,9 @@ def build(cache_dir, spec_path):
                 chk["expect_text"] = c["expect_text"]
             if "expect" in c:
                 chk["expect"] = c["expect"]
-            if "divide" in c:
-                chk["divide"] = c["divide"]
+            for k in ("divide", "multiply", "duplicated_source"):
+                if k in c:
+                    chk[k] = c[k]
             if text is None:
                 errors[rid] = f"no cached text for {url} (method={chk['method']}); check unverified offline"
             else:
@@ -123,6 +124,40 @@ def build(cache_dir, spec_path):
         recipes[rid] = {"dataset": ds, "manual": None, "combine": s.get("combine", "each"),
                         "field": s.get("field"), "derivation": s.get("derivation"),
                         "provenance": "hand 2026-10-02", "checks": [_strip_check(c) for c in checks]}
+    # Uniqueness pass (AuditLab 10-02): every anchor must occur exactly once in its own source. A repeated
+    # anchor is extended LEFTWARDS from its current (first) match until unique -- same row, now pinned by
+    # content -- then every check is re-self-tested, auto-proposed ones included.
+    widened = []
+    errors = {k: v for k, v in errors.items() if v.startswith("no cached text")}   # re-collected below
+    for rid, rec_ in recipes.items():
+        ds_, stored = recs[rid]
+        for c in rec_.get("checks", []):
+            meta = index.get(c["url"], {})
+            if not meta.get("ok"):
+                continue
+            text = open(os.path.join(cache_dir, meta["file"]), encoding="utf-8").read()
+            low, a = text.lower(), runner.normalise(c["anchor"]).lower()
+            i = low.find(a)
+            if i >= 0 and low.count(a) > 1 and not c.get("duplicated_source"):
+                for n in range(10, 400, 10):
+                    cand = text[max(0, i - n):i + len(a)]
+                    cand = cand[cand.find(" ") + 1:] if " " in cand[:12] else cand
+                    if low.count(cand.lower()) == 1:
+                        widened.append(f"{rid}: {c['anchor'][:40]!r} -> ...{cand[:60]!r}")
+                        c["anchor"] = cand
+                        break
+                else:
+                    # no unique widening: the passage itself is repeated verbatim. Flag it ONLY if every
+                    # occurrence yields the same result (runner re-checks this on every run).
+                    if runner.judge_check(dict(c, duplicated_source=True), text)[0] == "MATCH":
+                        c["duplicated_source"] = True
+                        widened.append(f"{rid}: {c['anchor'][:40]!r} repeated verbatim, all occurrences agree -> duplicated_source")
+            st, got = runner.judge_check(c, text)
+            want = c.get("expect", stored.get(c["field"]) if c.get("field") else None)
+            if st != "MATCH" or (want is not None and c.get("pattern") and runner._scaled(got, c) != runner._num(want)):
+                errors[rid] = f"selftest {st} got={got!r} want={want!r} anchor={c['anchor'][:60]!r}"
+    for w in widened:
+        print("  widened", w)
     missing = sorted(set(recs) - set(recipes))
     out = {k: recipes[k] for k in sorted(recipes)}
     with open(runner.RECIPES, "w", encoding="utf-8", newline="\n") as f:
