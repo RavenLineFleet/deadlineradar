@@ -1,11 +1,13 @@
-"""Scheduled wrapper: monthly re-verification -> gates -> commit + push (= deploy via GitHub Pages).
+"""Scheduled wrapper: daily rolling re-verification -> gates -> commit + push (= deploy via GitHub Pages).
 
-    python scripts/reverify/job.py monthly     # Task Scheduler: 02:00 on the 1st
-    python scripts/reverify/job.py retry       # Task Scheduler: daily 02:30; no-op once all CONFIRMED
-    python scripts/reverify/job.py monthly --no-push   # everything except the push (rehearsal)
+    python scripts/reverify/job.py daily             # Task Scheduler: every day 02:00
+    python scripts/reverify/job.py daily --no-push   # everything except the push (rehearsal)
+
+Daily rolling design (Orchestrator 2026-10-02 12:43, AuditLab STALE-23): each run re-verifies only
+records whose verified date is > 20 days old plus pending FAILED retries, so there are no monthly cliffs.
 
 Runs in its OWN worktree (JOB_DIR), reset to origin/main every run, so it never touches anyone's
-working copy. Order: fetch -> reset -> runner --apply (or --retry) -> if data changed: reverify
+working copy. Order: fetch -> reset -> runner --apply -> if data changed: reverify
 tests + generate.py + preship_gate.py -> commit -> push to main. Any failing gate = no commit, no
 push, and a note in the AssetLab inbox. No LLM, so not throttle-gated. A lock file stops overlap.
 """
@@ -61,7 +63,7 @@ def ensure_worktree():
 def run(mode, push=True):
     ensure_worktree()
     py = sys.executable
-    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--retry"] if mode == "retry" else []), check=False)
+    r = sh(py, "scripts/reverify/runner.py", "--apply", check=False)
     log(f"runner rc={r.returncode}: {r.stdout.strip()[-300:]}")
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
@@ -100,7 +102,7 @@ def run(mode, push=True):
 
 
 def main():
-    mode = sys.argv[1] if len(sys.argv) > 1 else "monthly"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "daily"
     push = "--no-push" not in sys.argv
     os.makedirs(STATE_DIR, exist_ok=True)
     try:
