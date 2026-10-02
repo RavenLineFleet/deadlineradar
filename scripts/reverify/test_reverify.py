@@ -57,6 +57,24 @@ def test_spelled_out_numbers():
     assert runner.judge_check(c, "in the amount of one hundred twenty (120) hours")[0] == "MATCH"
 
 
+def test_ambiguous_anchor_fails_closed():
+    """AuditLab 10-02 (NH): a repeated row label must not confirm by document order."""
+    text = "Nursing: Initial, renewal 2 years $121 ... Accountancy: Initial, renewal 2 years $201"
+    assert runner.judge_check(chk(anchor="Initial, renewal 2 years", expect=201), text)[0] == "AMBIGUOUS_ANCHOR"
+    assert runner.judge_check(chk(anchor="Accountancy: Initial, renewal 2 years", expect=201), text)[0] == "MATCH"
+    r = {"field": "fee_usd", "checks": [chk(anchor="Initial, renewal 2 years")]}
+    assert runner.judge_record(r, {"fee_usd": 121}, {0: ok(text)})["outcome"] == "FAILED"   # never CONFIRMED
+
+
+def test_duplicated_source_flag_requires_all_occurrences_agree():
+    same = "renewal fee in the amount of $100; ... renewal fee in the amount of $100;"
+    diff = "renewal fee in the amount of $100; ... renewal fee in the amount of $150;"
+    c = chk(anchor="renewal fee in the amount of", expect=100)
+    assert runner.judge_check(c, same)[0] == "AMBIGUOUS_ANCHOR"                       # unflagged: strict
+    assert runner.judge_check(dict(c, duplicated_source=True), same) == ("MATCH", "100")
+    assert runner.judge_check(dict(c, duplicated_source=True), diff)[0] == "AMBIGUOUS_ANCHOR"
+
+
 def test_expect_text_mode():
     c = chk(anchor="Fee schedule", pattern=None, expect_text="biennial")
     assert runner.judge_check(c, PAGE)[0] == "MATCH"
@@ -117,6 +135,14 @@ def test_minutes_to_hours_divide_nc():
     fx = {0: ok(text), 1: ok(text)}
     assert runner.judge_record(r, {"total_hours": 40, "ethics_hours": 1}, fx)["outcome"] == "CONFIRMED"
     assert runner.judge_record(r, {"total_hours": 2000, "ethics_hours": 1}, fx)["outcome"] == "CHANGED"
+
+
+def test_multiply_florida_two_sets():
+    text = "two sets of certificates ... Each set must include 120 total CPE hours, to include ii. 8 hours in ethics"
+    c = chk(anchor="to include ii.", pattern=r"\b(\d{1,3})\b", multiply=2, field="penalty_ethics_hours")
+    r = {"checks": [c]}
+    assert runner.judge_record(r, {"penalty_ethics_hours": 16}, {0: ok(text)})["outcome"] == "CONFIRMED"
+    assert runner.judge_record(r, {"penalty_ethics_hours": 8}, {0: ok(text)})["outcome"] == "CHANGED"
 
 
 def test_per_check_fields():
