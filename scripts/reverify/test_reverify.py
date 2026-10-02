@@ -277,3 +277,18 @@ def test_403_retried_once_404_decisive():
     assert f.get("https://b.gov/forbid").reason == "http_403"
     assert f.get("https://b.gov/missing").reason == "http_404"
     assert calls.count("https://b.gov/forbid") == 2 and calls.count("https://b.gov/missing") == 1
+
+
+# ---------------- watchdog check (directive item 4) ----------------
+def test_watchdog_alerts():
+    import watchdog_check as wd
+    from datetime import datetime as D
+    assert wd.check(None, D(2026, 11, 1, 5, 0))[0] is True                      # before 06:00 on the 1st
+    assert wd.check(None, D(2026, 11, 1, 6, 0))[0] is False                     # not started by 06:00
+    st = {"cycle": "2026-10", "mode": "apply", "unconfirmed_automatable": []}
+    assert wd.check(st, D(2026, 11, 2, 9, 0))[0] is False                       # last month's status only
+    st = {"cycle": "2026-11", "mode": "apply", "unconfirmed_automatable": ["a-fee"], "manual_ids": ["m"]}
+    assert wd.check(st, D(2026, 11, 6, 9, 0))[0] is True                        # pending allowed until the 7th
+    assert wd.check(st, D(2026, 11, 7, 0, 1))[0] is False                       # still pending on the 7th
+    assert wd.check(dict(st, unconfirmed_automatable=[]), D(2026, 11, 20))[0] is True   # manual never alerts
+    assert wd.check(dict(st, mode="dry-run"), D(2026, 11, 3))[0] is False        # a dry run is not the monthly run
