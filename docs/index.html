@@ -1022,7 +1022,7 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
   Policy</a> to keep you signed in &mdash; no ads, no trackers.</p>
   <button type="button" id="dr-cookie-notice-dismiss">Got it</button>
 </div>
-<script>(function(){try{if(window.localStorage.getItem("dr_cookie_notice_dismissed"))return}catch(e){return}var el=document.getElementById("dr-cookie-notice");if(!el)return;el.hidden=false;function setOffset(){document.documentElement.style.setProperty("--dr-cookie-notice-offset",el.hidden?"0px":el.offsetHeight+"px")}requestAnimationFrame(setOffset);window.addEventListener("resize",setOffset);var btn=document.getElementById("dr-cookie-notice-dismiss");if(btn){btn.addEventListener("click",function(){el.hidden=true;setOffset();try{window.localStorage.setItem("dr_cookie_notice_dismissed","1")}catch(e){}})}})();</script>
+<script>(function(){try{if(window.localStorage.getItem("dr_cookie_notice_dismissed"))return}catch(e){return}var el=document.getElementById("dr-cookie-notice");if(!el)return;el.hidden=false;function setOffset(){document.documentElement.style.setProperty("--dr-cookie-notice-offset",el.hidden?"0px":el.offsetHeight+"px")}setOffset();window.addEventListener("resize",setOffset);var btn=document.getElementById("dr-cookie-notice-dismiss");if(btn){btn.addEventListener("click",function(){el.hidden=true;setOffset();try{window.localStorage.setItem("dr_cookie_notice_dismissed","1")}catch(e){}})}})();</script>
 <div class="dr-chat-widget" id="dr-chat-widget">
   <div class="dr-chat-panel" id="dr-chat-panel" hidden role="dialog" aria-label="Chat with the Deadline-Radar assistant">
     <div class="dr-chat-panel-head">
