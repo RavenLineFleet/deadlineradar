@@ -290,7 +290,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
             sig = json.dumps([p.get("got") for p in res["checks"]], default=str)
             if changed_open.get(rid) != sig:          # one note per distinct change, not one per day
                 changed_open[rid] = sig
-                body = (f"---\nfrom: reverify-runner\nkind: data-change\nneeds_devin: no\n"
+                body = (f"---\nfrom: reverify-runner\nkind: alert\nneeds_devin: no\n"
                         f"summary: {rid} source value CHANGED; record NOT edited\n---\n"
                         f"{json.dumps(res, indent=2, default=str)}\n")
                 _note("assetlab", f"CHANGED_{rid}", body, now)
@@ -300,7 +300,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
             fail_counts[rid] = n
             if n == FAILS_BEFORE_ESCALATION:
                 _note("assetlab", f"RECIPE_FIX_{rid}",
-                      f"---\nfrom: reverify-runner\nkind: recipe-fix\nneeds_devin: no\n"
+                      f"---\nfrom: reverify-runner\nkind: finding\nneeds_devin: no\n"
                       f"summary: {rid} failed {n} runs in a row; please fix its recipe\n---\n"
                       f"{json.dumps(res, indent=2, default=str)}\n", now)
     # MANUAL records can't be fetched, but they still go stale: once one is older than DUE_DAYS, the
@@ -317,7 +317,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
         if _age_days(rec, ds, tday) > DUE_DAYS and manual_notified.get(i) != vd:
             manual_due.append((i, ds, rec, vd))
     if apply and manual_due and not ids:
-        lines = [f"---\nfrom: reverify-runner\nkind: manual-reverify\nneeds_devin: no\n"
+        lines = [f"---\nfrom: reverify-runner\nkind: finding\nneeds_devin: no\n"
                  f"summary: {len(manual_due)} MANUAL record(s) older than {DUE_DAYS} days need a hand re-verification\n---\n"
                  f"These records can't be checked automatically (reason per record). Please re-verify each against its "
                  f"source and update its verified date + verification_history; the reverify watchdog alerts at {STALE_DAYS} days.\n"]
