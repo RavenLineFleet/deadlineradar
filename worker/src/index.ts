@@ -123,6 +123,9 @@ import {
   RATE_LIMIT_ASSISTANT_API,
   RATE_LIMIT_ASSISTANT_CHAT,
   RATE_LIMIT_ASSISTANT_TICKET,
+  RATE_LIMIT_ATTR_BEACON,
+  RATE_LIMIT_ATTR_SUMMARY,
+  ATTRIBUTION_SRC_ALLOWLIST,
   RATE_LIMIT_FIRM_LICENSE_CREATE,
   RATE_LIMIT_FIRM_LICENSE_PATCH,
   RATE_LIMIT_FIRM_LICENSE_DELETE,
@@ -1340,6 +1343,14 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
   const stateSlug = (form.state ?? "").trim();
   const firstNameRaw = (form.first_name ?? "").trim().slice(0, 60);
   const firstName = firstNameRaw.length > 0 ? firstNameRaw : null;
+  // Attribution (Orchestrator directive, 2026-10-02): the client JS
+  // (generate.py's attribution script) populates this hidden field from
+  // the visitor's own first-touch localStorage value, not from anything in
+  // this request's URL -- a missing or off-allow-list value is never an
+  // error, just "no attribution known," same "don't fabricate, disclose
+  // the gap instead" posture as every optional field on this form.
+  const srcRaw = (form.src ?? "").trim();
+  const firstTouchSrc = ATTRIBUTION_SRC_ALLOWLIST.has(srcRaw) ? srcRaw : null;
 
   if (!isValidEmail(email)) {
     return errorPage(400, "That doesn't look like a valid email address.");
@@ -1451,6 +1462,7 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
     firstName,
     deadlineSource,
     userDeadline,
+    firstTouchSrc,
   });
 
   // Send the double-opt-in confirmation email. Best-effort and fully isolated:
@@ -6333,6 +6345,63 @@ async function handleAssistantTicket(request: Request, env: Env, ip: string): Pr
   return jsonResponse(200, { sent: true });
 }
 
+/**
+ * Privacy-safe source attribution (Orchestrator directive, 2026-10-02,
+ * Devin: "measure what drives traffic and signups"). Two routes:
+ *   - POST /api/attr -- a page-load beacon fired by generate.py's
+ *     attribution JS. One row per (date, src) in attribution_daily
+ *     (migration 0081), incremented -- never one row per visitor. No IP,
+ *     user-agent, referrer, or cookie recorded anywhere in this path.
+ *   - GET /api/attr/summary -- the aggregate readout, same public +
+ *     rate-limited posture as /assistant/* (no secret to protect --
+ *     dates, tags, and counts, nothing sensitive).
+ * ATTRIBUTION_SRC_ALLOWLIST (validation.ts) is what keeps `src` a bounded
+ * channel tag rather than an open-ended free-text column -- both routes
+ * reject anything off it rather than storing it.
+ */
+async function handleAttrBeacon(request: Request, env: Env, ip: string): Promise<Response> {
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed." });
+  }
+  const allowed = await checkRateLimit(env.DB, ip, "attr_beacon", RATE_LIMIT_ATTR_BEACON);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests." });
+  }
+  const parsed = await readFirmLicenseJsonBody(request); // generic despite the name -- see that function's own signature
+  if (parsed instanceof Response) return parsed;
+  const form = stringFieldsOf(parsed);
+  const src = (form.src ?? "").trim();
+  if (!ATTRIBUTION_SRC_ALLOWLIST.has(src)) {
+    return jsonResponse(400, { error: "Unknown src." });
+  }
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC
+  try {
+    await env.DB.prepare(
+      `INSERT INTO attribution_daily (date, src, hit_count) VALUES (?1, ?2, 1)
+       ON CONFLICT(date, src) DO UPDATE SET hit_count = hit_count + 1`
+    ).bind(today, src).run();
+  } catch {
+    // A logging failure must never surface as an error to the beacon caller
+    // -- same reasoning as /go/mtcpa's own click-log insert.
+  }
+  return new Response(null, { status: 204 });
+}
+
+/** GET /api/attr/summary -- last 90 days, newest first. Bounded by the date
+ * filter (not a full-table scan) regardless of how large attribution_daily
+ * grows -- at most 90 x allow-list-size rows are ever read. */
+async function handleAttrSummary(env: Env, ip: string): Promise<Response> {
+  const allowed = await checkRateLimit(env.DB, ip, "attr_summary", RATE_LIMIT_ATTR_SUMMARY);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests." });
+  }
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const result = await env.DB.prepare(
+    `SELECT date, src, hit_count FROM attribution_daily WHERE date >= ?1 ORDER BY date DESC, src ASC`
+  ).bind(cutoff).all();
+  return jsonResponse(200, { rows: result.results ?? [] });
+}
+
 /** GET /roadmap-data -- public, no session. Returns every active idea with
  * its live vote count and whether THIS browser (by cookie) already voted
  * for it. No cookie yet (first-ever visit) reads as "voted nothing", never
@@ -9731,6 +9800,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
+      if (url.pathname === "/attr/summary") {
+        try {
+          return await handleAttrSummary(env, ip);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
       if (url.pathname === "/roadmap-data") {
         try {
           return await handleRoadmapData(request, env);
@@ -10498,6 +10575,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/roadmap/vote") {
         try {
           return await handleRoadmapVote(request, env, ip);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (url.pathname === "/attr") {
+        try {
+          return await handleAttrBeacon(request, env, ip);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
