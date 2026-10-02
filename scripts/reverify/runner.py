@@ -62,12 +62,40 @@ RECIPE_DOC = """
 
 
 # ---------------- judging (pure; unit-tested offline) ----------------
+_UNITS = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen".split())}
+_TENS = {w: 10 * i for i, w in enumerate("_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()) if w != "_"}
+NUM_WORDS = "|".join(sorted([*_UNITS, *_TENS, "hundred"], key=len, reverse=True))
+# "eighty", "one hundred twenty", "twenty-four" (statutes spell hours out; fees are always $digits)
+WORD_NUM_RE = rf"(?:(?:{NUM_WORDS})(?:[\s-]+(?:and\s+)?(?:{NUM_WORDS}))*)"
+
+
+def _words_to_int(s: str):
+    total, cur, seen = 0, 0, False
+    for w in re.split(r"[\s-]+", s.lower()):
+        if w == "and" or not w:
+            continue
+        if w in _UNITS:
+            cur += _UNITS[w]
+        elif w in _TENS:
+            cur += _TENS[w]
+        elif w == "hundred":
+            cur = (cur or 1) * 100
+        else:
+            return None
+        seen = True
+    return total + cur if seen else None
+
+
 def _num(s):
+    if s is None:
+        return None
     s = str(s).replace(",", "").replace("$", "").strip()
     try:
         f = float(s)
     except ValueError:
-        return None
+        return _words_to_int(s)
     return int(f) if f.is_integer() else f
 
 
@@ -84,7 +112,8 @@ def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     if check.get("expect_text"):
         want = normalise(check["expect_text"]).lower()
         return ("MATCH" if want in window.lower() else "DIFFERENT"), check["expect_text"]
-    m = re.search(check["pattern"], window, flags=re.I | re.S)
+    # value search starts AFTER the anchor: digits inside the anchor itself (e.g. "(2)") must never match
+    m = re.search(check["pattern"], window[len(anchor):], flags=re.I | re.S)
     if not m:
         return "DIFFERENT", None   # the anchor is there but the value shape next to it isn't
     got = m.group(1)
