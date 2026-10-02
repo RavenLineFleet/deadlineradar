@@ -202,7 +202,7 @@ def test_apply_bumps_confirmed_never_edits_changed_and_files_notes(env):
     assert any("CHANGED_b-fee" in n for n in os.listdir(tmp / "audit"))
     st = json.loads((tmp / "state" / "reverify_status.json").read_text(encoding="utf-8"))
     assert st["not_confirmed_this_run"] == ["b-fee", "c-fee"] and st["fail_counts"] == {"c-fee": 1}
-    assert st["stale_automatable"] == ["b-fee", "c-fee"] and st["verified_dates"]["a-fee"] == "2026-10-01"
+    assert st["stale_records"] == ["b-fee", "c-fee"] and st["verified_dates"]["a-fee"] == "2026-10-01"
     assert "https://x.gov/gone" in ff.calls                                                  # alt url tried
 
 
@@ -339,3 +339,24 @@ def test_manual_records_auto_ticketed_to_assetlab_when_due(env):
     runner.run(apply=True, fetcher=ff, today="2026-10-25")                 # 22 days: next month's ticket
     assert len([n for n in _ls(tmp / "asset") if "MANUAL_DUE" in n]) == 2
     assert "m-fee" not in runner.run(apply=False, fetcher=ff, today="2026-10-25")["results"]   # never fetched
+
+
+def test_watchdog_covers_manual_records_too(env):
+    """Orchestrator 10-02 12:48: alert if ANY record, including MANUAL ones, is older than 25 days."""
+    import watchdog_check as wd
+    from datetime import datetime as D, timezone as TZ
+    tmp, ff = env
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    for r in recs["records"]:
+        r["verified_date"] = "2026-10-15"
+    recs["records"].append({"id": "m-fee", "fee_usd": 66, "verified_date": "2026-09-01", "verification_history": "old"})
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    rp = tmp / "data" / "reverify_recipes.json"
+    recipes = json.loads(rp.read_text(encoding="utf-8"))
+    recipes["m-fee"] = {"dataset": "renewal_fees", "manual": "board email only", "checks": []}
+    rp.write_text(json.dumps(recipes), encoding="utf-8")
+    runner.run(apply=True, fetcher=ff, today="2026-10-20")
+    st = json.loads((tmp / "state" / "reverify_status.json").read_text(encoding="utf-8"))
+    assert "m-fee" in st["verified_dates"] and st["stale_records"] == ["m-fee"]
+    ok, msg = wd.check(st, D.fromisoformat(st["finished"]).astimezone(TZ.utc))
+    assert ok is False and "m-fee" in msg                       # the MANUAL record alone trips the alert

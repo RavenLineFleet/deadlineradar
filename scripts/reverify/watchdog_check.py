@@ -4,9 +4,10 @@
 
 ALERT if:
   - the daily job hasn't finished an --apply run in the last 30 hours (or never ran);
-  - any AUTOMATABLE record's verified date is more than 25 days old. Ages are computed now from the
-    verified_dates snapshot in the status file, so a stalled job still ages its records.
-MANUAL records are reported for information only and never alert.
+  - ANY record's verified date is more than 25 days old -- automated or MANUAL (Devin's bar via
+    Orchestrator 2026-10-02 12:48: every record gets checked). Ages are computed now from the
+    verified_dates snapshot in the status file, so a stalled job still ages its records. MANUAL records
+    are ticketed to AssetLab at 20 days by the daily run, so this alert means that ticket wasn't worked.
 """
 from __future__ import annotations
 
