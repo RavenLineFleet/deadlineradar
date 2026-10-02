@@ -470,3 +470,53 @@ def test_replay_reapplies_confirmed_and_respects_changed_main(env, tmp_path):
     assert runner.replay(str(sp), base_loader=base) == 0
     with pytest.raises(SystemExit):                                     # no base -> refuse (fail closed)
         runner.replay(str(sp))
+
+
+# ---------------- LLM ticket excerpts (design PASS-with-conditions, AuditLab 2026-10-02) ----------------
+import llm_assist  # noqa: E402
+
+PAGE2 = "Section 4. Fees. The reinstatement fee for a lapsed certificate is $150 payable to the board. Other text."
+
+
+def test_excerpt_verbatim_gets_provenance():
+    ask = lambda prompt: {"quote": "The reinstatement fee for a lapsed certificate is $150 payable to the board."}
+    ex = llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "https://b.gov/p", "deadbeef", ask=ask)
+    assert ex and ex["offset"] == PAGE2.index("The reinstatement") and ex["sha256"] == "deadbeef"
+    assert ex["url"] == "https://b.gov/p" and ex["before"].endswith("Fees. ")
+
+
+def test_excerpt_fabricated_or_abstained_or_model_down_is_dropped():
+    fab = lambda prompt: {"quote": "The reinstatement fee for a lapsed certificate is $200 payable to the board."}
+    assert llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "u", "s", ask=fab) is None   # not verbatim
+    assert llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "u", "s", ask=lambda p: {"quote": ""}) is None
+    assert llm_assist.excerpt_for({"id": "x"}, "reinstatement", PAGE2, "u", "s", ask=lambda p: None) is None
+    down = lambda req, timeout=None: (_ for _ in ()).throw(OSError("connection refused"))
+    assert llm_assist.ollama_json("hi", opener=down) is None                                      # fail closed
+
+
+def test_excerpt_render_is_inert_text():
+    ex = {"offset": 3, "quote": "a ```html<script>x</script>``` b", "before": "", "after": "", "url": "u", "sha256": "s"}
+    out = llm_assist.render(ex)
+    assert out.count("```") == 2 and "```html" not in out                  # only our own fence survives
+
+
+def test_manual_ticket_carries_excerpt_and_robots_reason(env):
+    tmp, ff = env
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    recs["records"] += [{"id": "m-ok", "fee_usd": 150, "verified_date": "2026-09-01", "source_url": "https://x.gov/m"},
+                        {"id": "m-blocked", "fee_usd": 66, "verified_date": "2026-09-01", "source_url": "https://blocked.gov/f"}]
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    rp = tmp / "data" / "reverify_recipes.json"
+    recipes = json.loads(rp.read_text(encoding="utf-8"))
+    for rid in ("m-ok", "m-blocked"):
+        recipes[rid] = {"dataset": "renewal_fees", "manual": "NOT YET AUTOMATED: test", "checks": []}
+    rp.write_text(json.dumps(recipes), encoding="utf-8")
+    ff.pages["https://x.gov/m"] = PAGE2
+    ff.allowed = lambda u: "blocked.gov" not in u
+    ask = lambda prompt: {"quote": "The reinstatement fee for a lapsed certificate is $150 payable to the board."}
+    exc = lambda rec, ds, text, url, sha: llm_assist.excerpt_for(rec, ds, text, url, sha, ask=ask)
+    runner.run(apply=True, fetcher=ff, today="2026-10-01", excerpter=exc)
+    body = next((tmp / "asset" / n).read_text(encoding="utf-8") for n in os.listdir(tmp / "asset") if "MANUAL_DUE" in n)
+    assert "offset=" in body and "[[The reinstatement fee" in body and "https://x.gov/m" in body
+    assert "blocked.gov/f disallows automated fetching (robots.txt)" in body
+    assert "https://blocked.gov/f" not in ff.calls                           # never fetched
