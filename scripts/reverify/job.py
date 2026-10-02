@@ -13,7 +13,9 @@ push, and a note in the AssetLab inbox. No LLM, so not throttle-gated. A lock fi
 """
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -23,6 +25,10 @@ REPO = os.environ.get("REVERIFY_REPO", r"C:\Users\Devin\AssetLab\b3_saas\deadlin
 JOB_DIR = os.environ.get("REVERIFY_JOB_DIR", r"C:\Users\Devin\AssetLab\dr_reverify")   # short path (MAX_PATH)
 STATE_DIR = os.environ.get("REVERIFY_STATE_DIR", r"C:\Users\Devin\Orchestrator\state")
 LOCK = os.path.join(STATE_DIR, "reverify.lock")
+STATUS = os.path.join(STATE_DIR, "reverify_status.json")
+PENDING = os.path.join(STATE_DIR, "reverify_pending")
+DATE_FIELD = {"cpa_deadlines": "last_verified", "cpe_hours": "verified_date",
+              "reinstatement": "last_verified", "renewal_fees": "verified_date"}
 LOG = os.path.join(STATE_DIR, "reverify_job.log")
 ASSETLAB_INBOX = os.environ.get("REVERIFY_ASSETLAB_INBOX", r"C:\Users\Devin\AssetLab\inbox")
 DATA_FILES = ["data/cpa_deadlines.json", "data/cpe_hours.json", "data/reinstatement.json", "data/renewal_fees.json"]
@@ -36,8 +42,8 @@ def log(msg):
         f.write(line + "\n")
 
 
-def sh(*cmd, cwd=None, check=True):
-    r = subprocess.run(cmd, cwd=cwd or JOB_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace")
+def sh(*cmd, cwd=None, check=True, env=None):
+    r = subprocess.run(cmd, cwd=cwd or JOB_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     if check and r.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd)} -> rc={r.returncode}\n{r.stdout[-1500:]}\n{r.stderr[-1500:]}")
     return r
@@ -60,11 +66,42 @@ def ensure_worktree():
     sh("git", "clean", "-fd", "data", "docs")
 
 
+def _publish_status(deployed: bool, reason: str = ""):
+    """Copy the runner's pending status to the real one the watchdog reads. If the run did NOT deploy,
+    verified_dates are rebuilt from what is actually on origin/main, so the watchdog never sees a
+    verification that isn't live (a reverted or unpushed bump must not read as 'fresh')."""
+    src = os.path.join(PENDING, "reverify_status.json")
+    if not os.path.exists(src):
+        return
+    with open(src, encoding="utf-8") as f:
+        st = json.load(f)
+    st["deployed"] = deployed
+    if not deployed:
+        st["deploy_blocked_reason"] = reason
+        live = {}
+        for ds_file in DATA_FILES:
+            ds = os.path.basename(ds_file)[:-5]
+            recs = json.loads(sh("git", "show", f"origin/main:{ds_file}").stdout)["records"]
+            for r in recs:
+                live[r["id"]] = str(r.get(DATE_FIELD[ds]) or "")
+        st["verified_dates"] = {i: live.get(i, "") for i in st.get("verified_dates", {})}
+    tmp = STATUS + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(st, f, indent=2)
+    os.replace(tmp, STATUS)
+    log(f"status published (deployed={deployed}{', ' + reason if reason else ''})")
+
+
 def run(mode, push=True):
     ensure_worktree()
     py = sys.executable
+    # the runner writes to a PENDING state dir; the real status is only updated by _publish_status
+    os.makedirs(PENDING, exist_ok=True)
+    if os.path.exists(STATUS):
+        shutil.copyfile(STATUS, os.path.join(PENDING, "reverify_status.json"))
+    env = dict(os.environ, REVERIFY_STATE_DIR=PENDING)
     # --all: check every record, not only the >20-day ones (first live run, Orchestrator 10-02 13:08)
-    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []), check=False)
+    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []), check=False, env=env)
     log(f"runner rc={r.returncode}: {r.stdout.strip()[-300:]}")
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
@@ -72,6 +109,8 @@ def run(mode, push=True):
     changed = sh("git", "status", "--porcelain", "--", *DATA_FILES).stdout.strip()
     if not changed:
         log("no data changes (nothing newly CONFIRMED); nothing to deploy")
+        if push:
+            _publish_status(True)
         return 0
     for gate in ([py, "-m", "pytest", "scripts/reverify", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
         g = sh(*gate, check=False)
@@ -79,6 +118,8 @@ def run(mode, push=True):
             note("GATE_FAILED_no_deploy", f"gate `{' '.join(gate[1:])}` failed (rc={g.returncode}); nothing committed or pushed.\n"
                                          f"```\n{g.stdout[-2500:]}\n{g.stderr[-1500:]}\n```")
             sh("git", "checkout", "--force", "--", ".")
+            if push:
+                _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
             return 2
         log(f"gate ok: {' '.join(gate[1:])}")
     sh("git", "add", "--", *DATA_FILES, "docs")
@@ -92,6 +133,8 @@ def run(mode, push=True):
         p = sh("git", "push", "origin", "HEAD:main", check=False)
         if p.returncode == 0:
             log(f"pushed {sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()} to main")
+            sh("git", "fetch", "origin", "main")
+            _publish_status(True)
             return 0
         sh("git", "fetch", "origin", "main")
         rb = sh("git", "rebase", "origin/main", check=False)   # main moved under us: replay our data-only commit once
@@ -99,6 +142,7 @@ def run(mode, push=True):
             sh("git", "rebase", "--abort", check=False)
             break
     note("PUSH_FAILED", f"commit made in {JOB_DIR} but push to main failed; nothing deployed.\n{p.stderr[-1500:]}")
+    _publish_status(False, "push failed")
     return 3
 
 
