@@ -439,3 +439,22 @@ def test_substantive_gap_record_reported_held_not_bumped(env):
     assert out["results"]["a-fee"]["outcome"] == "HELD"
     assert _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"
     assert any("HELD_a-fee" in n for n in os.listdir(tmp / "asset"))
+
+
+def test_replay_reapplies_confirmed_and_respects_changed_main(env, tmp_path):
+    """job.py lost-push-race path: replay saved CONFIRMED results onto fresh data without refetching;
+    if main changed a stored value since the run, that record is NOT bumped."""
+    tmp, ff = env
+    saved = runner.run(apply=False, all_records=True, fetcher=ff, today="2026-10-02")
+    sp = tmp_path / "results.json"
+    sp.write_text(json.dumps(saved, default=str), encoding="utf-8")
+    before = (tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8")
+    assert runner.replay(str(sp)) == 1                               # only a-fee was CONFIRMED
+    r = _recs(tmp)
+    assert r["a-fee"]["verified_date"] == "2026-10-02" and r["a-fee"]["verified_method"] == "auto-anchor"
+    assert "sha256=abc123" in r["a-fee"]["verification_history"]      # original evidence, not re-fetched
+    assert r["b-fee"]["verified_date"] == "2026-09-01"                 # CHANGED stays untouched
+    recs = json.loads(before)
+    recs["records"][0]["fee_usd"] = 175                                # main changed a-fee meanwhile
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    assert runner.replay(str(sp)) == 0 and _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"

@@ -386,6 +386,41 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     return {"report": report, "results": results}
 
 
+def replay(results_path: str, today: str | None = None) -> int:
+    """Re-apply a finished run's CONFIRMED records onto freshly-reset data. The fetch evidence (url, sha256,
+    anchor) and the run date come from the saved results, so the history line is identical to the original.
+    A record whose stored value no longer matches what was extracted is NOT bumped (main changed it)."""
+    with open(results_path, encoding="utf-8") as f:
+        saved = json.load(f)
+    day = today or saved["report"]["run_date"]
+    recipes = _load(RECIPES)
+    data = {ds: _load(os.path.join(DATA, ds + ".json")) for ds in DATASETS}
+    by_id = {r["id"]: (ds, r) for ds in DATASETS for r in data[ds]["records"]}
+    n = 0
+    for rid, res in saved["results"].items():
+        if res.get("outcome") != "CONFIRMED" or rid not in by_id or rid not in recipes:
+            continue
+        ds, rec = by_id[rid]
+        # re-judge against the CURRENT stored values using the saved extracted values (no network)
+        stored_ok = True
+        rcp = recipes[rid]
+        for p, chk in zip(res["checks"], rcp["checks"]):
+            # same field rule as judge_record: the check's own field, else the record field (not in sum mode)
+            f = chk.get("field") or (rcp.get("field") if rcp.get("combine") != "sum" else None)
+            if f and chk.get("pattern") and _scaled(p.get("got"), chk) != _num(rec.get(f)):
+                stored_ok = False
+        if recipes[rid].get("combine") == "sum" and recipes[rid].get("field"):
+            vals = [_scaled(p.get("got"), c) for p, c in zip(res["checks"], recipes[rid]["checks"])
+                    if not c.get("field") and not c.get("expect_text")]
+            if None in vals or sum(vals) != _num(rec.get(recipes[rid]["field"])):
+                stored_ok = False
+        if stored_ok and apply_confirmed(rec, ds, history_line(day, res["checks"], recipes[rid]), day):
+            n += 1
+    for ds in DATASETS:
+        _dump(os.path.join(DATA, ds + ".json"), data[ds])
+    return n
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
@@ -393,7 +428,13 @@ def main(argv=None):
     ap.add_argument("--ids", nargs="*")
     ap.add_argument("--out", help="write full per-record results JSON here")
     ap.add_argument("--sample", type=int, help="print N random CONFIRMED ids (AuditLab spot-check)")
+    ap.add_argument("--replay", help="re-apply the CONFIRMED results saved by an earlier --out onto the current "
+                                     "data (no fetching, no notes, no status); used by job.py after a lost push race")
     a = ap.parse_args(argv)
+    if a.replay:
+        n = replay(a.replay)
+        print(json.dumps({"REPLAYED": n}))
+        return 0
     out = run(apply=a.apply, all_records=a.all, ids=a.ids)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
