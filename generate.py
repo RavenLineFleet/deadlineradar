@@ -4806,14 +4806,19 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
   el.hidden = false;
   // Phase 3 outside-review item 3 (2026-10-01): pushes the chat widget
   // above this notice instead of letting the two overlap on narrow
-  // viewports, where the notice wraps to 2 lines. Measured after a layout
-  // frame so offsetHeight reflects the wrapped (not single-line) height,
-  // and re-measured on resize since a rotation/viewport change can change
-  // how many lines it wraps to.
+  // viewports, where the notice wraps to 2 lines. requestAnimationFrame
+  // was tried first and measured wrong LIVE -- rAF callbacks are throttled
+  // indefinitely in a background/unfocused tab (confirmed live: a fresh
+  // load in an unfocused automation tab never ran the callback at all),
+  // which would leave a real visitor who opens this in a background tab
+  // with no offset either. Reading el.offsetHeight synchronously forces
+  // the browser to compute layout immediately (well-defined behavior, no
+  // frame wait needed) and re-measured on resize since a rotation/
+  // viewport change can change how many lines the notice wraps to.
   function setOffset() {
     document.documentElement.style.setProperty('--dr-cookie-notice-offset', el.hidden ? '0px' : el.offsetHeight + 'px');
   }
-  requestAnimationFrame(setOffset);
+  setOffset();
   window.addEventListener('resize', setOffset);
   var btn = document.getElementById('dr-cookie-notice-dismiss');
   if (btn) {
