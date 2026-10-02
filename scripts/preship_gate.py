@@ -3488,6 +3488,54 @@ def check_sms_consent_version_sync(repo_root: Path) -> list[str]:
     return []
 
 
+def check_attribution_src_allowlist_sync(repo_root: Path) -> list[str]:
+    """AuditLab ATTR-4 (2026-10-02): generate.py's client-side
+    `_ATTRIBUTION_SRC_ALLOWLIST_JS` and worker/src/validation.ts's server-side
+    `ATTRIBUTION_SRC_ALLOWLIST` are two copies of the same `src` tag set, kept
+    in sync by hand on purpose (no runtime coupling between the static build
+    and the Worker) -- but nothing enforced it. Drift here is silent and
+    reads as missing data, not an error: a tag added to one side only means
+    every beacon for that channel 400s and the channel's real traffic reads
+    as zero, indistinguishable from a channel nobody ever clicked. Same
+    hand-maintained-copy-decay shape as check_terms_version_sync() /
+    check_sms_consent_version_sync(), applied to this set."""
+    generate_py = repo_root / "generate.py"
+    validation_ts = repo_root / "worker" / "src" / "validation.ts"
+    if not validation_ts.exists():
+        print("  (skipping attribution-src-allowlist-sync check -- worker/ tree not present in this checkout)")
+        return []
+    py_text = generate_py.read_text(encoding="utf-8")
+    ts_text = validation_ts.read_text(encoding="utf-8")
+
+    py_match = re.search(r'_ATTRIBUTION_SRC_ALLOWLIST_JS\s*=\s*"([^"]*)"', py_text)
+    if not py_match:
+        return ["[ATTR-SYNC] generate.py's _ATTRIBUTION_SRC_ALLOWLIST_JS constant not found -- can't verify sync with worker/src/validation.ts"]
+    py_tags = {t.strip() for t in py_match.group(1).split(",") if t.strip()}
+
+    ts_match = re.search(r"ATTRIBUTION_SRC_ALLOWLIST:\s*Set<string>\s*=\s*new Set\(\[([^\]]*)\]\)", ts_text)
+    if not ts_match:
+        return ["[ATTR-SYNC] worker/src/validation.ts's ATTRIBUTION_SRC_ALLOWLIST constant not found -- can't verify sync with generate.py"]
+    ts_tags = {m.strip().strip('"').strip("'") for m in ts_match.group(1).split(",") if m.strip()}
+
+    if not py_tags or not ts_tags:
+        return ["[ATTR-SYNC] parsed an EMPTY allow-list from one or both sides -- this check is measuring nothing and must be repaired."]
+
+    only_py = sorted(py_tags - ts_tags)
+    only_ts = sorted(ts_tags - py_tags)
+    errors = []
+    if only_py:
+        errors.append(
+            f"[ATTR-SYNC] generate.py's client allow-list has tag(s) the server rejects: {', '.join(only_py)} "
+            "-- every beacon for these 400s, and that channel's traffic reads as zero"
+        )
+    if only_ts:
+        errors.append(
+            f"[ATTR-SYNC] worker/src/validation.ts's server allow-list has tag(s) the client never sends: "
+            f"{', '.join(only_ts)} -- dead server-side entries, harmless but drifted"
+        )
+    return errors
+
+
 # AuditLab CPE-5 (LOW, 2026-08-21, orchestrator-approved): six dr* helpers
 # are authored twice in generate.py, one copy per bundle (the pages have no
 # shared module system to import from) -- but "authored twice" splits into
@@ -7586,6 +7634,7 @@ def main():
     all_errors += check_citation_manifest_coverage(repo_root)
     all_errors += check_terms_version_sync(repo_root)
     all_errors += check_sms_consent_version_sync(repo_root)
+    all_errors += check_attribution_src_allowlist_sync(repo_root)
     all_errors += check_cpe_cycle_window_sync(repo_root)
     all_errors += check_signin_ttl_copy_sync(repo_root)
     all_errors += check_rate_limit_defined_only_in_validation_ts(repo_root)

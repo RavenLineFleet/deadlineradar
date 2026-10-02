@@ -4744,7 +4744,12 @@ _TABLE_SCROLL_HINT_JS = """<script>
 _ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,li,bs,ma,x,blog,rd"
 _ATTRIBUTION_JS = f"""<script>
 (function () {{
-  var ALLOWED = {{}};
+  // AuditLab ATTR-3 (2026-10-02): a plain {{}} object's inherited
+  // Object.prototype keys (constructor, toString, __proto__, ...) read as
+  // truthy through ALLOWED[src] below, so those 8 strings used to pass this
+  // check despite never being added to it. Object.create(null) has no
+  // prototype chain, so only keys explicitly set below are ever truthy.
+  var ALLOWED = Object.create(null);
   "{_ATTRIBUTION_SRC_ALLOWLIST_JS}".split(",").forEach(function (t) {{ ALLOWED[t] = true; }});
   var STORAGE_KEY = "dr_src";
 
