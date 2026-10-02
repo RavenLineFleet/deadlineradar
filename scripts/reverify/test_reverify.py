@@ -304,3 +304,38 @@ def test_watchdog_alerts():
     assert wd.check(dict(st, verified_dates={"a": "2026-09-24"}), now)[0] is False      # 26 days > 25
     assert wd.check(dict(st, finished="2026-10-18T08:00:00+00:00"), now)[0] is False    # silent > 30h
     assert wd.check(dict(st, mode="dry-run"), now)[0] is False                          # dry run != daily job
+
+
+def _ls(d):
+    return os.listdir(d) if d.exists() else []
+
+
+def test_manual_records_auto_ticketed_to_assetlab_when_due(env):
+    """Orchestrator 10-02 12:47: MANUAL records past 20 days are filed to AssetLab automatically."""
+    tmp, ff = env
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    recs["records"].append({"id": "m-fee", "fee_usd": 66, "verified_date": "2026-09-01",
+                            "verification_history": "old", "source_url": "https://board.example/fees"})
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    rp = tmp / "data" / "reverify_recipes.json"
+    recipes = json.loads(rp.read_text(encoding="utf-8"))
+    recipes["m-fee"] = {"dataset": "renewal_fees", "manual": "fee confirmed by board email only", "checks": []}
+    rp.write_text(json.dumps(recipes), encoding="utf-8")
+
+    runner.run(apply=True, fetcher=ff, today="2026-09-15")                 # 14 days old: not due
+    assert not any("MANUAL_DUE" in n for n in _ls(tmp / "asset"))
+    runner.run(apply=True, fetcher=ff, today="2026-10-01")                 # 30 days old: ticket filed
+    tickets = [n for n in _ls(tmp / "asset") if "MANUAL_DUE" in n]
+    assert len(tickets) == 1
+    body = (tmp / "asset" / tickets[0]).read_text(encoding="utf-8")
+    assert "m-fee" in body and "board email only" in body and "https://board.example/fees" in body
+    runner.run(apply=True, fetcher=ff, today="2026-10-02")                 # same verified date: no repeat
+    assert len([n for n in _ls(tmp / "asset") if "MANUAL_DUE" in n]) == 1
+    recs = json.loads((tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8"))
+    next(r for r in recs["records"] if r["id"] == "m-fee")["verified_date"] = "2026-10-03"   # AssetLab re-verified
+    (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
+    runner.run(apply=True, fetcher=ff, today="2026-10-20")                 # 17 days: quiet
+    assert len([n for n in _ls(tmp / "asset") if "MANUAL_DUE" in n]) == 1
+    runner.run(apply=True, fetcher=ff, today="2026-10-25")                 # 22 days: next month's ticket
+    assert len([n for n in _ls(tmp / "asset") if "MANUAL_DUE" in n]) == 2
+    assert "m-fee" not in runner.run(apply=False, fetcher=ff, today="2026-10-25")["results"]   # never fetched

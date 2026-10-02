@@ -195,8 +195,11 @@ def _dump(path, obj):
 def _note(inbox_key, slug, body, now):
     d = INBOXES[inbox_key]
     os.makedirs(d, exist_ok=True)
-    p = os.path.join(d, f"reverify_{now:%Y%m%d_%H%M%S}_{slug}.md")
-    with open(p, "w", encoding="utf-8") as f:
+    base = os.path.join(d, f"reverify_{now:%Y%m%d_%H%M%S}_{slug}")
+    p, n = base + ".md", 2
+    while os.path.exists(p):          # never overwrite an earlier note filed in the same second
+        p, n = f"{base}_{n}.md", n + 1
+    with open(p, "x", encoding="utf-8") as f:
         f.write(body)
     return p
 
@@ -274,6 +277,29 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
                       f"---\nfrom: reverify-runner\nkind: recipe-fix\nneeds_devin: no\n"
                       f"summary: {rid} failed {n} runs in a row; please fix its recipe\n---\n"
                       f"{json.dumps(res, indent=2, default=str)}\n", now)
+    # MANUAL records can't be fetched, but they still go stale: once one is older than DUE_DAYS, the
+    # daily run files a re-verification ticket to AssetLab (one ticket per run, listing every newly-due
+    # manual record), so a fleet worker re-checks it every month without a human trigger
+    # (Orchestrator 2026-10-02 12:47). Deduped per record per verified date.
+    manual_notified = dict(prev.get("manual_notified", {}))
+    manual_due = []
+    for i in sorted(by_id):
+        if i not in recipes or not recipes[i].get("manual"):
+            continue
+        ds, rec = by_id[i]
+        vd = str(rec.get(DATE_FIELD[ds]) or "")
+        if _age_days(rec, ds, tday) > DUE_DAYS and manual_notified.get(i) != vd:
+            manual_due.append((i, ds, rec, vd))
+    if apply and manual_due and not ids:
+        lines = [f"---\nfrom: reverify-runner\nkind: manual-reverify\nneeds_devin: no\n"
+                 f"summary: {len(manual_due)} MANUAL record(s) older than {DUE_DAYS} days need a hand re-verification\n---\n"
+                 f"These records can't be checked automatically (reason per record). Please re-verify each against its "
+                 f"source and update its verified date + verification_history; the reverify watchdog alerts at {STALE_DAYS} days.\n"]
+        for i, ds, rec, vd in manual_due:
+            urls = [rec.get(k) for k in ("source_url", "citation_url", "secondary_source_url") if rec.get(k)]
+            lines.append(f"- **{i}** ({ds}, verified {vd or 'never'}): {recipes[i]['manual']}\n  sources: {urls}")
+            manual_notified[i] = vd
+        _note("assetlab", f"MANUAL_DUE_{len(manual_due)}", "\n".join(lines) + "\n", now)
     if apply and results:
         for ds in DATASETS:
             _dump(os.path.join(DATA, ds + ".json"), data[ds])
@@ -291,7 +317,9 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
               "stale_automatable": sorted(i for i, a in ages.items() if a > STALE_DAYS),
               "oldest_automatable_age_days": max(ages.values()) if ages else None,
               "verified_dates": verified,
-              "fail_counts": fail_counts, "changed_open": changed_open}
+              "fail_counts": fail_counts, "changed_open": changed_open,
+              "manual_notified": manual_notified,
+              "manual_due_filed_this_run": [m[0] for m in manual_due] if apply and not ids else []}
     if apply:
         _dump(status_path, report)
     return {"report": report, "results": results}
