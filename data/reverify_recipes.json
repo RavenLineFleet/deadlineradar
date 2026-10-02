@@ -1,0 +1,4097 @@
+{
+ "al-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "om the continuing professional educationrequirement applies must complete forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "in accounting or audit will qualify as accountingand auditing CPE. (b) At least",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-5",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the Board for an annual permit to practice with proof that he hasobtained forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "alabama-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null (no published reinstatement fee or penalty CPE); nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "alabama-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the amount of the annual permit fee shall be",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "alaska-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.akleg.gov/basis/aac.asp?media=print&secStart=12.02.340&secEnd=12.02.340",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "certified public accountant biennial active license renewal fee",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ar-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-504/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Unless otherwise provided by board rule, all licenses shall expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "ar-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://portal.arkansas.gov/service/ar-certified-public-accountant-license-renewal/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "and the deadline to renew is",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "arkansas-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17CARpt.236-Final.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Reinstatement of individual or firm license",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "arkansas-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17CARpt.236-Final.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "License renewal fees. Individual - active status (license to practice)",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "az-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "A registrant whose last registration period was for two years shall complete",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "4. A registrant shall complete",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "california-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.dca.ca.gov/cba/licensees/renewal-information.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "The delinquency fee for CPA licenses expiring after June 30, 2026 is",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "california-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "be $520, and the fee for initial permit to practice as a certified public accountant shall be",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "co-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a. Completed the minimum",
+    "window": 21,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "nt of CPE can be in Personal Development, as defined by the Fields of Study. b.",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "colorado-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "porting period in which the certificate was retired, inactive or expired, up to",
+    "window": 21,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "colorado-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "fee_basis=board_confirmed_correspondence: $66 was confirmed by the Board by email; no public document states it (CRS title 12 / 3 CCR 705-1 set no amount). Re-confirm with the Board by hand.",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "connecticut-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": "Regs. Conn. State Agencies 20-280-25: a lapsed licensee 'shall pay the current year's renewal fee for reinstatement' -> reinstatement fee = annual renewal fee $565",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://portal.ct.gov/dcp/license-services-division/all-license-applications/cpa-reinstatement-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Initial Fee : $150.00 Annual Renewal Fee :",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://portal.ct.gov/dcp/license-services-division/all-license-applications/cpa-reinstatement-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Applicants for license reinstatement must report completion of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://portal.ct.gov/dcp/license-services-division/all-license-applications/cpa-reinstatement-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Connecticut CPA license holders must take",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "connecticut-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://portal.ct.gov/dcp/license-services-division/license-division/cpa-renewal",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPA License Renewal Form CPA Firm Permit Renewal Form Renewal Fees : License -",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ct-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/connecticut/Regs-Conn-State-Agencies-SS-20-280-25",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ition precedent to renewal of such license, each applicant shall complete forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://portal.ct.gov/dcp/occupational-and-professional-division/occupational--profess/cpe-questions-and-answers",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "-hour ethics requirement. This requires Connecticut CPA license holders to take",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "ct-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://portal.ct.gov/dcp/license-services-division/license-division/cpa-renewal",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "days prior to the deadline of",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "dc-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dcregs.dc.gov/Common/DCMR/RuleList.aspx?DownloadFile=00FE545F-0000-C61A-9809-9AF28E266CA9",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "shall expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "dc-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlcp.dc.gov/sites/default/files/dc/sites/DLCP/publication/attachments/Accountancy%20Continuing%20Education%20Reporting%20Form.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "MUNICIPAL ACCOUNTING REGULATIONS. I a ffirm that I have completed no fewer than",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://dlcp.dc.gov/sites/default/files/dc/sites/DLCP/publication/attachments/Accountancy%20Continuing%20Education%20Reporting%20Form.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours of acceptable continuing professional education, to include no fewer than",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "dc-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlcp.dc.gov/page/board-accountancy",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Company/Firm - $175.00 Reinstated License -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://dcregs.dc.gov/Common/DCMR/RuleList.aspx?DownloadFile=C0FD545F-0000-CFA6-9EBB-44D38E2B8685",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "shall provide proof of having completed since the previous issuance of the license,",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "dc-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlcp.dc.gov/page/board-accountancy",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "- $175.00 Renewal -",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "de-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://delcode.delaware.gov/title24/c001/index.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "years but in any event shall expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "delaware-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null (DE sets fees administratively); nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "delaware-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "fee_usd is null by design (29 Del. C. 8735(c): the Division sets fees administratively; no published flat fee). Nothing numeric to re-verify; the gap note is checked by hand.",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "fl-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "t must have completed at any time or times during the two-year period, at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours may be in behavioral subjects and at least",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "fl-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www2.myfloridalicense.com/certified-public-accounting/renewing-and-maintaining-your-license/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "lic accountant shall, as a part of the biennial licensure renewal, on or before",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "fl-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "biennial license renewal. (c) Effective with the reestablishment period ending",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "florida-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=20486417&type=1&file=61H1-31.003.doc",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "F.S., shall be",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ga-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://gsba.georgia.gov/document/document/website-cpe-rule-20-11-finalpdf/download",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "f his or her individual license to practice as a CPA must have completed eighty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://gsba.georgia.gov/document/document/website-cpe-rule-20-11-finalpdf/download",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Completion of four",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://gsba.georgia.gov/cpe-requirements",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "olicies of the Board are required during the CPE reporting period. A minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "ga-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ga.gov/gac/20-7",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Firm licenses will expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "ga-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ga.gov/gac/20-10",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "practice public accountancy in this state issued to individuals will expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "georgia-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ga.gov/GAC/20-10",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(a) A reinstatement fee of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://rules.sos.ga.gov/GAC/20-10",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of the completion of continuing professional education as specified below: 1.",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "georgia-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ga.gov/Download_pdf.aspx?st=GASOS&year=2026&dept=Departments&pdf=Department%2020%20RULES%20OF%20STATE%20BOARD%20OF%20ACCOUNTANCY",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "The fee for biennial renewal is",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "guam-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://col.guamcourts.gov/sites/default/files/25GAR002.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Board. (A) Applications for renewal of licenses are due an nually no later than",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "guam-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://col.guamcourts.gov/sites/default/files/25GAR002.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(i) Active, per 22 GCA, § 35105(f) - One Hundred Dollars (",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "hawaii-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cca.hawaii.gov/pvl/boards/accountancy/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "storation Form Cost to Restore (late renewal) Certified Public Accountant (CPA)",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "hawaii-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "sum",
+  "field": "fee_usd",
+  "derivation": "HAR 16-53-38(7)(A) biennial individual license renewal $52 + 16-53-38(12)(A)(iii) biennial Compliance Resolution Fund $100 = $152",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/02/HAR_16-53_FeesOct-2016-1.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Biennial renewal fees: (A) Individual public accountant or certified public accountant license",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 52
+   },
+   {
+    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/02/HAR_16-53_FeesOct-2016-1.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "license (i) Compliance resolution fund fee $ 50 (ii) Annual compliance resolution fund fee $ 50 (iii) Biennial compliance resolution fund fee",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 100
+   }
+  ]
+ },
+ "hi-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.capitol.hawaii.gov/hrscurrent/Vol10_Ch0436-0474/HRS0466/HRS_0466-0005.htm",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a period not exceeding two years and shall be renewable biennially on or before",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "hi-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cca.hawaii.gov/pvl/files/2013/08/HAR-16-71-C_1121.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ion of at least eighty hours in continuing professional education programs. The",
+    "window": 21,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://cca.hawaii.gov/pvl/files/2013/08/HAR-16-71-C_1121.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "paying a renewal fee, and attesting that the applicant has completed at least",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://cca.hawaii.gov/pvl/files/2013/08/HAR-16-71-C_1121.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "permit to practice, with a minimum of",
+    "window": 21,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "ia-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1030.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "an applicant for renewal will have completed",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1030.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ery CPA certificate holder or LPA license holder needs to complete a minimum of",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "ia-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/rule/481.1028.2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ocedures. The permit holder will submit an online renewal with the board by the",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "ia-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1025.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Licenses expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "id-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "mediately preceding the date the reporting form is due that no less than eighty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours of CPE are recorded, of which at least four",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours are ethics with a minimum of thirty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "id-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dopl.idaho.gov/boa/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "st Firm Registration Renewal Deadline",
+    "window": 17,
+    "pattern": null,
+    "expect_text": "September 30"
+   }
+  ]
+ },
+ "id-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dopl.idaho.gov/pressrelease/big-changes-are-on-the-way-stay-informed-about-important-licensure-updates-that-may-impact-your-renewal-cycle-21/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Year DOB Odd Year DOB Renewal Date Fees Renewal Date Fees Licenses will expire",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "idaho-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Re-Exam $25 Active License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "il-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000700R.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "�� In order to renew a license as a licensed CPA, a licensed CPA shall complete",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000700R.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours, at least",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "il-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "b)�������� CPA Firms Every license for a CPA firm shall expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "November 30"
+   }
+  ]
+ },
+ "il-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ilga.gov/commission/jcar/admincode/068/068014200000800R.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Individuals Every license issued to an individual under the Act shall expire on",
+    "window": 17,
+    "pattern": null,
+    "expect_text": "September 30"
+   }
+  ]
+ },
+ "illinois-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": "fee_usd is null (no flat fee published in 68 IAC 1420.400); nothing numeric to re-verify.",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "in-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.in.gov/pla/professions/accountancy-home/accountancy-licensing-information/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ". Renewal Instructions Renewal Information CPA, PA, AP, and Firm Permits expire",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "in-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.in.gov/pla/professions/accountancy-home/accountancy-licensing-information/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ". Renewal Instructions Renewal Information CPA, PA, AP, and Firm Permits expire",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "indiana-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-14",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "In order to reinstate a certificate under this section, a licensee shall complete",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.in.gov/pla/files/Reinstatement_Exp_License_Packet5.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Auditing (A&A).",
+    "window": 30,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "indiana-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.in.gov/pla/professions/accountancy-home/accountancy-licensing-information/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "N/A $75.00 Renewal",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "iowa-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.legis.iowa.gov/docs/iac/chapter/481.1032.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Annual renewal of firm permit to practice",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "kansas-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://ksboa.kansas.gov/wp-content/uploads/article12.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "public accountant: (1) For more than one year of a biennial period",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "kentucky-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpa.ky.gov/practicingcpas/Pages/Reinstatement-Requirements.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Check or money order in the amount of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://apps.legislature.ky.gov/law/kar/titles/201/001/140/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "required for the applicant; (b) Include",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "kentucky-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://apps.legislature.ky.gov/law/kar/titles/201/001/065/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Pay a non-refundable renewal fee in the amount of",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ks-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://ksboa.kansas.gov/wp-content/uploads/Article-4.-April-26-2024.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "mit to practice as a certified public accountant in Kansas shall have completed",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://ksboa.kansas.gov/wp-content/uploads/Article-4.-April-26-2024.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "l. Each applicant for renewal or reinstatement of a permit shall have completed",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "ks-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0008.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ied public accountancy in this state and shall renew the firm's registration by",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "ky-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpa.ky.gov/cpafirms/Pages/InState-Firm-License.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "plus portal fees, if renewed on or before",
+    "window": 13,
+    "pattern": null,
+    "expect_text": "August 1"
+   }
+  ]
+ },
+ "ky-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://apps.legislature.ky.gov/law/statutes/statute.aspx?id=56083",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a two (2) year calendar period ending December 31 preceding the",
+    "window": 11,
+    "pattern": null,
+    "expect_text": "July 1"
+   }
+  ]
+ },
+ "la-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.state.la.us/cpe/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of continuing professional education (CPE) annually, and at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://cpaboard.state.la.us/cpe/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "urs for the following year. Each certificate holder shall complete a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "la-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.state.la.us/board-rules/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "rtificates expire on the last day of each calendar year, or on a date following",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "la-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.state.la.us/board-rules/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "rtificates expire on the last day of each calendar year, or on a date following",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "louisiana-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.state.la.us/board-rules/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ng the date of the application for reinstatement; and b. completed no less than",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://cpaboard.state.la.us/cpa-resources/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of CPE in order to reinstate, including",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "louisiana-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.state.la.us/cpa-resources/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reciprocal CPA certificate -",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "maine-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.maine.gov/sos/sites/maine.gov.sos/files/inline-files/041c010-2025-212%20%28AMD%29_0.docx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Board of Accountancy Certified Public Accountant Public Accountant Firm Branch 1 yr 1 yr 1 yr 1 yr",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "applies for reinstatement pursuant to 32 M.R.S. §12234(2) shall demonstrate completion of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "The 80 hours of continuing professional education must include",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "maine-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/professions/accountancy/licensing/public-accountant-and-certified-public-accountant",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "s and the furnishing of advice on tax matters. How to apply Fees License fee of",
+    "window": 21,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "maryland-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dsd.maryland.gov/regulations/Pages/09.24.01.09.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "$24; (4) Renewal fee -",
+    "window": 18,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "massachusetts-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "not been renewed for at least two renewal periods the applicant will be required to complete at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "massachusetts-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://licensing.reg.state.ma.us/public/dpl_fees/dpl_fees_results.asp?board_code=PA",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Type Renewal Fee Renewal Time Renewal Frequency CA Certified Public Accountant",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "md-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/maryland/COMAR-09-24-02-03",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "erly reported on the first renewal application. [F. An applicant shall complete",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://regs.maryland.gov/us/md/exec/comar/09.24.02.03",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(1) A minimum of",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "md-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://mgaleg.maryland.gov/2026RS/Statute_Web/gbo/2-407.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "-year term as provided in this section, the permit expires on the first",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "md-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://mgaleg.maryland.gov/2026RS/Statute_Web/gbo/2-311.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "-year term as provided in this section, the license expires on the first",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "me-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/professions/accountancy/licensing/public-accountant-and-certified-public-accountant",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Term Annual (expires",
+    "window": 17,
+    "pattern": null,
+    "expect_text": "September 30"
+   }
+  ]
+ },
+ "me-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(CPE) A. Except as set forth in the next paragraph, all licensees shall obtain",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours of continuing professional education must include",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.maine.gov/pfr/professionallicensing/sites/maine.gov.pfr.professionallicensing/files/inline-files/AccountancyRule.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(CPE) A. Except as set forth in the next paragraph, all licensees shall obtain",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "mi-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-729",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of license renewal, an individual licensee must successfully complete at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-729",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ofessional ethics. However, the board shall not require completion of more than",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-729",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of license renewal, an individual licensee must successfully complete at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "minnesota-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "applications for reinstatement",
+    "window": 18,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "minnesota-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "renewal of certificate with an active status",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "mississippi-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "MSBPA fee schedule: Board Processing Fee for Reinstatement of License $200 + Registration Fee for Reinstatement of License $110 = $310",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Board Processing Fee for Reinstatement of License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 200
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Registration Fee for Reinstatement of License",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 110
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "minimum CPE credit hours missed as a result of not being registered,",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Rule 4.1.3. A minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "mississippi-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "• Initial and Annual Registration Fee for Original or Reciprocal License",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "missouri-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(J) Reinstatement of CPA Firm Permit Fee",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "with the reinstatement application and fee, that he or she has completed forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours of continuing professional education (CPE), including two",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "missouri-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(D) CPA License Fee (biennial renewal)",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "mn-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.revisor.mn.gov/rules/1105.3000/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "in a rolling three-year period, complete a minimum of",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.revisor.mn.gov/rules/1105.3100/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "§ F. at least",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.revisor.mn.gov/rules/1105.3000/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "preceding the effective date of the status change, with a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "mn-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "d renewed for periods of not more than one year but in any event must expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "mn-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.revisor.mn.gov/statutes/cite/326A.04",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "s must be initially issued and renewed annually but in any event must expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "mo-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "nsee shall complete and maintain acceptable documentation of no less than forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "qualifying CPE each calendar year a licensee holds a license. A minimum of two",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "hours of the required forty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "mo-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "year beginning on",
+    "window": 15,
+    "pattern": null,
+    "expect_text": "November 1"
+   }
+  ]
+ },
+ "mo-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "years beginning on",
+    "window": 14,
+    "pattern": null,
+    "expect_text": "October 1"
+   }
+  ]
+ },
+ "montana-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null; nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "montana-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://boards.bsd.dli.mt.gov/public-accountants/license-information/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ate fee will be added to the renewal fee. The fee to timely renew a license is",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ms-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ion of the minimum CPE credit hours missed as a result of not being registered",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/continuing-professional-education",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ding in June. Each CPA must have obtained and reported online a minimum of four",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "y renew a CPA license, an individual must complete and report at a minimum, the",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "ms-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "33-1-39, on or before",
+    "window": 14,
+    "pattern": null,
+    "expect_text": "January 1"
+   }
+  ]
+ },
+ "ms-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "33-1-39, on or before",
+    "window": 14,
+    "pattern": null,
+    "expect_text": "January 1"
+   }
+  ]
+ },
+ "mt-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://boards.bsd.dli.mt.gov/public-accountants/license-information/index",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "International Reciprocity. Renewal Information All licenses must be renewed by",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "mt-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/montana/Mont-Admin-r-24.201.2106",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Active licensees are required to have",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/montana/Mont-Admin-r-24.201.2106",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of continuing professional education (CPE) with a subset of",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "nc-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nccpaboard.gov/resource-snippet/section-0100-requirements-2/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "- Requirements Effective",
+    "window": 11,
+    "pattern": null,
+    "expect_text": "June 1"
+   }
+  ]
+ },
+ "nd-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ndlegis.gov/information/acdata/pdf/3-03-01.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "while holding out to the public as a licensee in this state must have completed",
+    "window": 33,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.ndlegis.gov/information/acdata/pdf/3-03-01.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "ontinuing education in the immediate preceding three reporting years, including",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.ndlegis.gov/information/acdata/pdf/3-03-01.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "rs, including six credit-hours of professional ethics content, and a minimum of",
+    "window": 21,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "nd-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ndsba.nd.gov/licensees/cpa-renewal-faq",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Renewal April 15 to",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "nd-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ndsba.nd.gov/licensees/cpa-renewal-faq",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Renewal April 15 to",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "ne-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nbpa.nebraska.gov/cpe-requirements-and-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ation requirements. ~To renew your Active Permit to Practice, you must complete",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://nbpa.nebraska.gov/cpe-requirements-and-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of CPE (including",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "ne-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hundred fifty dollars. All permits subject to this subdivision shall expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "ne-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hundred fifty dollars. All permits subject to this subdivision shall expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "nebraska-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nbpa.nebraska.gov/individuals/fee-schedule",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ions Online Permit Renewals Fee Schedule Board Fees Active Permit to Practice -",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "nevada-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null by design (fee/CPE depend on lapse length, NAC 628); nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "new-hampshire-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://gc.nh.gov/rules/state_agencies/plc1000.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "new-hampshire-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://gc.nh.gov/rules/state_agencies/plc1000.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Initial, renewal, or reinstatement after expiration of license 2 years",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "new-mexico-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.rld.nm.gov/boards-and-commissions/individual-boards-and-commissions/accountancy/fees/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reinstatement of Cancelled Certificate",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0003.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ficates/licenses have lapsed shall provide documented evidence of completion of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0003.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "1, 2010, continuing professional education must include a minimum of",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "new-mexico-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0001.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "certificate renewal",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "new-york-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.op.nysed.gov/professions/certified-public-accountants/mce-questions-answers",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "vate your registration you will need to certify at a minimum that you completed",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "new-york-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": "NYSED fee chart, CPA row: 6th $ column (triennial registration renewal) = $292",
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.op.nysed.gov/sites/op/files/documents/opfeechart.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Certified Public Accountant",
+    "window": 80,
+    "pattern": "(?:\\$\\s*[\\d,]+\\s+){5}\\$\\s*([\\d,]+)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "nj-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-6-2",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "license renewal is required to complete, during the preceding triennial period",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.njcpa.org/learn/maintain-your-license/cpe-requirements",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "120 You must complete",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-6-2",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "s provided in (c) through (f) below. All applicants shall complete a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "nm-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0003.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "applicant for certificate/license renewal shall show completion of no less than",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0003.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "1, 2010, continuing professional education must include a minimum of",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.srca.nm.gov/parts/title16/16.060.0003.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the last day of the certificate/license holder's birth month, with a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "nm-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.rld.nm.gov/wp-content/uploads/2021/06/Public-Accountancy-Act-and-Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "the act regarding permit renewal are initially applicable to the firm the first",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "north-carolina-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nccpaboard.gov/nc-cpas/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Application to Reinstate NC CPA License to Active Status from Inactive Status",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://nccpaboard.gov/nc-cpas/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "evidence of satisfactory completion of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://nccpaboard.gov/nc-cpas/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of CPE courses during the 12 months immediately preceding the application for change of status.",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "north-carolina-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "of this Section and paying the annual renewal fee of",
+    "window": 18,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "north-dakota-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.ndsba.nd.gov/licensees/cpa-renewal-faq",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "April 15 to June 30",
+    "window": 21,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "northern-mariana-islands-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nasba.org/licensure/nasbalicensing/cnmi/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reciprocal -",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "nv-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.leg.state.nv.us/NAC/NAC-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a permit to engage in the practice of public accounting must complete at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.leg.state.nv.us/NAC/NAC-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours of continuing education each calendar year, of which: ���� (a)",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.leg.state.nv.us/NAC/NAC-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a permit to engage in the practice of public accounting must complete at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "nv-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.leg.state.nv.us/nac/nac-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "istration must be renewed by payment of the prescribed renewal fee on or before",
+    "window": 15,
+    "pattern": null,
+    "expect_text": "January 31"
+   }
+  ]
+ },
+ "nv-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.leg.state.nv.us/nrs/nrs-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "All permits expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "oh-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://codes.ohio.gov/ohio-revised-code/section-4701.10",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "All Ohio permits shall expir",
+    "window": 96,
+    "pattern": null,
+    "expect_text": "All Ohio permits shall expire on the last day of December of the year assigned by the board"
+   }
+  ]
+ },
+ "ohio-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-09",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "must first complete continuing education as follows: (1) A total of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-15-09",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "prior to application for an Ohio permit. (2) Within the total of one hundred twenty continuing education credits enumerated in paragraph (A)(1) of this rule, at least",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "ok-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "All certificate and license holders shall complete at least one hundred twenty",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "January 1, 2009,",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "the certificate or license holder was required to earn CPE. A minimum of twenty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "ok-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/registration/OAB%20FORM%20R004%20-%202025%20Firm%20Registration%20Renewal.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "______________________ (City) (State) (Zip Code) FORM & FEE MUST BE RECEIVED BY",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "JUNE 30"
+   }
+  ]
+ },
+ "oklahoma-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "r of the revocation or cancelled date shall be One Hundred Twenty-five Dollars (",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   }
+  ]
+ },
+ "oklahoma-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "an individual renewing the certificate or license will be Seventy-five Dollars (",
+    "window": 21,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "or-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ee for each renewal period that the license was lapsed; (d) Complete and report",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE hours including",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "er accrediting body that is recognized by the Board; (B) Completed a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "or-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://secure.sos.state.or.us/oard/view.action?ruleNumber=801-010-0345",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ". The business organization shall: (a) Renew the firm registration on or before",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "or-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.oregon.gov/boa/pages/license-renewal-information.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "eived by online submission (credit card & ACH payments) or postmarked after the",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "oregon-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ee for each renewal period that the license was lapsed; (d) Complete and report",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://secure.sos.state.or.us/oard/displayDivisionRules.action?selectedDivision=3537",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE hours including",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "oregon-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://secure.sos.state.or.us/oard/viewSingleRule.action?ruleVrsnRsn=314982",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "al license and registration fees: (a) Initial / Reciprocity CPA or PA License -",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "pa-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "xpiration.</p>\\r\\n<p>If you do not qualify for a waiver, but still complete the",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE hours completed in each calendar year.</li>\\r\\n<li>&nbsp",
+    "window": 16,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of odd-numbered years.&nbsp; A minimum of twenty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "pa-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ">\\r\\n<p>Licenses expire",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "pennsylvania-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Accountancy Firm - $100.00 Certified Public Accountant -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "puerto-rico-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nasba.org/licensure/nasbalicensing/puerto-rico/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ery three years). Application and payment must be submitted and received before",
+    "window": 15,
+    "pattern": null,
+    "expect_text": "December 1"
+   }
+  ]
+ },
+ "puerto-rico-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://nasba.org/licensure/nasbalicensing/puerto-rico-2/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Renovación de individuo -",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "rhode-island-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ri.gov/regulations/part/400-00-00-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Reinstatement of Expired License Fee",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://rules.sos.ri.gov/regulations/part/400-00-00-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "nse, the applicant must document completion of not less than one hundred twenty",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   }
+  ]
+ },
+ "rhode-island-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://rules.sos.ri.gov/regulations/part/400-00-00-1",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Fee $500.00 plus",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ri-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dbr.ri.gov/contractors-and-building-design-fire-professionals-board-accountancy/board-accountancy/renew",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ns below to renew. The online renewal application is now open and will close on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "sc-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "a renewal fee, if any. (C) A licensee shall document",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "uded in the documented hours of continuing professional education. No less than",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ours of continuing professional education. No less than two hours of the annual",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "sd-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlr.sd.gov/accountancy/newsletters/newsletter_july2026.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "e you will be able to continue on in the online renewal process. DON'T MISS THE",
+    "window": 13,
+    "pattern": null,
+    "expect_text": "AUGUST 1"
+   }
+  ]
+ },
+ "sd-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://sdlegislature.gov/api/Statutes/36-20B-27.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ". A licensee shall complete",
+    "window": 33,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://dlr.sd.gov/accountancy/faq.aspx",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hour CPE requirement. A minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "south-dakota-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlr.sd.gov/accountancy/newsletters/newsletter_july2026.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "LICENSE STATUS OPTIONS Active • Annual fee of",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "tennessee-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/reinstatement-other-resources.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "e applied to renewal requirements. Fee The application fee for reinstatement is",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/reinstatement-other-resources.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": ". CPE Requirement 1. All eighty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/reinstatement-other-resources.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "fields of study . 2. The CPE must include two",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "tennessee-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/renewal-requirements.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Late Fee Additional Requirements Active",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "texas-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null; nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "texas-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.tsbpa.texas.gov/news/individual-license-fee-increase/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "increase from $97 to",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "tn-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/renewal-requirements.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "al applications for CPA/PA licenses and firm permits with an expiration date of",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "tn-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/tennessee/Tenn-Comp-R-Regs-0020-05-.03",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "shall complete no less than eighty",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/cont-edu.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "such as tax, auditing, etc. The Ethics requirement for license renewal is two",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.tn.gov/commerce/regboards/accountancy/license/cont-edu.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "years with a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "us-virgin-islands-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dlca.vi.gov/boardcertifications/steps/cparequirements/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Fee $150.00 CPA Permit",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "ut-all": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://dopl.utah.gov/accountancy/renew-a-license/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "redit Upload Utah Ethics Carry Credits Renewal Requirements: Licenses expire on",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "ut-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://adminrules.utah.gov/api/public/getfile/uac-pdf/a87bebd9-585a-455e-b397-fe66ba37a698.pdf/R156-26a.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "As part of a CPA's",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://adminrules.utah.gov/api/public/getfile/uac-pdf/a87bebd9-585a-455e-b397-fe66ba37a698.pdf/R156-26a.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "a, the Certified Public Accountant Licensing Act Rule; and (b) at least",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "va-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://boa.virginia.gov/individual-cpas/cpe/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Sponsors providing CPE Basic overview of requirements Active CPAs must complete",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section90/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "rs of continuing professional education, including an ethics course of at least",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://boa.virginia.gov/individual-cpas/cpe/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE hours over a rolling three-year period, with a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "va-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section180/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the holder of a Virginia license shall annually renew his license on or before",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "va-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section180/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the holder of a Virginia license shall annually renew his license on or before",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "vermont-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": "all three numeric fields are null; nothing numeric to re-verify",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": []
+ },
+ "vermont-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://legislature.vermont.gov/statutes/section/26/001/00056",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Biennial renewal of license",
+    "window": 22,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "virginia-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://law.lis.virginia.gov/admincode/title18/agency5/chapter22/section20/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "timely renewal of a person's Virginia license except as provided in subsection B of 18VAC5-22-180",
+    "window": 18,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "vt-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://outside.vermont.gov/dept/sos/office_professional_regulation/professions/accountancy/accountancy_board_administrative_rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "regular biennial renewal shall show that he or she has completed no fewer than",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://outside.vermont.gov/dept/sos/office_professional_regulation/professions/accountancy/accountancy_board_administrative_rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(b) Applicants by endorsement must provide proof of completing a four",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "vt-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://outside.vermont.gov/dept/sos/office_professional_regulation/professions/accountancy/accountancy_board_administrative_rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "a form provided by the Board. (b) Licenses renew on a fixed biennial schedule",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "July 31"
+   }
+  ]
+ },
+ "vt-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://outside.vermont.gov/dept/sos/office_professional_regulation/professions/accountancy/accountancy_board_administrative_rules.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "a form provided by the Board. (b) Licenses renew on a fixed biennial schedule",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "July 31"
+   }
+  ]
+ },
+ "wa-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.westerncpe.com/state-requirement/washington/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "mation, please visit the NASBA CPE Requirements page . Total CPE Hours Required",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "E credit hours within the three-year CPE reporting period; (ii) Completion of a",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(iii) Completion of a minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "wa-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-114",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "cense can be provided upon request. The initial CPA firm license will expire on",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "wa-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://acb.wa.gov/individual-licensing/renewal",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "od for which the credit was claimed. If you do not renew or retire on or before",
+    "window": 12,
+    "pattern": null,
+    "expect_text": "June 30"
+   }
+  ]
+ },
+ "washington-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://acb.wa.gov/individual-licensing/renewal",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "ation through our online services . Pay the renewal fee: The fee for renewal is",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "west-virginia-reinstatement": {
+  "dataset": "reinstatement",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "7.4.b. Minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "7.4.b. Minimum of forty (40) hours of continuing education, including a minimum of",
+    "window": 60,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "penalty_ethics_hours"
+   }
+  ]
+ },
+ "west-virginia-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "c. An annual certificate renewal fee of eighty-five dollars (",
+    "window": 21,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ },
+ "wi-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://docs.legis.wisconsin.gov/document/administrativecode/Accy%202.602",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "2-year period immediately preceding the date of application, the applicant has completed at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://docs.legis.wisconsin.gov/document/administrativecode/Accy%202.602",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "CPE related to ethics.",
+    "window": 20,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.wicpa.org/cpe/requirements-faqs",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "& FAQs CPE Requirements What are the membership CPE requirements? A minimum of",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "wi-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Accountant, certified public",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 15"
+   }
+  ]
+ },
+ "wi-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://docs.legis.wisconsin.gov/statutes/statutes/440/i/08",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Accountant, certified public",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 15"
+   }
+  ]
+ },
+ "wv-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Certificate holders applying for annual licensure renewal shall have completed",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "hours shall be a minimum of four",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.boa.wv.gov/www/download_resource.asp?id=55",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "for in this subsection within the three preceding calendar years, with at least",
+    "window": 17,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "annual_minimum_hours"
+   }
+  ]
+ },
+ "wv-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://code.wvlegislature.gov/30-9-17/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "of issue. (h) The board shall renew a permit for a one-year period beginning on",
+    "window": 11,
+    "pattern": null,
+    "expect_text": "July 1"
+   }
+  ]
+ },
+ "wv-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.boa.wv.gov/Licensing/LicenseRenewal.asp",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "deadline. Late renewals will be accepted between the dates of",
+    "window": 11,
+    "pattern": null,
+    "expect_text": "July 1"
+   }
+  ]
+ },
+ "wy-cpe": {
+  "dataset": "cpe_hours",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://www.law.cornell.edu/regulations/wyoming/061-5-Wyo-Code-R-SS-5-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "credits completed during this two calendar year period Thereafter",
+    "window": 18,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "total_hours"
+   },
+   {
+    "url": "https://www.law.cornell.edu/regulations/wyoming/061-5-Wyo-Code-R-SS-5-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "d by the Board, and at least once every three-year continuing education period",
+    "window": 19,
+    "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
+    "field": "ethics_hours"
+   }
+  ]
+ },
+ "wy-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://wyoleg.gov/statutes/compress/title33.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "year. If the fee is not paid by",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "wy-individual": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://wyoleg.gov/statutes/compress/title33.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "year. If the fee is not paid by",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
+   }
+  ]
+ },
+ "wyoming-renewal-fee": {
+  "dataset": "renewal_fees",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "bootstrap 2026-10-02",
+  "checks": [
+   {
+    "url": "https://cpaboard.wyo.gov/individuals/current-cpas/individual-renewal",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "omplete the renewal on the OPAL system. Renewal Information Renewal Fees Active-",
+    "window": 19,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
+ }
+}

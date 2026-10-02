@@ -83,7 +83,14 @@ def url_rank(u):
 
 
 def make_anchor(text, start):
-    """Shortest tail (>=24 chars, word-aligned) of the text before `start` that is unique in text."""
+    """Prefer the pure label between the previous number and the value ("(4) Renewal fee -"), so a
+    change to a NEIGHBOURING fee doesn't break this anchor; else the shortest unique tail (>=24
+    chars, word-aligned) of the text before `start`."""
+    head = text[max(0, start - 80):start]
+    cut = max((m.end() for m in re.finditer(r"\d[\d,.]*\)?", head)), default=0)
+    label = head[cut:].strip(" ;:,")
+    if len(label) >= 8 and text.lower().count(label.lower()) == 1:
+        return label
     for n in (24, 36, 50, 70, 100):
         a = text[max(0, start - n):start]
         a = a[a.find(" ") + 1:] if " " in a[:-1] and start - n > 0 else a
@@ -102,7 +109,8 @@ def propose_numeric(rec, field, kind, docs):
         for m in re.finditer(value_regex(kind, v), text, flags=re.I):
             ctx = text[max(0, m.start() - 120):m.end() + 80].lower()   # keywords often follow ("4 hours of ethics")
             score = sum(1 for k in KEYWORDS[field] if k in ctx)
-            if any(k in ctx for k in NEGATIVE.get(field, ())):
+            near = text[max(0, m.start() - 40):m.start()].lower()   # the label right before the value
+            if any(k in near for k in NEGATIVE.get(field, ())):
                 score -= 2
             if best is None or (score, -url_rank(url)) > (best[0], -url_rank(best[1])):
                 best = (score, url, text, m)
