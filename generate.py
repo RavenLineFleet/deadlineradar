@@ -24421,7 +24421,7 @@ so both clocks work for you instead of quietly running past you.</p>
         "title": "Nevada CPA Renewal: Annual, December 31 — The Outlier in a Biennial Region",
         "seo_title": "Nevada CPA Renewal: December 31, Every Year",
         "meta_description": (
-            "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not 80 over two years like most states. Here's the exact rule, the fee, and what happens if you lapse."
+            "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not the 80-over-two-years rule that's most common elsewhere. Here's the exact rule, the fee, and what happens if you lapse."
         ),
         "body_html": '''
 <p class="intro">Nevada CPA licenses renew every year, not every two, an annual cycle that makes Nevada an outlier next to most of its neighbors. The permit expires December 31, but renewal fees can be paid without penalty through January 31 of the following year. CPE follows the same annual rhythm: 40 hours a year. Here's what's actually codified, what the Board confirmed directly, and what it costs if you miss the window.</p>
