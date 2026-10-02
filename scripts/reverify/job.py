@@ -32,6 +32,7 @@ DATE_FIELD = {"cpa_deadlines": "last_verified", "cpe_hours": "verified_date",
 LOG = os.path.join(STATE_DIR, "reverify_job.log")
 ASSETLAB_INBOX = os.environ.get("REVERIFY_ASSETLAB_INBOX", r"C:\Users\Devin\AssetLab\inbox")
 DATA_FILES = ["data/cpa_deadlines.json", "data/cpe_hours.json", "data/reinstatement.json", "data/renewal_fees.json"]
+WORKER_COPIES = {f: "worker/src/" + os.path.basename(f) for f in DATA_FILES}
 
 
 def log(msg):
@@ -119,6 +120,11 @@ def run(mode, push=True):
         if push:
             _publish_status(True)
         return 0
+    # preship [C]: data/*.json must be byte-identical to the Worker's bundled copies in worker/src/.
+    # Mirror the exact bytes and commit both together. The Worker itself is NOT deployed by this
+    # unattended job (AuditLab 2026-10-02): an alert asks AssetLab to run deploy_worker.py.
+    for f in DATA_FILES:
+        shutil.copyfile(os.path.join(JOB_DIR, f), os.path.join(JOB_DIR, WORKER_COPIES[f]))
     for gate in ([py, "-m", "pytest", "scripts/reverify", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
         g = sh(*gate, check=False)
         if g.returncode != 0:
@@ -131,7 +137,7 @@ def run(mode, push=True):
                 _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
             return 2
         log(f"gate ok: {' '.join(gate[1:])}")
-    sh("git", "add", "--", *DATA_FILES, "docs")
+    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), "docs")
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",
        f"reverify: automated {mode} re-verification {datetime.now():%Y-%m-%d} ({n} data file(s) updated)")
@@ -141,7 +147,11 @@ def run(mode, push=True):
     for attempt in range(2):
         p = sh("git", "push", "origin", "HEAD:main", check=False)
         if p.returncode == 0:
-            log(f"pushed {sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()} to main")
+            sha = sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()
+            log(f"pushed {sha} to main")
+            note("WORKER_DEPLOY_NEEDED", f"reverify pushed {sha}: worker/src/*.json data copies changed (verified dates). "
+                                         f"The Worker is not auto-deployed by the unattended job; please run "
+                                         f"scripts/deploy_worker.py when convenient so the API's data_as_of catches up.")
             sh("git", "fetch", "origin", "main")
             _publish_status(True)
             return 0
