@@ -2,7 +2,10 @@
 
     python -m pytest scripts/test_blog_approval_gate.py -q
 
-9 cases AuditLab required before calling this verified:
+9 cases AuditLab required before calling this verified, plus BLOG-2's split
+of case 8 into two isolated assertions (AuditLab, 2026-10-02, proven against
+this code before being handed back -- the original single test 8 let either
+the count check or the hash check be deleted without going red):
     1. happy path: 2 distinct parties, matching digests          -> PASS
     2. one approval only                                         -> ERROR
     3. two approvals, same party twice                           -> ERROR
@@ -10,8 +13,14 @@
     5. approvals dir deleted while BLOG_ARTICLES non-empty       -> ERROR (enablement)
     6. sha truncated to 16 hex                                    -> ERROR
     7. grandfathered slug, no approvals file                      -> PASS
-    8. slug appended to GRANDFATHERED without updating constant   -> ERROR
+    8a. grandfathered hash mismatch, count still correct          -> ERROR (isolated)
+    8b. grandfathered count mismatch, hash still "correct"        -> ERROR (isolated)
     9. draft-mode and slug-mode digests agree on a real post      -> PASS
+
+AuditLab separately proved a STRONGER version of case 9 against the real
+Nevada draft + live BLOG_ARTICLES entry (not a fixture) and found test 9
+below is a round-trip of its own serializer, so it cannot detect parser
+drift -- noted here rather than silently left looking stronger than it is.
 """
 import hashlib
 import json
@@ -160,9 +169,13 @@ def test_7_grandfathered_slug_no_approval_file_passes(tmp_path):
 
 
 # --- 8. slug appended to GRANDFATHERED without updating the constant --------
+# BLOG-2 (AuditLab, 2026-10-02): the original single test only asserted "an
+# error occurred" while an appended slug trips BOTH the count check and the
+# hash check at once -- disabling either one alone left the suite green.
+# Split into two tests, each isolating one assertion, proven against the
+# real code by AuditLab before being handed back.
 
-def test_8_grandfathered_edit_without_constant_update_is_error(tmp_path, monkeypatch):
-    # Pin the constants to a known-good 2-slug fixture first...
+def test_8a_grandfathered_hash_mismatch_isolated(tmp_path, monkeypatch):
     base_slugs = ["alpha-post", "beta-post"]
     _, digest = _write_grandfathered(tmp_path, base_slugs)
     monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_COUNT", len(base_slugs))
@@ -170,10 +183,32 @@ def test_8_grandfathered_edit_without_constant_update_is_error(tmp_path, monkeyp
     clean_errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[])
     assert clean_errors == [], f"pinned constants should match the 2-slug fixture: {clean_errors}"
 
-    # ...then append a 3rd slug to the file WITHOUT touching the constants.
-    _write_grandfathered(tmp_path, base_slugs + ["gamma-post"])
+    # Reorder the same 2 slugs: count stays 2 (count check passes), but the
+    # normalized content hash changes (hash check fails) -- isolates the
+    # hash assertion from the count assertion.
+    _write_grandfathered(tmp_path, list(reversed(base_slugs)))
     errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[])
-    assert any("expected 2" in e for e in errors) or any("!= expected" in e for e in errors), errors
+    assert len(errors) == 1, f"expected exactly one isolated error, got {errors}"
+    assert "content hash" in errors[0] and "!= expected" in errors[0], errors[0]
+
+
+def test_8b_grandfathered_count_mismatch_isolated(tmp_path, monkeypatch):
+    base_slugs = ["alpha-post", "beta-post"]
+    _, digest = _write_grandfathered(tmp_path, base_slugs)
+    monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_COUNT", len(base_slugs))
+    monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_SHA256", digest)
+    clean_errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[])
+    assert clean_errors == [], f"pinned constants should match the 2-slug fixture: {clean_errors}"
+
+    # Duplicate an existing slug (slug SET unchanged, line COUNT becomes 3)
+    # and declare the new hash as the constant -- hash check passes (the
+    # declared hash matches the 3-line file), but count check fails (3 != 2)
+    # -- isolates the count assertion from the hash assertion.
+    _, new_digest = _write_grandfathered(tmp_path, base_slugs + ["beta-post"])
+    monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_SHA256", new_digest)
+    errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[])
+    assert len(errors) == 1, f"expected exactly one isolated error, got {errors}"
+    assert "has 3 slug(s), expected 2" in errors[0], errors[0]
 
 
 # --- 9. draft-mode and slug-mode digests agree on a real post ----------------
