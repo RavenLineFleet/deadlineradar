@@ -5377,21 +5377,50 @@
  },
  "wisconsin-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: $68 is on the DSPS 'Renewal Dates and Fees' PDF, which now 404s",
-  "combine": "each",
-  "field": null,
-  "derivation": null,
+  "manual": null,
+  "combine": "sum",
+  "field": "reinstatement_fee_usd",
+  "derivation": "$43 CPA renewal fee (DSPS fee table) + $25 late fee for renewal after expiration (DSPS page; codified Wis. Stat. 440.08(3)(a)) = $68 (AuditLab 10-02)",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "alt_urls": [],
+    "method": "browser",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 43
+   },
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "alt_urls": [],
+    "method": "browser",
+    "anchor": "All Business and Health Credentials incur a",
+    "window": 60,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "expect": 25
+   }
+  ]
  },
  "wisconsin-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": "NOT YET AUTOMATED: $43 is on the same DSPS PDF (404)",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
+  "derivation": "DSPS Credential Fees and Renewal Dates (JS-rendered table -> browser fetch): CPA renewal fee column $43",
   "provenance": "hand 2026-10-02",
-  "checks": []
+  "checks": [
+   {
+    "url": "https://dsps.wi.gov/credentialing/credential-fees-and-renewal-dates/",
+    "alt_urls": [],
+    "method": "browser",
+    "anchor": "1 Accountant, Certified Public Individual $43",
+    "window": 20,
+    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
+    "field": "fee_usd"
+   }
+  ]
  },
  "wv-cpe": {
   "dataset": "cpe_hours",
