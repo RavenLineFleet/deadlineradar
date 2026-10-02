@@ -2084,19 +2084,25 @@ const DEMO_ROSTER_FLOOR = 2;
 // specifically-that-day-only edge cases either: nearest-first naturally
 // rotates off a record the moment it's no longer nearest, before the
 // no-safe-rollover caveat AuditLab raised about it would matter.
-const DEMO_ROSTER_IDENTITIES: { email: string; firstName: string }[] = [
-  { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan" },
-  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan" },
-  { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis" },
-  { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam" },
-  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor" },
+// AuditLab outside-review DEMO-14 (2026-10-01): staffLabel was never set at
+// seed time (only firstName, a different field used for reminder-email
+// greetings, not the dashboard roster display), so every demo row fell
+// through drRenderRow()'s staff_label||email fallback and showed an em dash
+// plus the raw email. staffLabel added here; reseedDemoFirmRosterIfBelowFloor()
+// below now passes it through.
+const DEMO_ROSTER_IDENTITIES: { email: string; firstName: string; staffLabel: string }[] = [
+  { email: "jordan.mitchell@demo.deadline-radar.com", firstName: "Jordan", staffLabel: "Jordan Mitchell" },
+  { email: "morgan.patel@demo.deadline-radar.com", firstName: "Morgan", staffLabel: "Morgan Patel" },
+  { email: "alexis.rivera@demo.deadline-radar.com", firstName: "Alexis", staffLabel: "Alexis Rivera" },
+  { email: "sam.okafor@demo.deadline-radar.com", firstName: "Sam", staffLabel: "Sam Okafor" },
+  { email: "taylor.brooks@demo.deadline-radar.com", firstName: "Taylor", staffLabel: "Taylor Brooks" },
 ];
 
 /** Picks 5 distinct-state, nearest-deadline (state, license type) pairs for
  * DEMO_ROSTER_IDENTITIES above -- see that constant's own comment. Falls
  * back to repeating a state only if fewer than 5 distinct computable states
  * exist at all (never true in production; the dataset covers 50+). */
-function deriveDemoBaselineRoster(asOf: Date): { email: string; firstName: string; licenseTypeId: string; stateSlug: string }[] {
+function deriveDemoBaselineRoster(asOf: Date): { email: string; firstName: string; staffLabel: string; licenseTypeId: string; stateSlug: string }[] {
   const candidates = nearestSimpleFixedCalendarDeadlines(asOf);
   const picks: { licenseTypeId: string; stateSlug: string }[] = [];
   const pickedStates = new Set<string>();
@@ -2132,6 +2138,7 @@ export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<
       stateSlug: staffer.stateSlug,
       deadlineFields: { license_type_id: staffer.licenseTypeId },
       firstName: staffer.firstName,
+      staffLabel: staffer.staffLabel,
       firmId: firm.id,
       skipConfirmation: true,
     });
@@ -2190,18 +2197,112 @@ export async function reconcileDemoFirmRosterDeadlines(db: D1Database): Promise<
       .first<SubscriberRow>();
     if (!row) continue; // this reserved staffer isn't currently on the roster -- reseed's job, not this one's
 
-    const currentFields = JSON.parse(row.deadline_fields || "{}") as { license_type_id?: string };
-    if (row.state_slug === staffer.stateSlug && currentFields.license_type_id === staffer.licenseTypeId) {
-      continue; // already matches the current derived pick
+    // AuditLab outside-review DEMO-14 (2026-10-01): backfill staff_label on a
+    // row seeded before staffLabel existed in DEMO_ROSTER_IDENTITIES -- ONLY
+    // when it's currently empty, same "never clobber a visitor's own edit"
+    // posture as this function's own docstring. An empty string is the
+    // explicit-clear sentinel elsewhere in this file, so NULL is the only
+    // "never set" state worth backfilling. `updated` counts ROWS touched,
+    // not individual field-groups -- a row needing both this backfill AND
+    // the state/license reconcile below still counts once.
+    let rowChanged = false;
+    if (row.staff_label === null) {
+      await db
+        .prepare(`UPDATE subscribers SET staff_label = ?1, last_edited_at = ?2 WHERE id = ?3 AND firm_id = ?4`)
+        .bind(staffer.staffLabel, nowIso(), row.id, firm.id)
+        .run();
+      rowChanged = true;
     }
 
-    await db
-      .prepare(`UPDATE subscribers SET state_slug = ?1, deadline_fields = ?2, last_edited_at = ?3 WHERE id = ?4 AND firm_id = ?5`)
-      .bind(staffer.stateSlug, JSON.stringify({ license_type_id: staffer.licenseTypeId }), nowIso(), row.id, firm.id)
-      .run();
-    updated++;
+    const currentFields = JSON.parse(row.deadline_fields || "{}") as { license_type_id?: string };
+    if (row.state_slug !== staffer.stateSlug || currentFields.license_type_id !== staffer.licenseTypeId) {
+      await db
+        .prepare(`UPDATE subscribers SET state_slug = ?1, deadline_fields = ?2, last_edited_at = ?3 WHERE id = ?4 AND firm_id = ?5`)
+        .bind(staffer.stateSlug, JSON.stringify({ license_type_id: staffer.licenseTypeId }), nowIso(), row.id, firm.id)
+        .run();
+      rowChanged = true;
+    }
+    if (rowChanged) updated++;
   }
   return { updated };
+}
+
+// AuditLab outside-review DEMO-15 (2026-10-01): two neutral, state-agnostic
+// CPE entries reseeded onto the first two reserved identities every reset --
+// gives the CPE tab something to show without asserting a specific course
+// exists in any particular state's approved-provider list (which is exactly
+// the class of claim DEMO-1's ethics-course-named-after-the-wrong-state bug
+// made, by accident, via real visitor input).
+const DEMO_RESET_CPE_SEED: { staffEmail: string; hours: number; category: "ethics" | "general"; description: string }[] = [
+  { staffEmail: "jordan.mitchell@demo.deadline-radar.com", hours: 8, category: "general", description: "Sample entry" },
+  { staffEmail: "alexis.rivera@demo.deadline-radar.com", hours: 2, category: "ethics", description: "Professional ethics (state-approved)" },
+];
+
+/**
+ * AuditLab outside-review DEMO-1/DEMO-13/DEMO-14/DEMO-16 (2026-10-01): the
+ * shared live demo account is publicly editable by every visitor with no
+ * reset, so junk (extra staff rows) and wrong data (an ethics course named
+ * after a state the staffer isn't licensed in -- a real visitor typed a real
+ * wrong state, this wasn't a code bug) accumulate indefinitely. Nightly
+ * reset: remove every subscriber that isn't one of the 5 reserved demo
+ * identities, wipe every CPE entry on the demo firm (both reserved and
+ * visitor-added), clear the other visitor-mutable fields DEMO_ROSTER_IDENTITIES
+ * doesn't own (notes/office tag/snooze/fee), reseed two neutral CPE entries,
+ * then run the same state/license-type/staff-label reconciliation the
+ * `/firm/demo-login` path already runs on every visit. Hard DELETE, not the
+ * usual soft-delete convention -- this is synthetic, visitor-entered demo
+ * data with no audit-trail value to preserve, the opposite posture from a
+ * real customer's data.
+ */
+export async function resetDemoFirmToCleanState(db: D1Database): Promise<{ removedSubscribers: number; wipedCpeEntries: number }> {
+  const firm = await getDemoFirm(db);
+  if (!firm) return { removedSubscribers: 0, wipedCpeEntries: 0 };
+
+  const reservedEmails = DEMO_ROSTER_IDENTITIES.map((d) => d.email);
+  const placeholders = reservedEmails.map((_, i) => `?${i + 2}`).join(", ");
+  const extras = await db
+    .prepare(`SELECT id FROM subscribers WHERE firm_id = ?1 AND email NOT IN (${placeholders})`)
+    .bind(firm.id, ...reservedEmails)
+    .all<{ id: string }>();
+  const extraIds = (extras.results ?? []).map((r) => r.id);
+  for (const id of extraIds) {
+    await db.prepare(`DELETE FROM cpe_entries WHERE firm_id = ?1 AND subscriber_id = ?2`).bind(firm.id, id).run();
+    await db.prepare(`DELETE FROM subscribers WHERE firm_id = ?1 AND id = ?2`).bind(firm.id, id).run();
+  }
+
+  const wiped = await db.prepare(`DELETE FROM cpe_entries WHERE firm_id = ?1`).bind(firm.id).run();
+
+  await db
+    .prepare(
+      `UPDATE subscribers SET internal_notes = NULL, office_tag = NULL, snoozed_until = NULL,
+       renewal_fee_cents = NULL, last_edited_at = ?1 WHERE firm_id = ?2`
+    )
+    .bind(nowIso(), firm.id)
+    .run();
+
+  for (const seed of DEMO_RESET_CPE_SEED) {
+    const row = await db
+      .prepare(`SELECT id FROM subscribers WHERE firm_id = ?1 AND email = ?2 LIMIT 1`)
+      .bind(firm.id, seed.staffEmail)
+      .first<{ id: string }>();
+    if (!row) continue; // reseed (below, same caller) will have put it back; nothing to attach to yet
+    await addCpeEntry(db, {
+      firmId: firm.id,
+      subscriberId: row.id,
+      entryDate: nowIso().slice(0, 10),
+      hours: seed.hours,
+      category: seed.category,
+      description: seed.description,
+      enteredByFirmSessionId: null,
+      enteredByActorType: "admin",
+      certificateDocumentId: null,
+    });
+  }
+
+  await reseedDemoFirmRosterIfBelowFloor(db);
+  await reconcileDemoFirmRosterDeadlines(db);
+
+  return { removedSubscribers: extraIds.length, wipedCpeEntries: wiped.meta.changes ?? 0 };
 }
 
 /**

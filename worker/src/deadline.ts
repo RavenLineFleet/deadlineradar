@@ -37,6 +37,13 @@ export interface CpaRecord {
   id: string;
   state: string;
   state_slug: string;
+  // AuditLab outside-review DEMO-13 (2026-10-01): exposed so callers can
+  // exclude firm/entity-level records (license_type "firm"/"cpa_firm") from
+  // picks meant to represent a PERSON's own license -- see
+  // nearestSimpleFixedCalendarDeadlines() below. Values observed in the live
+  // data: "individual" | "individual_cpa" | "firm" | "cpa_firm" | "all"
+  // ("all" covers both on one shared deadline, safe to assign to a person).
+  license_type?: string | null;
   next_deadline_computed: string | null;
   // AuditLab DATE-3 (2026-08-21): present only on records generate.py's
   // DATE-2 fix knows how to roll forward once next_deadline_computed
@@ -598,6 +605,13 @@ export function nearestSimpleFixedCalendarDeadlines(
   const seen = new Set<string>();
   const out: { licenseTypeId: string; stateSlug: string; daysUntil: number }[] = [];
   for (const r of DATA.records) {
+    // AuditLab outside-review DEMO-13 (2026-10-01): a firm/entity-level
+    // record (e.g. mo-firm, md-firm) has no individual staff member behind
+    // it -- picking one for a PERSON's demo roster row produced a license
+    // type like "MO Firm" on a named individual, who then also appeared to
+    // be accruing CPE hours against a firm permit. "all" is fine: it covers
+    // both individual and firm on one shared deadline, not a firm-only record.
+    if (r.license_type === "firm" || r.license_type === "cpa_firm") continue;
     const key = `${r.state_slug}:${r.id}`;
     if (seen.has(key)) continue;
     seen.add(key);

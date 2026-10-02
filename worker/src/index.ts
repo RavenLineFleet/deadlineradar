@@ -13004,6 +13004,22 @@ export default {
         } catch (err) {
           console.log(`[demo-roster-cron] reconcile error: ${String(err)}`);
         }
+        try {
+          // AuditLab outside-review DEMO-1/16 (2026-10-01): the shared demo
+          // is publicly editable with no reset, so junk and wrong data
+          // accumulate indefinitely (a real visitor can type a real wrong
+          // state into a CPE course name -- that's not a bug the two passes
+          // above can catch, since both only ever touch state_slug/
+          // license_type_id/staff_label, never CPE entries or extra rows).
+          // Nightly-only, not per-login -- a full wipe on every demo login
+          // would erase a visitor's own just-added exploration mid-session.
+          const result = await store.resetDemoFirmToCleanState(env.DB);
+          console.log(
+            `[demo-reset-cron] removed ${result.removedSubscribers} extra subscriber(s), wiped ${result.wipedCpeEntries} cpe_entries row(s)`
+          );
+        } catch (err) {
+          console.log(`[demo-reset-cron] error: ${String(err)}`);
+        }
       })()
     );
 

@@ -25,6 +25,10 @@ import * as store from "../src/store";
 // test already claimed for its own, unrelated firm.
 beforeEach(async () => {
   await env.DB.prepare(`UPDATE firms SET demo_locked = 0 WHERE demo_locked = 1`).run();
+  // cpe_entries.subscriber_id REFERENCES subscribers(id) -- must clear
+  // first, or deleting subscribers below FK-violates on any test (like
+  // resetDemoFirmToCleanState's) that logged a CPE entry in a prior test.
+  await env.DB.prepare(`DELETE FROM cpe_entries`).run();
   await env.DB.prepare(`DELETE FROM subscribers`).run();
   await env.DB.prepare(`DELETE FROM activity_log`).run();
 });
@@ -67,6 +71,24 @@ describe("reseedDemoFirmRosterIfBelowFloor", () => {
     for (const row of rows) {
       const fields = JSON.parse(row.deadline_fields) as Record<string, string>;
       expect(fields.license_type_id).toBeTruthy();
+    }
+  });
+
+  // AuditLab outside-review DEMO-13/DEMO-14 (2026-10-01): a fresh seed must
+  // give every row a real display name (drRenderRow() shows an em dash
+  // otherwise), and never pick a firm/entity-level license type for a
+  // person-identity row (a "firm permit" showing CPE progress against a
+  // named individual).
+  it("every freshly seeded row has a staff_label and never an individual-attached firm license type", async () => {
+    await makeDemoFirm("named");
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+    const firm = (await env.DB.prepare(`SELECT id FROM firms WHERE demo_locked = 1`).first<{ id: string }>())!;
+    const rows = await store.listFirmLicenses(env.DB, firm.id);
+    expect(rows.length).toBeGreaterThanOrEqual(5);
+    for (const row of rows) {
+      expect(row.staff_label).toBeTruthy();
+      const fields = JSON.parse(row.deadline_fields) as Record<string, string>;
+      expect(fields.license_type_id).not.toMatch(/-firm$/);
     }
   });
 
@@ -209,5 +231,69 @@ describe("reconcileDemoFirmRosterDeadlines", () => {
     expect(result.updated).toBe(1); // only jordan's stale row is there to fix
     const rows = await store.listFirmLicenses(env.DB, firmId);
     expect(rows.length).toBe(1);
+  });
+});
+
+// AuditLab outside-review DEMO-1/DEMO-16 (2026-10-01): the shared demo is
+// publicly editable with no reset, so a real visitor can (and did) type a
+// real wrong state into a CPE course name -- not reproducible as a code bug,
+// only as accumulated live data, so these tests exercise the CLEANUP
+// mechanism rather than the original wrong-state scenario itself.
+describe("resetDemoFirmToCleanState", () => {
+  it("removes extra staff, wipes every CPE entry, and leaves the 5 reserved identities clean", async () => {
+    const firmId = await makeDemoFirm("reset");
+    await store.reseedDemoFirmRosterIfBelowFloor(env.DB);
+    const seeded = await store.listFirmLicenses(env.DB, firmId);
+    const jordan = seeded.find((r) => r.email === "jordan.mitchell@demo.deadline-radar.com")!;
+
+    // Simulate what a visitor actually did: add a junk extra staffer, and
+    // log a CPE entry naming a state that has nothing to do with jordan's.
+    await store.addPending(env.DB, {
+      email: "visitor.added@demo.deadline-radar.com",
+      stateSlug: "ohio",
+      deadlineFields: { license_type_id: "oh-individual" },
+      firstName: "Visitor",
+      firmId,
+      skipConfirmation: true,
+    });
+    await store.addCpeEntry(env.DB, {
+      firmId,
+      subscriberId: jordan.id,
+      entryDate: "2026-01-01",
+      hours: 4,
+      category: "ethics",
+      description: "Missouri ethics course",
+      enteredByFirmSessionId: null,
+      enteredByActorType: "admin",
+      certificateDocumentId: null,
+    });
+    await env.DB.prepare(`UPDATE subscribers SET internal_notes = ?1 WHERE id = ?2`)
+      .bind("visitor junk note", jordan.id)
+      .run();
+    expect(await store.countFirmLicenses(env.DB, firmId)).toBe(6);
+
+    const result = await store.resetDemoFirmToCleanState(env.DB);
+
+    expect(result.removedSubscribers).toBe(1);
+    expect(result.wipedCpeEntries).toBeGreaterThanOrEqual(1);
+    const rows = await store.listFirmLicenses(env.DB, firmId);
+    expect(rows.length).toBe(5);
+    expect(rows.map((r) => r.email)).not.toContain("visitor.added@demo.deadline-radar.com");
+    const jordanAfter = rows.find((r) => r.email === "jordan.mitchell@demo.deadline-radar.com")!;
+    expect(jordanAfter.internal_notes).toBeNull();
+    const cpe = await store.listCpeEntriesForFirm(env.DB, firmId);
+    const wrongStateEntry = cpe.find((e) => e.description === "Missouri ethics course");
+    expect(wrongStateEntry).toBeUndefined();
+    // Reseeded with the neutral, state-agnostic entries instead -- never
+    // asserting a specific course exists in any state's approved list.
+    expect(cpe.length).toBeGreaterThan(0);
+    for (const entry of cpe) {
+      expect(entry.description).not.toMatch(/Missouri|Maryland|Minnesota/);
+    }
+  });
+
+  it("no-ops cleanly when there is no demo firm at all", async () => {
+    const result = await store.resetDemoFirmToCleanState(env.DB);
+    expect(result).toEqual({ removedSubscribers: 0, wipedCpeEntries: 0 });
   });
 });

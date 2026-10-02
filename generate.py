@@ -13361,7 +13361,14 @@ var DR_DONUT_LABELS = {active: 'Active', pending: 'Pending', 'needs-attention': 
 // silently disagree about who counts.
 var DR_PROXIMITY_ORDER = ['active', 'due_soon', 'overdue'];
 var DR_PROXIMITY_COLORS = {active: '#1f9e5c', due_soon: '#9c7a12', overdue: '#c33737'};
-var DR_PROXIMITY_LABELS = {active: 'Active', due_soon: 'Due soon', overdue: 'Overdue'};
+// AuditLab outside-review DEMO-17 (2026-10-01): this legend's 'active' key
+// used to display as 'Active' too -- the SAME literal word the roster-status
+// donut's legend uses for a completely different axis (raw subscriber
+// status, not renewal-deadline proximity), so the dashboard could show
+// "Active (4)" and "Active (5)" side by side with no stated relationship.
+// 'On track' matches this card's own existing sub-label text, and is never
+// used as a roster-status word anywhere else on the page.
+var DR_PROXIMITY_LABELS = {active: 'On track', due_soon: 'Due soon', overdue: 'Overdue'};
 
 // Plain CSS conic-gradient, not an SVG pie -- no path-arc trigonometry needed
 // for a simple ring, and it's one element instead of N <path>s. order/colors/
@@ -13410,7 +13417,17 @@ function drRenderStats() {
   var proximity = {active: 0, due_soon: 0, overdue: 0};
   var atRisk = 0;
   drLicenses.forEach(function(item) {
-    var s = item.status || 'needs-attention';
+    // AuditLab outside-review DEMO-17 (2026-10-01): DR_DONUT_ORDER/
+    // DR_DONUT_LABELS only know 'active' (plus pending/needs-attention/
+    // opted_out), but a real staff row's actual stored status is almost
+    // always 'confirmed' (DR_STATUS_LABELS already displays it as "Active"
+    // everywhere else on this page -- the per-row table, aria-labels, etc.).
+    // Without this fold, every 'confirmed' row vanished from this donut's
+    // legend AND its conic-gradient segments entirely (still counted in
+    // `total`, just never drawn), which is what let the roster-status
+    // donut's own "Active (N)" disagree with the proximity donut's
+    // differently-defined "Active/On track (N)" next to it.
+    var s = item.status === 'confirmed' ? 'active' : (item.status || 'needs-attention');
     counts[s] = (counts[s] || 0) + 1;
     // AuditLab VIS-1 (MEDIUM, 2026-08-04, per product decision): opted-out staff
     // used to be excluded here entirely, so a firm's ONLY warning channel
@@ -13438,12 +13455,21 @@ function drRenderStats() {
   // usage against the limit up front (once the API has actually told us
   // what it is; drSeatCap starts null) is a normal SaaS dashboard
   // convention this was missing entirely.
-  var seatSub = drSeatCap !== null ? total + ' / ' + drSeatCap + ' staff tracked' : total + ' staff tracked';
+  // AuditLab outside-review DEMO-17 (2026-10-01): "5 / 20 staff tracked"
+  // read as an ambiguous ratio sitting right next to the Coverage card's
+  // actual percentage ("80%") -- easy to misread as a second, competing
+  // compliance number instead of what it actually is: plan SEAT usage.
+  // "X of Y seats used" names the axis explicitly.
+  var seatSub = drSeatCap !== null ? total + ' of ' + drSeatCap + ' seats used' : total + ' staff tracked';
 
   row.innerHTML =
     '<div class="dr-stat-card">' + drDonutSvg(proximity, total, DR_PROXIMITY_ORDER, DR_PROXIMITY_COLORS, DR_PROXIMITY_LABELS) +
       '<div><div class="dr-stat-label">Coverage</div><div class="dr-stat-value">' + proximityPct + '%</div>' +
-      '<div class="dr-stat-sub">on track</div></div></div>' +
+      // AuditLab outside-review DEMO-17: "on track" alone didn't say on
+      // track for WHAT -- this tile is renewal-deadline proximity only
+      // (days until next_deadline), unrelated to CPE-hours compliance,
+      // which has its own separate tracking elsewhere on this dashboard.
+      '<div class="dr-stat-sub">renewal timing on track</div></div></div>' +
     '<div class="dr-stat-card">' + drDonutSvg(counts, total) +
       '<div><div class="dr-stat-label">Roster status</div><div class="dr-stat-value">' + total + '</div>' +
       '<div class="dr-stat-sub">' + seatSub + '</div></div></div>' +
@@ -13702,6 +13728,12 @@ function drDismissOnboardingChecklist() {
 // it's deliberately not a tab -- see _dashboard_sidebar_html's own docstring)
 // needs a target selector for the same reason.
 var DR_PRODUCT_TOUR_STEPS = [
+  // AuditLab outside-review DEMO-18 (2026-10-01): the tour used to START on
+  // "Add staff", a mid-page button -- the very first thing a new visitor saw
+  // was the page jumping to scroll them to a button, with no orientation
+  // first. Starting on the stat row (top of the Roster view, no scroll
+  // needed) gives the coverage overview before anything else.
+  {view: 'roster', target: '#dr-stat-row', title: 'Your coverage overview', body: 'Coverage, roster status, and what is due soon -- this is the first thing worth checking whenever you log in.'},
   {view: 'roster', target: '#dr-add-staff', title: 'Add staff', body: 'Add one person here whenever a single new hire needs tracking -- no CSV needed for just one.'},
   {view: 'roster', target: '#dr-csv-import', title: 'Import your roster', body: 'Onboarding a whole team? Upload a CSV to add your full staff roster at once instead.'},
   {view: 'roster', title: 'Roster', body: 'Your full staff list and renewal status, all in one place -- this is home base.'},
@@ -13737,9 +13769,23 @@ function drPositionProductTour() {
   // position: fixed (see CSS) -- tracks the viewport, not document flow, so
   // this only needs the target's current on-screen rect, recomputed on
   // every step change and on resize (wired below).
+  // AuditLab outside-review DEMO-18 (2026-10-01): always placing the card at
+  // `rect.right + 14` with no viewport check clipped it off the right edge
+  // at narrower desktop widths (observed at 1366x900) whenever the target
+  // sat far enough right. Clamp both axes against the actual viewport; the
+  // sub-860px CSS override (`!important`, see .dr-product-tour) still wins
+  // on real phone widths regardless of what this computes.
   var rect = targetEl.getBoundingClientRect();
-  el.style.top = Math.max(12, rect.top + rect.height / 2 - el.offsetHeight / 2) + 'px';
-  el.style.left = (rect.right + 14) + 'px';
+  var cardWidth = el.offsetWidth || 260; // offsetWidth is 0 while [hidden]; 260 matches the CSS width
+  var left = rect.right + 14;
+  if (left + cardWidth > window.innerWidth - 12) {
+    left = rect.left - cardWidth - 14; // not enough room to the right -- try the left side instead
+  }
+  left = Math.max(12, Math.min(left, window.innerWidth - cardWidth - 12));
+  var top = Math.max(12, rect.top + rect.height / 2 - el.offsetHeight / 2);
+  top = Math.min(top, window.innerHeight - el.offsetHeight - 12);
+  el.style.top = top + 'px';
+  el.style.left = left + 'px';
 }
 
 // Devin design-quality pass (2026-08-28): the item the current step describes
