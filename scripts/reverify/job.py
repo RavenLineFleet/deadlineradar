@@ -109,14 +109,55 @@ def run(mode, push=True):
         shutil.copyfile(STATUS, os.path.join(PENDING, "reverify_status.json"))
     env = dict(os.environ, REVERIFY_STATE_DIR=PENDING)
     # --all: check every record, not only the >20-day ones (first live run, Orchestrator 10-02 13:08)
-    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []), check=False, env=env)
+    results = os.path.join(PENDING, "results.json")
+    r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []),
+           "--out", results, check=False, env=env)
     log(f"runner rc={r.returncode}: {r.stdout.strip()[-300:]}")
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
         return 1
+    if not sh("git", "status", "--porcelain", "--", *DATA_FILES).stdout.strip():
+        log("no data changes (nothing newly CONFIRMED); nothing to deploy")
+        if push:
+            _publish_status(True)
+        return 0
+    # A fetch run takes ~8 minutes, so a busy main often moves before the push. On a rejected push we
+    # reset to the new origin/main, REPLAY the saved CONFIRMED results (no re-fetch; records main changed
+    # meanwhile are skipped), and re-run every gate on exactly what will be pushed. Up to 3 attempts.
+    for attempt in range(1, 4):
+        if attempt > 1:
+            sh("git", "fetch", "origin", "main")
+            sh("git", "checkout", "--detach", "--force", "origin/main")
+            sh("git", "clean", "-fd", "data", "docs")
+            rp = sh(py, "scripts/reverify/runner.py", "--replay", results, check=False, env=env)
+            log(f"attempt {attempt}: replay onto {sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()}: {rp.stdout.strip()}")
+            if rp.returncode != 0:
+                note("REPLAY_FAILED", rp.stdout[-2000:] + rp.stderr[-2000:])
+                break
+        rc = _gate_commit(mode, py, push)
+        if rc != "pushed?":
+            return rc
+        p = sh("git", "push", "origin", "HEAD:main", check=False)
+        if p.returncode == 0:
+            sha = sh("git", "rev-parse", "--short", "HEAD").stdout.strip()
+            log(f"pushed {sha} to main (attempt {attempt})")
+            note("WORKER_DEPLOY_NEEDED", f"reverify pushed {sha}: worker/src/*.json data copies changed (verified dates). "
+                                         f"The Worker is not auto-deployed by the unattended job; please run "
+                                         f"scripts/deploy_worker.py when convenient so the API's data_as_of catches up.")
+            sh("git", "fetch", "origin", "main")
+            _publish_status(True)
+            return 0
+        log(f"attempt {attempt}: push rejected ({p.stderr.strip().splitlines()[-1] if p.stderr.strip() else 'no stderr'})")
+    note("PUSH_FAILED", f"push to main failed after replay retries; nothing deployed.\n{p.stderr[-1500:]}")
+    _publish_status(False, "push failed")
+    return 3
+
+
+def _gate_commit(mode, py, push):
+    """Mirror worker copies, run all gates, commit. Returns an exit code, or "pushed?" when ready to push."""
     changed = sh("git", "status", "--porcelain", "--", *DATA_FILES).stdout.strip()
     if not changed:
-        log("no data changes (nothing newly CONFIRMED); nothing to deploy")
+        log("nothing left to commit after replay (main already carries these dates)")
         if push:
             _publish_status(True)
         return 0
@@ -141,28 +182,12 @@ def run(mode, push=True):
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",
        f"reverify: automated {mode} re-verification {datetime.now():%Y-%m-%d} ({n} data file(s) updated)")
+    # derived artifacts the gates rewrite but we don't commit (e.g. data/gap_list.json) must not block a reset
+    sh("git", "checkout", "--force", "--", ".")
     if not push:
         log("--no-push: committed in job worktree only")
         return 0
-    for attempt in range(2):
-        p = sh("git", "push", "origin", "HEAD:main", check=False)
-        if p.returncode == 0:
-            sha = sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()
-            log(f"pushed {sha} to main")
-            note("WORKER_DEPLOY_NEEDED", f"reverify pushed {sha}: worker/src/*.json data copies changed (verified dates). "
-                                         f"The Worker is not auto-deployed by the unattended job; please run "
-                                         f"scripts/deploy_worker.py when convenient so the API's data_as_of catches up.")
-            sh("git", "fetch", "origin", "main")
-            _publish_status(True)
-            return 0
-        sh("git", "fetch", "origin", "main")
-        rb = sh("git", "rebase", "origin/main", check=False)   # main moved under us: replay our data-only commit once
-        if rb.returncode != 0:
-            sh("git", "rebase", "--abort", check=False)
-            break
-    note("PUSH_FAILED", f"commit made in {JOB_DIR} but push to main failed; nothing deployed.\n{p.stderr[-1500:]}")
-    _publish_status(False, "push failed")
-    return 3
+    return "pushed?"
 
 
 def main():
