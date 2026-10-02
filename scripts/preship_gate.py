@@ -4339,7 +4339,16 @@ def check_sitemap_completeness(html_files: list[Path], docs_dir: Path) -> list[s
         if f.name != "index.html":
             continue
         text = f.read_text(encoding="utf-8")
-        if 'name="robots" content="noindex"' in text:
+        # SEO fix (2026-10-02): this used to match only the exact literal
+        # content="noindex" -- a real noindex,follow page (GrowthLab's
+        # thin-page fix) carries content="noindex,follow" instead, which
+        # doesn't contain that substring, so this check called those pages
+        # "indexable" and flagged them as missing from the sitemap even
+        # though excluding them from the sitemap is the whole point. Now
+        # matches any robots directive whose comma-separated token list
+        # includes "noindex", not just the single bare value.
+        robots_match = re.search(r'<meta\s+name="robots"\s+content="([^"]*)"', text)
+        if robots_match and "noindex" in {t.strip() for t in robots_match.group(1).split(",")}:
             continue
         rel = f.relative_to(docs_dir).parent.as_posix()
         indexable_paths.add("/" if rel == "." else f"/{rel}/")

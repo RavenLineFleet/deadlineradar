@@ -21750,6 +21750,23 @@ def load_reinstatement_by_slug() -> dict[str, dict]:
 
 REINSTATEMENT_PAGES: list[dict] = []
 
+# SEO fix (Orchestrator-approved, 2026-10-02, GrowthLab diagnosis of the 07-25 ranking
+# cliff): these 34 reinstatement pages are structurally thin (unique-token ratio under
+# 9% even counting digits) AND had 0 GSC impressions in the trailing 90 days, so
+# noindexing them costs no real traffic while stopping them diluting site quality.
+# Pages stay live, built, and internally linked -- noindex,follow only (not noindex,
+# nofollow) and dropped from sitemap.xml. One constant to revert: empty this set (or
+# remove individual slugs once GrowthLab's next re-measure, post-boilerplate-cut,
+# shows a page has cleared the thinness bar) and both effects disappear automatically.
+SEO_NOINDEX_REINSTATEMENT_SLUGS: frozenset[str] = frozenset({
+    "alaska", "arizona", "arkansas", "colorado", "connecticut", "dc", "delaware",
+    "georgia", "idaho", "indiana", "kentucky", "louisiana", "maine", "maryland",
+    "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "nebraska",
+    "nevada", "new-hampshire", "new-mexico", "north-carolina", "north-dakota",
+    "oklahoma", "oregon", "rhode-island", "utah", "virginia", "washington",
+    "west-virginia", "wisconsin", "wyoming",
+})
+
 
 def _firm_relevant_record(records: list[dict]) -> dict | None:
     """Picks the record that best represents a state's FIRM-level registration/permit,
@@ -22037,10 +22054,7 @@ def build_cpe_hours_page(
     )
 
     body = f"""<h1>{esc(title)}</h1>
-<p class="intro">How much continuing professional education {indefinite_article(state_name)} {esc(state_name)} CPA actually
-needs &mdash; sourced the same way every fact on this site is: a board page, plus the codified rule
-itself where we could confirm it against primary law, clearly labelled where we could only confirm it
-against the board's own page, never a guess.</p>
+<p class="intro">See <a href="/methodology/">how we verify every figure on this site</a>.</p>
 
 <div class="callout">
   {verified_badge_html}
@@ -22487,11 +22501,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
 
     body = f"""<h1>{esc(title)}</h1>
 <p class="subhead">If your {esc(state_name)} CPA license has already lapsed</p>
-<p class="intro">What it actually takes to get a lapsed {esc(state_name)} CPA license back &mdash;
-the fee, the catch-up CPE, and exactly what triggers "lapsed" in the first place. Sourced the same
-way every fact on this site is: a board page, plus the codified rule itself where we could confirm it
-against primary law, clearly labelled where we could only confirm it against the board's own page,
-never a guess.</p>
+<p class="intro">See <a href="/methodology/">how we verify every figure on this site</a>.</p>
 
 <div class="callout">
   {verified_badge_html}
@@ -22536,6 +22546,8 @@ never a guess.</p>
     html = page_shell(
         f"{seo_title} — {SITE_NAME}", meta_description, body, home_href="../",
         canonical_path=f"/{slug}/", json_ld=json_ld, has_remind_anchor=True,
+        extra_head='<meta name="robots" content="noindex,follow">'
+        if record["state_slug"] in SEO_NOINDEX_REINSTATEMENT_SLUGS else "",
     )
     return slug, title, html
 
@@ -24733,6 +24745,12 @@ def build_sitemap(states: list[dict], as_of: date, es_ready: dict[str, bool] | N
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""")
     for p in REINSTATEMENT_PAGES:
+        # SEO fix (2026-10-02): noindex,follow pages are dropped from the sitemap
+        # too (a sitemap entry for a page telling crawlers not to index it is a
+        # contradictory signal) -- see SEO_NOINDEX_REINSTATEMENT_SLUGS's own
+        # comment for the full rationale and revert path.
+        if p["state_slug"] in SEO_NOINDEX_REINSTATEMENT_SLUGS:
+            continue
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
@@ -25044,7 +25062,7 @@ def main() -> None:
         page_dir = SITE_DIR / slug
         page_dir.mkdir(parents=True, exist_ok=True)
         (page_dir / "index.html").write_text(page_html, encoding="utf-8")
-        REINSTATEMENT_PAGES.append({"slug": slug, "state_name": reinstatement_record["state"]})
+        REINSTATEMENT_PAGES.append({"slug": slug, "state_name": reinstatement_record["state"], "state_slug": state_slug})
         print(f"wrote {SITE_DIR.name}/{slug}/index.html  ({title})")
 
     # /compare/ (hub + per-competitor pages) removed 2026-08-12, Devin's decision
