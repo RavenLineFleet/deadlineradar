@@ -110,6 +110,7 @@ def run(mode, push=True):
     env = dict(os.environ, REVERIFY_STATE_DIR=PENDING)
     # --all: check every record, not only the >20-day ones (first live run, Orchestrator 10-02 13:08)
     results = os.path.join(PENDING, "results.json")
+    base = sh("git", "rev-parse", "HEAD").stdout.strip()     # the commit this fetch runs against (REPLAY-1)
     r = sh(py, "scripts/reverify/runner.py", "--apply", *(["--all"] if "--all" in sys.argv else []),
            "--out", results, check=False, env=env)
     log(f"runner rc={r.returncode}: {r.stdout.strip()[-300:]}")
@@ -129,7 +130,7 @@ def run(mode, push=True):
             sh("git", "fetch", "origin", "main")
             sh("git", "checkout", "--detach", "--force", "origin/main")
             sh("git", "clean", "-fd", "data", "docs")
-            rp = sh(py, "scripts/reverify/runner.py", "--replay", results, check=False, env=env)
+            rp = sh(py, "scripts/reverify/runner.py", "--replay", results, "--base", base, check=False, env=env)
             log(f"attempt {attempt}: replay onto {sh('git', 'rev-parse', '--short', 'HEAD').stdout.strip()}: {rp.stdout.strip()}")
             if rp.returncode != 0:
                 note("REPLAY_FAILED", rp.stdout[-2000:] + rp.stderr[-2000:])
