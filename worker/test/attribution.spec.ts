@@ -13,9 +13,18 @@ import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 
 const BASE = "https://deadline-radar.com";
+const ATTR_SECRET = "attr-test-secret-not-real";
 
 function form(fields: Record<string, string>): string {
   return new URLSearchParams(fields).toString();
+}
+
+function testExecutionContext(): ExecutionContext {
+  return {
+    waitUntil() {},
+    passThroughOnException() {},
+    props: {},
+  } as unknown as ExecutionContext;
 }
 
 async function postAttr(src: string | undefined, ip: string): Promise<Response> {
@@ -28,8 +37,17 @@ async function postAttr(src: string | undefined, ip: string): Promise<Response> 
   });
 }
 
-async function getAttrSummary(ip: string): Promise<Response> {
-  return SELF.fetch(`${BASE}/attr/summary`, { headers: { "cf-connecting-ip": ip } });
+/** Orchestrator ruling (2026-10-02): /api/attr/summary is business data,
+ * gated behind ATTR_SUMMARY_SECRET (same X-Debug-Secret pattern as POST
+ * /debug/run-reminder-pass) -- SELF.fetch can't inject a per-test env
+ * override, so this goes through worker.fetch() directly, same as
+ * email-allowlist.spec.ts's debug-reminder-pass tests. */
+async function getAttrSummary(ip: string, secretHeader?: string): Promise<Response> {
+  const worker = (await import("../src/index")).default;
+  const envWithSecret = { ...env, ATTR_SUMMARY_SECRET: ATTR_SECRET };
+  const headers: Record<string, string> = { "cf-connecting-ip": ip };
+  if (secretHeader !== undefined) headers["X-Debug-Secret"] = secretHeader;
+  return worker.fetch(new Request(`${BASE}/attr/summary`, { headers }), envWithSecret, testExecutionContext());
 }
 
 async function attrRow(date: string, src: string): Promise<{ hit_count: number } | null> {
@@ -90,10 +108,20 @@ describe("POST /attr", () => {
 });
 
 describe("GET /attr/summary", () => {
-  it("reflects what POST /attr recorded", async () => {
+  it("404s with no X-Debug-Secret header at all", async () => {
+    const resp = await getAttrSummary("203.0.113.60");
+    expect(resp.status).toBe(404);
+  });
+
+  it("404s with the wrong secret", async () => {
+    const resp = await getAttrSummary("203.0.113.61", "wrong-value");
+    expect(resp.status).toBe(404);
+  });
+
+  it("reflects what POST /attr recorded, when the secret matches", async () => {
     const ip = "203.0.113.45";
     await postAttr("ma", ip);
-    const resp = await getAttrSummary(ip);
+    const resp = await getAttrSummary(ip, ATTR_SECRET);
     expect(resp.status).toBe(200);
     const body = (await resp.json()) as { rows: { date: string; src: string; hit_count: number }[] };
     const today = new Date().toISOString().slice(0, 10);
@@ -109,7 +137,7 @@ describe("GET /attr/summary", () => {
     )
       .bind(oldDate, "rd")
       .run();
-    const resp = await getAttrSummary("203.0.113.46");
+    const resp = await getAttrSummary("203.0.113.46", ATTR_SECRET);
     const body = (await resp.json()) as { rows: { date: string; src: string }[] };
     expect(body.rows.some((r) => r.date === oldDate)).toBe(false);
   });

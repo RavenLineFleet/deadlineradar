@@ -219,6 +219,17 @@ export interface Env {
    * ASSISTANT_DROPLET_SHARED_SECRET/TURNSTILE_SECRET_KEY.
    */
   DEBUG_REMINDER_PASS_SECRET?: string;
+  /**
+   * Orchestrator ruling, 2026-10-02: GET /api/attr/summary (traffic-
+   * attribution counts) is business data, not public -- gated the same
+   * way as DEBUG_REMINDER_PASS_SECRET above (its own comment has the full
+   * rationale for the pattern): compare the request's `X-Debug-Secret`
+   * header with constantTimeEqual(), 404 on any mismatch or absence. Its
+   * own dedicated secret, not reused from DEBUG_REMINDER_PASS_SECRET --
+   * same "decoupled, not shared" posture that comment explains. Set via
+   * `wrangler secret put`, never in wrangler.toml, never committed.
+   */
+  ATTR_SUMMARY_SECRET?: string;
   SEND_APPROVED_PASSES?: string;
   ACTION_BASE_URL?: string;
   STATIC_SITE_BASE_URL?: string;
