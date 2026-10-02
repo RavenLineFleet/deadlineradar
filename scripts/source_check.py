@@ -275,9 +275,49 @@ def _extract_docx(body: bytes) -> str | None:
         return None
 
 
+def _decode_html_body(body: bytes) -> str:
+    """UTF-16 (2026-10-02, HomeLab P0 sweep): sdlegislature.gov serves its
+    /api/Rules/*.html endpoints as UTF-16LE with no BOM and no charset in
+    Content-Type. Blindly decoding as UTF-8 doesn't raise (errors=replace
+    silently swallows every null byte) -- it produces plausible-looking
+    character-spaced text ("R u l e 2 0 : 7 5") that passes through every
+    downstream check as if it were a real, if odd, document, while every
+    anchor/value in it is actually unmatchable. AuditLab's STALE-8 found the
+    symptom (a rule identifier resolves but numeric fields don't); this is
+    the root cause. Detect via a BOM when present, else sniff: in true
+    UTF-16, half the bytes in an ASCII-heavy document are 0x00, concentrated
+    at one parity of byte offset."""
+    if body[:2] == b"\xff\xfe":
+        try:
+            return body.decode("utf-16-le")
+        except UnicodeDecodeError:
+            pass
+    elif body[:2] == b"\xfe\xff":
+        try:
+            return body.decode("utf-16-be")
+        except UnicodeDecodeError:
+            pass
+    elif len(body) >= 64:
+        sample = body[:2000]
+        even_zeros = sum(1 for i in range(0, len(sample), 2) if sample[i] == 0)
+        odd_zeros = sum(1 for i in range(1, len(sample), 2) if sample[i] == 0)
+        half = len(sample) / 2
+        if odd_zeros > half * 0.6:
+            try:
+                return body.decode("utf-16-le")
+            except UnicodeDecodeError:
+                pass
+        elif even_zeros > half * 0.6:
+            try:
+                return body.decode("utf-16-be")
+            except UnicodeDecodeError:
+                pass
+    return body.decode("utf-8", errors="replace")
+
+
 def _extract_html(body: bytes) -> str | None:
     try:
-        raw = body.decode("utf-8", errors="replace")
+        raw = _decode_html_body(body)
     except Exception:
         return None
     raw = re.sub(r"<script\b.*?</script\s*>", " ", raw, flags=re.S | re.I)

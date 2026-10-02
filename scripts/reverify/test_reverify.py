@@ -520,3 +520,34 @@ def test_manual_ticket_carries_excerpt_and_robots_reason(env):
     assert "offset=" in body and "[[The reinstatement fee" in body and "https://x.gov/m" in body
     assert "blocked.gov/f disallows automated fetching (robots.txt)" in body
     assert "https://blocked.gov/f" not in ff.calls                           # never fetched
+
+
+# ---------------- _extract_html UTF-16 detection (2026-10-02, HomeLab P0 sweep) ----------------
+# sdlegislature.gov serves its /api/Rules/*.html pages as UTF-16LE with no BOM and no charset in
+# Content-Type. The old code decoded every body as UTF-8 with errors="replace", which never raises
+# on UTF-16 bytes -- it silently produces plausible character-spaced text ("R u l e 2 0") that
+# passes every downstream check as a real document while no anchor or value in it can ever match.
+
+def test_extract_html_detects_bomless_utf16le():
+    # Real shape: an ASCII-heavy HTML page, UTF-16LE encoded, no BOM.
+    html = "<html><body><p>Rule 20:75:04:08. Returning active certificate holders. 24 hours.</p></body></html>"
+    body = html.encode("utf-16-le")
+    text = fetch._extract_html(body)
+    assert "24 hours" in text, f"UTF-16LE body not detected/decoded: {text[:120]!r}"
+    assert " R u l e " not in f" {text} ", f"decoded as UTF-8 instead of UTF-16LE: {text[:120]!r}"
+
+
+def test_extract_html_detects_utf16_with_bom():
+    html = "<html><body><p>Rule text with a real BOM. 24 hours.</p></body></html>"
+    body = b"\xff\xfe" + html.encode("utf-16-le")
+    text = fetch._extract_html(body)
+    assert "24 hours" in text, f"BOM'd UTF-16LE body not decoded: {text[:120]!r}"
+
+
+def test_extract_html_still_reads_normal_utf8():
+    # Regression control: an ordinary ASCII/UTF-8 page must not be misdetected as UTF-16 by the
+    # byte-parity heuristic (it has no systematic run of null bytes at either parity).
+    html = "<html><body><p>Fee schedule. Renewal of certificate (biennial): $150.00.</p></body></html>"
+    body = html.encode("utf-8")
+    text = fetch._extract_html(body)
+    assert "$150.00" in text, f"normal UTF-8 body mis-detected as UTF-16: {text[:120]!r}"
