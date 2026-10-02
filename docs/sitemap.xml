@@ -11,6 +11,13 @@
   <url>
     <loc>https://deadline-radar.com/contact/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/contact/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/contact/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/contact/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/contact/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/contact/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/terms/</loc>
@@ -35,18 +42,46 @@
   <url>
     <loc>https://deadline-radar.com/pricing/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/pricing/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/pricing/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/pricing/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/pricing/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/pricing/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/practice-privilege-check/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/practice-privilege-check/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/practice-privilege-check/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/practice-privilege-check/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/practice-privilege-check/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/practice-privilege-check/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/multi-state-firms/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/multi-state-firms/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/multi-state-firms/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/multi-state-firms/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/multi-state-firms/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/multi-state-firms/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/deadline-calculator/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/deadline-calculator/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/deadline-calculator/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/deadline-calculator/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/deadline-calculator/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/deadline-calculator/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/roadmap/</loc>
@@ -63,6 +98,13 @@
   <url>
     <loc>https://deadline-radar.com/methodology/</loc>
     <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/methodology/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/methodology/"/>
+  </url>  <url>
+    <loc>https://deadline-radar.com/es/methodology/</loc>
+    <lastmod>2026-10-02</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/methodology/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/methodology/"/>
   </url>
   <url>
     <loc>https://deadline-radar.com/changelog/</loc>

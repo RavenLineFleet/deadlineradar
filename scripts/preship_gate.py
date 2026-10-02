@@ -50,7 +50,11 @@ LEAK_PATTERNS = [
     r"\bdo not (?:compute|display|publish)\b",
     r"\borchestrator-recommended\b",
     r"\ban earlier draft\b",
-    r"\bTODO\b",
+    # Case-sensitive on purpose (ES-1, 2026-10-02): the group's own IGNORECASE
+    # flag would otherwise match the common Spanish word "todo" ("all/every")
+    # on every page with real Spanish prose -- found when the first reviewed
+    # ES batch landed and lit up 6 false positives across 5 pages.
+    r"(?-i:\bTODO\b)",
     r"\{\{.*?\}\}",
     r"\bundefined\b",
     r"\bNaN\b",
@@ -114,6 +118,11 @@ LEAK_RE = re.compile("|".join(LEAK_PATTERNS), re.IGNORECASE)
 EMPTY_TAG_RE = re.compile(r"<(em|p|li|strong|span|h[1-6])>\s*</\1>", re.IGNORECASE)
 
 DISCLAIMER_PHRASE = "affiliated with"
+# ES-1 (2026-10-02): once footer.disclaimer_bold/_rest are reviewed=True, an
+# /es/ page renders the Spanish disclaimer instead of falling back to
+# English, so the English-only phrase above stops matching real, compliant
+# pages. Checked case-insensitively since the accented capital varies.
+DISCLAIMER_PHRASE_ES = "no está afiliado"
 REQUIRED_ADDRESS = "18121 E Hampden Ave, Unit C #1324, Aurora, CO 80013"
 
 # AuditLab GATE-2 (2026-08-05, LOW): check_stylesheet_integrity's three
@@ -1359,7 +1368,7 @@ def check_legal_safety(html_files: list[Path], state_page_files: list[Path]) -> 
     errors = []
     for f in html_files:
         text = f.read_text(encoding="utf-8")
-        if DISCLAIMER_PHRASE not in text:
+        if DISCLAIMER_PHRASE not in text and DISCLAIMER_PHRASE_ES not in text.lower():
             errors.append(f"[F][{f}] missing non-affiliation disclaimer")
     for f in state_page_files:
         text = f.read_text(encoding="utf-8")
