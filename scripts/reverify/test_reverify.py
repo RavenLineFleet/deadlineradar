@@ -458,3 +458,12 @@ def test_replay_reapplies_confirmed_and_respects_changed_main(env, tmp_path):
     recs["records"][0]["fee_usd"] = 175                                # main changed a-fee meanwhile
     (tmp / "data" / "renewal_fees.json").write_text(json.dumps(recs), encoding="utf-8")
     assert runner.replay(str(sp)) == 0 and _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"
+
+
+def test_stale24_substantive_reasons_mentioning_pdf_or_numbers_are_held():
+    """AuditLab STALE-24: topic words must not classify as tooling."""
+    for gap in ["the board's PDF and its web fee page state different figures; a human must decide which governs",
+                "two sources disagree on whether the fee is 500 or 550; unresolved",
+                "the cited chapter may have been superseded; needs human judgment",
+                "needs a human to confirm which cycle this governs"]:
+        assert not runner.gap_is_tooling(gap), gap
