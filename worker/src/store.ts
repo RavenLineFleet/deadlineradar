@@ -3532,7 +3532,7 @@ export async function setRosterActivePicks(db: D1Database, firmId: string, activ
   // trips, so between the wholesale unpause and the re-pause-not-in-list
   // statement the firm had NO pause state at all. db.batch() runs as one
   // transaction, closing that window -- same idiom this file already uses
-  // in issueSubscriberLoginToken() for the identical hazard.
+  // in createSubscriberLoginToken() for the identical hazard.
   const placeholders = activeSubscriberIds.map((_, i) => `?${i + 2}`).join(", ");
   await db.batch([
     markerStmt,
