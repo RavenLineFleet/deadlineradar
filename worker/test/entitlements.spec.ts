@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkPaidFeatureAccess, isPreCutoverSignup, paidFeatureDenialMessage, VALUE_LINE_CUTOVER_DATE } from "../src/entitlements";
+import { checkPaidFeatureAccess, hasActiveTrial, hasValueLineAccess, isPreCutoverSignup, paidFeatureDenialMessage, VALUE_LINE_CUTOVER_DATE } from "../src/entitlements";
 
 // AuditLab TIER-1 (LOW, 2026-08-29): isPreCutoverSignup() used to compare
 // createdAt against VALUE_LINE_CUTOVER_DATE as STRINGS. The constant has no
@@ -122,6 +122,67 @@ describe("paid tiers", () => {
 
   it("a paid tier is not time-bounded -- there is no expiration to check at all anymore", () => {
     expect(checkPaidFeatureAccess(firm({ plan_tier: "firm" })).allowed).toBe(true);
+  });
+});
+
+// SecurityLab TRIAL-1 (MEDIUM, 2026-10-02): hasValueLineAccess()'s trial OR
+// (and, pre-existing, its grandfather OR) used to apply with no `status`
+// check -- a requestFirmDeletion()'d firm ('deleted') kept getting
+// Slack/Teams/document sends for the rest of an active trial window, or
+// forever if pre-cutover-grandfathered, defeating that function's own
+// documented purpose. Each "should deny" case below is a positive control:
+// it fails against the pre-fix `access.allowed || isPreCutoverSignup(...)
+// || hasActiveTrial(...)` shape (that shape ignores status entirely once a
+// trial or grandfather condition is true), and only passes once the
+// `access.reason === "tier_not_paid"` status gate wraps both exceptions.
+function entitlementFirm(over: Partial<{ plan_tier: string; status: string; created_at: string; trial_ends_at: string | null }> = {}) {
+  return {
+    plan_tier: "free",
+    status: "active",
+    created_at: "2026-09-01T00:00:00Z", // well after VALUE_LINE_CUTOVER_DATE -- not grandfathered
+    trial_ends_at: null as string | null,
+    ...over,
+  };
+}
+const FUTURE_TRIAL = "2099-01-01T00:00:00Z";
+const PAST_TRIAL = "2020-01-01T00:00:00Z";
+
+describe("hasValueLineAccess() -- SecurityLab TRIAL-1", () => {
+  it("a deleted firm on an active trial is denied, not granted", () => {
+    const firm = entitlementFirm({ status: "deleted", trial_ends_at: FUTURE_TRIAL });
+    expect(hasActiveTrial(firm.trial_ends_at)).toBe(true); // control: the trial itself is genuinely live
+    expect(hasValueLineAccess(firm)).toBe(false);
+  });
+
+  it("a deleted, pre-cutover-grandfathered firm is denied too -- the same status gate closes both exceptions", () => {
+    const firm = entitlementFirm({ status: "deleted", created_at: "2026-01-01T00:00:00Z" });
+    expect(isPreCutoverSignup(firm.created_at)).toBe(true); // control: genuinely pre-cutover
+    expect(hasValueLineAccess(firm)).toBe(false);
+  });
+
+  it("a suspended firm on an active trial is denied (firm_inactive, not just the deleted case)", () => {
+    const firm = entitlementFirm({ status: "suspended", trial_ends_at: FUTURE_TRIAL });
+    expect(hasValueLineAccess(firm)).toBe(false);
+  });
+
+  it("owner control: an ACTIVE firm on an active trial still gets access -- the fix must not deny everything", () => {
+    const firm = entitlementFirm({ status: "active", trial_ends_at: FUTURE_TRIAL });
+    expect(hasValueLineAccess(firm)).toBe(true);
+  });
+
+  it("owner control: an active, pre-cutover-grandfathered firm still gets access", () => {
+    const firm = entitlementFirm({ status: "active", created_at: "2026-01-01T00:00:00Z" });
+    expect(hasValueLineAccess(firm)).toBe(true);
+  });
+
+  it("owner control: an active firm on a real paid tier gets access regardless of trial/grandfather state", () => {
+    const firm = entitlementFirm({ status: "active", plan_tier: "firm_starter", trial_ends_at: PAST_TRIAL });
+    expect(hasValueLineAccess(firm)).toBe(true);
+  });
+
+  it("a deleted firm with an expired trial is denied (control: both the trial-expiry path and the status gate deny it)", () => {
+    const firm = entitlementFirm({ status: "deleted", trial_ends_at: PAST_TRIAL });
+    expect(hasValueLineAccess(firm)).toBe(false);
   });
 });
 

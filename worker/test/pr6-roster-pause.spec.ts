@@ -37,9 +37,25 @@ async function createFirmWithSession(name: string, adminEmail: string): Promise<
   return { firmId: firm.id, cookie: `dr_firm_session=${rawSessionToken}` };
 }
 
+// PR6-D (2026-10-02): trial end alone no longer triggers the automatic
+// default-pause -- there's a 7-day grace window after it (see
+// rosterPauseGraceHasElapsed() in store.ts). This helper moves the clock
+// comfortably PAST that grace window (8 days, not 1), so every test in this
+// file that asserts the default-pause OUTCOME keeps testing that outcome
+// rather than accidentally testing grace-window timing it didn't intend to.
+// expireTrialWithinGrace() below is the one that tests the grace window
+// itself.
 async function expireTrial(firmId: string): Promise<void> {
   await env.DB.prepare("UPDATE firms SET trial_ends_at = ?1 WHERE id = ?2")
-    .bind(new Date(Date.now() - 86_400_000).toISOString(), firmId)
+    .bind(new Date(Date.now() - 8 * 86_400_000).toISOString(), firmId)
+    .run();
+}
+
+/** Trial ended 2 days ago -- lapsed, but still inside the 7-day PR6-D grace
+ * window. Used only by the tests that specifically prove grace behavior. */
+async function expireTrialWithinGrace(firmId: string): Promise<void> {
+  await env.DB.prepare("UPDATE firms SET trial_ends_at = ?1 WHERE id = ?2")
+    .bind(new Date(Date.now() - 2 * 86_400_000).toISOString(), firmId)
     .run();
 }
 
@@ -128,6 +144,62 @@ describe("store.reconcileRosterPauseState -- the default (no admin pick)", () =>
     }
     const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
     expect(reconciled.every((r) => r.paused_at === null)).toBe(true);
+  });
+});
+
+describe("store.reconcileRosterPauseState -- PR6-D grace window (day 14-21)", () => {
+  it("does NOT auto-pause anyone while the trial has lapsed but grace hasn't elapsed, even far over cap", async () => {
+    const { firmId } = await createFirmWithSession("Grace Firm A", `grace-a-${Date.now()}@example.com`);
+    await fillRosterStaggered(firmId, 6, "grace-a");
+    await expireTrialWithinGrace(firmId); // lapsed 2 days ago -- inside the 7-day grace
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    expect(reconciled.every((r) => r.paused_at === null)).toBe(true);
+  });
+
+  it("unpauses anyone the OLD (pre-PR6-D) logic had already paused, once re-reconciled inside the grace window", async () => {
+    // Guards against a version of the fix that only skips the FIRST pause
+    // but doesn't reverse one a stale run already applied.
+    const { firmId } = await createFirmWithSession("Grace Firm B", `grace-b-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "grace-b");
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), ids[5]).run();
+    await expireTrialWithinGrace(firmId);
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    expect(reconciled.every((r) => r.paused_at === null)).toBe(true);
+  });
+
+  it("the automatic default DOES apply once the grace window has fully elapsed (>= day 21)", async () => {
+    const { firmId } = await createFirmWithSession("Grace Firm C", `grace-c-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "grace-c");
+    await expireTrial(firmId); // 8 days past trial end -- past the 7-day grace
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual(ids.slice(0, 3).sort());
+  });
+
+  it("the admin's own explicit pick applies immediately even DURING the grace window -- grace only delays the AUTOMATIC default", async () => {
+    const { firmId } = await createFirmWithSession("Grace Firm D", `grace-d-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "grace-d");
+    await expireTrialWithinGrace(firmId);
+
+    const chosen = ids.slice(3); // the latest 3, not the earliest-3 default
+    await store.setRosterActivePicks(env.DB, firmId, chosen);
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual([...chosen].sort());
+  });
+
+  it("a firm with no trial_ends_at at all (pre-PR6) has no grace window -- reconciles immediately", async () => {
+    const { firmId } = await createFirmWithSession("Grace Firm E", `grace-e-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "grace-e");
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual(ids.slice(0, 3).sort());
   });
 });
 
