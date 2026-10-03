@@ -1,4 +1,11 @@
-"""One-off teardown of 4 of the 5 leftover `is_test_tenant=1` firms found
+"""Historical record only -- already run (2026-10-02), do not re-run.
+Superseded by scripts/teardown_test_firms.py, which discovers its table
+list from sqlite_master at runtime instead of hand-rolling CHILD_TABLES
+below; AuditLab found this hand list missed 5 of 19 firm_id tables, whose
+orphan rows that script's sweep-orphans mode later cleaned up (inbox/
+auditlab_20261002_CRAWL8_closed_teardown_review_probe_firm.md).
+
+One-off teardown of 4 of the 5 leftover `is_test_tenant=1` firms found
 during the SecurityLab #5/#11 test-account cleanup (2026-10-02). Orchestrator
 directive: "Tear down any not in active use; ask AuditLab before touching its
 probe firm." All 4 here are confirmed stale (no `firm_sessions` activity in

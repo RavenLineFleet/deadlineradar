@@ -9435,7 +9435,7 @@ def build_methodology_page(
     lang="en" and returns byte-identical prose to the pre-conversion
     version, EXCEPT for cosmetic HTML-entity -> literal-Unicode-character
     substitutions (&mdash;/&rarr;/&middot; -> —/→/· , straight quotes ->
-    curly) made deliberately so translators/Claude draft real characters,
+    curly) made deliberately so translators/AI-drafted edits use real characters,
     not entity codes, inside a translatable string that never passes
     through esc()."""
     verified_recent, total = _sitewide_freshness_stat(real_today)
