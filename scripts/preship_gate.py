@@ -4367,16 +4367,27 @@ def _noindex_paths(html_files: list[Path], docs_dir: Path) -> set[str]:
     means. Matches any robots directive whose comma-separated token list
     includes "noindex" (SEO fix, 2026-10-02: a bare `content="noindex,follow"`
     doesn't contain the literal substring `content="noindex"`, so the
-    original exact-match version misread those pages as indexable)."""
+    original exact-match version misread those pages as indexable).
+
+    GATE-42 (AuditLab, 2026-10-03): covers every built HTML file, not just
+    index.html -- the old index.html-only filter left docs/404.html's
+    noindex entirely unasserted by either caller, so a template edit that
+    dropped it (making a soft-404 indexable) or a future stray top-level
+    .html page would pass both gates silently. A directory page
+    (foo/index.html) still maps to its clean URL ("/foo/"); any other file
+    maps to its own path ("/404.html")."""
     paths: set[str] = set()
     for f in html_files:
-        if f.name != "index.html":
-            continue
         text = f.read_text(encoding="utf-8")
         robots_match = re.search(r'<meta\s+name="robots"\s+content="([^"]*)"', text)
-        if robots_match and "noindex" in {t.strip() for t in robots_match.group(1).split(",")}:
-            rel = f.relative_to(docs_dir).parent.as_posix()
-            paths.add("/" if rel == "." else f"/{rel}/")
+        if not (robots_match and "noindex" in {t.strip() for t in robots_match.group(1).split(",")}):
+            continue
+        rel = f.relative_to(docs_dir)
+        if f.name == "index.html":
+            rel_dir = rel.parent.as_posix()
+            paths.add("/" if rel_dir == "." else f"/{rel_dir}/")
+        else:
+            paths.add(f"/{rel.as_posix()}")
     return paths
 
 
@@ -4398,8 +4409,14 @@ NOINDEX_REINSTATEMENT_SLUG_SHA256 = "39d1c3ff763d4d45a37e4f5348b6b68563dbb665388
 # an entirely different reason than the thinness exemption above (see each
 # builder's own "`noindex`: ..." docstring line in generate.py), so listed
 # explicitly here rather than derived from any single constant.
+#
+# /404.html (GATE-42, AuditLab 2026-10-03): a soft-404 utility page, not an
+# index.html directory page, noindexed for yet another distinct reason
+# (nothing should ever rank a 404) -- included now that _noindex_paths
+# covers non-index.html files.
 NOINDEX_APP_AUTH_ALLOWLIST: frozenset[str] = frozenset({
     "/firm-dashboard/", "/firm-login/2fa/", "/firm-mobility/", "/my/", "/set-password/",
+    "/404.html",
 })
 
 

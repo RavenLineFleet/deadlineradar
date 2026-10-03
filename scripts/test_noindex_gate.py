@@ -21,6 +21,9 @@ assertion runs, because /nevada/ -- unlike nevada-cpa-license-reinstatement
     4. slug-set hash mismatch, count still correct                     -> ERROR (isolated)
     5. slug-set count mismatch, hash still "correct" for its own content -> ERROR (isolated)
     6. zero noindexed pages built at all                               -> ERROR (enablement)
+    7. GATE-42 (AuditLab, 2026-10-03): 404.html -- a non-index.html page --
+       loses its noindex tag                                           -> ERROR (missing)
+    8. GATE-42: a stray non-index.html page gains an unintended noindex -> ERROR (extra)
 """
 import hashlib
 import os
@@ -43,12 +46,19 @@ REAL_SLUGS = frozenset({
 
 
 def _write_page(docs_dir, rel_path, noindex):
+    """rel_path ending in ".html" (e.g. "/404.html") writes that literal file
+    (GATE-42: a non-index.html page); anything else is treated as a clean-URL
+    directory and writes <rel_path>/index.html, as before."""
+    robots = '<meta name="robots" content="noindex,follow">' if noindex else ""
+    html = f"<!doctype html><html><head>{robots}</head><body>x</body></html>"
+    if rel_path.endswith(".html"):
+        f = docs_dir / rel_path.lstrip("/")
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(html, encoding="utf-8")
+        return
     d = docs_dir / rel_path.strip("/")
     d.mkdir(parents=True, exist_ok=True)
-    robots = '<meta name="robots" content="noindex,follow">' if noindex else ""
-    (d / "index.html").write_text(
-        f"<!doctype html><html><head>{robots}</head><body>x</body></html>", encoding="utf-8"
-    )
+    (d / "index.html").write_text(html, encoding="utf-8")
 
 
 def _write_sitemap(docs_dir, paths):
@@ -70,7 +80,10 @@ def _build_intended_set(docs_dir, slugs=REAL_SLUGS):
 
 
 def _html_files(docs_dir):
-    return list(docs_dir.rglob("index.html"))
+    """GATE-42: matches production's own html_files collection
+    (docs_dir.rglob("*.html")) rather than index.html alone, so these tests
+    actually exercise non-index.html pages like 404.html."""
+    return list(docs_dir.rglob("*.html"))
 
 
 # --- 1. happy path ------------------------------------------------------------
@@ -195,6 +208,40 @@ def test_6_zero_noindexed_pages_is_enablement_error(tmp_path):
         _html_files(docs_dir), docs_dir, tmp_path, reinstatement_slugs=REAL_SLUGS
     )
     assert any("found ZERO noindexed built pages" in e for e in errors), errors
+
+
+# --- 7/8. GATE-42: non-index.html pages are now asserted too ----------------
+
+def test_7_404_html_missing_noindex_is_caught(tmp_path):
+    docs_dir = tmp_path / "docs"
+    _build_intended_set(docs_dir)
+    # /404.html is in NOINDEX_APP_AUTH_ALLOWLIST, so _build_intended_set
+    # already wrote it noindexed; simulate it losing that tag (the pre-fix
+    # blind spot GATE-42 closes -- _noindex_paths used to skip this file
+    # entirely regardless of its content).
+    _write_page(docs_dir, "/404.html", noindex=False)
+    _write_sitemap(docs_dir, ["/nevada/", "/south-carolina-cpa-license-reinstatement/"])
+    errors = gate.check_noindex_set_matches_intent(
+        _html_files(docs_dir), docs_dir, tmp_path, reinstatement_slugs=REAL_SLUGS
+    )
+    assert any("/404.html" in e and "expected to be noindexed but are not" in e for e in errors), (
+        f"expected the de-noindexed 404.html to be flagged as missing, got {errors}"
+    )
+
+
+def test_8_stray_html_page_noindexed_without_intent_is_caught(tmp_path):
+    docs_dir = tmp_path / "docs"
+    _build_intended_set(docs_dir)
+    _write_sitemap(docs_dir, ["/nevada/", "/south-carolina-cpa-license-reinstatement/"])
+    # The other direction: a stray non-index.html page gains an unintended
+    # noindex -- also unasserted pre-fix since it was outside the enumeration.
+    _write_page(docs_dir, "/offline.html", noindex=True)
+    errors = gate.check_noindex_set_matches_intent(
+        _html_files(docs_dir), docs_dir, tmp_path, reinstatement_slugs=REAL_SLUGS
+    )
+    assert any("/offline.html" in e and "not in the intended set" in e for e in errors), (
+        f"expected the unintended noindex on offline.html to be flagged, got {errors}"
+    )
 
 
 if __name__ == "__main__":
