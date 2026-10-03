@@ -6243,16 +6243,25 @@ export async function unclaimMobilityStalenessAlertForMonth(db: D1Database, mont
   await db.prepare(`DELETE FROM mobility_staleness_alert_log WHERE month = ?1`).bind(monthUtc).run();
 }
 
-/** AuditLab BILL-17 (MEDIUM, 2026-09-09), migration 0076. Same
- * INSERT-and-report-whether-it-landed shape as
- * claimMobilityStalenessAlertForMonth() above, month-keyed for the same
- * reason: a Stripe price desync is a slow-moving config-drift signal, not
- * something that needs a daily nag once known. Returns true = "you own
- * this month's alert, send it." false = "already sent this month, don't." */
-export async function claimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string): Promise<boolean> {
+/** AuditLab BILL-17 (MEDIUM, 2026-09-09), migration 0076; rekeyed for
+ * BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03), migration
+ * 0088. Same INSERT-and-report-whether-it-landed shape as
+ * claimMobilityStalenessAlertForMonth() above, but keyed on (month,
+ * mismatchSignature) rather than month alone -- the pure month key meant
+ * the FIRST mismatch of a month claimed the whole month, so a different,
+ * later mismatch sent nothing (AuditLab's ablation: mismatch A alerts,
+ * mismatch B the same month sends 0, B alone with the month cleared sends
+ * fine). mismatchSignature is a stable hash of the CURRENT mismatch set's
+ * content (buildStripePriceParityMismatchSignature() in scheduler.ts) --
+ * an unchanged, persistently-failing set still claims the same row and
+ * sends at most once per month (the original "slow-moving signal, not a
+ * daily nag" intent, preserved); a changed set gets its own row and its
+ * own alert. Returns true = "you own this (month, signature) alert, send
+ * it." false = "already sent this exact mismatch set this month, don't." */
+export async function claimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string, mismatchSignature: string): Promise<boolean> {
   const result = await db
-    .prepare(`INSERT INTO stripe_price_parity_alert_log (month, sent_at) VALUES (?1, ?2) ON CONFLICT(month) DO NOTHING`)
-    .bind(monthUtc, nowIso())
+    .prepare(`INSERT INTO stripe_price_parity_alert_log (month, mismatch_signature, sent_at) VALUES (?1, ?2, ?3) ON CONFLICT(month, mismatch_signature) DO NOTHING`)
+    .bind(monthUtc, mismatchSignature, nowIso())
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
@@ -6260,9 +6269,12 @@ export async function claimStripePriceParityAlertForMonth(db: D1Database, monthU
 /** Same DROP-3-shaped "claim burned even when the alert never actually
  * sent" fix as unclaimMobilityStalenessAlertForMonth() above -- called on
  * every failure branch so a later tick this same month gets a real retry
- * instead of losing the alert until next month. */
-export async function unclaimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string): Promise<void> {
-  await db.prepare(`DELETE FROM stripe_price_parity_alert_log WHERE month = ?1`).bind(monthUtc).run();
+ * instead of losing the alert until next month. BILL-24: now scoped to
+ * the specific (month, mismatchSignature) row claimed above, not the
+ * whole month -- clearing the whole month on a send failure would also
+ * forget any OTHER mismatch signature's own already-sent row this month. */
+export async function unclaimStripePriceParityAlertForMonth(db: D1Database, monthUtc: string, mismatchSignature: string): Promise<void> {
+  await db.prepare(`DELETE FROM stripe_price_parity_alert_log WHERE month = ?1 AND mismatch_signature = ?2`).bind(monthUtc, mismatchSignature).run();
 }
 
 /** FRESH-3 (AuditLab, 2026-09-12), migration 0078. Same INSERT-and-report-
