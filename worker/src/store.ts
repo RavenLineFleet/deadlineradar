@@ -3466,6 +3466,18 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
   if (!firm) return roster;
 
   if (!firmNeedsRosterPauseReconciliation(firm, roster.length)) {
+    // SecurityLab PR6-M (MEDIUM, 2026-10-03): `active_staff_choice_at` records
+    // that a pick happened but carries no payload of its own -- the payload
+    // IS the `paused_at` wholesale-unpause this branch just below performs
+    // (e.g. on upgrade to paid). Leaving the marker set here meant a later
+    // cancel-while-still-over-cap re-entered the `firm.active_staff_choice_at`
+    // early-return below with the payload already gone, permanently
+    // disarming the earliest-N default. Clear it in the same branch that
+    // wipes the payload, so a later reconcile sees "no real choice" and
+    // re-applies the default instead of trusting a marker with nothing behind it.
+    if (firm.active_staff_choice_at) {
+      await db.prepare(`UPDATE firms SET active_staff_choice_at = NULL WHERE id = ?1`).bind(firmId).run();
+    }
     const anyPaused = roster.some((r) => r.paused_at !== null);
     if (anyPaused) {
       await db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1 AND paused_at IS NOT NULL`).bind(firmId).run();
@@ -3507,21 +3519,28 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
  */
 export async function setRosterActivePicks(db: D1Database, firmId: string, activeSubscriberIds: string[]): Promise<void> {
   const now = nowIso();
-  await db.prepare(`UPDATE firms SET active_staff_choice_at = ?1 WHERE id = ?2`).bind(now, firmId).run();
+  const markerStmt = db.prepare(`UPDATE firms SET active_staff_choice_at = ?1 WHERE id = ?2`).bind(now, firmId);
   if (activeSubscriberIds.length === 0) {
     // An empty pick is a deliberate, valid choice (pause everyone) -- NOT
     // the same as "no choice yet." Caught by its own test after the first
     // draft of this function wrongly treated length===0 as "nothing to do"
     // and left every row at whatever paused_at it already had.
-    await db.prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?2`).bind(now, firmId).run();
+    await db.batch([markerStmt, db.prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?2`).bind(now, firmId)]);
     return;
   }
-  await db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1`).bind(firmId).run();
+  // SecurityLab PR6-N (LOW, 2026-10-03): these were 3 separate awaited round
+  // trips, so between the wholesale unpause and the re-pause-not-in-list
+  // statement the firm had NO pause state at all. db.batch() runs as one
+  // transaction, closing that window -- same idiom this file already uses
+  // in issueSubscriberLoginToken() for the identical hazard.
   const placeholders = activeSubscriberIds.map((_, i) => `?${i + 2}`).join(", ");
-  await db
-    .prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?${activeSubscriberIds.length + 2} AND id NOT IN (${placeholders})`)
-    .bind(now, ...activeSubscriberIds, firmId)
-    .run();
+  await db.batch([
+    markerStmt,
+    db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1`).bind(firmId),
+    db
+      .prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?${activeSubscriberIds.length + 2} AND id NOT IN (${placeholders})`)
+      .bind(now, ...activeSubscriberIds, firmId),
+  ]);
 }
 
 /**

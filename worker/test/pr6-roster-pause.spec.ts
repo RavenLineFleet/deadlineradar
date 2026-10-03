@@ -230,6 +230,110 @@ describe("store.setRosterActivePicks -- the admin's own explicit choice", () => 
     const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
     expect(reconciled.every((r) => r.paused_at !== null)).toBe(true);
   });
+
+  // SecurityLab PR6-M (MEDIUM, 2026-10-03): active_staff_choice_at is a
+  // marker with no payload of its own. pick -> upgrade -> cancel used to
+  // leave the marker set with its payload (paused_at) long since wiped by
+  // the upgrade's wholesale unpause, so reconcileRosterPauseState()'s
+  // "admin already chose" early-return meant the earliest-N default could
+  // NEVER re-apply again -- a one-time pick, paired with one paid period,
+  // permanently disarmed the seat cap on free. Ablated below: the identical
+  // sequence with no pick ever made re-pauses correctly.
+  it("upgrade-then-cancel after a pick re-applies the default on the next reconcile, not the pick's stale marker", async () => {
+    const { firmId } = await createFirmWithSession("Pick Upgrade Cancel Firm", `pickupgradecancel-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 10, "pickupgradecancel");
+    await expireTrial(firmId); // free cap 3, 10 on the roster
+
+    // 1. Admin picks 3 while over cap, unpaid, post-trial -- a legitimate,
+    //    meaningful pick (not the PR6-H mid-trial case).
+    await store.setRosterActivePicks(env.DB, firmId, ids.slice(0, 3));
+    let roster = await store.listFirmLicenses(env.DB, firmId);
+    expect(roster.filter((r) => r.paused_at === null).length).toBe(3);
+
+    // 2. Upgrade (the checkout.session.completed path: updateFirmBilling
+    //    then an explicit reconcile -- see index.ts:4210) -- restores
+    //    everyone instantly. This is the paid-firm "not needed" branch that
+    //    wipes paused_at wholesale.
+    await store.updateFirmBilling(env.DB, firmId, {
+      planTier: "firm_growth",
+      stripeCustomerId: "cus_pr6m_test",
+      stripeSubscriptionId: "sub_pr6m_test",
+    });
+    await store.reconcileRosterPauseState(env.DB, firmId);
+    roster = await store.listFirmLicenses(env.DB, firmId);
+    expect(roster.every((r) => r.paused_at === null)).toBe(true);
+
+    // 3. Cancel (customer.subscription.deleted reverts plan_tier to free,
+    //    no reconcile call at that call site -- deferred to the next
+    //    dashboard load / nightly cron, exactly like a real firm that
+    //    doesn't immediately log back in).
+    await store.updateFirmBilling(env.DB, firmId, {
+      planTier: "free",
+      stripeCustomerId: "cus_pr6m_test",
+      stripeSubscriptionId: null,
+    });
+
+    // 4. The next reconcile (dashboard load or cron) must re-apply the
+    //    earliest-3 default, not trust the marker left over from step 1.
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual(ids.slice(0, 3).sort());
+
+    // Repeated reconciles (the "persists across 3 reconciles" shape
+    // SecurityLab's report measured) stay fixed, not re-break.
+    for (let i = 0; i < 3; i++) {
+      const again = await store.reconcileRosterPauseState(env.DB, firmId);
+      expect(again.filter((r) => r.paused_at === null).map((r) => r.id).sort()).toEqual(ids.slice(0, 3).sort());
+    }
+
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.active_staff_choice_at).toBeFalsy(); // cleared, not left dangling
+  });
+
+  // Ablation: identical upgrade/cancel sequence with NO pick ever made --
+  // proves the marker (not the upgrade/cancel itself) was the defect above.
+  it("ablation: upgrade-then-cancel with no pick ever made re-pauses correctly (control for the test above)", async () => {
+    const { firmId } = await createFirmWithSession("No Pick Upgrade Cancel Firm", `nopickupgradecancel-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 10, "nopickupgradecancel");
+    await expireTrial(firmId);
+
+    await store.updateFirmBilling(env.DB, firmId, {
+      planTier: "firm_growth",
+      stripeCustomerId: "cus_pr6m_ablation",
+      stripeSubscriptionId: "sub_pr6m_ablation",
+    });
+    await store.reconcileRosterPauseState(env.DB, firmId);
+    await store.updateFirmBilling(env.DB, firmId, {
+      planTier: "free",
+      stripeCustomerId: "cus_pr6m_ablation",
+      stripeSubscriptionId: null,
+    });
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual(ids.slice(0, 3).sort());
+  });
+
+  // SecurityLab PR6-N (LOW, 2026-10-03): setRosterActivePicks() used to be 3
+  // separate awaited statements, so between the wholesale unpause and the
+  // re-pause-not-in-list statement the firm had NO pause state at all. Now
+  // db.batch()'d as one transaction -- this test just pins the end state;
+  // the atomicity itself isn't independently observable from outside the
+  // function without instrumenting the D1 driver, which SecurityLab did
+  // directly against the real function.
+  it("changing an existing pick lands on exactly the new set, never a transient union of old and new", async () => {
+    const { firmId } = await createFirmWithSession("Pick Change Firm", `pickchange-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "pickchange");
+    await expireTrial(firmId);
+
+    await store.setRosterActivePicks(env.DB, firmId, ids.slice(0, 3));
+    let roster = await store.listFirmLicenses(env.DB, firmId);
+    expect(roster.filter((r) => r.paused_at === null).map((r) => r.id).sort()).toEqual(ids.slice(0, 3).sort());
+
+    await store.setRosterActivePicks(env.DB, firmId, ids.slice(3));
+    roster = await store.listFirmLicenses(env.DB, firmId);
+    expect(roster.filter((r) => r.paused_at === null).map((r) => r.id).sort()).toEqual(ids.slice(3).sort());
+  });
 });
 
 describe("store.allConfirmedActive -- paused subscribers are excluded fleet-wide", () => {
