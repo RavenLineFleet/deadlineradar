@@ -1369,6 +1369,14 @@ export interface FirmRow {
   // docstring for why conflating the two would overcount the dashboard's
   // reward count). Read by countRewardedReferrals().
   referrer_rewarded_at: string | null;
+  // migration 0084 (Orchestrator ruling, 2026-10-02): set by
+  // hardDeleteExpiredFirms() ONLY when a referee's referred_by_firm_id is
+  // about to be nulled (its referrer was just hard-deleted) AND
+  // referral_reward_applied_at is still null (the discount hasn't been
+  // spent yet) -- preserves the entitlement independently of the
+  // attribution pointer that's about to disappear. handleFirmBillingCheckout
+  // honors this the same as referred_by_firm_id. Never set any other way.
+  referral_discount_pending: number;
   // Self-referral fraud check (matched against a NEW signup's own IP) --
   // same raw-IP-for-fraud-evidence precedent as migration 0057's
   // consent_ip. Null for any firm created before this migration.
@@ -2627,16 +2635,20 @@ export async function hardDeleteExpiredFirms(
       // only zeroes the deleted referrer's own `countRewardedReferrals()`
       // count (keyed on `referrer_rewarded_at`), which is moot -- the
       // referrer is being erased. It is NOT inert for the referred firm,
-      // though (RETAIN-8, SecurityLab, 2026-10-02, caught this comment
-      // overclaiming the opposite): `referred_by_firm_id` IS re-read, at
-      // index.ts:3603, guarded by `!referral_reward_applied_at` -- the
-      // UN-claimed case. A referee who hasn't checked out yet loses their
-      // own pending signup discount once this runs. Flagged to
-      // Orchestrator as a product decision (accept it, same effect a
-      // schema-level ON DELETE SET NULL would have, vs. a new column
-      // decoupling the discount from this pointer) rather than resolved
-      // here. Must run BEFORE the firms DELETE, same ordering reason as
-      // the statement above.
+      // though (RETAIN-8, SecurityLab, 2026-10-02, caught an earlier
+      // version of this comment overclaiming the opposite):
+      // `referred_by_firm_id` IS re-read, at index.ts:3603, guarded by
+      // `!referral_reward_applied_at` -- the UN-claimed case. Orchestrator's
+      // ruling (2026-10-02): KEEP the referee's discount rather than let it
+      // silently vanish with the pointer -- migration 0084's
+      // `referral_discount_pending` records the entitlement independently,
+      // set ONLY for a referee that hasn't spent its discount yet
+      // (`referral_reward_applied_at IS NULL`); index.ts:3603 now honors
+      // either signal. Must run BEFORE the null/DELETE below, for the same
+      // reason the release itself must.
+      await db.prepare(
+        `UPDATE firms SET referral_discount_pending = 1 WHERE referred_by_firm_id = ?1 AND referral_reward_applied_at IS NULL`
+      ).bind(firmId).run();
       await db.prepare(`UPDATE firms SET referred_by_firm_id = NULL WHERE referred_by_firm_id = ?1`).bind(firmId).run();
       await db.prepare(`DELETE FROM firms WHERE id = ?1`).bind(firmId).run();
       deleted.push(firmId);

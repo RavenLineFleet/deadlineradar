@@ -340,6 +340,72 @@ describe("POST /firm/billing/checkout -- referral coupon eligibility", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  // RETAIN-5 follow-up (Orchestrator ruling, 2026-10-02): hardDeleteExpiredFirms()
+  // nulls a surviving referee's referred_by_firm_id when its referrer is
+  // hard-deleted -- unavoidable, the referrer row is gone. Without
+  // referral_discount_pending, this test would fail: the referee would
+  // lose its own un-claimed discount purely because an unrelated firm
+  // (its referrer) deleted its account.
+  it("a referee whose referrer was hard-deleted still gets the coupon -- referral_discount_pending survives the pointer being nulled", async () => {
+    const referrer = await store.createFirm(env.DB, { name: "Deleted Referrer", adminEmail: `delref-${Date.now()}@example.com` });
+    const referred = await store.createFirm(env.DB, {
+      name: "Surviving Referee",
+      adminEmail: `survivingreferee-${Date.now()}@example.com`,
+      referredByFirmId: referrer.id,
+    });
+    await env.DB.prepare("UPDATE firms SET status = ?1, deletion_requested_at = ?2 WHERE id = ?3")
+      .bind(store.FIRM_STATUS_DELETED, new Date(Date.now() - 31 * 86_400_000).toISOString(), referrer.id)
+      .run();
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    expect(deleted).toContain(referrer.id);
+
+    const referredAfter = await store.getFirmById(env.DB, referred.id);
+    expect(referredAfter?.referred_by_firm_id).toBeNull();
+    expect(referredAfter?.referral_discount_pending).toBe(1);
+
+    const { rawSessionToken } = await store.createSession(env.DB, referred.id);
+    const cookie = `dr_firm_session=${rawSessionToken}`;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "cs_survived_1", url: "https://checkout.stripe.com/pay/cs_survived_1" }), { status: 200 })
+    );
+    try {
+      await workerFetch(
+        new Request("https://deadline-radar.com/firm/billing/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tier: "firm_starter" }),
+        }),
+        { ...STRIPE_ENV, STRIPE_PRICE_FIRM_STARTER: "price_x" }
+      );
+      const sentBody = (fetchSpy.mock.calls[0]![1] as RequestInit).body as string;
+      expect(sentBody).toContain(`discounts%5B0%5D%5Bcoupon%5D=${STRIPE_ENV.STRIPE_COUPON_REFERRAL}1`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // Negative control for the statement above's own WHERE clause: a referee
+  // that had ALREADY spent its discount before the referrer was deleted
+  // must NOT get referral_discount_pending set -- there is nothing left
+  // to preserve, and setting it anyway would be a silent re-grant.
+  it("a referee that already claimed its reward does NOT get referral_discount_pending set when its referrer is hard-deleted later", async () => {
+    const referrer = await store.createFirm(env.DB, { name: "Deleted Referrer Two", adminEmail: `delref2-${Date.now()}@example.com` });
+    const referred = await store.createFirm(env.DB, {
+      name: "Already-Claimed Referee",
+      adminEmail: `alreadyclaimedreferee-${Date.now()}@example.com`,
+      referredByFirmId: referrer.id,
+    });
+    await store.claimReferralReward(env.DB, referred.id);
+    await env.DB.prepare("UPDATE firms SET status = ?1, deletion_requested_at = ?2 WHERE id = ?3")
+      .bind(store.FIRM_STATUS_DELETED, new Date(Date.now() - 31 * 86_400_000).toISOString(), referrer.id)
+      .run();
+    await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+
+    const referredAfter = await store.getFirmById(env.DB, referred.id);
+    expect(referredAfter?.referred_by_firm_id).toBeNull();
+    expect(referredAfter?.referral_discount_pending).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
