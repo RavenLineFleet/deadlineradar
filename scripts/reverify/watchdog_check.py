@@ -11,7 +11,8 @@ ALERT if:
   - the LIVE Worker's worst record age (/api/health `worst_record_age_days`) is LIVE_ALERT_DAYS or more
     (Orchestrator 2026-10-02 22:27, STALE-27). The runtime signup/send wall reads the Worker's BUNDLED data,
     which this job commits but never deploys, so git can be fresh while production ages toward its 30-day
-    pause. Until AssetLab exposes the field this check reports "not exposed" and does not alert; an
+    pause. Until AssetLab exposes the field this check reports "not exposed"; from LIVE_FIELD_DUE on, a
+    still-missing field ALERTS (AuditLab MON-10: a dead detector must not look like a quiet one). An
     unreachable /api/health is reported but not alerted on here (site uptime is a separate check).
 """
 from __future__ import annotations
@@ -27,6 +28,7 @@ DEFAULT = os.path.join(os.environ.get("REVERIFY_STATE_DIR", r"C:\Users\Devin\Orc
 STALE_DAYS = 25
 MAX_SILENCE_H = 30
 LIVE_ALERT_DAYS = 21
+LIVE_FIELD_DUE = date(2026, 10, 9)    # a week after the field contract went to AssetLab (2026-10-02 22:28)
 HEALTH_URL = os.environ.get("REVERIFY_HEALTH_URL", "https://deadline-radar.com/api/health")
 
 
@@ -52,11 +54,14 @@ def check(status, now: datetime):
                   f"manual={len(status.get('manual_ids', []))}")
 
 
-def live_check(health: dict | None) -> tuple[bool, str]:
+def live_check(health: dict | None, today: date | None = None) -> tuple[bool, str]:
     if health is None:
         return True, "live age: /api/health unreachable"
     age = health.get("worst_record_age_days")
     if not isinstance(age, (int, float)) or isinstance(age, bool):
+        if (today or date.today()) >= LIVE_FIELD_DUE:
+            return False, (f"ALERT reverify: /api/health still has no worst_record_age_days (due {LIVE_FIELD_DUE}) "
+                           f"-- the live-age watchdog is blind; AssetLab to expose it")
         return True, "live age: not exposed by /api/health yet"
     if age >= LIVE_ALERT_DAYS:
         return False, (f"ALERT reverify: LIVE worker worst record age {age}d >= {LIVE_ALERT_DAYS}d "
