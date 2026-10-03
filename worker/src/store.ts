@@ -2617,18 +2617,26 @@ export async function hardDeleteExpiredFirms(
       // WHERE clause's match is gone along with the row it would have
       // matched.
       await db.prepare(`UPDATE stripe_webhook_events SET firm_id = NULL WHERE firm_id = ?1`).bind(firmId).run();
-      // RETAIN-5 (AuditLab, MEDIUM, 2026-10-02): same shape as RETAIN-4
-      // above, a different retained row -- migration 0058's
+      // RETAIN-5 (AuditLab/SecurityLab, HIGH, 2026-10-02): same shape as
+      // RETAIN-4 above, a different retained row -- migration 0058's
       // `firms.referred_by_firm_id` is an enforced FK into firms(id) with
       // no ON DELETE action. This firm may be the REFERRER on another
       // live firm's row (that OTHER firm is correctly retained -- it's a
       // real customer, not deleted), but that other row still points at
       // THIS firm's id, which the DELETE below removes. Nulling it here
       // only zeroes the deleted referrer's own `countRewardedReferrals()`
-      // count, which is moot (the referrer is being erased); the
-      // referred firm's reward itself was already applied at
-      // referrer_rewarded_at and isn't re-read anywhere. Must run BEFORE
-      // the firms DELETE, same ordering reason as the statement above.
+      // count (keyed on `referrer_rewarded_at`), which is moot -- the
+      // referrer is being erased. It is NOT inert for the referred firm,
+      // though (RETAIN-8, SecurityLab, 2026-10-02, caught this comment
+      // overclaiming the opposite): `referred_by_firm_id` IS re-read, at
+      // index.ts:3603, guarded by `!referral_reward_applied_at` -- the
+      // UN-claimed case. A referee who hasn't checked out yet loses their
+      // own pending signup discount once this runs. Flagged to
+      // Orchestrator as a product decision (accept it, same effect a
+      // schema-level ON DELETE SET NULL would have, vs. a new column
+      // decoupling the discount from this pointer) rather than resolved
+      // here. Must run BEFORE the firms DELETE, same ordering reason as
+      // the statement above.
       await db.prepare(`UPDATE firms SET referred_by_firm_id = NULL WHERE referred_by_firm_id = ?1`).bind(firmId).run();
       await db.prepare(`DELETE FROM firms WHERE id = ?1`).bind(firmId).run();
       deleted.push(firmId);
@@ -6925,6 +6933,34 @@ export async function recentAssistantChatLatencyStats(
   return { n, p95Ms: p95Row.elapsed_ms, maxMs: maxRow.elapsed_ms, totalN };
 }
 
+export interface AssistantChatErrorBurstStats {
+  windowCount: number; // how many of the most recent chats were actually examined (<= limit)
+  errorCount: number; // status = 'error' among them -- rate_limited excluded, that's an expected signal, not a backend failure
+}
+
+/** MON-9 (AuditLab, MEDIUM, 2026-10-02): recentAssistantChatLatencyStats()'s
+ * p95/max alert is structurally blind to a FAST failure -- a total outage
+ * where every leg throws in ~1-3s instead of the ~15-18s steady state
+ * actually LOWERS p95 (it was computing from status='success' rows, and
+ * MON-9 also fixed index.ts to stop mislabelling the apology non-answer as
+ * success). This is the complementary check: a COUNT-based window over the
+ * most recent `limit` chats (not a time window -- a burst during a quiet
+ * hour needs the same floor as one during a busy hour), ordered by rowid
+ * (insertion order) rather than `ts` (1-second resolution ties under any
+ * real burst). windowCount can be less than limit early in the table's
+ * life or after a purge; the caller's threshold must account for that
+ * (see runAssistantErrorBurstAlertPass's own comment). */
+export async function recentAssistantChatErrorBurstStats(db: D1Database, limit = 10): Promise<AssistantChatErrorBurstStats> {
+  const { results } = await db
+    .prepare(`SELECT status FROM assistant_chat_latency_log ORDER BY rowid DESC LIMIT ?1`)
+    .bind(limit)
+    .all<{ status: string }>();
+  return {
+    windowCount: results.length,
+    errorCount: results.filter((r) => r.status === "error").length,
+  };
+}
+
 /** Same day-keyed claim shape as claimStaleDataAlertForToday() -- at most
  * one assistant-latency-degradation email per UTC day regardless of how
  * many cron ticks still see the breach. Returns true = "you own today's
@@ -6962,6 +6998,31 @@ export async function resolveAssistantLatencyAlertForToday(
 ): Promise<void> {
   await db
     .prepare(`UPDATE assistant_latency_alert_log SET outcome = ?1, detail = ?2 WHERE day = ?3`)
+    .bind(outcome, detail ?? null, dayUtc)
+    .run();
+}
+
+/** MON-9 (2026-10-02), migration 0083: same day-keyed claim/resolve shape
+ * as claimAssistantLatencyAlertForToday()/resolveAssistantLatencyAlertForToday()
+ * above, for the complementary error-burst alert's own dedup table --
+ * deliberately NOT sharing 0070's table (see that migration's own
+ * comment for why). */
+export async function claimAssistantErrorBurstAlertForToday(db: D1Database, dayUtc: string): Promise<boolean> {
+  const result = await db
+    .prepare(`INSERT INTO assistant_error_burst_alert_log (day, sent_at, outcome) VALUES (?1, ?2, 'pending') ON CONFLICT(day) DO NOTHING`)
+    .bind(dayUtc, nowIso())
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+export async function resolveAssistantErrorBurstAlertForToday(
+  db: D1Database,
+  dayUtc: string,
+  outcome: "sent" | "failed_after_3_attempts",
+  detail?: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE assistant_error_burst_alert_log SET outcome = ?1, detail = ?2 WHERE day = ?3`)
     .bind(outcome, detail ?? null, dayUtc)
     .run();
 }

@@ -5299,6 +5299,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         "handleAssistantTicket": "2026-09-01 assistant support-ticket walkthrough -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address only (same category as sendSignupNotification above); the visitor-supplied address is the reply-to, never the recipient, and it is public/no-session by design like handleSubscribe. The one demo_locked interaction (a demo-firm session's placeholder member email being used as that reply-to) is closed inside optionalVisitorEmail(), which resolves a demo_locked firm's session to null so the visitor is asked for a real address",
         "runStripePriceParityAlertPass": "AuditLab BILL-17 -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runMobilityStalenessAlertPass/runAssistantLatencyAlertPass above; also structurally not firm-scoped at all (reads Stripe Price objects directly via STRIPE_PRICE_FIRM_* env vars, fires from scheduled(), not any firm's own session)",
         "runGatedDatasetStalenessAlertPass": "FRESH-3 (AuditLab, 2026-09-12) -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runMobilityStalenessAlertPass/runAssistantLatencyAlertPass/runStripePriceParityAlertPass above; also structurally not firm-scoped at all (reads cpe_hours.json/reinstatement.json/renewal_fees.json directly, fires from scheduled(), not any firm's own session)",
+        "runAssistantErrorBurstAlertPass": "MON-9 (AuditLab, 2026-10-02) -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runAssistantLatencyAlertPass immediately above (the complementary alert for the same assistant_chat_latency_log data, same email target); also structurally not firm-scoped (reads assistant_chat_latency_log directly, fires from scheduled(), not any firm's own session)",
     }
 
     errors = []
@@ -5778,8 +5779,24 @@ def check_retained_table_fk_released(repo_root: Path) -> list[str]:
     if not firms_delete_match:
         return ["[RETAIN-FK] hardDeleteExpiredFirms() has no `DELETE FROM firms` -- can't verify FK-release ordering"]
 
+    # RETAIN-7 (SecurityLab, LOW, 2026-10-02): migrations_dir existing is
+    # not the same as the derivation actually finding anything -- a schema
+    # change this parser doesn't understand (a `) STRICT;`/`) WITHOUT
+    # ROWID;` table, a table-level FOREIGN KEY(...) constraint, a migrations
+    # path move) would make _firms_referencing_columns() return an empty
+    # set, and the loop below would then report 0 errors -- the exact
+    # "derived check fails silently when the derivation breaks" shape
+    # ATTR-4's sibling gate already guards against.
+    pairs = _firms_referencing_columns(repo_root)
+    if not pairs:
+        return [
+            f"[RETAIN-FK] parsed 0 `REFERENCES firms(id)` declarations from "
+            f"{len(list(migrations_dir.glob('*.sql')))} migration file(s) -- the derivation is broken, "
+            "this check is measuring nothing"
+        ]
+
     errors = []
-    for table, column in sorted(_firms_referencing_columns(repo_root)):
+    for table, column in sorted(pairs):
         if table in covered_by_deletion and column == "firm_id":
             continue  # the row itself is deleted, taking the FK with it
         release_match = re.search(

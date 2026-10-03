@@ -222,6 +222,7 @@ import {
   runComplianceNewsletterPass,
   runMobilityStalenessAlertPass,
   runAssistantLatencyAlertPass,
+  runAssistantErrorBurstAlertPass,
   runStripePriceParityAlertPass,
   runGatedDatasetStalenessAlertPass,
 } from "./scheduler";
@@ -6096,7 +6097,19 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // be a 429 (e.g. attempt1 failed some other way, and the budget ran out
   // in between) -- surfaced honestly either way, no special-casing needed
   // since we're not retrying again regardless of what attempt2 says.
-  const attempt2Status = attempt2.ok ? "success" : attempt2.rateLimited ? "rate_limited" : "error";
+  // MON-9 (AuditLab, MEDIUM, 2026-10-02): stillFailed must be computed
+  // BEFORE the latency log, not after -- the droplet's apology text is a
+  // real HTTP 200 (main.current.py returns a plain JSONResponse with no
+  // status override), so attempt2.ok alone can't tell a genuine answer
+  // from an honest non-answer. The 2026-10-02 outage was logged entirely
+  // as "success" at ~1.5-3s, which DROPS p95/max instead of raising it --
+  // a total outage made the latency alert strictly less likely to fire,
+  // not more. Checked before the log, not after, so the log's own status
+  // column reflects reality rather than just the HTTP layer's.
+  const stillFailed = attempt2.ok && attempt2.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE);
+  const attempt2Status = !attempt2.ok
+    ? (attempt2.rateLimited ? "rate_limited" : "error")
+    : stillFailed ? "error" : "success";
   await store.logAssistantChatLatency(env.DB, Date.now() - chatStartedAt, Math.floor(Date.now() / 1000), attempt2Status);
   if (!attempt2.ok) {
     return jsonResponse(attempt2.status, { error: attempt2.error, escalate: true });
@@ -6105,7 +6118,6 @@ async function handleAssistantChat(request: Request, env: Env, ip: string): Prom
   // apology text is an honest non-answer, shipped verbatim as always --
   // just flagged, so the widget can offer a human alongside it instead of
   // leaving the visitor with "something went wrong" and no next step.
-  const stillFailed = attempt2.reply.toLowerCase().includes(ASSISTANT_CHAT_FAILURE_SIGNATURE);
   return jsonResponse(200, stillFailed ? { reply: attempt2.reply, escalate: true } : { reply: attempt2.reply });
 }
 
@@ -13375,6 +13387,20 @@ export default {
           await runAssistantLatencyAlertPass(env);
         } catch (err) {
           console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // MON-9 (AuditLab, MEDIUM, 2026-10-02): see runAssistantErrorBurstAlertPass()'s
+    // own docstring -- the complementary alert runAssistantLatencyAlertPass
+    // above is structurally blind to (a fast-failure outage). Independent
+    // pass, gated behind requireSendApproval() same as every pass above.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runAssistantErrorBurstAlertPass(env);
+        } catch (err) {
+          console.log(`[assistant-error-burst-alert-cron] error: ${String(err)}`);
         }
       })()
     );

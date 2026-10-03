@@ -740,6 +740,25 @@ describe("POST /assistant/chat -- `escalate` flag drives the widget's talk-to-a-
     }
   });
 
+  // MON-9 (AuditLab, MEDIUM, 2026-10-02): this exact response shape (HTTP
+  // 200, apology text, both attempts) is what the live 2026-10-02 outage
+  // produced, and it used to be logged as status='success' -- a total
+  // outage LOWERED the latency alert's p95 instead of raising it, making
+  // the alert strictly less likely to fire during the one failure it
+  // exists to catch. stillFailed must be computed BEFORE the log call.
+  it("MON-9: the droplet's apology text on both attempts logs status='error', not 'success'", async () => {
+    await env.DB.prepare("DELETE FROM assistant_chat_latency_log").run();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => droplet("Something went wrong answering that just now."));
+    try {
+      const resp = await postChat({ message: "hello" });
+      expect(resp.status).toBe(200);
+      const row = await env.DB.prepare("SELECT status FROM assistant_chat_latency_log ORDER BY rowid DESC LIMIT 1").first<{ status: string }>();
+      expect(row?.status).toBe("error");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("apology on attempt 1 but a real answer on attempt 2 -- the real answer ships WITHOUT the flag", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

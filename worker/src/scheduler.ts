@@ -53,6 +53,7 @@ import {
   type NewsletterDigestItem,
   buildMobilityStalenessAlertEmail,
   buildAssistantLatencyAlertEmail,
+  buildAssistantErrorBurstAlertEmail,
   buildStripePriceParityAlertEmail,
   buildGatedDatasetStalenessAlertEmail,
 } from "./emails";
@@ -2816,6 +2817,80 @@ export async function runAssistantLatencyAlertPass(
   } catch (err) {
     await store.resolveAssistantLatencyAlertForToday(env.DB, dayUtc, "failed_after_3_attempts", String(err).slice(0, 500));
     console.log(`[assistant-latency-alert-cron] error: ${String(err)}`);
+  }
+}
+
+// MON-9 (AuditLab, MEDIUM, 2026-10-02): runAssistantLatencyAlertPass() above
+// is structurally blind to a fast-failure outage -- it alerts on p95/max
+// computed from status='success' rows only, and a total outage where every
+// leg fails in ~1-3s (instead of the ~15-18s steady state) LOWERS p95
+// instead of raising it. Confirmed live: the 2026-10-02 chat outage (the
+// claude CLI missing from the droplet service user's PATH) was logged
+// entirely as 'success' and never came close to tripping that alert. This
+// pass catches the shape that one can't: a straight error count/rate over
+// the most recent chats, independent of timing. Requires index.ts's chat
+// handler to log the apology non-answer as 'error' (same MON-9 fix,
+// computed before the log rather than after) -- without that half, this
+// pass would also stay blind to the exact outage it was added for.
+const ASSISTANT_ERROR_BURST_WINDOW = 10;
+const ASSISTANT_ERROR_BURST_COUNT_THRESHOLD = 3;
+const ASSISTANT_ERROR_BURST_RATE_THRESHOLD = 0.5;
+
+export interface RunAssistantErrorBurstAlertOptions {
+  send?: (built: ReturnType<typeof buildAssistantErrorBurstAlertEmail>) => Promise<boolean>;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+export async function runAssistantErrorBurstAlertPass(
+  env: Env,
+  opts: RunAssistantErrorBurstAlertOptions = {}
+): Promise<void> {
+  if (!requireSendApproval(env, "assistantErrorBurstAlert")) return;
+  const stats = await store.recentAssistantChatErrorBurstStats(env.DB, ASSISTANT_ERROR_BURST_WINDOW);
+  // Needs at least ASSISTANT_ERROR_BURST_COUNT_THRESHOLD samples to mean
+  // anything at all -- a 1-of-1 window is 100% but tells you nothing.
+  if (stats.windowCount < ASSISTANT_ERROR_BURST_COUNT_THRESHOLD) return;
+  const breached =
+    stats.errorCount >= ASSISTANT_ERROR_BURST_COUNT_THRESHOLD ||
+    stats.errorCount / stats.windowCount >= ASSISTANT_ERROR_BURST_RATE_THRESHOLD;
+  if (!breached) return;
+  if (!env.RESEND_API_KEY) return;
+  const apiKey = env.RESEND_API_KEY;
+  const send =
+    opts.send ?? ((built: ReturnType<typeof buildAssistantErrorBurstAlertEmail>) => sendEmail(apiKey, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY));
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const dayUtc = new Date().toISOString().slice(0, 10);
+  const claimed = await store.claimAssistantErrorBurstAlertForToday(env.DB, dayUtc);
+  if (!claimed) return;
+  try {
+    const built = buildAssistantErrorBurstAlertEmail({
+      errorCount: stats.errorCount,
+      windowCount: stats.windowCount,
+      errorCountThreshold: ASSISTANT_ERROR_BURST_COUNT_THRESHOLD,
+      errorRateThreshold: ASSISTANT_ERROR_BURST_RATE_THRESHOLD,
+    });
+    let ok = false;
+    for (let attempt = 1; attempt <= ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS; attempt++) {
+      ok = await send(built);
+      if (ok) break;
+      console.log(
+        `[assistant-error-burst-alert-cron] send attempt ${attempt}/${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} failed`
+      );
+      if (attempt < ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS) {
+        await sleep(ASSISTANT_LATENCY_ALERT_SEND_BACKOFF_MS * attempt);
+      }
+    }
+    if (ok) {
+      await store.resolveAssistantErrorBurstAlertForToday(env.DB, dayUtc, "sent");
+    } else {
+      console.log(
+        `[assistant-error-burst-alert-cron] all ${ASSISTANT_LATENCY_ALERT_SEND_ATTEMPTS} send attempts failed for ${dayUtc}`
+      );
+      await store.resolveAssistantErrorBurstAlertForToday(env.DB, dayUtc, "failed_after_3_attempts", "all send attempts exhausted");
+    }
+  } catch (err) {
+    await store.resolveAssistantErrorBurstAlertForToday(env.DB, dayUtc, "failed_after_3_attempts", String(err).slice(0, 500));
+    console.log(`[assistant-error-burst-alert-cron] error: ${String(err)}`);
   }
 }
 
