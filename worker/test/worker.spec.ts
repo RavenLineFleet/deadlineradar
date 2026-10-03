@@ -5307,23 +5307,28 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
   // (the original 74-record fix, a 2026-09-20 cliff, 22 more single-digit
   // cohorts, CITE-70/CITE-71, STALE-20 batch 1, and more to come as
   // STALE-20's remaining batches land) and hand-editing a count every time
-  // teaches "just edit the number." AuditLab's own "157-record wall"
-  // finding (2026-09-12) is the reason 2026-10-06 is the test point below
-  // -- two real cohorts land close enough together (originally 2026-10-10
-  // and 2026-10-13) that a date landing inside both windows is needed to
-  // exercise sort order at all (AuditLab TEST-10, LOW, 2026-09-12: a
+  // teaches "just edit the number." Re-pointed 2026-10-02 after STALE-20's
+  // remaining batches re-verified nearly the entire dataset on the same
+  // day, collapsing the old 2026-10-10/2026-10-13 pair into one 2026-11-02
+  // mega-cohort (234 records across all 4 datasets) plus a few small
+  // stragglers at 2026-10-22/23/24/30 left over from records verified a
+  // few days earlier -- 2026-10-20/2026-10-21 below land inside both the
+  // stragglers' windows and the mega-cohort's cpa_deadlines portion (whose
+  // longer 14-day warning opens before the other three datasets' 7-day
+  // one), so a date landing inside more than one window is still needed
+  // to exercise sort order at all (AuditLab TEST-10, LOW, 2026-09-12: a
   // single-cohort window can't catch a broken sort, since every element
   // would carry the same daysUntilExpiry).
 
-  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 28 days out", async () => {
+  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 40 days out", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
     const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-09-12T00:00:00Z"));
     expect(nearing).toEqual([]);
   });
 
-  it("rows ARE nearing expiry once inside the real 7-day warning window, across all three datasets, sorted soonest-first, and exactly match an independently recomputed expectation", async () => {
+  it("rows ARE nearing expiry once inside the real warning windows, across more than one cohort, sorted soonest-first, and exactly match an independently recomputed expectation", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const now = new Date("2026-10-06T00:00:00Z"); // lands inside both of the two closest real cohorts at once -- see describe-block comment
+    const now = new Date("2026-10-20T00:00:00Z"); // lands inside both the 2026-10-22/23/24 stragglers' windows and the 2026-11-02 mega-cohort's cpa_deadlines portion -- see describe-block comment
     const nearing = gatedDatasetRowsNearingExpiry(now);
     const expected = computeExpectedGatedDatasetNearing(now);
     expect(nearing).toEqual(expected); // full row-for-row match: length, sort order, and every field, all at once
@@ -5336,10 +5341,10 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    // Every real record's verified_date/last_verified is 2026-09-12 or
-    // earlier, so by 2026-11-01 (well past the 31-day bar for even the
-    // most recent cohort) every row has already gone stale.
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-11-01T00:00:00Z"));
+    // The latest real cohort (234 records re-verified 2026-10-02 across
+    // all 4 datasets) expires 2026-11-02, so by 2026-11-15 (well past the
+    // 31-day bar for even that cohort) every row has already gone stale.
+    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-11-15T00:00:00Z"));
     expect(nearing).toEqual([]);
   });
 
@@ -5364,13 +5369,14 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("runGatedDatasetStalenessAlertPass sends a correct, complete alert once approved, in the window, with a key -- and dedupes within the same UTC day", async () => {
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
-    const clockDate = new Date("2026-10-03T00:00:00Z");
+    const clockDate = new Date("2026-10-21T00:00:00Z");
     // Independently derived, not hardcoded -- see the describe-block
     // comment and computeExpectedGatedDatasetNearing() above. Which
     // dataset names appear (and the cliff date in the subject) have both
     // legitimately changed before (STALE-20 batch 1 emptied cpe_hours/
-    // reinstatement out of this exact cohort) and will again as STALE-20's
-    // remaining batches land.
+    // reinstatement out of this exact cohort, then STALE-20's remaining
+    // batches re-verified nearly everything on 2026-10-02, collapsing the
+    // prior cohort into the new 2026-11-02 mega-cohort) and may again.
     const expected = computeExpectedGatedDatasetNearing(clockDate);
     expect(expected.length).toBeGreaterThan(0); // this test asserts a SEND happened; a drained cohort would make that assertion vacuous
     const expectedDatasets = new Set(expected.map((r) => r.dataset));

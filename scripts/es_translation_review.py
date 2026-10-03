@@ -7,7 +7,7 @@ file + a firmchat-ready one-liner.
 2026-08-19 (Devin's direct go-ahead, RC session): this is the "AuditLab loop"
 half of the Phase A rollout -- see i18n.py's own module docstring and
 Orchestrator/outbox/assetlab.md's 2026-08-19T13:20 plan entry for the full
-design. This script does the DRAFTING (Claude-authored, no paid MT API, no
+design. This script does the DRAFTING (AI-drafted, no paid MT API, no
 new cost) -- it deliberately never sets reviewed=True itself. Only AuditLab's
 own review (or a human) can flip that, via a follow-up edit to i18n.py's ES
 dict once the review verdict comes back. Running this script twice on an
@@ -33,7 +33,7 @@ I18N_PATH = REPO_ROOT / "i18n.py"
 AUDITLAB_INBOX = pathlib.Path(r"C:\Users\Devin\AuditLab\inbox")
 
 # ---------------------------------------------------------------------------
-# Drafts: Claude-translated Spanish for every EN key as of 2026-08-19. Real,
+# Drafts: machine-drafted Spanish for every EN key as of 2026-08-19. Real,
 # considered translations (not placeholder/machine-gibberish) -- neutral
 # Latin American Spanish register appropriate for a professional/legal
 # context, matching the site's own precise, sourcing-focused voice. Every
