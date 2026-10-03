@@ -23,6 +23,11 @@ async function firmOnTier(tier: string, createdAt: string): Promise<{ firmId: st
   await env.DB.prepare("UPDATE firms SET plan_tier = ?1, created_at = ?2 WHERE id = ?3")
     .bind(tier, createdAt, id)
     .run();
+  // PR6 (migration 0085, 2026-10-02): store.createFirm() now grants every
+  // new firm a 14-day trial, which unlocks this very endpoint too ("ALL
+  // paid features") -- cleared so this helper's firms test the steady
+  // state (no trial in play), same as every other firmOnTier() variant.
+  await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(id).run();
   const { rawSessionToken } = await store.createSession(env.DB, id);
   return { firmId: id, cookie: `dr_firm_session=${rawSessionToken}` };
 }

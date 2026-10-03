@@ -269,7 +269,7 @@ import {
 } from "./mobility";
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
-import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, isPreCutoverSignup } from "./entitlements";
+import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup } from "./entitlements";
 import {
   lookupAssistantDeadlines,
   lookupAssistantCpe,
@@ -279,7 +279,7 @@ import {
   buildAssistantMobilityResponse,
   assistantStateName,
 } from "./assistant";
-import { firmTierByPlanTier, firmTierForSeatCount, seatCapForFirmTier, stripePriceIdForTier } from "./tiers";
+import { FIRM_TIERS, firmTierByPlanTier, firmTierForSeatCount, seatCapForFirmTier, stripePriceIdForPerSeatAddon, stripePriceIdForTier } from "./tiers";
 import {
   createCheckoutSession,
   updateSubscriptionCancelAtPeriodEnd,
@@ -3423,7 +3423,16 @@ async function requireFirmSessionAndPaidTier(
   let mobilityAccessBasis: "paid" | "solo_free" | "trial" = "paid";
   if (!access.allowed) {
     let passed = false;
-    if (access.reason === "tier_not_paid" && firm.plan_tier === "free") {
+    // PR6 (migration 0085, 2026-10-02): the 14-day trial unlocks Map/
+    // Practice Privilege Check too ("ALL paid features") -- checked before
+    // the solo-free/multi-person-trial branches below since a trialing
+    // firm should never fall through to a narrower exception it doesn't
+    // need. Reported as basis "paid" (not a new basis value): the trial
+    // is a full, unmetered grant, same as a real paid tier, not a usage-
+    // boxed allowance like roadmap #153's OWN "trial" basis below.
+    if (access.reason === "tier_not_paid" && hasActiveTrial(firm.trial_ends_at)) {
+      passed = true;
+    } else if (access.reason === "tier_not_paid" && firm.plan_tier === "free") {
       const memberCount = (await store.listFirmMembers(env.DB, firm.id)).length;
       if (memberCount === 1) {
         passed = true;
@@ -3458,7 +3467,9 @@ async function requireFirmSessionAndPaidTier(
  */
 function valueLineDenialResponse(firm: store.FirmRow): Response | null {
   const access = checkPaidFeatureAccess(firm);
-  if (access.allowed || isPreCutoverSignup(firm.created_at)) return null;
+  // PR6 (migration 0085, 2026-10-02): the 14-day trial unlocks every one
+  // of these five value-line gates too ("ALL paid features").
+  if (access.allowed || isPreCutoverSignup(firm.created_at) || hasActiveTrial(firm.trial_ends_at)) return null;
   return jsonResponse(403, {
     error: paidFeatureDenialMessage(access.reason),
     reason: access.reason,
@@ -3538,6 +3549,17 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   if (!tierDef) {
     return jsonResponse(400, { error: "Unrecognised plan." });
   }
+  // PR6 (migration 0085, 2026-10-02): defaults to "annual" so an old/cached
+  // client that still posts {tier} with no interval field keeps checking
+  // out exactly as it always has.
+  const requestedIntervalRaw =
+    typeof parsed === "object" && parsed !== null && typeof (parsed as Record<string, unknown>).interval === "string"
+      ? ((parsed as Record<string, unknown>).interval as string)
+      : "annual";
+  if (requestedIntervalRaw !== "annual" && requestedIntervalRaw !== "monthly") {
+    return jsonResponse(400, { error: "Unrecognised billing interval." });
+  }
+  const interval: "annual" | "monthly" = requestedIntervalRaw;
 
   const firm = await store.getFirmById(env.DB, session.firmId);
   if (!firm) return jsonResponse(404, { error: "Not found." });
@@ -3576,17 +3598,42 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   // signup to compare against instead; this is the actual source of truth.
   const seatCount = await store.countFirmLicenses(env.DB, session.firmId);
   const minimumTier = firmTierForSeatCount(seatCount);
-  if (!minimumTier || tierDef.seatCap < minimumTier.seatCap) {
+  // PR6 per-seat add-on (2026-10-02, Devin approved 2026-10-02 12:01 MDT):
+  // above the top tier's seat cap, checkout is no longer a flat refusal --
+  // the top tier itself plus a per-seat add-on line item for every seat
+  // beyond its cap. `minimumTier` is null exactly when no tier covers the
+  // roster (firmTierForSeatCount()'s own contract), which after this
+  // change means "needs the add-on," not "no self-serve plan exists."
+  const topTier = FIRM_TIERS[FIRM_TIERS.length - 1];
+  if (!topTier) {
+    // Unreachable in practice -- FIRM_TIERS is a fixed non-empty literal --
+    // but TypeScript can't see that, and failing closed here costs nothing.
+    return jsonResponse(503, { error: "Billing isn't set up yet." });
+  }
+  let extraSeats = 0;
+  if (!minimumTier) {
+    if (tierDef.planTier !== topTier.planTier) {
+      return jsonResponse(400, {
+        error: `Your roster (${seatCount} staff) is above our named tiers -- pick the ${topTier.label} plan to add the per-seat rate for the rest.`,
+      });
+    }
+    extraSeats = seatCount - topTier.seatCap;
+  } else if (tierDef.seatCap < minimumTier.seatCap) {
     return jsonResponse(400, {
-      error: minimumTier
-        ? `Your roster (${seatCount} staff) needs at least the ${minimumTier.label} plan.`
-        : `Your roster (${seatCount} staff) is above our self-serve tiers. Get in touch for a custom plan.`,
+      error: `Your roster (${seatCount} staff) needs at least the ${minimumTier.label} plan.`,
     });
   }
 
-  const priceId = stripePriceIdForTier(env, tierDef.planTier);
+  const priceId = stripePriceIdForTier(env, tierDef.planTier, interval);
   if (!priceId) {
     return jsonResponse(503, { error: "That plan isn't available for checkout yet." });
+  }
+  let perSeatAddonPriceId: string | null = null;
+  if (extraSeats > 0) {
+    perSeatAddonPriceId = stripePriceIdForPerSeatAddon(env, interval);
+    if (!perSeatAddonPriceId) {
+      return jsonResponse(503, { error: "The per-seat rate for a roster this size isn't available for checkout yet." });
+    }
   }
 
   // Roadmap #31 (2026-08-09, referral program): the REFERRED firm's own
@@ -3619,10 +3666,11 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
       priceId,
       successUrl: `${dashboardBase}#account?checkout=success`,
       cancelUrl: `${dashboardBase}#account?checkout=cancelled`,
-      metadata: { firm_id: firm.id, target_plan_tier: tierDef.planTier },
+      metadata: { firm_id: firm.id, target_plan_tier: tierDef.planTier, billing_interval: interval },
       customerId: firm.stripe_customer_id ?? undefined,
       customerEmail: firm.stripe_customer_id ? undefined : firm.admin_email,
       couponId: referralCouponId,
+      extraLineItem: perSeatAddonPriceId ? { priceId: perSeatAddonPriceId, quantity: extraSeats } : undefined,
     });
     return jsonResponse(200, { checkout_url: checkoutSession.url });
   } catch (err) {
@@ -4123,6 +4171,12 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     }
     const customerId = typeof object.customer === "string" ? object.customer : null;
     const subscriptionId = typeof object.subscription === "string" ? object.subscription : null;
+    // PR6 (migration 0085, 2026-10-02): same allowlist-not-trust posture as
+    // target_plan_tier just above -- an invalid/missing value defaults to
+    // "annual" (the cadence every checkout used before this metadata field
+    // existed) rather than writing an arbitrary string to the column.
+    const billingIntervalRaw = typeof metadata.billing_interval === "string" ? metadata.billing_interval : null;
+    const billingInterval: "annual" | "monthly" = billingIntervalRaw === "monthly" ? "monthly" : "annual";
 
     if (firmId && targetPlanTier && customerId && subscriptionId) {
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
@@ -4131,6 +4185,7 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
           planTier: targetPlanTier,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
+          billingInterval,
         });
         // Roadmap #31 (2026-08-09, referral program). Best-effort, never
         // fails this webhook's 200 -- the plan-tier flip above is the
@@ -6765,7 +6820,15 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     admin_email: session.firm.admin_email,
     data_as_of: freshness.as_of_date,
     data_stale: freshness.stale,
-    seat_cap: seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at),
+    // PR6 (migration 0085, 2026-10-02): the 14-day trial lifts the seat cap
+    // entirely for a firm with no paid tier of its own yet (trialLiftsSeatCap()
+    // -- a firm that's already subscribed gets ITS tier's own cap, trial or
+    // not). Number.MAX_SAFE_INTEGER, not Infinity -- JSON.stringify(Infinity)
+    // serializes to `null`, which would read as "cap unknown," not "no cap,"
+    // to the dashboard JS. Same sentinel the enforcement gate below uses, so
+    // the two can never disagree about what "lifted" means.
+    seat_cap: trialLiftsSeatCap(session.firm) ? Number.MAX_SAFE_INTEGER : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at),
+    trial_ends_at: session.firm.trial_ends_at,
     // Roadmap #151 Phase 4 (2026-08-10): the Roster tab's "Coverage
     // overview" rollup (coverage %, at-risk ranking, status summary) is
     // gated for a post-cutover free firm -- computed server-side and sent
@@ -7840,7 +7903,16 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   // firm at whatever it already had, which was the explicit instruction
   // rather than either force-removing rows down to the cap or silently
   // exempting them from it going forward.
-  const seatCap = seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
+  // PR6 (migration 0085, 2026-10-02): the 14-day trial lifts this cap
+  // entirely for a firm with no paid tier of its own yet (trialLiftsSeatCap())
+  // -- same Number.MAX_SAFE_INTEGER sentinel the dashboard display above
+  // uses, so what's shown and what's enforced can never disagree. The
+  // freeze-at-day-14 behavior described above is exactly this check
+  // resuming its normal (non-trial) value once hasActiveTrial() goes false
+  // -- no separate expiry code needed.
+  const seatCap = trialLiftsSeatCap(session.firm)
+    ? Number.MAX_SAFE_INTEGER
+    : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
   const currentSeatCount = await store.countFirmLicenses(env.DB, session.firmId);
   if (currentSeatCount >= seatCap) {
     // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to

@@ -183,6 +183,44 @@ export function isPreCutoverSignup(createdAt: string): boolean {
   return Number.isFinite(t) && t >= Date.parse(PRE_CUTOVER_FLOOR_DATE) && t < Date.parse(VALUE_LINE_CUTOVER_DATE);
 }
 
+/**
+ * PR6 (migration 0085, 2026-10-02). The 14-day full-feature trial. Live,
+ * derived check -- no cron, no stored flag to flip -- against
+ * `firms.trial_ends_at`, same fail-closed `Date.parse` + `Number.isFinite`
+ * shape as isPreCutoverSignup() above (null/malformed input denies, never
+ * grants). Named distinctly from `mobilityAccessBasis: "trial"`
+ * (index.ts's requireFirmSessionAndPaidTier, roadmap #153's unrelated
+ * query-budget trial for Map/Practice Privilege Check) to keep the two
+ * concepts from being confused at a call site -- this one is a full paid-
+ * tier-equivalent grant covering every gate below, that one is a small,
+ * permanent, per-query allowance for one free-tier feature.
+ *
+ * `trial_ends_at` is intentionally never reset (see migration 0085's own
+ * comment) -- one grant per firm, for the life of the row. A known,
+ * accepted gap (Orchestrator ruling, 2026-10-02): nothing here detects a
+ * firm re-signing up with a different email (or a disposable one) to get
+ * a second trial. No email-domain/fraud check exists yet; flagged, not
+ * built, pending real abuse signal.
+ */
+export function hasActiveTrial(trialEndsAt: string | null): boolean {
+  if (!trialEndsAt) return false;
+  const t = Date.parse(trialEndsAt);
+  return Number.isFinite(t) && Date.now() < t;
+}
+
+/**
+ * PR6 (migration 0085, 2026-10-02). Whether the 14-day trial should lift
+ * this firm's seat cap entirely -- true only while BOTH an active trial
+ * exists AND the firm has no real paid tier of its own yet. A firm that
+ * has already subscribed (firm_starter, etc.) gets ITS tier's own cap,
+ * not an unbounded one, even on day 1 of a trial window that's now moot --
+ * AuditLab-equivalent catch (billing.spec.ts's own "seat_cap is still
+ * tier-aware" test) found this the first time it was written as a bare
+ * hasActiveTrial() check with no paid-tier exclusion. */
+export function trialLiftsSeatCap(firm: EntitlementSubject & { trial_ends_at: string | null }): boolean {
+  return !checkPaidFeatureAccess(firm).allowed && hasActiveTrial(firm.trial_ends_at);
+}
+
 /** The shared OR every one of #151's five gates uses -- a real paid tier, OR
  * grandfathered by signup date. One function so every call site (document
  * handlers, Slack/Teams connect + send passes, the dashboard-synthesis
@@ -200,7 +238,13 @@ export function isPreCutoverSignup(createdAt: string): boolean {
  * checkPaidFeatureAccess() entirely, since a paid firm's cap comes from
  * FIRM_TIER_SEAT_CAPS instead. The "audits identically" claim above does
  * not extend to it; the grandfathering-by-date rule is shared, but the
- * paid-tier check is not. */
-export function hasValueLineAccess(firm: EntitlementSubject & { created_at: string }): boolean {
-  return checkPaidFeatureAccess(firm).allowed || isPreCutoverSignup(firm.created_at);
+ * paid-tier check is not.
+ *
+ * PR6 (migration 0085, 2026-10-02): the 14-day trial ORs in here too
+ * ("ALL paid features") -- this is the one function every #151 gate
+ * (document handlers, Slack/Teams connect + send passes, dashboard
+ * synthesis) already goes through, so adding it here covers every one of
+ * them at once rather than patching each call site. */
+export function hasValueLineAccess(firm: EntitlementSubject & { created_at: string; trial_ends_at: string | null }): boolean {
+  return checkPaidFeatureAccess(firm).allowed || isPreCutoverSignup(firm.created_at) || hasActiveTrial(firm.trial_ends_at);
 }

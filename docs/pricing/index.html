@@ -24,7 +24,7 @@
 <link rel="alternate" hreflang="en" href="https://deadline-radar.com/pricing/">
 <link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/pricing/">
 <link rel="alternate" hreflang="x-default" href="https://deadline-radar.com/pricing/">
-<link rel="stylesheet" href="/styles.css?v=7ed443b24e">
+<link rel="stylesheet" href="/styles.css?v=f7b5dd13b4">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -98,6 +98,12 @@
 <p class="field-hint">If you don't already have a firm account, the buttons below start free signup first; if you're already signed in, they go straight to checkout for that tier.</p>
 <p id="dr-pricing-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
 
+
+<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval" id="dr-pricing-interval-toggle">
+  <button type="button" class="dr-interval-btn dr-interval-active" data-interval="annual">Annual</button>
+  <button type="button" class="dr-interval-btn" data-interval="monthly">Monthly</button>
+</div>
+
 <div class="pricing-grid">
   <div class="pricing-card" id="individual">
     <h2>Individual</h2>
@@ -107,7 +113,8 @@
   </div>
   <div class="pricing-card" id="essentials">
     <h2>Essentials</h2>
-    <p class="price">$199<span>/year</span></p>
+    <p class="price price-annual">$199<span>/year &middot; save 17%</span></p>
+    <p class="price price-monthly" hidden>$20<span>/month</span></p>
     <p class="detail">Up to 5 staff.</p>
     <ul class="pricing-includes">
       <li>Coverage overview &amp; at-risk ranking</li>
@@ -122,7 +129,8 @@
   </div>
   <div class="pricing-card" id="growth">
     <h2>Growth</h2>
-    <p class="price">$299<span>/year</span></p>
+    <p class="price price-annual">$299<span>/year &middot; save 14%</span></p>
+    <p class="price price-monthly" hidden>$29<span>/month</span></p>
     <p class="detail">Up to 10 staff.</p>
     <ul class="pricing-includes">
       <li>Coverage overview &amp; at-risk ranking</li>
@@ -137,7 +145,8 @@
   </div>
   <div class="pricing-card" id="professional">
     <h2>Professional</h2>
-    <p class="price">$399<span>/year</span></p>
+    <p class="price price-annual">$399<span>/year &middot; save 15%</span></p>
+    <p class="price price-monthly" hidden>$39<span>/month</span></p>
     <p class="detail">Up to 20 staff.</p>
     <ul class="pricing-includes">
       <li>Coverage overview &amp; at-risk ranking</li>
@@ -152,7 +161,8 @@
   </div>
   <div class="pricing-card" id="enterprise">
     <h2>Enterprise</h2>
-    <p class="price">$549<span>/year</span></p>
+    <p class="price price-annual">$549<span>/year &middot; save 17%</span></p>
+    <p class="price price-monthly" hidden>$55<span>/month</span></p>
     <p class="detail">Up to 35 staff.</p>
     <ul class="pricing-includes">
       <li>Coverage overview &amp; at-risk ranking</li>
@@ -167,7 +177,7 @@
   </div>
   <div class="pricing-card pricing-card--wide">
     <h2>More than 35 staff?</h2>
-    <p class="detail"><a href="mailto:support@deadline-radar.com">Contact us</a> — no formula, we'll work out what fits.</p>
+    <p class="detail">Pick Enterprise above — it includes the first 35 seats, plus $15/seat/year (or $1.50/seat/month) for the rest, billed automatically. Questions? <a href="mailto:support@deadline-radar.com">Contact us</a>.</p>
   </div>
 </div>
 
@@ -275,6 +285,25 @@
 </html>
 <script>
 (function() {
+  // PR6 (2026-10-02): which cadence the toggle above the cards currently
+  // shows -- same client-UI-state-only posture as the dashboard's own
+  // drBillingInterval (the server resolves its own Stripe Price id,
+  // this is never trusted as the price itself).
+  var drPricingInterval = 'annual';
+  var toggleEl = document.getElementById('dr-pricing-interval-toggle');
+  if (toggleEl) {
+    toggleEl.addEventListener('click', function(ev) {
+      var btn = ev.target.closest('.dr-interval-btn');
+      if (!btn) return;
+      drPricingInterval = btn.getAttribute('data-interval') === 'monthly' ? 'monthly' : 'annual';
+      toggleEl.querySelectorAll('.dr-interval-btn').forEach(function(b) {
+        b.classList.toggle('dr-interval-active', b === btn);
+      });
+      document.querySelectorAll('.price-annual').forEach(function(el) { el.hidden = drPricingInterval !== 'annual'; });
+      document.querySelectorAll('.price-monthly').forEach(function(el) { el.hidden = drPricingInterval !== 'monthly'; });
+    });
+  }
+
   var buttons = document.querySelectorAll('.dr-pricing-tier-btn');
   var errEl = document.getElementById('dr-pricing-error');
   for (var i = 0; i < buttons.length; i++) {
@@ -287,7 +316,7 @@
         method: 'POST',
         credentials: 'include',
         headers: {'content-type': 'application/json'},
-        body: JSON.stringify({tier: tier})
+        body: JSON.stringify({tier: tier, interval: drPricingInterval})
       }).then(function(res) {
         if (res.status === 401) {
           // ShopLab cold-read (2026-08-20, orchestrator-approved): carry the
@@ -296,7 +325,11 @@
           // and the magic-link email round trip, as long as that link is
           // opened in this same browser -- read back on /firm-dashboard/'s
           // load, see drCheckPendingCheckoutTier().
-          try { window.localStorage.setItem('dr_pending_checkout_tier', tier); } catch (e) {}
+          // PR6 (2026-10-02): the chosen interval rides along the same way.
+          try {
+            window.localStorage.setItem('dr_pending_checkout_tier', tier);
+            window.localStorage.setItem('dr_pending_checkout_interval', drPricingInterval);
+          } catch (e) {}
           window.location.href = '/firm-login/?tier=' + encodeURIComponent(tier) + '#dr-view-signup';
           return null;
         }

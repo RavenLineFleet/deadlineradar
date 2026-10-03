@@ -329,6 +329,28 @@ export interface Env {
   STRIPE_PRICE_FIRM_STANDARD?: string;
   STRIPE_PRICE_FIRM_SCALE?: string;
   /**
+   * PR6 (Devin, 2026-10-02, via orchestrator): monthly billing, same
+   * test-mode-then-live-mode convention as the annual STRIPE_PRICE_* above
+   * -- each tier's monthly cadence is a genuinely separate, immutable
+   * Stripe Price object, never derived from the annual one. Built and
+   * verified end-to-end in Stripe TEST mode first; the 4 LIVE Price
+   * objects are created via the API with the existing live secret key only
+   * once that loop is clean and both AuditLab and SecurityLab PASS the
+   * billing review -- their ids are `wrangler secret put`, never committed,
+   * and recorded in .secrets, never in the repo.
+   */
+  STRIPE_PRICE_FIRM_STARTER_MONTHLY?: string;
+  STRIPE_PRICE_FIRM_GROWTH_MONTHLY?: string;
+  STRIPE_PRICE_FIRM_STANDARD_MONTHLY?: string;
+  STRIPE_PRICE_FIRM_SCALE_MONTHLY?: string;
+  /**
+   * PR6 per-seat add-on (tiers.ts's own PER_SEAT_ADDON_*_USD comment) --
+   * one Price per interval, quantity = seats beyond firm_scale's 35-seat
+   * cap, added as a second checkout line item alongside the tier's own.
+   */
+  STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL?: string;
+  STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY?: string;
+  /**
    * Roadmap #31 (2026-08-09, referral program; compounding tiers added
    * 2026-08-11, Devin's own spec: "10% off each time [a referral converts],
    * up to 10 times, which is 100% off"). A Stripe Coupon id PREFIX, not a

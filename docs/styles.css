@@ -1339,6 +1339,14 @@
   .dr-paywall-tier-btn:hover { opacity: 0.9; }
   .dr-paywall-tier-btn:disabled { opacity: 0.6; cursor: default; }
   
+  .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
+  .dr-interval-btn {
+    flex: 1 1 auto; background: var(--row-alt); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 7px; font-weight: 600;
+    font-size: 0.88rem; padding: 0.45rem 0.8rem; cursor: pointer; font-family: inherit;
+  }
+  .dr-interval-btn.dr-interval-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  
   
   .dr-demo-doors { margin: 1.1rem 0; }
   .dr-demo-doors-grid {

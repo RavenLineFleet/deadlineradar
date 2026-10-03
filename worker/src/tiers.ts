@@ -33,8 +33,24 @@ export interface FirmTierDef {
   planTier: string;
   label: string;
   priceUsd: number;
+  // PR6 (Devin, 2026-10-02, via orchestrator): the monthly cadence of the
+  // SAME tier, approved alongside priceUsd (dr_review_checklist.md) --
+  // $20/$29/$39/$55 respectively, each a smaller discount off priceUsd/12
+  // than the prior tier (roughly 17/14/15/17%) than committing to a flat
+  // percentage would give, since priceUsd itself wasn't chosen on a flat
+  // formula either (see this file's own 2026-08-09 re-tier comment).
+  monthlyPriceUsd: number;
   seatCap: number;
 }
+
+/** PR6 per-seat add-on (Devin approved 2026-10-02 12:01 MDT, dr_review_
+ * checklist.md): the formula for a firm above firm_scale's 35-seat cap,
+ * which until now was flatly "contact us, no formula." $15/seat/yr or
+ * $1.50/seat/mo -- a SEPARATE Stripe Price (quantity = extra seats beyond
+ * 35), added as a second checkout line item alongside firm_scale's own,
+ * never a replacement for it. */
+export const PER_SEAT_ADDON_ANNUAL_USD = 15;
+export const PER_SEAT_ADDON_MONTHLY_USD = 1.5;
 
 // Ordered ascending by seat cap -- firmTierForSeatCount() below depends on
 // that order to find the cheapest tier a given headcount qualifies for.
@@ -54,10 +70,10 @@ export interface FirmTierDef {
 // the new top band. Labels shifted up one level to match: "Enterprise" now
 // means the real top tier (35 seats), not the old 25-seat one.
 export const FIRM_TIERS: FirmTierDef[] = [
-  { planTier: "firm_starter", label: "Essentials", priceUsd: 199, seatCap: 5 },
-  { planTier: "firm_growth", label: "Growth", priceUsd: 299, seatCap: 10 },
-  { planTier: "firm_standard", label: "Professional", priceUsd: 399, seatCap: 20 },
-  { planTier: "firm_scale", label: "Enterprise", priceUsd: 549, seatCap: 35 },
+  { planTier: "firm_starter", label: "Essentials", priceUsd: 199, monthlyPriceUsd: 20, seatCap: 5 },
+  { planTier: "firm_growth", label: "Growth", priceUsd: 299, monthlyPriceUsd: 29, seatCap: 10 },
+  { planTier: "firm_standard", label: "Professional", priceUsd: 399, monthlyPriceUsd: 39, seatCap: 20 },
+  { planTier: "firm_scale", label: "Enterprise", priceUsd: 549, monthlyPriceUsd: 55, seatCap: 35 },
 ];
 
 const FIRM_TIER_SEAT_CAPS: Record<string, number> = Object.fromEntries(
@@ -118,7 +134,26 @@ export function firmTierByPlanTier(planTier: string): FirmTierDef | null {
  * included INDIVIDUAL_TIER) and zero real rows ever held plan_tier=
  * 'individual' (confirmed against prod D1 before removing). Folded into
  * the free tier -- see entitlements.ts's own solo-free exception. */
-export function stripePriceIdForTier(env: Env, planTier: string): string | null {
+// PR6 (2026-10-02): `interval` defaults to "annual" so every existing
+// call site (none of which know about monthly yet until index.ts's
+// checkout route is updated to pass it through) keeps resolving the
+// exact same env var it always has -- adding the parameter is not itself
+// a behavior change for annual checkout.
+export function stripePriceIdForTier(env: Env, planTier: string, interval: "annual" | "monthly" = "annual"): string | null {
+  if (interval === "monthly") {
+    switch (planTier) {
+      case "firm_starter":
+        return env.STRIPE_PRICE_FIRM_STARTER_MONTHLY ?? null;
+      case "firm_growth":
+        return env.STRIPE_PRICE_FIRM_GROWTH_MONTHLY ?? null;
+      case "firm_standard":
+        return env.STRIPE_PRICE_FIRM_STANDARD_MONTHLY ?? null;
+      case "firm_scale":
+        return env.STRIPE_PRICE_FIRM_SCALE_MONTHLY ?? null;
+      default:
+        return null;
+    }
+  }
   switch (planTier) {
     case "firm_starter":
       return env.STRIPE_PRICE_FIRM_STARTER ?? null;
@@ -131,4 +166,10 @@ export function stripePriceIdForTier(env: Env, planTier: string): string | null 
     default:
       return null;
   }
+}
+
+/** PR6 per-seat add-on Price id for the given interval -- see
+ * PER_SEAT_ADDON_ANNUAL_USD/PER_SEAT_ADDON_MONTHLY_USD's own comment. */
+export function stripePriceIdForPerSeatAddon(env: Env, interval: "annual" | "monthly"): string | null {
+  return interval === "monthly" ? env.STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY ?? null : env.STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL ?? null;
 }

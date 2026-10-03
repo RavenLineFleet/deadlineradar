@@ -17,6 +17,13 @@ async function firmOnTier(tier: string, peerReviewDueDate: string | null = null)
     adminEmail: `firmmobility-${tier}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@examplefirm.com`,
   });
   await env.DB.prepare("UPDATE firms SET plan_tier = ?1 WHERE id = ?2").bind(tier, id).run();
+  // PR6 (migration 0085, 2026-10-02): this helper's whole point is a firm
+  // sitting steadily on `tier` with no trial in play -- store.createFirm()
+  // now grants every new firm a 14-day trial that would otherwise let a
+  // free-tier firm created "now" through these pay-gate checks regardless
+  // of `tier`. Cleared immediately, same pattern as the plan_tier UPDATE
+  // just above.
+  await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(id).run();
   if (peerReviewDueDate) {
     await env.DB.prepare("UPDATE firms SET peer_review_due_date = ?1 WHERE id = ?2").bind(peerReviewDueDate, id).run();
   }

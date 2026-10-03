@@ -1,0 +1,27 @@
+-- PR6 (Devin, 2026-10-02, via orchestrator): monthly billing + a 14-day
+-- full-feature trial, approved ahead of the rest of Phase 3.
+--
+-- billing_interval: which Stripe Price cadence a paid firm is actually on
+-- -- 'annual' (the only cadence that has ever existed) or 'monthly' (new).
+-- Defaults 'annual' so every existing paid row stays correct with zero
+-- backfill. Set alongside plan_tier/stripe_subscription_id in
+-- handleStripeWebhook's checkout.session.completed branch (store.ts's
+-- updateFirmBilling), never inferred from the Price id itself -- the
+-- metadata the checkout session carried is the one place that actually
+-- knows which button the customer clicked, same reasoning tiers.ts's own
+-- stripePriceIdForTier() already uses for why interval needs its own
+-- signal rather than being derived.
+--
+-- trial_ends_at: set exactly once, in store.ts's createFirm() INSERT, to
+-- signup time + 14 days. Never reset by any later code (a cancel,
+-- downgrade, or re-signup with the same email all leave this column
+-- alone) -- that absence of a reset path is what makes "one trial per
+-- firm" hold without a separate counter or flag. NULL for every firm
+-- created before this migration (no backfill: a trial granted
+-- retroactively to an existing account isn't what "signup" means).
+-- hasActiveTrial() (entitlements.ts) is a live, derived check against
+-- this column -- there is no cron or stored state to flip when a trial
+-- lapses, same mechanism isPreCutoverSignup() already uses for its own
+-- fixed-date grant.
+ALTER TABLE firms ADD COLUMN billing_interval TEXT NOT NULL DEFAULT 'annual' CHECK(billing_interval IN ('annual', 'monthly'));
+ALTER TABLE firms ADD COLUMN trial_ends_at TEXT;

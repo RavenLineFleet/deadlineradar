@@ -4220,64 +4220,95 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     if not tiers_match:
         return ["[SYNC] worker/src/tiers.ts's FIRM_TIERS literal not found -- can't verify generate.py's pricing copy against it"]
     tier_rows = re.findall(
-        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?seatCap:\s*(\d+)',
+        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?monthlyPriceUsd:\s*(\d+).*?seatCap:\s*(\d+)',
         tiers_match.group(1),
     )
     if not tier_rows:
-        return ["[SYNC] Could not parse individual tier entries out of worker/src/tiers.ts's FIRM_TIERS"]
-    by_plan_tier = {pt: {"label": label, "priceUsd": int(price), "seatCap": int(cap)} for pt, label, price, cap in tier_rows}
+        return ["[SYNC] Could not parse individual tier entries out of worker/src/tiers.ts's FIRM_TIERS -- check monthlyPriceUsd (PR6, 2026-10-02) is still present"]
+    by_plan_tier = {
+        pt: {"label": label, "priceUsd": int(price), "monthlyPriceUsd": int(monthly), "seatCap": int(cap)}
+        for pt, label, price, monthly, cap in tier_rows
+    }
     by_label = {v["label"]: v for v in by_plan_tier.values()}
     lowest_tier, highest_tier = by_plan_tier[tier_rows[0][0]], by_plan_tier[tier_rows[-1][0]]
+
+    # PR6 per-seat add-on (2026-10-02): PER_SEAT_ADDON_ANNUAL_USD/
+    # PER_SEAT_ADDON_MONTHLY_USD in tiers.ts vs. generate.py's own
+    # PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS (the
+    # dashboard's per-seat-over-cap label). Checked below, after py_text
+    # is read.
+    per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD\s*=\s*(\d+)", ts_text)
+    per_seat_monthly_match = re.search(r"PER_SEAT_ADDON_MONTHLY_USD\s*=\s*([\d.]+)", ts_text)
 
     py_text = generate_py.read_text(encoding="utf-8")
     errors = []
 
-    button_rows = re.findall(
-        r'data-tier="([a-z_]+)" data-seat-cap="(\d+)"[^>]*>[^<]*<br><span>\$(\d+)/year &middot; up to (\d+) staff</span>',
+    # PR6 (2026-10-02): both the dashboard paywall modal and the /pricing/
+    # page cards moved from hardcoded per-tier HTML to generating from a
+    # small literal table (DR_BILLING_TIERS for the dashboard's JS,
+    # _PRICING_TIERS for /pricing/'s Python) -- checking the table against
+    # tiers.ts's FIRM_TIERS is now the structurally-identifiable surface,
+    # same "data-tier maps directly to a FIRM_TIERS entry, no ordering
+    # assumption" principle the original two checks used, extended to cover
+    # monthlyPriceUsd (neither existed before PR6).
+    dashboard_rows = re.findall(
+        r"\{tier:\s*'([a-z_]+)',\s*label:\s*'[^']+',\s*seatCap:\s*(\d+),\s*annualUsd:\s*(\d+),\s*monthlyUsd:\s*(\d+)\}",
         py_text,
     )
-    if not button_rows:
-        errors.append("[SYNC] Could not find the in-app paywall modal's tier buttons in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
-    for plan_tier, seat_cap_attr, price_str, up_to_str in button_rows:
+    if not dashboard_rows:
+        errors.append("[SYNC] Could not find the dashboard's DR_BILLING_TIERS table in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
+    for plan_tier, seat_cap_str, annual_str, monthly_str in dashboard_rows:
         tier = by_plan_tier.get(plan_tier)
         if tier is None:
-            errors.append(f'[SYNC] generate.py\'s paywall modal references data-tier="{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
+            errors.append(f'[SYNC] generate.py\'s DR_BILLING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(price_str) != tier["priceUsd"] or int(seat_cap_attr) != tier["seatCap"] or int(up_to_str) != tier["seatCap"]:
+        if int(annual_str) != tier["priceUsd"] or int(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"]:
             errors.append(
-                f'[SYNC] generate.py\'s paywall modal button for "{plan_tier}" shows ${price_str}/year, '
-                f"data-seat-cap={seat_cap_attr}, \"up to {up_to_str} staff\", but worker/src/tiers.ts's "
-                f"FIRM_TIERS says ${tier['priceUsd']}/year, {tier['seatCap']} seats -- a customer would see "
-                f"a different price/cap than what the seat-cap gate actually enforces."
+                f'[SYNC] generate.py\'s dashboard DR_BILLING_TIERS entry for "{plan_tier}" shows '
+                f"${annual_str}/year, ${monthly_str}/month, seatCap={seat_cap_str}, but worker/src/tiers.ts's "
+                f"FIRM_TIERS says ${tier['priceUsd']}/year, ${tier['monthlyPriceUsd']}/month, "
+                f"{tier['seatCap']} seats for it -- the dashboard and the actual seat-cap gate/checkout "
+                f"would disagree."
             )
 
-    # P5/i18n Phase A (2026-08-20): the "Up to N staff." detail line moved
-    # behind _t("pricing.staff_up_to", lang, n=N) so it can render in
-    # Spanish too -- the literal English text no longer appears in
-    # generate.py's SOURCE (this check reads the .py file directly, not
-    # rendered HTML), so the old regex silently stopped matching anything.
-    # Matches the templated call instead and still extracts n= as the seat
-    # cap, same semantic check as before.
-    card_rows = re.findall(
-        r'<div class="pricing-card" id="[a-z]+">\s*<h2>[^<]*</h2>\s*<p class="price">\$(\d+)<span>/year</span></p>\s*'
-        r'<p class="detail">\{_t\("pricing\.staff_up_to", lang, n=(\d+)\)\}</p>.*?data-tier="([a-z_]+)"',
+    pricing_rows = re.findall(
+        r'\{"tier":\s*"([a-z_]+)",\s*"label":\s*"[^"]+",\s*"seat_cap":\s*(\d+),\s*"annual_usd":\s*(\d+),\s*"monthly_usd":\s*(\d+)\}',
         py_text,
-        re.DOTALL,
     )
-    if not card_rows:
-        errors.append("[SYNC] Could not find /pricing/ page's price cards in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
-    for price_str, seat_cap_str, plan_tier in card_rows:
+    if not pricing_rows:
+        errors.append("[SYNC] Could not find /pricing/ page's _PRICING_TIERS table in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
+    for plan_tier, seat_cap_str, annual_str, monthly_str in pricing_rows:
         tier = by_plan_tier.get(plan_tier)
         if tier is None:
-            errors.append(f'[SYNC] generate.py\'s /pricing/ page has a card with data-tier="{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
+            errors.append(f'[SYNC] generate.py\'s _PRICING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(price_str) != tier["priceUsd"] or int(seat_cap_str) != tier["seatCap"]:
+        if int(annual_str) != tier["priceUsd"] or int(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"]:
             errors.append(
-                f'[SYNC] generate.py\'s /pricing/ page shows a ${price_str}/year, up-to-{seat_cap_str}-staff '
-                f'card for "{plan_tier}", but worker/src/tiers.ts\'s FIRM_TIERS says '
-                f"${tier['priceUsd']}/year, {tier['seatCap']} seats for it -- the pricing page and the "
-                f"actual seat-cap gate/checkout would disagree."
+                f'[SYNC] generate.py\'s /pricing/ page _PRICING_TIERS entry for "{plan_tier}" shows '
+                f"${annual_str}/year, ${monthly_str}/month, seat_cap={seat_cap_str}, but worker/src/tiers.ts's "
+                f"FIRM_TIERS says ${tier['priceUsd']}/year, ${tier['monthlyPriceUsd']}/month, "
+                f"{tier['seatCap']} seats for it -- the pricing page and the actual seat-cap gate/checkout "
+                f"would disagree."
             )
+
+    if per_seat_annual_match and per_seat_monthly_match:
+        ts_per_seat_annual = int(per_seat_annual_match.group(1))
+        ts_per_seat_monthly = float(per_seat_monthly_match.group(1))
+        js_per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD_JS\s*=\s*(\d+)", py_text)
+        js_per_seat_monthly_match = re.search(r"PER_SEAT_ADDON_MONTHLY_USD_JS\s*=\s*([\d.]+)", py_text)
+        if not (js_per_seat_annual_match and js_per_seat_monthly_match):
+            errors.append("[SYNC] Could not find generate.py's PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS -- markup shape may have changed; update check_pricing_matches_tiers()")
+        else:
+            js_per_seat_annual = int(js_per_seat_annual_match.group(1))
+            js_per_seat_monthly = float(js_per_seat_monthly_match.group(1))
+            if js_per_seat_annual != ts_per_seat_annual or js_per_seat_monthly != ts_per_seat_monthly:
+                errors.append(
+                    f"[SYNC] generate.py's PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS are "
+                    f"${js_per_seat_annual}/${js_per_seat_monthly}, but worker/src/tiers.ts's "
+                    f"PER_SEAT_ADDON_ANNUAL_USD/PER_SEAT_ADDON_MONTHLY_USD are "
+                    f"${ts_per_seat_annual}/${ts_per_seat_monthly} -- the dashboard's per-seat label and the "
+                    f"actual checkout add-on price would disagree."
+                )
 
     # BILL-14 (AuditLab, 2026-08-29): the two checks above only cover the
     # /pricing/ cards and the paywall modal -- a mutation test proved a

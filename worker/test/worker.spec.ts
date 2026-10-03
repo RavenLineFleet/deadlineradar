@@ -2057,6 +2057,14 @@ describe("store.ts hashToken -- login/session token hashing", () => {
 
 async function createFirmWithSession(name: string, adminEmail: string): Promise<{ firmId: string; cookie: string }> {
   const firm = await store.createFirm(env.DB, { name, adminEmail });
+  // PR6 (migration 0085, 2026-10-02): store.createFirm() now grants every
+  // new firm a real 14-day trial (full paid-feature access, uncapped
+  // seats). This file's hundreds of existing callers all predate that
+  // concept and test steady-state free/paid behavior, not signup-day
+  // behavior -- cleared centrally here rather than at each call site.
+  // Tests that specifically want an ACTIVE trial (PR6's own describe
+  // block) create their firm a different way, not through this helper.
+  await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firm.id).run();
   const { rawSessionToken } = await store.createSession(env.DB, firm.id);
   return { firmId: firm.id, cookie: `dr_firm_session=${rawSessionToken}` };
 }
@@ -2523,6 +2531,11 @@ describe("POST /firm/licenses -- BILL-1 seat cap (25 staff, GRANDFATHERED firms 
   // NEW default (cap 3) for a firm that signs up after the cutover.
   async function backdateFirm(firmId: string): Promise<void> {
     await env.DB.prepare("UPDATE firms SET created_at = '2020-01-01T00:00:00Z' WHERE id = ?1").bind(firmId).run();
+    // PR6 (migration 0085, 2026-10-02): createFirmWithSession() stamped
+    // trial_ends_at at real creation time, untouched by backdating
+    // created_at just above -- cleared so these firms test the actual
+    // grandfathered-cap boundary, not an active trial's unlimited one.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
   }
 
   // Fills a firm's roster directly via store.ts (bypassing the HTTP layer,

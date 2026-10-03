@@ -374,6 +374,10 @@ describe("Teams -- roadmap #151 value-line gate", () => {
   async function postCutoverFreeFirm(label: string): Promise<{ firmId: string; memberId: string }> {
     const adminEmail = `${label}-${Date.now()}-${Math.floor(performance.now())}@examplefirm.com`;
     const { id: firmId, memberId } = await store.createFirm(env.DB, { name: `${label} LLP`, adminEmail });
+    // PR6 (migration 0085, 2026-10-02): createFirm() also grants this "now"
+    // firm a real 14-day trial, which would let it through via ITS own
+    // OR-condition regardless of the cutover rule this helper tests.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
     return { firmId, memberId }; // real "now" created_at -- genuinely post-cutover
   }
 
@@ -423,6 +427,10 @@ describe("Teams -- roadmap #151 value-line gate", () => {
     await seedTeamsWebhook(firmId);
     const future = new Date(Date.now() + 86_400_000).toISOString();
     await env.DB.prepare("UPDATE firms SET plan_tier = 'free', created_at = ?1 WHERE id = ?2").bind(future, firmId).run();
+    // PR6 (migration 0085, 2026-10-02): newFirm() stamped trial_ends_at at
+    // real creation time, untouched by the created_at rewrite just above --
+    // cleared so this firm is genuinely neither grandfathered nor mid-trial.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
 
     await addRosterSubscriber(firmId, "ohio", isoDaysFromUtcMidnight(asOf, 30));
 
