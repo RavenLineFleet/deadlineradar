@@ -4494,6 +4494,66 @@ def check_sms_cron_hour_matches_wrangler(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_monthly_billing_flag_consistency(repo_root: Path) -> list[str]:
+    """BILL-27 (AuditLab, LOW, latent, 2026-10-03): "the monthly billing
+    flag" is actually THREE independently-hardcoded literals, with nothing
+    asserting they agree -- proven by mutation (flipping the Python one
+    leaves the dashboard JS literal byte-identical, since nothing feeds
+    one from the other):
+
+        generate.py       MONTHLY_BILLING_ENABLED           (Python bool, pricing pages)
+        generate.py       var DR_MONTHLY_BILLING_ENABLED     (JS literal, embedded in the
+                                                               dashboard's shipped <script>)
+        worker/src/tiers.ts  MONTHLY_BILLING_ENABLED         (TS const, server-side checkout gate)
+
+    All three already comment-reference each other as "halves" of one
+    gate, so the intent is that they move together -- but nothing enforces
+    it, and a partial flip (ship the pricing-page toggle, forget the
+    dashboard one; or flip both UI flags and leave the server still
+    refusing every monthly checkout at the 400) is the DEFAULT outcome of
+    editing "the flag" by hand, not a hypothetical. Nothing is wrong today
+    -- all three read false, consistently -- which is exactly why this
+    would go unnoticed until the monthly launch itself, the worst possible
+    time to discover a 3-way desync. Same shape as
+    check_sms_cron_hour_matches_wrangler()'s cross-file literal pin just
+    above."""
+    generate_py = repo_root / "generate.py"
+    tiers_ts = repo_root / "worker" / "src" / "tiers.ts"
+    if not tiers_ts.exists():
+        print("  (skipping monthly-billing-flag-consistency check -- worker/ tree not present in this checkout)")
+        return []
+
+    py_text = generate_py.read_text(encoding="utf-8")
+    ts_text = tiers_ts.read_text(encoding="utf-8")
+
+    py_match = re.search(r"^MONTHLY_BILLING_ENABLED\s*=\s*(True|False)\s*$", py_text, re.MULTILINE)
+    js_match = re.search(r"var DR_MONTHLY_BILLING_ENABLED\s*=\s*(true|false);", py_text)
+    ts_match = re.search(r"export const MONTHLY_BILLING_ENABLED\s*=\s*(true|false);", ts_text)
+
+    missing = []
+    if not py_match:
+        missing.append("generate.py's MONTHLY_BILLING_ENABLED (Python bool)")
+    if not js_match:
+        missing.append("generate.py's embedded `var DR_MONTHLY_BILLING_ENABLED` (JS literal)")
+    if not ts_match:
+        missing.append("worker/src/tiers.ts's MONTHLY_BILLING_ENABLED (TS const)")
+    if missing:
+        return [f"[SYNC] Could not find: {'; '.join(missing)} -- markup/literal shape may have changed; update check_monthly_billing_flag_consistency()"]
+
+    py_value = py_match.group(1) == "True"
+    js_value = js_match.group(1) == "true"
+    ts_value = ts_match.group(1) == "true"
+    if py_value == js_value == ts_value:
+        return []
+    return [
+        f"[SYNC] The three monthly-billing-enabled literals disagree -- generate.py's "
+        f"MONTHLY_BILLING_ENABLED={py_value}, generate.py's DR_MONTHLY_BILLING_ENABLED={js_value} "
+        f"(dashboard JS), worker/src/tiers.ts's MONTHLY_BILLING_ENABLED={ts_value} (server checkout "
+        f"gate). All three must read the same value or the UI and the server disagree about whether "
+        f"monthly billing is actually on."
+    ]
+
+
 def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     """AuditLab PRICE-1 (2026-08-09, closed 2026-08-13): worker/src/tiers.ts's
     FIRM_TIERS is the source of truth for what a firm is actually charged and
@@ -8191,6 +8251,7 @@ def main():
     all_errors += check_field_computed_states_sync(repo_root)
     all_errors += check_sms_cron_hour_matches_wrangler(repo_root)
     all_errors += check_pricing_matches_tiers(repo_root)
+    all_errors += check_monthly_billing_flag_consistency(repo_root)
     all_errors += check_json_copies_identical(repo_root)
     all_errors += check_citation_manifest_coverage(repo_root)
     all_errors += check_terms_version_sync(repo_root)
