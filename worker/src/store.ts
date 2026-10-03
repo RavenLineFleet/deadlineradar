@@ -3481,8 +3481,15 @@ export async function incrementMobilityTrialUse(db: D1Database, firmId: string, 
  * alone.
  */
 export async function claimReferralReward(db: D1Database, referredFirmId: string): Promise<boolean> {
+  // RETAIN-10 (SecurityLab, MEDIUM, 2026-10-02): also clears
+  // referral_discount_pending (migration 0084) on claim -- it's already
+  // harmless left set (referral_reward_applied_at gates both signals, so
+  // a stale 1 can't be re-spent), but a residual flag with no clearer is
+  // exactly the shape that bites whoever reads this column next without
+  // re-deriving that argument themselves. Unconditional 0 is a no-op for
+  // the vast majority of firms that never had it set to 1.
   const result = await db
-    .prepare(`UPDATE firms SET referral_reward_applied_at = ?1 WHERE id = ?2 AND referral_reward_applied_at IS NULL`)
+    .prepare(`UPDATE firms SET referral_reward_applied_at = ?1, referral_discount_pending = 0 WHERE id = ?2 AND referral_reward_applied_at IS NULL`)
     .bind(nowIso(), referredFirmId)
     .run();
   return (result.meta.changes ?? 0) > 0;
