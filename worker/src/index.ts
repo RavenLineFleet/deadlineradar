@@ -9739,7 +9739,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     if (url.pathname === "/health") {
       // AuditLab DEPLOY-4 (LOW, 2026-09-26): opaque deployment id only --
       // never a git SHA -- see Env.CF_VERSION_METADATA's own comment for why.
-      return jsonResponse(200, { status: "ok", version: env.CF_VERSION_METADATA?.id ?? null });
+      // MON-10 (AuditLab, 2026-10-02 / Orchestrator directive 2026-10-03): HomeLab's
+      // live-age watchdog alerts when this is >= 21, but reads "not exposed" and stays
+      // silent until the field exists -- per their contract, a plain JSON number, the
+      // WORSE of as_of age and worst single-record age (the exact value
+      // checkDataFreshness()'s own runtime guard compares against STALENESS_THRESHOLD_DAYS),
+      // not a second, looser computation of our own.
+      const worstRecordAgeDays = dataFreshnessInfo(new Date()).age_days;
+      return jsonResponse(200, { status: "ok", version: env.CF_VERSION_METADATA?.id ?? null, worst_record_age_days: worstRecordAgeDays });
     }
 
     // Orchestrator directive (2026-09-25): the MT Society of CPAs eConnect

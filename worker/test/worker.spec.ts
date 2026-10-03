@@ -142,7 +142,24 @@ describe("GET /health", () => {
       testEnv as never,
       testExecutionContext()
     );
-    expect(await resp.json()).toEqual({ status: "ok", version: "test-version-id" });
+    expect(await resp.json()).toEqual({
+      status: "ok",
+      version: "test-version-id",
+      worst_record_age_days: dataFreshnessInfo(new Date()).age_days,
+    });
+  });
+
+  // MON-10 (AuditLab, 2026-10-02 / Orchestrator directive 2026-10-03): HomeLab's live-age
+  // watchdog alerts at >= 21 but reads "not exposed" and stays silent until this field
+  // exists. Per their contract (homelab_20261002_2228_health_worst_age_field.md): a plain
+  // JSON number, the WORSE of as_of age and worst single-record age -- the exact value
+  // checkDataFreshness()'s own runtime guard compares against STALENESS_THRESHOLD_DAYS,
+  // not a second, independently-computed number that could silently drift from it.
+  it("exposes worst_record_age_days as the same number the runtime freshness guard uses", async () => {
+    const resp = await getAction("/health");
+    const body = await resp.json<{ worst_record_age_days: unknown }>();
+    expect(typeof body.worst_record_age_days).toBe("number");
+    expect(body.worst_record_age_days).toBe(dataFreshnessInfo(new Date()).age_days);
   });
 
   // AuditLab S-1, 2026-08-03 (MEDIUM): neither origin sent any of these 5
