@@ -8783,11 +8783,20 @@ def _pricing_tier_card_html(t: dict, lang: str = "en") -> str:
     """One paid-tier card, built for BOTH intervals at once -- the toggle
     (_PRICING_INTERVAL_TOGGLE_JS_HTML below) just shows/hides the matching
     .price-annual/.price-monthly element, no server round trip and no
-    second page render needed to switch."""
-    savings = _annual_savings_percent(t["annual_usd"], t["monthly_usd"])
+    second page render needed to switch.
+
+    BILL-26 (SecurityLab, confirmed by orchestrator, 2026-10-03): the
+    "save X%" badge sits inside .price-annual -- the ALWAYS-visible
+    element, never hidden by the interval toggle -- but its number is
+    computed by comparing against the monthly price, so showing it while
+    MONTHLY_BILLING_ENABLED is false implies a monthly option exists to
+    be saving against. Omitted entirely (not just visually hidden) when
+    the flag is off, same "no half-built UI" posture as the toggle itself.
+    """
+    savings_clause = f" &middot; save {_annual_savings_percent(t['annual_usd'], t['monthly_usd'])}%" if MONTHLY_BILLING_ENABLED else ""
     return f"""  <div class="pricing-card" id="{t['label'].lower()}">
     <h2>{t['label']}</h2>
-    <p class="price price-annual">${t['annual_usd']}<span>/year &middot; save {savings}%</span></p>
+    <p class="price price-annual">${t['annual_usd']}<span>/year{savings_clause}</span></p>
     <p class="price price-monthly" hidden>${t['monthly_usd']}<span>/month</span></p>
     <p class="detail">{_t("pricing.staff_up_to", lang, n=t['seat_cap'])}</p>
     {_paid_tier_includes_html(lang)}
@@ -14625,7 +14634,12 @@ function drRenderBillingPanel() {
         var seatLabel = (t.tier === topTier.tier && seatCount > t.seatCap)
           ? ('up to 35 staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
           : ('up to ' + t.seatCap + ' staff');
-        var savingsLabel = !isMonthly ? (' &middot; save ' + drAnnualSavingsPercent(t.annualUsd, t.monthlyUsd) + '%') : '';
+        // BILL-26 (SecurityLab, confirmed by orchestrator, 2026-10-03):
+        // same reasoning as the static pricing page's own savings badge --
+        // the number compares against the monthly price, so it's omitted
+        // while DR_MONTHLY_BILLING_ENABLED is false, not just whenever
+        // isMonthly happens to be false (which is always, today).
+        var savingsLabel = (!isMonthly && DR_MONTHLY_BILLING_ENABLED) ? (' &middot; save ' + drAnnualSavingsPercent(t.annualUsd, t.monthlyUsd) + '%') : '';
         return '<button type="button" class="dr-paywall-tier-btn" data-tier="' + t.tier + '" data-seat-cap="' + t.seatCap + '" ' + hidden + '>' +
           drEscapeHtml(t.label) + '<br><span>' + drEscapeHtml(priceLabel) + ' &middot; ' + drEscapeHtml(seatLabel) + savingsLabel + '</span></button>';
       }).join('') +
