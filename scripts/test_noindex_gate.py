@@ -22,7 +22,9 @@ assertion runs, because /nevada/ -- unlike nevada-cpa-license-reinstatement
     5. slug-set count mismatch, hash still "correct" for its own content -> ERROR (isolated)
     6. zero noindexed pages built at all                               -> ERROR (enablement)
     7. GATE-42 (AuditLab, 2026-10-03): 404.html -- a non-index.html page --
-       loses its noindex tag                                           -> ERROR (missing)
+       correctly noindexed produces no error, then losing the tag IS caught
+       (the before/after pair is what actually pins the fix, not either
+       state alone -- see the test's own docstring)              -> clean, then ERROR
     8. GATE-42: a stray non-index.html page gains an unintended noindex -> ERROR (extra)
 """
 import hashlib
@@ -212,15 +214,30 @@ def test_6_zero_noindexed_pages_is_enablement_error(tmp_path):
 
 # --- 7/8. GATE-42: non-index.html pages are now asserted too ----------------
 
-def test_7_404_html_missing_noindex_is_caught(tmp_path):
+def test_7_404_html_noindex_detection_toggles_correctly(tmp_path):
+    """AuditLab (2026-10-03): the "missing" assertion alone can't discriminate
+    the fix from the pre-fix bug -- under the old index.html-only enumeration,
+    /404.html was unconditionally absent from `actual` (noindexed or not), so
+    an error "expected to be noindexed but are not" fires either way and
+    proves nothing. What actually pins GATE-42 is the first assertion below:
+    with 404.html CORRECTLY noindexed, there must be zero /404.html errors --
+    the old code could never reach that state since it couldn't see the file
+    at all. (test_1 and test_8 also pin the fix; this test just makes the
+    404-specific case explicit and named for it, per AuditLab's own review.)"""
     docs_dir = tmp_path / "docs"
     _build_intended_set(docs_dir)
     # /404.html is in NOINDEX_APP_AUTH_ALLOWLIST, so _build_intended_set
-    # already wrote it noindexed; simulate it losing that tag (the pre-fix
-    # blind spot GATE-42 closes -- _noindex_paths used to skip this file
-    # entirely regardless of its content).
-    _write_page(docs_dir, "/404.html", noindex=False)
+    # already wrote it correctly noindexed.
     _write_sitemap(docs_dir, ["/nevada/", "/south-carolina-cpa-license-reinstatement/"])
+    clean_errors = gate.check_noindex_set_matches_intent(
+        _html_files(docs_dir), docs_dir, tmp_path, reinstatement_slugs=REAL_SLUGS
+    )
+    assert not any("/404.html" in e for e in clean_errors), (
+        f"404.html is correctly noindexed and must not be flagged, got {clean_errors}"
+    )
+
+    # Now simulate losing the tag (the pre-fix blind spot GATE-42 closes).
+    _write_page(docs_dir, "/404.html", noindex=False)
     errors = gate.check_noindex_set_matches_intent(
         _html_files(docs_dir), docs_dir, tmp_path, reinstatement_slugs=REAL_SLUGS
     )
