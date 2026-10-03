@@ -11,8 +11,9 @@ ALERT if:
   - the LIVE Worker's worst record age (/api/health `worst_record_age_days`) is LIVE_ALERT_DAYS or more
     (Orchestrator 2026-10-02 22:27, STALE-27). The runtime signup/send wall reads the Worker's BUNDLED data,
     which this job commits but never deploys, so git can be fresh while production ages toward its 30-day
-    pause. Until AssetLab exposes the field this check reports "not exposed"; from LIVE_FIELD_DUE on, a
-    still-missing field ALERTS (AuditLab MON-10: a dead detector must not look like a quiet one). An
+    pause. The field went live 2026-10-03 (MON-10), so from LIVE_FIELD_DUE on a missing field ALERTS: the
+    Worker omits it when as_of_date won't parse, and a rollback drops it. `stale: true` alerts whatever the
+    age says (MON-13), and so does a negative or NaN age (MON-12). An
     unreachable /api/health is reported but not alerted on here (site uptime is a separate check).
 """
 from __future__ import annotations
@@ -28,7 +29,7 @@ DEFAULT = os.path.join(os.environ.get("REVERIFY_STATE_DIR", r"C:\Users\Devin\Orc
 STALE_DAYS = 25
 MAX_SILENCE_H = 30
 LIVE_ALERT_DAYS = 21
-LIVE_FIELD_DUE = date(2026, 10, 9)    # a week after the field contract went to AssetLab (2026-10-02 22:28)
+LIVE_FIELD_DUE = date(2026, 10, 3)    # the field went live 2026-10-03 (MON-10); absence since means a problem
 HEALTH_URL = os.environ.get("REVERIFY_HEALTH_URL", "https://deadline-radar.com/api/health")
 
 
@@ -57,11 +58,14 @@ def check(status, now: datetime):
 def live_check(health: dict | None, today: date | None = None) -> tuple[bool, str]:
     if health is None:
         return True, "live age: /api/health unreachable"
+    if health.get("stale") is True:   # MON-13: the Worker's own freshness verdict, carried apart from the age
+        return False, (f"ALERT reverify: LIVE /api/health reports stale=true (age {health.get('worst_record_age_days')!r}) "
+                       f"-- signups and sends are paused; check as_of_date, then run scripts/deploy_worker.py")
     age = health.get("worst_record_age_days")
     if not isinstance(age, (int, float)) or isinstance(age, bool):
         if (today or date.today()) >= LIVE_FIELD_DUE:
-            return False, (f"ALERT reverify: /api/health still has no worst_record_age_days (due {LIVE_FIELD_DUE}) "
-                           f"-- the live-age watchdog is blind; AssetLab to expose it")
+            return False, (f"ALERT reverify: /api/health has no numeric worst_record_age_days (live since {LIVE_FIELD_DUE}) "
+                           f"-- as_of_date unparseable (signups paused) or the Worker was rolled back; watchdog is blind")
         return True, "live age: not exposed by /api/health yet"
     if not age >= 0:   # MON-12: -1 (unparseable as_of_date) or NaN means unknown, and the runtime guard has paused
         return False, (f"ALERT reverify: LIVE worker reports worst record age {age!r} (unknown) -- the freshness "
