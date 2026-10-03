@@ -18,7 +18,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import NamedTuple
 
@@ -2447,51 +2447,154 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
 # before (2026-09-19, 09-25): clearing a cohort in one batch rebuilds the
 # same wall 31 days later. A preship check is the only version of "remember
 # to stagger" that survives a busy remediation night.
+#
+# Orchestrator STOP (23:03 MDT, 2026-10-02), the morning of the first
+# version of this gate: a flat "fail if any date has >10" is itself an
+# outage -- 81 records ALREADY share 2026-10-02 from an earlier commit, so
+# a flat cap blocks every ship (PR6, this gate's own deploy, any security
+# fix) for the ~11 days HomeLab's tranche remediation needs, which is worse
+# than the problem it prevents. Ratcheted instead: a hard failure only
+# when (a) THIS change made some date's cohort grow past the cap (never
+# regress further), or (b) a cohort already over cap is close enough to
+# its own 31-day cliff that there's no longer enough lead time to safely
+# stagger it before it actually pauses signups/sends. An over-cap cohort
+# that is neither growing nor imminent is a loud advisory, not a block --
+# the lead time IS the remediation plan, and the gate must not consume it.
 CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE = 10
+# How close to its own 31-day staleness cliff an over-cap cohort may get
+# before "stagger it" is no longer a credible plan and the gate hard-fails.
+# HomeLab's tranche plan spreads ~8 cpa_deadlines records/day, so clearing
+# even a large cohort takes days, not hours -- 14 days of lead time is
+# comfortably more than that, with margin for a missed day.
+CPA_DEADLINES_COHORT_IMMINENT_DAYS = 14
+CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- a record is stale at +31
+
+
+def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> dict[str, int]:
+    """{last_verified date -> record count}, skipping missing/malformed
+    dates (that's the staleness advisory's own job, not this one's)."""
+    counts: dict[str, int] = {}
+    for r in cpa_data.get("records", []):
+        last_verified = r.get("last_verified")
+        if not isinstance(last_verified, str) or not last_verified:
+            continue
+        counts[last_verified] = counts.get(last_verified, 0) + 1
+    return counts
+
+
+def _cpa_deadlines_committed_verification_date_counts(repo_root: Path) -> dict[str, int] | None:
+    """The same per-date counts, but from data/cpa_deadlines.json as last
+    COMMITTED (`git show HEAD:...`), not the working tree -- the ratchet's
+    baseline. Returns None (distinct from {}, an empty-but-real baseline)
+    if git isn't available, this isn't a git checkout, there's no HEAD
+    yet, or the file didn't exist at HEAD -- a caller must treat a missing
+    baseline as "nothing to ratchet against," not as "every date grew from
+    zero," which would hard-fail a brand-new or pre-this-gate repo for a
+    cohort this specific change never created.
+    """
+    git = shutil.which("git")
+    if not git:
+        return None
+    result = subprocess.run(
+        [git, "show", "HEAD:data/cpa_deadlines.json"], cwd=repo_root, capture_output=True, text=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    try:
+        committed_data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    return _cpa_deadlines_verification_date_counts(committed_data)
 
 
 def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list[str]:
-    """Fails if more than CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE
-    cpa_deadlines.json records share the same `last_verified` date.
+    """Hard-fails only on the two ratchet conditions described in the
+    comment above CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE -- growth
+    past the cap, or an over-cap cohort now too close to its own cliff to
+    safely stagger. Everything else over cap is
+    print_cpa_deadlines_cohort_concentration_advisory()'s job (loud, with
+    a countdown, never affects the exit code).
+
     cpa_deadlines specifically (not cpe_hours/reinstatement/renewal_fees,
     which only block a build, never pause runtime) because it's the one
     dataset worker/src/deadline.ts's runtime guard reads -- a concentrated
     cohort there is a scheduled outage, not just a scheduled build-gate
-    refusal. Deliberately does NOT also gate the other three datasets:
-    they share the same re-verification pipeline and the same remediation
-    discipline fixes all four at once, but only cpa_deadlines carries the
-    runtime consequence that makes concentration a HARD gate rather than
-    advisory noise (the advisory per-record staleness check already covers
-    the other three at ship time).
-
-    HomeLab owns re-verifying for real (never just bumping last_verified)
-    in daily tranches so no date accumulates past the cap -- this gate
-    exists so a future bulk remediation that skips that discipline fails
-    loudly at ship time instead of silently re-arming the same 31-days-out
-    trap.
+    refusal. The other three share the same remediation discipline but
+    rely on the existing advisory per-record staleness checks instead of a
+    hard gate of their own.
     """
     cpa_path = repo_root / "data" / "cpa_deadlines.json"
     if not cpa_path.exists():
         return [f"[GATE] {cpa_path} not found -- check_cpa_deadlines_verification_date_concentration() is measuring nothing."]
     cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
-    by_date: dict[str, list[str]] = {}
-    for r in cpa_data["records"]:
-        last_verified = r.get("last_verified")
-        if not isinstance(last_verified, str) or not last_verified:
-            continue  # a missing/malformed last_verified is the staleness advisory's own job, not this one's
-        by_date.setdefault(last_verified, []).append(r.get("id", "?"))
+    current_counts = _cpa_deadlines_verification_date_counts(cpa_data)
+    committed_counts = _cpa_deadlines_committed_verification_date_counts(repo_root)
+    today = datetime.now(timezone.utc).date()
+
     errors = []
-    for date, ids in sorted(by_date.items()):
-        if len(ids) > CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE:
+    for verified_date, count in sorted(current_counts.items()):
+        if count <= CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE:
+            continue
+        # (a) ratchet: this change must not be the one that pushed (or grew)
+        # a cohort past the cap. A cohort that was ALREADY over cap at HEAD
+        # and hasn't grown further is not re-flagged here every single ship.
+        # No baseline at all (committed_counts is None) means there's
+        # nothing to ratchet against -- skip straight to (b) rather than
+        # treating "no baseline" as "grew from zero."
+        if committed_counts is not None:
+            previously = committed_counts.get(verified_date, 0)
+            if count > previously:
+                errors.append(
+                    f"[STALE27-RATCHET][{verified_date}] this change grows the cohort sharing this last_verified "
+                    f"date from {previously} to {count} records (cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) "
+                    f"-- never let a date's cohort get WORSE, even if it was already over cap. Verify onto a "
+                    f"different, less-crowded date instead."
+                )
+                continue  # (a) and (b) are not both reported for the same date -- (a) already explains why this ships red
+        # (b) imminent: already over cap (and not grown by this change) is
+        # only safe to leave as an advisory while there's real lead time
+        # left to stagger it before it actually goes stale.
+        try:
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+        except ValueError:
+            continue  # malformed date -- the staleness advisory's own job, not this one's
+        days_until_stale = (stale_on - today).days
+        if days_until_stale <= CPA_DEADLINES_COHORT_IMMINENT_DAYS:
             errors.append(
-                f"[STALE27][{date}] {len(ids)} cpa_deadlines records share this exact last_verified "
-                f"date (cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) -- they will all go stale "
-                f"together 31 days later ({date} + 31d), pausing signups and all outbound sends on "
-                f"that one day instead of spreading the risk. Stagger the re-verification across "
-                f"different dates instead of bumping them all in one batch. Affected ids: "
-                f"{', '.join(sorted(ids)[:15])}{' ...' if len(ids) > 15 else ''}"
+                f"[STALE27-IMMINENT][{verified_date}] {count} cpa_deadlines records share this last_verified date "
+                f"(cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) and go stale together in "
+                f"{days_until_stale} day(s) ({stale_on.isoformat()}) -- pausing signups and all outbound "
+                f"sends on that one day. Too close to stagger safely now; this must be cleared before shipping."
             )
     return errors
+
+
+def print_cpa_deadlines_cohort_concentration_advisory(repo_root: Path) -> None:
+    """The loud, non-blocking half of STALE-27's gate: every cpa_deadlines
+    cohort over CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE that the hard
+    gate above did NOT fail on (not grown by this change, not yet
+    imminent) -- printed with its own countdown so the remediation has a
+    visible clock on every single ship, not just the ones that trip."""
+    cpa_path = repo_root / "data" / "cpa_deadlines.json"
+    if not cpa_path.exists():
+        return
+    cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
+    current_counts = _cpa_deadlines_verification_date_counts(cpa_data)
+    over_cap = {d: c for d, c in current_counts.items() if c > CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}
+    print("\n--- cpa-deadlines-cohort-concentration advisory (STALE-27; a HARD-FAILING date is reported above, not here) ---")
+    if not over_cap:
+        print(f"  no cpa_deadlines last_verified date currently shares more than {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE} records.")
+        return
+    today = datetime.now(timezone.utc).date()
+    for verified_date, count in sorted(over_cap.items()):
+        try:
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+            days_until_stale = (stale_on - today).days
+            countdown = f"goes stale in {days_until_stale}d ({stale_on.isoformat()}) -- pauses signups and all outbound sends that day"
+        except ValueError:
+            countdown = "last_verified is malformed -- see the staleness advisory"
+        print(f"  [{verified_date}] {count} records (cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) -- {countdown}")
+    print("  Not blocking yet -- HomeLab's tranche remediation is staggering these onto separate dates.")
 
 
 def check_renewal_fee_currency(repo_root: Path) -> list[str]:
@@ -7970,6 +8073,7 @@ def main():
         print_worker_deploy_staleness_advisory(repo_root)
         print_silent_drop_advisory(repo_root)
         print_cpa_deadlines_staleness_advisory(repo_root)
+        print_cpa_deadlines_cohort_concentration_advisory(repo_root)
         print_cpe_hours_staleness_advisory(repo_root)
         print_reinstatement_staleness_advisory(repo_root)
         print_renewal_fee_staleness_advisory(repo_root)
@@ -7992,6 +8096,7 @@ def main():
     print_worker_deploy_staleness_advisory(repo_root)
     print_silent_drop_advisory(repo_root)
     print_cpa_deadlines_staleness_advisory(repo_root)
+    print_cpa_deadlines_cohort_concentration_advisory(repo_root)
     print_cpe_hours_staleness_advisory(repo_root)
     print_reinstatement_staleness_advisory(repo_root)
     print_renewal_fee_staleness_advisory(repo_root)
