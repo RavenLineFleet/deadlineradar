@@ -211,7 +211,12 @@ def main() -> int:
         return 0
 
     commit = head_commit()
-    MARKER.write_text(commit + "\n", encoding="utf-8")
+    # newline="\n": Path.write_text()'s default newline translation writes
+    # \r\n on Windows, which silently reintroduced CRLF into this LF-only
+    # repo (.gitattributes: `* text=auto eol=lf`) every time this script ran
+    # on a Windows machine -- caught the same day it first happened, already
+    # live on origin/main once as of this fix.
+    MARKER.write_text(commit + "\n", encoding="utf-8", newline="\n")
     print(f"\nDeploy done. Updated worker/.last_deploy_commit -> {commit[:7]}")
     print("Remember to COMMIT the marker change so the repo reflects reality.")
     return 0
