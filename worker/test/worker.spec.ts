@@ -142,13 +142,25 @@ describe("GET /health", () => {
       testEnv as never,
       testExecutionContext()
     );
-    const expected: { status: string; version: string; worst_record_age_days?: number } = {
+    const freshness = dataFreshnessInfo(new Date());
+    const expected: { status: string; version: string; stale: boolean; worst_record_age_days?: number } = {
       status: "ok",
       version: "test-version-id",
+      stale: freshness.stale,
     };
-    const ageDays = dataFreshnessInfo(new Date()).age_days;
-    if (ageDays !== -1) expected.worst_record_age_days = ageDays;
+    if (freshness.age_days !== -1) expected.worst_record_age_days = freshness.age_days;
     expect(await resp.json()).toEqual(expected);
+  });
+
+  // MON-13 (AuditLab, 2026-10-03): `stale` is HomeLab's own `live_check()`'s primary
+  // signal -- read independently of the age field so an unparseable as_of_date (which
+  // omits worst_record_age_days) still gets its own unambiguous alert, rather than being
+  // indistinguishable from "the field hasn't shipped yet".
+  it("exposes stale as the same boolean the runtime freshness guard uses", async () => {
+    const resp = await getAction("/health");
+    const body = await resp.json<{ stale: unknown }>();
+    expect(typeof body.stale).toBe("boolean");
+    expect(body.stale).toBe(dataFreshnessInfo(new Date()).stale);
   });
 
   // MON-10 (AuditLab, 2026-10-02 / Orchestrator directive 2026-10-03): HomeLab's live-age

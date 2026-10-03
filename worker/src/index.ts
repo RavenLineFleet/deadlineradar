@@ -9752,10 +9752,18 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       // checkDataFreshness() has already paused every signup and send. Omit the key
       // entirely in that case so the field-absence branch handles it instead of a
       // sentinel for "unknown" silently comparing as "fine".
+      // MON-13 (AuditLab, 2026-10-03): omitting the age key overloads field-absence
+      // with two meanings -- "not shipped yet" (before this field existed) and "the
+      // as_of_date is unparseable" (after) -- so HomeLab's watchdog diagnoses a live
+      // freshness failure as "AssetLab hasn't exposed the field". Also publishing
+      // `stale` (HomeLab's own `live_check()` already reads it independently of the
+      // age) gives that failure its own unambiguous signal, leaving absence to mean
+      // only "not shipped."
       const freshness = dataFreshnessInfo(new Date());
-      const body: { status: string; version: string | null; worst_record_age_days?: number } = {
+      const body: { status: string; version: string | null; stale: boolean; worst_record_age_days?: number } = {
         status: "ok",
         version: env.CF_VERSION_METADATA?.id ?? null,
+        stale: freshness.stale,
       };
       if (freshness.age_days !== -1) body.worst_record_age_days = freshness.age_days;
       return jsonResponse(200, body);
