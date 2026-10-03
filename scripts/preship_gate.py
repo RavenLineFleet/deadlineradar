@@ -2504,37 +2504,93 @@ def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> tuple[dict[str, i
     return counts, skipped
 
 
-def _cpa_deadlines_committed_verification_date_counts(repo_root: Path) -> dict[str, int] | None:
-    """The same per-date counts, but from data/cpa_deadlines.json as last
-    COMMITTED (`git show HEAD:...`), not the working tree -- the ratchet's
-    baseline. Returns None (distinct from {}, an empty-but-real baseline)
-    if git isn't available, this isn't a git checkout, there's no HEAD
-    yet, or the file didn't exist at HEAD -- a caller must treat a missing
-    baseline as "nothing to ratchet against," not as "every date grew from
-    zero," which would hard-fail a brand-new or pre-this-gate repo for a
-    cohort this specific change never created.
+CPA_DEADLINES_COHORT_BASELINE_RELPATH = "scripts/cohort_baseline.json"
+
+
+def _cpa_deadlines_cohort_baseline_path(repo_root: Path) -> Path:
+    return repo_root / "scripts" / "cohort_baseline.json"
+
+
+def _load_cpa_deadlines_cohort_baseline(repo_root: Path) -> dict[str, int] | None:
+    """Working-tree scripts/cohort_baseline.json: the per-date ceiling the
+    ratchet enforces (STALE-37 fix -- see check_cpa_deadlines_verification_
+    date_concentration()'s docstring for why this replaced reading data/
+    cpa_deadlines.json's own HEAD commit as the baseline). A date present
+    in this file but absent from its entries has no recorded ceiling
+    tighter than the plain cap, so callers should default a missing ENTRY
+    to CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE, not to "unbounded."
+
+    Returns None -- distinct from {}, a real-but-empty baseline -- when the
+    file itself doesn't exist or fails to parse: a checkout that has never
+    adopted this mechanism (or lost the file) has nothing to ratchet
+    against at all, which must fall through to the imminent-only backstop
+    (same treatment as no git history), not be read as "every over-cap
+    date just had its ceiling silently set to the plain cap."
     """
+    path = _cpa_deadlines_cohort_baseline_path(repo_root)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return {k: v for k, v in data.items() if isinstance(v, int) and not isinstance(v, bool)}
+
+
+def _load_committed_cpa_deadlines_cohort_baseline(repo_root: Path) -> dict[str, int] | None:
+    """The same baseline file as last COMMITTED (`git show HEAD:...`), used
+    only to enforce that the baseline itself never moves up (STALE-37).
+    Returns None -- distinct from {} -- if git isn't available, there's no
+    HEAD yet, or the file didn't exist at HEAD: a caller must treat a
+    missing committed baseline as "nothing to compare the working-tree
+    baseline against," not as "every entry was just raised from zero.\""""
     git = shutil.which("git")
     if not git:
         return None
     result = subprocess.run(
-        [git, "show", "HEAD:data/cpa_deadlines.json"], cwd=repo_root, capture_output=True, text=True,
+        [git, "show", f"HEAD:{CPA_DEADLINES_COHORT_BASELINE_RELPATH}"], cwd=repo_root, capture_output=True, text=True,
     )
     if result.returncode != 0 or not result.stdout.strip():
         return None
     try:
-        committed_data = json.loads(result.stdout)
+        data = json.loads(result.stdout)
     except json.JSONDecodeError:
         return None
-    counts, _skipped = _cpa_deadlines_verification_date_counts(committed_data)
-    return counts
+    return {k: v for k, v in data.items() if isinstance(v, int) and not isinstance(v, bool)}
+
+
+def tighten_cpa_deadlines_cohort_baseline(repo_root: Path) -> dict[str, int]:
+    """Lower (never raise) scripts/cohort_baseline.json to match the
+    CURRENT working-tree cohort counts, for the nightly tranche job to call
+    right after a shrink, in the same commit as the shrunk data. This is
+    what "banks" remediation progress: without it, a cohort that shrinks
+    from 81 to 40 and later bounces back up to 60 would still pass the
+    ratchet (60 < the old 81 ceiling), silently giving back lead time that
+    was already earned. Only ever lowers a date's ceiling, and only ever to
+    its real current count -- never invents a tighter number than what the
+    data actually shows, and never raises an existing entry (that direction
+    is exactly what the STALE-37 fix blocks as laundering).
+    """
+    cpa_path = repo_root / "data" / "cpa_deadlines.json"
+    current_counts: dict[str, int] = {}
+    if cpa_path.exists():
+        cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
+        current_counts, _skipped = _cpa_deadlines_verification_date_counts(cpa_data)
+    existing = _load_cpa_deadlines_cohort_baseline(repo_root) or {}
+    tightened = dict(existing)
+    for verified_date, count in current_counts.items():
+        ceiling = existing.get(verified_date, CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE)
+        tightened[verified_date] = min(ceiling, count)
+    path = _cpa_deadlines_cohort_baseline_path(repo_root)
+    path.write_text(json.dumps(tightened, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return tightened
 
 
 def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list[str]:
-    """Hard-fails only on the two ratchet conditions described in the
-    comment above CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE -- growth
-    past the cap, or an over-cap cohort now too close to its own cliff to
-    safely stagger. Everything else over cap is
+    """Hard-fails only on the three ratchet conditions below -- growth past
+    a date's recorded ceiling, a ceiling itself being raised, or an
+    over-cap cohort now too close to its own cliff to safely stagger.
+    Everything else over cap is
     print_cpa_deadlines_cohort_concentration_advisory()'s job (loud, with
     a countdown, never affects the exit code).
 
@@ -2545,51 +2601,109 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
     refusal. The other three share the same remediation discipline but
     rely on the existing advisory per-record staleness checks instead of a
     hard gate of their own.
+
+    STALE-37 (AuditLab, MEDIUM, 2026-10-03): the first version of this
+    ratchet used data/cpa_deadlines.json's own committed (HEAD) counts as
+    the baseline. That has two failure modes, both measured by AuditLab:
+    (a) a CLEAN working tree always equals its own HEAD, so the baseline
+    reads flat every single run -- once the 2026-10-02 cohort enters its
+    own 14-day imminent window (~2026-10-19), `preship_gate.py` run on an
+    already-committed tree hard-fails even while remediation is actively
+    shrinking the cohort, because a clean tree can never demonstrate the
+    shrink the shrink-exemption needs to see. (b) a single commit that
+    grows a cohort AND commits the grown data becomes its own new baseline
+    forever after -- a one-time laundering move that permanently erases
+    the early warning the ratchet exists to provide.
+
+    Fixed by moving the baseline into its own committed file,
+    scripts/cohort_baseline.json, which this gate treats as a ceiling that
+    may only ever go DOWN:
+      - the CURRENT data is compared against the baseline FILE's
+        working-tree contents, never against data/cpa_deadlines.json's own
+        git history -- so a clean post-commit tree still correctly reads
+        as "at or under its ceiling," not "flat," and the shrink exemption
+        keeps working after the commit that produced it, not only before.
+      - the baseline file's working-tree contents are, separately, checked
+        against its own last COMMITTED contents -- raising any date's
+        ceiling is a hard failure in its own right, which is what closes
+        the laundering hole: you can no longer grow the data and bump the
+        ceiling to match in the same commit.
+      - HomeLab's nightly tranche job calls
+        tighten_cpa_deadlines_cohort_baseline() to lower the ceiling to the
+        real current count once a shrink is confirmed, in the same commit
+        as the shrunk data -- that is how progress gets permanently banked
+        rather than being silently given back if a cohort bounces back up
+        partway.
     """
     cpa_path = repo_root / "data" / "cpa_deadlines.json"
     if not cpa_path.exists():
         return [f"[GATE] {cpa_path} not found -- check_cpa_deadlines_verification_date_concentration() is measuring nothing."]
     cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
     current_counts, _skipped = _cpa_deadlines_verification_date_counts(cpa_data)
-    committed_counts = _cpa_deadlines_committed_verification_date_counts(repo_root)
+    baseline = _load_cpa_deadlines_cohort_baseline(repo_root)
+    committed_baseline = _load_committed_cpa_deadlines_cohort_baseline(repo_root)
     today = datetime.now(timezone.utc).date()
 
     errors = []
+    # STALE-37: the baseline file is itself the ratchet's source of truth,
+    # so it must be just as tamper-resistant as the thing it bounds -- a
+    # working-tree edit that raises any date's ceiling above what was last
+    # committed is exactly the laundering move this fix exists to close.
+    # No committed baseline at all means nothing to compare against yet
+    # (e.g. the commit that first introduces this file).
+    if committed_baseline is not None:
+        for verified_date, committed_ceiling in sorted(committed_baseline.items()):
+            working_ceiling = (baseline or {}).get(verified_date, committed_ceiling)
+            if working_ceiling > committed_ceiling:
+                errors.append(
+                    f"[STALE27-BASELINE][{verified_date}] {CPA_DEADLINES_COHORT_BASELINE_RELPATH} raises this "
+                    f"date's ceiling from {committed_ceiling} to {working_ceiling} -- the baseline may only "
+                    f"decrease. If the real cohort grew, that is the condition this ratchet exists to catch, "
+                    f"not a reason to raise its own ceiling to match."
+                )
+
     for verified_date, count in sorted(current_counts.items()):
         if count <= CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE:
             continue
-        # (a) ratchet: this change must not be the one that pushed (or grew)
-        # a cohort past the cap. A cohort that was ALREADY over cap at HEAD
-        # and hasn't grown further is not re-flagged here every single ship.
-        # No baseline at all (committed_counts is None) means there's
-        # nothing to ratchet against -- skip straight to (b) rather than
-        # treating "no baseline" as "grew from zero."
-        if committed_counts is not None:
-            previously = committed_counts.get(verified_date, 0)
-            if count > previously:
+        # (a) ratchet: a date's cohort may never exceed the best (lowest)
+        # it has ever been recorded at in scripts/cohort_baseline.json. A
+        # date absent from the baseline has no ceiling tighter than the
+        # plain cap yet -- the first time a date goes over cap, there is
+        # nothing recorded to shrink from, so it ratchets against the cap
+        # itself until tighten_cpa_deadlines_cohort_baseline() records a
+        # real ceiling for it. No baseline FILE at all (None -- a checkout
+        # that has never adopted this mechanism, or lost the file) means
+        # there is nothing to ratchet against -- skip straight to (b)
+        # rather than silently treating "no baseline" as "every over-cap
+        # date has a ceiling of exactly the plain cap."
+        if baseline is not None:
+            ceiling = baseline.get(verified_date, CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE)
+            if count > ceiling:
                 errors.append(
-                    f"[STALE27-RATCHET][{verified_date}] this change grows the cohort sharing this last_verified "
-                    f"date from {previously} to {count} records (cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) "
-                    f"-- never let a date's cohort get WORSE, even if it was already over cap. Verify onto a "
-                    f"different, less-crowded date instead."
+                    f"[STALE27-RATCHET][{verified_date}] this date's cohort is {count}, above its recorded "
+                    f"ceiling of {ceiling} in {CPA_DEADLINES_COHORT_BASELINE_RELPATH} (cap "
+                    f"{CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) -- never let a date's cohort get WORSE "
+                    f"than the best it has ever been recorded at. Verify onto a different, less-crowded date "
+                    f"instead."
                 )
                 continue  # (a) and (b) are not both reported for the same date -- (a) already explains why this ships red
             # AuditLab pre-review (2026-10-02, stale27_ratchet_prereview.md):
-            # a cohort that SHRANK since the committed baseline is evidence
+            # a cohort that SHRANK below its recorded ceiling is evidence
             # the remediation is actively working -- if (b) below fired on
             # it anyway once imminent, every one of HomeLab's own
-            # incremental tranche commits (each one shrinking the cohort by
-            # ~8) would hard-fail during the final 14 days, reproducing the
-            # EXACT deadlock this gate was rewritten to fix, just delayed
-            # to ~10-19 instead of today. Never block a shrinking cohort on
-            # imminence grounds -- only a FLAT (stalled) or growing one.
-            if count < previously:
+            # incremental tranche commits (each one shrinking the cohort
+            # by ~8) would hard-fail during the final 14 days, reproducing
+            # the EXACT deadlock this gate was rewritten to fix, just
+            # delayed to ~10-19 instead of today. Never block a shrinking
+            # cohort on imminence grounds -- only a FLAT (stalled) or
+            # growing one.
+            if count < ceiling:
                 continue
-        # (b) imminent: already over cap, and either flat since the last
-        # commit (stalled remediation -- the real backstop this exists
-        # for) or with no baseline to compare against at all, is only safe
-        # to leave as an advisory while there's real lead time left to
-        # stagger it before it actually goes stale.
+        # (b) imminent: already at its own recorded ceiling (flat -- a
+        # stalled remediation, the real backstop this exists for) and
+        # close enough to its own 31-day staleness cliff that there's no
+        # longer enough lead time to safely stagger it before it actually
+        # pauses signups/sends.
         try:
             stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
         except ValueError:
