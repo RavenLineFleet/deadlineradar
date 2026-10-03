@@ -8734,6 +8734,14 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
 # MONTHLY_BILLING_ENABLED for the server-side half of this gate.
 MONTHLY_BILLING_ENABLED = False
 
+# BILL-25 (AuditLab, MEDIUM, LIVE, 2026-10-03): the toggle/buttons/checkout
+# were gated by `399b42031`, but the per-seat add-on's monthly rate was
+# ALSO stated as prose inside a non-toggleable paragraph
+# (pricing.card_more_detail) -- no amount of interval-gating touches text
+# that was never behind a toggle to begin with. Same flag, so this
+# restores automatically whenever MONTHLY_BILLING_ENABLED flips back on.
+_PER_SEAT_MONTHLY_CLAUSE = " (or $1.50/seat/month)" if MONTHLY_BILLING_ENABLED else ""
+
 # PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
 # FIRM_TIERS (and generate.py's own DR_BILLING_TIERS JS table on the
 # dashboard) -- duplicated here deliberately, same "two places, same
@@ -8874,7 +8882,7 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 {chr(10).join(_pricing_tier_card_html(t, lang) for t in _PRICING_TIERS)}
   <div class="pricing-card pricing-card--wide">
     <h2>{_t("pricing.card_more_title", lang)}</h2>
-    <p class="detail">{_t("pricing.card_more_detail", lang, contact_link=contact_link)}</p>
+    <p class="detail">{_t("pricing.card_more_detail", lang, contact_link=contact_link, monthly_clause=_PER_SEAT_MONTHLY_CLAUSE)}</p>
   </div>
 </div>
 
