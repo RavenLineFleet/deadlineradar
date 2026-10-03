@@ -172,8 +172,8 @@ EN: dict[str, str] = {
     "methodology.backlink_changelog": "See exactly what's changed and when →",
     "methodology.backlink_contact": "Found something that looks wrong? Tell us →",
     "methodology.meta_description": (
-        "Deadline-Radar's sourcing standard: every CPA license renewal date traces to the state "
-        "board's own page plus the actual codified statute or rule behind it — never a guess."
+        "Deadline-Radar's sourcing standard: every renewal date traces to the state board's own "
+        "page plus the codified rule behind it — never a guess."
     ),
     # /contact/ -- build_contact_page()
     "contact.h1": "Contact",
@@ -247,10 +247,10 @@ EN: dict[str, str] = {
     ),
     "msf.overview_link_text": "full firm overview",
     "msf.backlink_all_states": "← Back to all states",
-    "msf.title": "Multi-State CPA Firms: Map, Mobility Check, and Rule Changes",
+    "msf.title": "Multi-State CPA Firms: Mobility & Rules",
     "msf.meta_description": (
         "For a CPA firm with staff across multiple states: a coverage map, a free Practice "
-        "Privilege Check, and a running feed of mobility rule changes — all sourced and cited."
+        "Privilege Check, and a mobility rule-change feed — all sourced and cited."
     ),
     # /practice-privilege-check/ -- build_practice_privilege_landing_page()
     "ppc.h1": "Practice Privilege Check: Can a CPA Work in Another State Without a License?",
@@ -306,9 +306,8 @@ EN: dict[str, str] = {
     "ppc.backlink_all_states": "← Back to all states",
     "ppc.title": "Practice Privilege Check",
     "ppc.meta_description": (
-        "What CPA practice privilege (mobility) means, how substantial equivalence works, and how "
-        "to check whether a CPA can serve a client in another state without a local license — "
-        "free, verified in all 55 U.S. jurisdictions."
+        "What CPA practice privilege means, and how to check if a CPA can serve a client in "
+        "another state without a local license — free, all 55 jurisdictions."
     ),
     # /deadline-calculator/ -- build_deadline_calculator_page(). Scope note:
     # the interactive calculator widget itself (state dropdown, JS result
@@ -486,9 +485,8 @@ EN: dict[str, str] = {
     "pricing.breakdown_link_text": "full firm-tier breakdown",
     "pricing.title": "Pricing",
     "pricing.meta_description": (
-        "Deadline-Radar pricing: free individual reminders and free Practice Privilege Check for "
-        "any firm, and firm plans from $199/year for up to 5 staff, up to $549/year for up to 35. "
-        "Every firm tier has the identical feature set."
+        "Deadline-Radar pricing: free individual reminders, free Practice Privilege Check, and "
+        "firm plans from $199 to $549/year — identical features at every tier."
     ),
     # Shared FAQ (_FIRM_FAQ), used by /pricing/ and /for-firms/. Indexed
     # 1-8 in source order rather than named -- 8 distinct Q&As with no
@@ -659,9 +657,16 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.meta_description': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
+        # already under the 160-char budget, but THIS translation ran to
+        # 209 and needs a shorter rewrite, not just a trim of the EN one.
+        # Marked unreviewed rather than asserting my own un-vetted Spanish
+        # as approved -- falls back to the (correctly short) English text
+        # until AuditLab reviews a real replacement, same posture as any
+        # other pending translation gap on this site.
         "text": 'Calculadora gratuita de fechas límite de renovación de licencia de CPA — elija su estado, obtenga su fecha de renovación exacta, con fuente en la propia norma de la junta de su estado. No se requiere registro.',
         "en_hash": 'cf4bc65387a13047',
-        "reviewed": True,
+        "reviewed": False,
     },
     'calc.overview_link_text': {
         "text": 'resumen para firmas',
@@ -694,9 +699,15 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.title': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string is
+        # under budget, but this translation runs well past it once the
+        # site-name suffix is added. Marked unreviewed rather than asserting
+        # my own un-vetted Spanish as approved -- falls back to the
+        # (correctly short) English text until AuditLab reviews a real
+        # replacement, same posture as calc.meta_description above.
         "text": 'Calculadora de fechas límite de renovación de licencia de CPA',
         "en_hash": 'b1c1ab4dab8f32f5',
-        "reviewed": True,
+        "reviewed": False,
     },
     'calc.tracking_bold': {
         "text": '¿Está siguiendo al personal de toda una firma, no solo su propia licencia?',
@@ -959,9 +970,15 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.meta_description': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
+        # shortened to fit the SERP budget, so this translation no longer
+        # matches it. Marked unreviewed rather than asserting my own
+        # un-vetted Spanish as a fresh translation -- falls back to the
+        # (correctly short) English text until AuditLab reviews a real
+        # replacement, same posture as calc.meta_description above.
         "text": 'El estándar de verificación de Deadline-Radar: cada fecha de renovación de licencia de CPA remite a la propia página de la junta estatal más el estatuto o norma codificada real detrás de ella — nunca una suposición.',
         "en_hash": '7537769bf17371d3',
-        "reviewed": True,
+        "reviewed": False,
     },
     'methodology.see_for_yourself_body': {
         "text": 'Elija cualquier página estatal y busque la línea “Source of record” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
@@ -1039,9 +1056,12 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.meta_description': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
+        # shortened to fit the SERP budget, so this translation no longer
+        # matches it. Marked unreviewed, same posture as calc.meta_description.
         "text": 'Para una firma de CPA con personal en varios estados: un mapa de cobertura, una Verificación de privilegio de práctica gratuita, y un feed continuo de cambios de normas de movilidad — todo con fuentes y citas.',
         "en_hash": '2db9cec4bc7c6c31',
-        "reviewed": True,
+        "reviewed": False,
     },
     'msf.new_here_bold': {
         "text": '¿Nuevo en Deadline-Radar?',
@@ -1079,9 +1099,12 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.title': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN title was
+        # shortened to fit the SERP budget, so this translation no longer
+        # matches it. Marked unreviewed, same posture as calc.meta_description.
         "text": 'Firmas de CPA multiestatales: mapa, verificación de movilidad y cambios de normas',
         "en_hash": 'df39614c32f5145b',
-        "reviewed": True,
+        "reviewed": False,
     },
     'msf.try_demo': {
         "text": 'Pruebe la demo en vivo →',
@@ -1204,9 +1227,12 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'ppc.meta_description': {
+        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
+        # shortened to fit the SERP budget, so this translation no longer
+        # matches it. Marked unreviewed, same posture as calc.meta_description.
         "text": 'Qué significa el privilegio de práctica (movilidad) de CPA, cómo funciona la equivalencia sustancial, y cómo verificar si un CPA puede atender a un cliente en otro estado sin una licencia local — gratis, verificado en las 55 jurisdicciones de EE. UU.',
         "en_hash": '14f9c079ff6173df',
-        "reviewed": True,
+        "reviewed": False,
     },
     'ppc.overview_link_text': {
         "text": 'resumen para firmas',
