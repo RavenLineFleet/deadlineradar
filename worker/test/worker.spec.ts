@@ -142,11 +142,13 @@ describe("GET /health", () => {
       testEnv as never,
       testExecutionContext()
     );
-    expect(await resp.json()).toEqual({
+    const expected: { status: string; version: string; worst_record_age_days?: number } = {
       status: "ok",
       version: "test-version-id",
-      worst_record_age_days: dataFreshnessInfo(new Date()).age_days,
-    });
+    };
+    const ageDays = dataFreshnessInfo(new Date()).age_days;
+    if (ageDays !== -1) expected.worst_record_age_days = ageDays;
+    expect(await resp.json()).toEqual(expected);
   });
 
   // MON-10 (AuditLab, 2026-10-02 / Orchestrator directive 2026-10-03): HomeLab's live-age
@@ -155,11 +157,19 @@ describe("GET /health", () => {
   // JSON number, the WORSE of as_of age and worst single-record age -- the exact value
   // checkDataFreshness()'s own runtime guard compares against STALENESS_THRESHOLD_DAYS,
   // not a second, independently-computed number that could silently drift from it.
+  //
+  // MON-12 (AuditLab, 2026-10-03): the real bundled as_of_date is always parseable
+  // (generate.py/preship_gate.py both reject a malformed one before it ships), so the
+  // -1-sentinel/key-omitted branch is structurally unreachable here -- covered instead by
+  // the "AuditLab ST-1" dataFreshnessInfo() tests below, which exercise that sentinel
+  // directly against a synthetic unparseable date without needing to fake the live route.
   it("exposes worst_record_age_days as the same number the runtime freshness guard uses", async () => {
     const resp = await getAction("/health");
     const body = await resp.json<{ worst_record_age_days: unknown }>();
+    const expectedAgeDays = dataFreshnessInfo(new Date()).age_days;
+    expect(expectedAgeDays).not.toBe(-1); // real bundled as_of_date is always parseable; see MON-12 comment above
     expect(typeof body.worst_record_age_days).toBe("number");
-    expect(body.worst_record_age_days).toBe(dataFreshnessInfo(new Date()).age_days);
+    expect(body.worst_record_age_days).toBe(expectedAgeDays);
   });
 
   // AuditLab S-1, 2026-08-03 (MEDIUM): neither origin sent any of these 5
