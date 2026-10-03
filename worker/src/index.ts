@@ -141,6 +141,7 @@ import {
   RATE_LIMIT_FIRM_SIGNUP,
   RATE_LIMIT_FIRM_SIGNUP_ACCOUNT,
   RATE_LIMIT_FIRM_BILLING_CHECKOUT,
+  RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS,
   RATE_LIMIT_SUBSCRIBE,
   RATE_LIMIT_NEWSLETTER_SUBSCRIBE,
   checkRateLimit,
@@ -225,6 +226,8 @@ import {
   runAssistantErrorBurstAlertPass,
   runStripePriceParityAlertPass,
   runGatedDatasetStalenessAlertPass,
+  runRosterPauseReconciliationPass,
+  runTrialEndingAlertPass,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -297,6 +300,15 @@ import {
 import { buildIcs, type IcsEvent } from "./ics";
 
 const SITE_NAME_FOR_WORKER = "Deadline-Radar";
+
+// PR6 round 2 (Devin, 2026-10-02, via orchestrator): the 14-day trial's
+// seat cap is the TOP named tier's cap (35), not unlimited -- reverses the
+// first PR6 pass, which AuditLab found let a firm accumulate an unbounded
+// free roster that would then keep getting reminders forever past trial
+// end (PR6-B). FIRM_TIERS is a fixed non-empty literal; the fallback is
+// unreachable in practice but keeps this from ever silently becoming
+// `undefined` if that ever changes.
+const TRIAL_SEAT_CAP = FIRM_TIERS[FIRM_TIERS.length - 1]?.seatCap ?? 35;
 
 // Brand glyph, kept in sync by eye with generate.py's _BRAND_GLYPH_SVG --
 // this worker has no build-time dependency on the static site's Python, so
@@ -4187,6 +4199,18 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
           stripeSubscriptionId: subscriptionId,
           billingInterval,
         });
+        // PR6-B (migration 0086, 2026-10-02): "restored instantly on
+        // upgrade" -- the firm is paid now, so reconcileRosterPauseState()
+        // unpauses everyone (checkPaidFeatureAccess().allowed short-
+        // circuits the whole pause check). Best-effort, same posture as
+        // the referral-reward call just below: a failure here is
+        // reconcilable at the next dashboard load or cron tick, never a
+        // reason to fail this webhook's 200.
+        try {
+          await store.reconcileRosterPauseState(env.DB, firmId);
+        } catch (err) {
+          console.log(`[roster-pause-restore] error for firm ${firmId}: ${String(err)}`);
+        }
         // Roadmap #31 (2026-08-09, referral program). Best-effort, never
         // fails this webhook's 200 -- the plan-tier flip above is the
         // must-succeed part; a coupon-application failure is manually
@@ -6747,7 +6771,79 @@ function toFirmLicenseJson(row: store.SubscriberRow, asOf: Date): Record<string,
     // someone stopped getting reminders. Read-only from the dashboard's
     // side; only the subscriber's own link (or a renewal) can change it.
     snoozed_until: row.snoozed_until,
+    // PR6-B (migration 0086, 2026-10-02): true while this staff member is
+    // paused by the over-cap trial-end picker -- no reminders, nothing
+    // deleted. See reconcileRosterPauseState()'s own docstring.
+    paused: row.paused_at !== null,
   };
+}
+
+/**
+ * POST /firm/licenses/active-picks -- PR6-B (migration 0086, 2026-10-02).
+ * The admin's own explicit "which staff stay active" pick, once an unpaid
+ * firm's roster is over its (non-trial) cap past trial end. Partner/Office
+ * Manager only -- same role gate as every other roster-wide admin action
+ * (handleAdminDigestSet etc.), not Staff (read-only by the role table).
+ * Every posted id must already be a real, non-removed row on THIS firm's
+ * own roster (ownership enforced here, not trusted from the client) and
+ * the count must fit the firm's own cap -- picking more than the cap
+ * allows would just leave the same over-cap problem under a different
+ * label. Returns the reconciled roster so the dashboard can re-render
+ * immediately without a second round trip.
+ */
+async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  // Same front-door-gated posture as handleFirmBillingCheckout's own
+  // demo_locked refusal -- a mutating, roster-wide action, not read-only.
+  if (session.firm.demo_locked) {
+    return jsonResponse(400, { error: "This action isn't available on this shared demo account." });
+  }
+
+  // AuditLab RL-5-shaped guard (2026-08-06 precedent) -- see
+  // RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS's own comment.
+  const picksAllowed = await checkRateLimit(env.DB, session.firmId, "firm_roster_active_picks", RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS);
+  if (!picksAllowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    return jsonResponse(400, { error: "Expected a JSON request body." });
+  }
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse(400, { error: "Invalid request body." });
+  }
+  const idsRaw = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).active_subscriber_ids : null;
+  if (!Array.isArray(idsRaw) || !idsRaw.every((v) => typeof v === "string")) {
+    return jsonResponse(400, { error: "active_subscriber_ids must be an array of strings." });
+  }
+  const requestedIds = idsRaw as string[];
+
+  const roster = await store.listFirmLicenses(env.DB, session.firmId);
+  const rosterIds = new Set(roster.map((r) => r.id));
+  const unknownIds = requestedIds.filter((id) => !rosterIds.has(id));
+  if (unknownIds.length > 0) {
+    return jsonResponse(400, { error: "One or more selected staff aren't on this firm's roster." });
+  }
+
+  const cap = seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
+  if (requestedIds.length > cap) {
+    return jsonResponse(400, { error: `You can keep at most ${cap} staff active on your current plan.` });
+  }
+
+  await store.setRosterActivePicks(env.DB, session.firmId, requestedIds);
+  const reconciled = await store.reconcileRosterPauseState(env.DB, session.firmId);
+  const asOf = new Date();
+  return jsonResponse(200, { licenses: reconciled.map((r) => toFirmLicenseJson(r, asOf)) });
 }
 
 /** GET /firm/licenses -- every roster row for the session's firm, sorted by
@@ -6757,7 +6853,11 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
   const session = await requireFirmSessionWithFirm(request, env);
   if (session instanceof Response) return session;
 
-  const rows = await store.listFirmLicenses(env.DB, session.firmId);
+  // PR6-B (migration 0086, 2026-10-02): reconciles paused_at against the
+  // firm's current cap on every real dashboard load, not just at signup/
+  // webhook time -- so an admin who logs back in after their trial lapsed
+  // sees correct state immediately, without waiting for the nightly cron.
+  const rows = await store.reconcileRosterPauseState(env.DB, session.firmId);
   const asOf = new Date();
   const items = rows.map((r) => toFirmLicenseJson(r, asOf));
   // Roadmap #66: "what changed since your last login" -- computed here
@@ -6820,15 +6920,18 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     admin_email: session.firm.admin_email,
     data_as_of: freshness.as_of_date,
     data_stale: freshness.stale,
-    // PR6 (migration 0085, 2026-10-02): the 14-day trial lifts the seat cap
-    // entirely for a firm with no paid tier of its own yet (trialLiftsSeatCap()
-    // -- a firm that's already subscribed gets ITS tier's own cap, trial or
-    // not). Number.MAX_SAFE_INTEGER, not Infinity -- JSON.stringify(Infinity)
-    // serializes to `null`, which would read as "cap unknown," not "no cap,"
-    // to the dashboard JS. Same sentinel the enforcement gate below uses, so
-    // the two can never disagree about what "lifted" means.
-    seat_cap: trialLiftsSeatCap(session.firm) ? Number.MAX_SAFE_INTEGER : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at),
+    // PR6 round 2 (migration 0085/0086, 2026-10-02): the 14-day trial lifts
+    // the seat cap to TRIAL_SEAT_CAP (35, the top named tier's cap -- not
+    // unlimited, see that constant's own comment) for a firm with no paid
+    // tier of its own yet (trialLiftsSeatCap() -- a firm that's already
+    // subscribed gets ITS tier's own cap, trial or not). Same sentinel the
+    // enforcement gate below uses, so the two can never disagree.
+    seat_cap: trialLiftsSeatCap(session.firm) ? TRIAL_SEAT_CAP : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at),
     trial_ends_at: session.firm.trial_ends_at,
+    // PR6-B (migration 0086, 2026-10-02): null until the admin's first
+    // explicit roster-pause pick -- the dashboard uses this (plus whether
+    // any `items[].paused` is true) to decide whether to show the picker.
+    active_staff_choice_at: session.firm.active_staff_choice_at,
     // Roadmap #151 Phase 4 (2026-08-10): the Roster tab's "Coverage
     // overview" rollup (coverage %, at-risk ranking, status summary) is
     // gated for a post-cutover free firm -- computed server-side and sent
@@ -7903,15 +8006,18 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   // firm at whatever it already had, which was the explicit instruction
   // rather than either force-removing rows down to the cap or silently
   // exempting them from it going forward.
-  // PR6 (migration 0085, 2026-10-02): the 14-day trial lifts this cap
-  // entirely for a firm with no paid tier of its own yet (trialLiftsSeatCap())
-  // -- same Number.MAX_SAFE_INTEGER sentinel the dashboard display above
-  // uses, so what's shown and what's enforced can never disagree. The
-  // freeze-at-day-14 behavior described above is exactly this check
-  // resuming its normal (non-trial) value once hasActiveTrial() goes false
-  // -- no separate expiry code needed.
+  // PR6 round 2 (migration 0085/0086, 2026-10-02): the 14-day trial lifts
+  // this cap to TRIAL_SEAT_CAP (35, not unlimited) for a firm with no paid
+  // tier of its own yet (trialLiftsSeatCap()) -- same constant the
+  // dashboard display above uses, so what's shown and what's enforced can
+  // never disagree. Once the trial lapses, this reverts to the ordinary
+  // (non-trial) cap on its own -- no separate expiry code needed for the
+  // ADD-staff gate itself; the roster-pause reconciliation (store.ts's
+  // reconcileRosterPauseState()) is the separate mechanism that decides
+  // which of an already-over-cap roster's EXISTING members keep getting
+  // reminders once that happens.
   const seatCap = trialLiftsSeatCap(session.firm)
-    ? Number.MAX_SAFE_INTEGER
+    ? TRIAL_SEAT_CAP
     : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
   const currentSeatCount = await store.countFirmLicenses(env.DB, session.firmId);
   if (currentSeatCount >= seatCap) {
@@ -10397,6 +10503,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/firm/billing/checkout") {
         try {
           return await handleFirmBillingCheckout(request, env);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (url.pathname === "/firm/licenses/active-picks") {
+        try {
+          return await handleFirmRosterActivePicks(request, env);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
@@ -13536,6 +13650,34 @@ export default {
           await runStripePriceParityAlertPass(env);
         } catch (err) {
           console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // PR6-B (migration 0086, 2026-10-02): pure state maintenance, no email,
+    // no consent gate -- see runRosterPauseReconciliationPass()'s own
+    // docstring for why this needs to run even for a firm that never logs
+    // back into the dashboard.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runRosterPauseReconciliationPass(env);
+        } catch (err) {
+          console.log(`[roster-pause-reconciliation-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // PR6-B (migration 0087, 2026-10-02): "banner + email... before day 14
+    // and at expiry." Gated behind requireSendApproval() per the standing
+    // consent-gate directive since this is a NEW pass added after that
+    // directive existed.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runTrialEndingAlertPass(env);
+        } catch (err) {
+          console.log(`[trial-ending-alert-cron] error: ${String(err)}`);
         }
       })()
     );

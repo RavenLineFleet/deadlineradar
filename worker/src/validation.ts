@@ -865,6 +865,13 @@ export const RATE_LIMIT_FIRM_BILLING_CHECKOUT: RateLimit = { max: 10, windowSeco
  * to hammer the D1 write. */
 export const RATE_LIMIT_FIRM_SIGNOUT_OTHER: RateLimit = { max: 10, windowSeconds: 3600 };
 
+/** PR6-B (migration 0086, 2026-10-02): the roster-pause picker -- same
+ * "already authenticated, bound the D1-write retry rate" reasoning as
+ * RATE_LIMIT_FIRM_SIGNOUT_OTHER just above, not a Stripe-call bucket like
+ * RATE_LIMIT_FIRM_BILLING_CHECKOUT. A legitimate admin has no reason to
+ * change this pick more than a handful of times an hour. */
+export const RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS: RateLimit = { max: 20, windowSeconds: 3600 };
+
 /** Roadmap #52: revoking one specific session, same shape/reasoning as
  * RATE_LIMIT_FIRM_SIGNOUT_OTHER just above -- listing itself (GET) isn't
  * separately rate-limited, matching every other read-only /firm/* route. */

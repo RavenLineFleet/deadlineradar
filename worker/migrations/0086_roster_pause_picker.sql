@@ -1,0 +1,21 @@
+-- PR6 round 2 (Devin, 2026-10-02, via orchestrator): the trial seat cap is
+-- 35, not unlimited (reversing the first PR6 pass) -- and at trial end, an
+-- over-cap unpaid firm no longer just "freezes in place." The admin picks
+-- which up-to-3 staff stay active; the rest are PAUSED (no reminders,
+-- nothing deleted, restored instantly on upgrade or on choosing differently).
+--
+-- subscribers.paused_at: nullable. NULL = this staff member is active (gets
+-- reminders, same as today). Non-NULL = paused -- set and cleared ONLY by
+-- store.ts's reconcileRosterPauseState()/setRosterActivePicks(), never by
+-- the normal signup/add-staff path. allConfirmedActive() (the reminder
+-- cron's own query) must filter on this -- see that function's own comment.
+--
+-- firms.active_staff_choice_at: nullable. NULL = the admin has never made
+-- an explicit pick; the pause reconciliation applies its own default (the
+-- earliest-added N stay active) and may keep re-applying it as the roster
+-- changes. Non-NULL = the admin has explicitly chosen at least once;
+-- reconciliation then only ever acts within that chosen set (e.g. shrinking
+-- it further if the roster grows past it again), never silently reverting
+-- to the earliest-N default after an explicit choice exists.
+ALTER TABLE subscribers ADD COLUMN paused_at TEXT;
+ALTER TABLE firms ADD COLUMN active_staff_choice_at TEXT;

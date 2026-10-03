@@ -2423,6 +2423,18 @@ PAGE_CSS = """
     background: var(--card-bg); border: 1px solid var(--border); border-radius: 999px;
     padding: 0.08rem 0.55rem;
   }
+  /* PR6-B round 2 (2026-10-02): same small-pill shape as .dr-roster-office
+     above, but in the stale-red family -- a paused row is a state to
+     notice, not a neutral tag. Reused verbatim inside the picker list
+     (dr-roster-pause-picker-row) for the same visual meaning. */
+  .dr-roster-pause-badge {
+    display: inline-block; margin-top: 0.3rem; margin-left: 0.3rem; font-size: 0.72rem;
+    color: var(--stale-red); background: var(--card-bg); border: 1px solid var(--stale-red);
+    border-radius: 999px; padding: 0.08rem 0.55rem; font-weight: 600;
+  }
+  .dr-roster-pause-picker-list { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.6rem 0; }
+  .dr-roster-pause-picker-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; }
+  .dr-roster-pause-picker-row .dr-roster-pause-badge { margin-top: 0; }
 
   /* Task #16 (2026-08-05, confirmed via live test): an overdue Next deadline
      read as a plain date with no visual difference from a comfortably-future
@@ -12993,7 +13005,11 @@ function drRenderRow(item) {
   var snoozeLine = isSnoozed
     ? '<span class="dr-roster-office">Snoozed until ' + drEscapeHtml(drFormatDeadline(item.snoozed_until)) + '</span>'
     : '';
-  var staffCell = nameLine + '<span class="dr-roster-email" title="' + drEscapeHtml(item.email) + '">' + drEscapeHtml(item.email) + '</span>' + officeLine + notesLine + snoozeLine;
+  // PR6-B round 2 (2026-10-02): paused by the over-cap trial-end picker --
+  // server-computed (item.paused, toFirmLicenseJson()'s own field), never
+  // guessed client-side. No reminders while paused; nothing else changes.
+  var pauseLine = item.paused ? '<span class="dr-roster-pause-badge">Paused</span>' : '';
+  var staffCell = nameLine + '<span class="dr-roster-email" title="' + drEscapeHtml(item.email) + '">' + drEscapeHtml(item.email) + '</span>' + officeLine + notesLine + snoozeLine + pauseLine;
   // Roadmap #29: a sample row's id ('sample-1' etc.) matches nothing on the
   // server, so Edit/Mark renewed/Remove would either 404 or -- far worse if
   // ids ever collided -- silently act on a real record. No functional
@@ -13111,6 +13127,12 @@ function drRenderTable() {
   drRenderOnboardingChecklist();
   drRenderOfficeGroupFilter();
   drRenderBulkTagStaffSelect();
+  // PR6-B round 2 (2026-10-02): called here (not at drRenderTable()'s own
+  // end) so the two early returns below for an empty/filtered-to-nothing
+  // roster can never skip it -- the picker depends on the full drLicenses
+  // array, not the filtered "visible" subset those branches short-circuit
+  // on.
+  drRenderRosterPausePicker();
   drRenderRosterSortHeaders();
   if (!tbody) return;
   if (drLicenses.length === 0) {
@@ -14285,6 +14307,16 @@ function drRenderLastLoginBanner() {
 // access control, which always happens server-side. A null/malformed/
 // already-past trialEndsAt hides the banner the same way hasActiveTrial()
 // would deny access for it.
+// PR6-B round 2 (2026-10-02, Devin via orchestrator): the picker is back
+// -- the day-14 path for an over-cap unpaid roster is no longer passive
+// grandfathering. The admin picks up to `freeCap` staff to stay active;
+// everyone else is PAUSED (no reminders, nothing deleted, restored
+// instantly on upgrade or a different pick). drRenderTrialBanner() covers
+// the BEFORE-day-14 warning; drRenderRosterPausePicker() covers the
+// AFTER-expiry picker itself, driven by each license's own `paused` flag
+// (server-computed, never guessed client-side).
+var DR_FREE_STAFF_CAP = 3; // tiers.ts's NEW_SIGNUP_FREE_SEAT_CAP -- see that file's own comment
+
 function drRenderTrialBanner() {
   var el = document.getElementById('dr-trial-banner');
   if (!el || !drBilling) return;
@@ -14303,21 +14335,99 @@ function drRenderTrialBanner() {
     var base = daysLeft === 1
       ? 'Your 14-day trial of every paid feature ends tomorrow.'
       : 'Your 14-day trial of every paid feature ends in ' + daysLeft + ' days.';
-    // Orchestrator ruling (2026-10-02): the day-14 path for an oversized
-    // roster reuses the EXISTING passive grandfathering (seatCapForFirmTier/
-    // countFirmLicenses gate) -- the roster freezes at its current count,
-    // new adds blocked, nothing deactivated or deleted. This warns about
-    // that specific, real consequence ahead of time, not a generic upsell.
     var seatCount = drLicenses.length;
-    var freeCap = 3; // tiers.ts's NEW_SIGNUP_FREE_SEAT_CAP -- see that file's own comment
-    var freezeWarning = seatCount > freeCap
-      ? (' Your roster (' + seatCount + ' staff) is above the free tier’s ' + freeCap + '-staff limit -- ' +
-         'pick a plan before then or your roster freezes at ' + seatCount + ' (nothing is removed, you just ' +
-         'can’t add more until you upgrade).')
+    var pickWarning = seatCount > DR_FREE_STAFF_CAP
+      ? (' Your roster (' + seatCount + ' staff) is above the free tier’s ' + DR_FREE_STAFF_CAP + '-staff limit -- ' +
+         'pick a plan, or choose which ' + DR_FREE_STAFF_CAP + ' stay active, before then. Staff you don’t ' +
+         'keep active are PAUSED (no reminders), never deleted, and restored instantly if you upgrade or ' +
+         'change your pick.')
       : ' Pick a plan any time to keep full access after that.';
-    textEl.textContent = base + freezeWarning;
+    textEl.textContent = base + pickWarning;
   }
   el.hidden = false;
+}
+
+// PR6-B round 2 (2026-10-02): shown whenever ANY roster row is currently
+// paused, or the roster is over the free cap with the trial already
+// lapsed and no explicit pick yet (same over-cap check the server itself
+// uses, so this never shows for a firm the server wouldn't actually act
+// on). Lets the admin pick up to DR_FREE_STAFF_CAP staff and POST
+// /firm/licenses/active-picks -- the server re-validates ownership and
+// the cap independently; this is a UI convenience, not the real guard.
+function drRenderRosterPausePicker() {
+  var el = document.getElementById('dr-roster-pause-picker');
+  if (!el || !drBilling) return;
+  if (DR_PLAN_TIER_LABELS[drBilling.planTier]) { el.hidden = true; return; } // paid -- moot, same as the trial banner
+  var pausedCount = drLicenses.filter(function(l) { return l.paused; }).length;
+  var trialEndsAt = drBilling.trialEndsAt;
+  var trialLapsed = trialEndsAt && Date.now() >= Date.parse(trialEndsAt);
+  var overCapNoPickYet = trialLapsed && drLicenses.length > DR_FREE_STAFF_CAP && !drBilling.activeStaffChoiceAt && pausedCount === 0;
+  if (pausedCount === 0 && !overCapNoPickYet) { el.hidden = true; return; }
+
+  var introEl = document.getElementById('dr-roster-pause-picker-intro');
+  if (introEl) {
+    introEl.textContent = pausedCount > 0
+      ? (pausedCount + ' of ' + drLicenses.length + ' staff are currently paused (no reminders). Pick up to ' +
+         DR_FREE_STAFF_CAP + ' to keep active -- changes take effect immediately.')
+      : ('Your trial has ended and your roster (' + drLicenses.length + ' staff) is above the free tier’s ' +
+         DR_FREE_STAFF_CAP + '-staff limit. Pick up to ' + DR_FREE_STAFF_CAP + ' to keep active, or upgrade for everyone.');
+  }
+
+  var listEl = document.getElementById('dr-roster-pause-picker-list');
+  if (listEl) {
+    listEl.innerHTML = drLicenses.map(function(l) {
+      var label = l.staff_label || l.email;
+      return '<label class="dr-roster-pause-picker-row">' +
+        '<input type="checkbox" class="dr-roster-pause-picker-checkbox" value="' + drEscapeHtml(l.id) + '"' +
+        (!l.paused ? ' checked' : '') + '> ' + drEscapeHtml(label) +
+        (l.paused ? ' <span class="dr-roster-pause-badge">Paused</span>' : '') +
+        '</label>';
+    }).join('');
+  }
+  el.hidden = false;
+}
+
+function drSaveRosterActivePicks() {
+  var listEl = document.getElementById('dr-roster-pause-picker-list');
+  var errEl = document.getElementById('dr-roster-pause-picker-error');
+  if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+  if (!listEl) return;
+  var checked = Array.prototype.slice.call(listEl.querySelectorAll('.dr-roster-pause-picker-checkbox:checked'));
+  var ids = checked.map(function(c) { return c.value; });
+  if (ids.length > DR_FREE_STAFF_CAP) {
+    if (errEl) { errEl.textContent = 'Pick at most ' + DR_FREE_STAFF_CAP + ' staff, or upgrade to keep everyone active.'; errEl.hidden = false; }
+    return;
+  }
+  var saveBtn = document.getElementById('dr-roster-pause-picker-save');
+  if (saveBtn) saveBtn.disabled = true;
+  fetch('/api/firm/licenses/active-picks', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({active_subscriber_ids: ids})
+  }).then(function(res) {
+    if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
+    return drReadJsonSafe(res).then(function(data) {
+      if (saveBtn) saveBtn.disabled = false;
+      if (!res.ok) {
+        if (errEl) { errEl.textContent = (data && data.error) ? data.error : 'Something went wrong, please try again.'; errEl.hidden = false; }
+        return;
+      }
+      if (data && data.licenses) {
+        var byId = {};
+        drLicenses.forEach(function(l) { byId[l.id] = l; });
+        data.licenses.forEach(function(updated) {
+          if (byId[updated.id]) { byId[updated.id].paused = updated.paused; }
+        });
+      }
+      drBilling.activeStaffChoiceAt = new Date().toISOString();
+      drRenderRosterPausePicker();
+      drRenderStats();
+    });
+  }).catch(function() {
+    if (saveBtn) saveBtn.disabled = false;
+    if (errEl) { errEl.textContent = 'Something went wrong, please try again.'; errEl.hidden = false; }
+  });
 }
 
 // Roadmap #144: null until the load response sets it. Shown after a "Mark
@@ -14588,7 +14698,8 @@ function drToggleCancellation(cancel, btn) {
         cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
         currentPeriodEnd: data.current_period_end || null,
         demoLocked: drBilling.demoLocked,
-        trialEndsAt: drBilling.trialEndsAt
+        trialEndsAt: drBilling.trialEndsAt,
+        activeStaffChoiceAt: drBilling.activeStaffChoiceAt
       };
       if (okEl) {
         okEl.textContent = cancel ? 'Subscription set to cancel at period end.' : 'Subscription resumed.';
@@ -17634,7 +17745,11 @@ function drLoadLicenses() {
         // PR6 (migration 0085, 2026-10-02): null for any firm created
         // before this migration, or once the trial has simply lapsed --
         // drRenderTrialBanner() treats both the same (nothing to show).
-        trialEndsAt: data.trial_ends_at || null
+        trialEndsAt: data.trial_ends_at || null,
+        // PR6-B round 2 (migration 0086, 2026-10-02): null until the
+        // admin's first explicit roster-pause pick -- drRenderRosterPausePicker()'s
+        // own "no pick yet, but already over cap" branch reads this.
+        activeStaffChoiceAt: data.active_staff_choice_at || null
       };
       drRole = data.role || 'partner';
       drMemberId = data.member_id || null;
@@ -17712,6 +17827,7 @@ function drLoadLicenses() {
       drRenderMapValueCallout();
       drRenderLastLoginBanner();
       drRenderTrialBanner();
+      drRenderRosterPausePicker();
       // Roadmap #6: firm-level, so this comes from the same /firm/licenses
       // response but isn't part of drLicenses/drRenderStats at all.
       drPeerReviewDueDate = data.peer_review_due_date || null;
@@ -18823,6 +18939,16 @@ document.addEventListener('DOMContentLoaded', function() {
       var el = document.getElementById('dr-last-login-banner');
       if (el) el.hidden = true;
     });
+  }
+
+  // PR6-B round 2 (2026-10-02): static button (drRenderRosterPausePicker()
+  // only rebuilds #dr-roster-pause-picker-list's innerHTML, never this
+  // button itself), so a plain one-time listener is correct here -- same
+  // reasoning as lastLoginDismissBtn above, unlike the billing panel's own
+  // delegated-listener pattern for buttons that DO get rebuilt.
+  var rosterPausePickerSaveBtn = document.getElementById('dr-roster-pause-picker-save');
+  if (rosterPausePickerSaveBtn) {
+    rosterPausePickerSaveBtn.addEventListener('click', drSaveRosterActivePicks);
   }
 
   var rosterSortSelect = document.getElementById('dr-roster-sort-select');
@@ -21255,6 +21381,17 @@ def build_firm_dashboard_page(
          drRenderTrialBanner()'s own comment. -->
     <div class="callout" id="dr-trial-banner" hidden>
       <p><span id="dr-trial-banner-text"></span></p>
+    </div>
+
+    <!-- PR6-B round 2 (migration 0086, 2026-10-02): the picker. Shown
+         whenever any roster row is currently paused, or the roster is
+         over the free cap with the trial lapsed and no pick made yet --
+         see drRenderRosterPausePicker()'s own comment. -->
+    <div class="callout" id="dr-roster-pause-picker" hidden>
+      <p id="dr-roster-pause-picker-intro"></p>
+      <div id="dr-roster-pause-picker-list" class="dr-roster-pause-picker-list"></div>
+      <p id="dr-roster-pause-picker-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
+      <button type="button" class="dr-btn-secondary" id="dr-roster-pause-picker-save">Save picks</button>
     </div>
 
     <div class="dr-panel-row">

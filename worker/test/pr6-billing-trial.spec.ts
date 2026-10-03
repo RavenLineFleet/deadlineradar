@@ -88,7 +88,12 @@ describe("PR6 -- 14-day trial", () => {
     expect((await getFirmMobilityFirmCoverage(cookie)).status).toBe(403);
   });
 
-  it("the trial lifts the seat cap entirely -- a brand-new firm can add well past the new-signup 3-seat cap", async () => {
+  it("the trial lifts the seat cap to 35 (the top tier's own cap, not unlimited) -- a brand-new firm can add well past the new-signup 3-seat cap", async () => {
+    // PR6-B round 2 (Devin via orchestrator, 2026-10-02): reverses the
+    // first PR6 pass's unlimited trial cap -- see entitlements.ts's
+    // trialLiftsSeatCap()/index.ts's TRIAL_SEAT_CAP for why (a single
+    // trial could otherwise leave a permanently over-cap free roster,
+    // AuditLab PR6-B). 6 staff still well under 35.
     const { cookie } = await createFirmWithSession("Trial Firm C", `trial-c-${Date.now()}@example.com`);
     for (let i = 0; i < 6; i++) {
       const resp = await postFirmLicense(cookie, {
@@ -100,7 +105,7 @@ describe("PR6 -- 14-day trial", () => {
       expect(resp.status, `staff ${i} should be allowed during an active trial`).toBe(201);
     }
     const body = (await (await getFirmLicenses(cookie)).json()) as { seat_cap: number };
-    expect(body.seat_cap).toBe(Number.MAX_SAFE_INTEGER);
+    expect(body.seat_cap).toBe(35);
   });
 
   it("once the trial lapses, the seat cap reverts to the new-signup default (3) -- existing roster untouched, no further adds", async () => {

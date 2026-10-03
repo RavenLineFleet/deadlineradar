@@ -2503,11 +2503,15 @@ export function buildAssistantErrorBurstAlertEmail(stats: {
  * config-drift signal, not something needing a daily nag once known.
  */
 export function buildStripePriceParityAlertEmail(
-  mismatches: { envVar: string; label: string; expectedUsd: number; problems: string[] }[]
+  // PR6-A (AuditLab, 2026-10-02): expectedInterval added -- this pass now
+  // checks monthly and per-seat prices too, so a hardcoded "/yr" would
+  // misreport exactly the mismatches PR6 introduced the ability to catch.
+  mismatches: { envVar: string; label: string; expectedUsd: number; expectedInterval: "year" | "month"; problems: string[] }[]
 ): BuiltEmail {
   const subject = `Deadline-Radar: ${mismatches.length} Stripe price${mismatches.length === 1 ? "" : "s"} out of sync with the advertised rate`;
+  const unitSuffix = (interval: "year" | "month") => (interval === "year" ? "/yr" : "/mo");
   const lines = mismatches.map(
-    (m) => `  ${m.envVar} [${m.label}, advertised $${m.expectedUsd}/yr]:\n${m.problems.map((p) => `    - ${p}`).join("\n")}`
+    (m) => `  ${m.envVar} [${m.label}, advertised $${m.expectedUsd}${unitSuffix(m.expectedInterval)}]:\n${m.problems.map((p) => `    - ${p}`).join("\n")}`
   );
   const textBody =
     `The nightly Stripe price-parity check found ${mismatches.length} firm tier${mismatches.length === 1 ? "" : "s"} ` +
@@ -2528,7 +2532,7 @@ export function buildStripePriceParityAlertEmail(
     `<ul>${mismatches
       .map(
         (m) =>
-          `<li><code>${esc(m.envVar)}</code> [${esc(m.label)}, advertised $${m.expectedUsd}/yr]` +
+          `<li><code>${esc(m.envVar)}</code> [${esc(m.label)}, advertised $${m.expectedUsd}${unitSuffix(m.expectedInterval)}]` +
           `<ul>${m.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></li>`
       )
       .join("")}</ul>` +
@@ -2539,6 +2543,66 @@ export function buildStripePriceParityAlertEmail(
     `Run <code>scripts/check_stripe_price_reconciliation.py</code> locally to re-verify after fixing.</p>` +
     `<p>This email fires at most once per UTC calendar month no matter how many cron ticks still see ` +
     `the mismatch.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
+ * PR6-B (migration 0087, 2026-10-02): "banner + email... before day 14."
+ * Sent to the firm's own admin_email (a real customer email, not an
+ * internal notice) once, the first time a trial firm whose live roster is
+ * already over its own non-trial cap comes within the warning window of
+ * trial_ends_at -- see store.ts's claimTrialEndingSoonNotice(). Plain
+ * transactional shape, no List-Unsubscribe machinery -- this is a one-time
+ * billing-relevant notice tied to one trial, not a recurring subscription.
+ */
+export function buildTrialEndingSoonEmail(details: { firmName: string; daysRemaining: number; rosterCount: number; freeCap: number; dashboardUrl: string }): BuiltEmail {
+  const safeFirmName = details.firmName.replace(/[\r\n]+/g, " ");
+  const subject = `Your Deadline-Radar trial ends in ${details.daysRemaining} day${details.daysRemaining === 1 ? "" : "s"} -- pick which staff stay active`;
+  const textBody =
+    `Hi ${safeFirmName || "there"},\n\n` +
+    `Your 14-day trial of every Deadline-Radar paid feature ends in ${details.daysRemaining} day${details.daysRemaining === 1 ? "" : "s"}. ` +
+    `Your roster currently has ${details.rosterCount} staff, which is more than the free tier's ${details.freeCap}-staff limit.\n\n` +
+    `If you don't upgrade or choose which staff to keep active before the trial ends, we will automatically ` +
+    `keep your ${details.freeCap} earliest-added staff active and pause the rest (nothing is deleted, and you ` +
+    `can change the pick or upgrade at any time to restore everyone instantly).\n\n` +
+    `Pick your staff or upgrade here: ${details.dashboardUrl}\n\n` +
+    `-- Deadline-Radar`;
+  const htmlBody =
+    `<p>Hi ${esc(safeFirmName || "there")},</p>` +
+    `<p>Your 14-day trial of every Deadline-Radar paid feature ends in <strong>${details.daysRemaining} day${details.daysRemaining === 1 ? "" : "s"}</strong>. ` +
+    `Your roster currently has <strong>${details.rosterCount} staff</strong>, which is more than the free tier's ${details.freeCap}-staff limit.</p>` +
+    `<p>If you don't upgrade or choose which staff to keep active before the trial ends, we will automatically ` +
+    `keep your ${details.freeCap} earliest-added staff active and pause the rest (nothing is deleted, and you ` +
+    `can change the pick or upgrade at any time to restore everyone instantly).</p>` +
+    `<p><a href="${esc(details.dashboardUrl)}">Pick your staff or upgrade &rarr;</a></p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
+ * PR6-B (migration 0087, 2026-10-02): "banner + email... at expiry." Sent
+ * once, the first time a trial has actually lapsed AND reconciliation
+ * found the roster still over cap with no admin pick yet (the caller only
+ * sends this when pausedCount > 0 -- see runTrialEndingAlertPass()'s own
+ * docstring). Same transactional shape as buildTrialEndingSoonEmail above.
+ */
+export function buildRosterPausedEmail(details: { firmName: string; pausedCount: number; activeCount: number; dashboardUrl: string }): BuiltEmail {
+  const safeFirmName = details.firmName.replace(/[\r\n]+/g, " ");
+  const subject = `Your Deadline-Radar trial has ended -- ${details.pausedCount} staff paused`;
+  const textBody =
+    `Hi ${safeFirmName || "there"},\n\n` +
+    `Your 14-day Deadline-Radar trial has ended. Since your roster is above the free tier's limit and no plan was ` +
+    `chosen, we kept your ${details.activeCount} earliest-added staff active and paused reminders for the other ` +
+    `${details.pausedCount}. Nothing was deleted -- pick a different set of active staff or upgrade any time to ` +
+    `restore everyone instantly.\n\n` +
+    `Manage this here: ${details.dashboardUrl}\n\n` +
+    `-- Deadline-Radar`;
+  const htmlBody =
+    `<p>Hi ${esc(safeFirmName || "there")},</p>` +
+    `<p>Your 14-day Deadline-Radar trial has ended. Since your roster is above the free tier's limit and no plan ` +
+    `was chosen, we kept your <strong>${details.activeCount}</strong> earliest-added staff active and paused ` +
+    `reminders for the other <strong>${details.pausedCount}</strong>. Nothing was deleted -- pick a different set ` +
+    `of active staff or upgrade any time to restore everyone instantly.</p>` +
+    `<p><a href="${esc(details.dashboardUrl)}">Manage your roster &rarr;</a></p>`;
   return { subject, textBody, htmlBody, headers: {} };
 }
 

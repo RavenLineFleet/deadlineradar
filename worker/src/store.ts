@@ -19,6 +19,13 @@ import {
   sanitizeFreeText,
 } from "./validation";
 import { computeSubscriberDeadline, nearestSimpleFixedCalendarDeadlines } from "./deadline";
+// PR6-B (migration 0086, 2026-10-02): reconcileRosterPauseState() below
+// needs the same "is this firm actually paid, is a trial active" logic
+// index.ts's gates already use -- both are `import type`-safe from
+// entitlements.ts's own side (it imports FirmRow as a type only), so this
+// doesn't introduce a real circular runtime dependency.
+import { checkPaidFeatureAccess, hasActiveTrial } from "./entitlements";
+import { seatCapForFirmTier } from "./tiers";
 
 export const STATUS_PENDING = "pending_confirmation";
 export const STATUS_CONFIRMED = "confirmed";
@@ -188,6 +195,12 @@ export interface SubscriberRow {
   // for every row before this build and for any signup with no ?src= in its
   // history -- never a guess.
   first_touch_src: string | null;
+  // migration 0086 (PR6 round 2, 2026-10-02). NULL = active (gets
+  // reminders, counts toward the roster same as today). Non-NULL = paused
+  // by the trial over-cap picker -- set/cleared ONLY by
+  // reconcileRosterPauseState()/setRosterActivePicks(), never by the
+  // ordinary add-staff path. allConfirmedActive() filters on this.
+  paused_at: string | null;
 }
 
 function nowIso(): string {
@@ -531,6 +544,11 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
     ptin_tracking_enabled: 0,
     // migration 0082: write-once at signup, see SubscriberRow's own comment.
     first_touch_src: input.firstTouchSrc ?? null,
+    // migration 0086: a brand-new record is never paused at creation --
+    // only reconcileRosterPauseState()/setRosterActivePicks() ever touch
+    // this column, same "not part of the INSERT column list" posture as
+    // the other PR6-era defaults above.
+    paused_at: null,
   };
   await db
     .prepare(
@@ -929,9 +947,20 @@ export async function unclaimReminderThreshold(db: D1Database, subscriberId: str
  * reminder scheduling: confirmed, not stopped. Not called from any Phase-1
  * route (no scheduler exists yet) -- ported for the same Phase-2
  * drop-in-readiness reason as `markReminderSent()` above.
+ *
+ * PR6-B (AuditLab, 2026-10-02, migration 0086): `paused_at IS NULL` added.
+ * Without it, a firm that accumulated staff during the (now-capped-at-35,
+ * previously unbounded) 14-day trial window kept every one of them on
+ * full reminder service forever past trial end -- this is the fix for
+ * exactly that: a staff member the roster-pause picker has paused is
+ * never eligible here, firm-tier-blind (this query has no firm_id filter
+ * at all -- it is the one place every firm's reminders funnel through).
  */
 export async function allConfirmedActive(db: D1Database): Promise<SubscriberRow[]> {
-  const { results } = await db.prepare("SELECT * FROM subscribers WHERE status = ?1").bind(STATUS_CONFIRMED).all<SubscriberRow>();
+  const { results } = await db
+    .prepare("SELECT * FROM subscribers WHERE status = ?1 AND paused_at IS NULL")
+    .bind(STATUS_CONFIRMED)
+    .all<SubscriberRow>();
   return results;
 }
 
@@ -1409,6 +1438,17 @@ export interface FirmRow {
   // never reset -- see that migration's own comment. Null for any firm
   // created before this migration (no retroactive grant).
   trial_ends_at: string | null;
+  // migration 0086 (PR6 round 2, 2026-10-02). Null = the admin has never
+  // explicitly picked which staff stay active past an over-cap trial end;
+  // reconcileRosterPauseState() applies its own earliest-added default and
+  // may keep re-applying it. Non-null = set the moment setRosterActivePicks()
+  // is first called -- reconciliation then only acts within that choice.
+  active_staff_choice_at: string | null;
+  // migration 0087 (PR6-B, 2026-10-02). One-time notice markers -- see that
+  // migration's own comment for why these are per-firm timestamps, not a
+  // shared month-keyed claim table.
+  trial_ending_soon_notified_at: string | null;
+  roster_paused_notified_at: string | null;
 }
 
 export interface FirmLoginTokenRow {
@@ -3310,6 +3350,185 @@ export async function countFirmLicenses(db: D1Database, firmId: string): Promise
     .bind(firmId, STATUS_STOPPED, STOP_REASON_REMOVED_BY_ADMIN)
     .first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Roster-pause picker (PR6-B, migration 0086, 2026-10-02). Devin's ruling,
+// via orchestrator: the trial seat cap is 35 (tiers.ts's TRIAL_SEAT_CAP
+// equivalent, imported here as the top FIRM_TIERS entry's own cap via
+// seatCapForFirmTier -- see reconcileRosterPauseState()'s own comment for
+// why it reads the firm's ORDINARY (non-trial) cap, not that one), not
+// unlimited -- but a firm can still have added up to 35 staff during the
+// trial, which is still above the free tier's own cap (3, or 25 if
+// grandfathered) once the trial lapses unpaid. At that point the admin
+// picks which staff stay active; everyone else is PAUSED (no reminders,
+// nothing deleted, restored the moment the roster is back at or under cap
+// -- an upgrade, or the admin removing staff another way).
+// ---------------------------------------------------------------------------
+
+/**
+ * The single source of truth for "is this firm currently over its own
+ * (non-trial) free/paid cap, unpaid, and NOT mid-trial" -- the one state
+ * where roster pausing is even relevant. A paid firm's own cap is enforced
+ * at add-staff time already (BILL-1) and never needs pausing; a firm still
+ * mid-trial is deliberately exempt (TRIAL_SEAT_CAP covers it) until the
+ * trial itself lapses.
+ */
+function firmNeedsRosterPauseReconciliation(firm: FirmRow, liveRosterCount: number): boolean {
+  if (checkPaidFeatureAccess(firm).allowed) return false;
+  if (hasActiveTrial(firm.trial_ends_at)) return false;
+  const cap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
+  return liveRosterCount > cap;
+}
+
+/**
+ * Reconciles ONE firm's subscriber rows' `paused_at` against its current
+ * (non-trial) cap -- idempotent and safe to call from multiple places
+ * (GET /firm/licenses on load, the checkout webhook on upgrade, and the
+ * nightly runRosterPauseReconciliationPass() cron for a firm that never
+ * logs back in) rather than depending on exactly one of them running.
+ *
+ *   under/at cap, or paid, or mid-trial  -> unpause everyone (covers
+ *                                           "upgrade restores all instantly"
+ *                                           and the ordinary non-trial case)
+ *   over cap, no explicit admin choice   -> pause all but the earliest-
+ *                                           added `cap` rows (by created_at)
+ *   over cap, admin HAS chosen           -> leave existing paused_at exactly
+ *                                           as the admin's own pick set it;
+ *                                           never silently revert to the
+ *                                           earliest-N default once a real
+ *                                           choice exists
+ *
+ * Returns the firm's current live roster (post-reconciliation) so a caller
+ * that already needs it (the dashboard load) doesn't have to re-fetch.
+ */
+export async function reconcileRosterPauseState(db: D1Database, firmId: string): Promise<SubscriberRow[]> {
+  const firm = await getFirmById(db, firmId);
+  const roster = await listFirmLicenses(db, firmId);
+  if (!firm) return roster;
+
+  if (!firmNeedsRosterPauseReconciliation(firm, roster.length)) {
+    const anyPaused = roster.some((r) => r.paused_at !== null);
+    if (anyPaused) {
+      await db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1 AND paused_at IS NOT NULL`).bind(firmId).run();
+      return roster.map((r) => ({ ...r, paused_at: null }));
+    }
+    return roster;
+  }
+
+  if (firm.active_staff_choice_at) {
+    // The admin has made a real choice -- reconciliation never overrides
+    // it. (A roster that grew further past that same choice just stays
+    // over-cap on the un-chosen side; the admin can always re-pick.)
+    return roster;
+  }
+
+  const cap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
+  const sorted = [...roster].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const activeIds = new Set(sorted.slice(0, cap).map((r) => r.id));
+  const now = nowIso();
+  const toPause = roster.filter((r) => !activeIds.has(r.id) && r.paused_at === null).map((r) => r.id);
+  const toUnpause = roster.filter((r) => activeIds.has(r.id) && r.paused_at !== null).map((r) => r.id);
+  for (const id of toPause) {
+    await db.prepare(`UPDATE subscribers SET paused_at = ?1 WHERE id = ?2`).bind(now, id).run();
+  }
+  for (const id of toUnpause) {
+    await db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE id = ?1`).bind(id).run();
+  }
+  return roster.map((r) => (activeIds.has(r.id) ? { ...r, paused_at: null } : { ...r, paused_at: r.paused_at ?? now }));
+}
+
+/**
+ * The admin's own explicit picker action -- POST /firm/licenses/active-picks
+ * (index.ts). `activeSubscriberIds` must already be validated by the
+ * caller (real ids, owned by this firm, count <= this firm's own cap) --
+ * this function trusts its input the same way updateFirmLicense() etc. do,
+ * leaving ownership/bounds checks to the HTTP layer where the session is.
+ * Sets firms.active_staff_choice_at so reconcileRosterPauseState() never
+ * silently re-applies the earliest-added default over a real choice again.
+ */
+export async function setRosterActivePicks(db: D1Database, firmId: string, activeSubscriberIds: string[]): Promise<void> {
+  const now = nowIso();
+  await db.prepare(`UPDATE firms SET active_staff_choice_at = ?1 WHERE id = ?2`).bind(now, firmId).run();
+  if (activeSubscriberIds.length === 0) {
+    // An empty pick is a deliberate, valid choice (pause everyone) -- NOT
+    // the same as "no choice yet." Caught by its own test after the first
+    // draft of this function wrongly treated length===0 as "nothing to do"
+    // and left every row at whatever paused_at it already had.
+    await db.prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?2`).bind(now, firmId).run();
+    return;
+  }
+  await db.prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1`).bind(firmId).run();
+  const placeholders = activeSubscriberIds.map((_, i) => `?${i + 2}`).join(", ");
+  await db
+    .prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?${activeSubscriberIds.length + 2} AND id NOT IN (${placeholders})`)
+    .bind(now, ...activeSubscriberIds, firmId)
+    .run();
+}
+
+/**
+ * Candidate firm ids for the nightly runRosterPauseReconciliationPass()
+ * (scheduler.ts) -- any firm whose trial has ever been granted and has
+ * already lapsed. Deliberately broad (does not pre-filter on plan_tier or
+ * roster size in SQL): reconcileRosterPauseState() itself re-derives
+ * "paid, or under cap -> unpause everyone" per firm, so a firm that
+ * upgraded or never went over cap is simply a fast no-op there rather than
+ * a second place this list's own filtering logic could drift from it.
+ */
+export async function listFirmIdsWithLapsedTrial(db: D1Database, nowIsoStr: string): Promise<string[]> {
+  const { results } = await db
+    .prepare(`SELECT id FROM firms WHERE trial_ends_at IS NOT NULL AND trial_ends_at < ?1 AND status = 'active' AND is_test_tenant = 0 AND demo_locked = 0`)
+    .bind(nowIsoStr)
+    .all<{ id: string }>();
+  return results.map((r) => r.id);
+}
+
+/** Candidate firms for the "your trial ends soon" notice -- trial ends
+ * within `windowDays`, hasn't ended yet, never notified. */
+export async function listFirmsForTrialEndingSoonNotice(db: D1Database, nowIsoStr: string, windowEndIsoStr: string): Promise<FirmRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM firms
+       WHERE trial_ends_at IS NOT NULL AND trial_ends_at >= ?1 AND trial_ends_at < ?2
+         AND trial_ending_soon_notified_at IS NULL AND status = 'active' AND is_test_tenant = 0 AND demo_locked = 0`
+    )
+    .bind(nowIsoStr, windowEndIsoStr)
+    .all<FirmRow>();
+  return results;
+}
+
+/** Candidate firms for the "your trial ended, N staff paused" notice --
+ * trial already lapsed, never notified. The caller (scheduler.ts) still
+ * has to check whether anyone actually ended up paused after reconciling
+ * -- a firm that never went over cap gets no notice despite matching here. */
+export async function listFirmsForRosterPausedNotice(db: D1Database, nowIsoStr: string): Promise<FirmRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM firms
+       WHERE trial_ends_at IS NOT NULL AND trial_ends_at < ?1
+         AND roster_paused_notified_at IS NULL AND status = 'active' AND is_test_tenant = 0 AND demo_locked = 0`
+    )
+    .bind(nowIsoStr)
+    .all<FirmRow>();
+  return results;
+}
+
+/** Same one-time-marker shape as claimReferralReward() above -- atomic,
+ * idempotent: a second call for the same firm is a harmless no-op. */
+export async function claimTrialEndingSoonNotice(db: D1Database, firmId: string): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE firms SET trial_ending_soon_notified_at = ?1 WHERE id = ?2 AND trial_ending_soon_notified_at IS NULL`)
+    .bind(nowIso(), firmId)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+export async function claimRosterPausedNotice(db: D1Database, firmId: string): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE firms SET roster_paused_notified_at = ?1 WHERE id = ?2 AND roster_paused_notified_at IS NULL`)
+    .bind(nowIso(), firmId)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
 }
 
 // ---------------------------------------------------------------------------
