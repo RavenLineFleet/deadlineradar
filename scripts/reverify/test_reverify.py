@@ -304,7 +304,7 @@ def test_cpa_cap_equals_the_preship_ratchet_constant_stale33():
     m = re.search(r"^CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE\s*=\s*(\d+)", src, re.M)
     if not m:
         pytest.skip("ratchet not on this tree yet (AssetLab 831fed08a)")
-    assert runner.CPA_STAMP_CAP == int(m.group(1)) - runner.HAND_STAMPS_PER_DAY   # STALE-40: room for a hand-stamp
+    assert runner.CPA_STAMP_CAP == int(m.group(1)) - runner.HAND_STAMPS_PER_DAY - runner.CPA_MARGIN   # STALE-40/43
 
 
 def test_tranche_runs_daily_and_backstop_still_applies(env):

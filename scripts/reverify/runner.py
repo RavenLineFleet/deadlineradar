@@ -58,9 +58,11 @@ TRANCHE_CYCLE_DAYS = 10
 # DUE_DAYS backstop, recovering failures), at most this many cpa_deadlines records are checked per run;
 # the rest wait for the next run, oldest first. STALE-40: AssetLab hand-stamps MANUAL records outside this job,
 # one per day (Orchestrator 2026-10-02 22:17), possibly onto the same date, so the job leaves room for it.
-# Must equal preship_gate.CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE - HAND_STAMPS_PER_DAY (asserted in tests).
+# STALE-43 (Orchestrator 2026-10-03 06:45): keep 1 more of headroom, so job + hand-stamp stays under the gate.
+# Must equal preship_gate.CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE - HAND_STAMPS_PER_DAY - CPA_MARGIN (asserted in tests).
 HAND_STAMPS_PER_DAY = 1
-CPA_STAMP_CAP = 10 - HAND_STAMPS_PER_DAY
+CPA_MARGIN = 1
+CPA_STAMP_CAP = 10 - HAND_STAMPS_PER_DAY - CPA_MARGIN
 STALE_DAYS = 25    # watchdog alert threshold
 
 RECIPE_DOC = """
