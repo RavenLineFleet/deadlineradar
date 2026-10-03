@@ -2437,6 +2437,63 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
     return errors
 
 
+# STALE-27 (AuditLab, MEDIUM, 2026-10-02): a batch re-verification put 234
+# of 246 dated records on the SAME day (2026-10-02), so all of them go
+# stale together on 2026-11-02 -- 81 of those are cpa_deadlines, the one
+# dataset the runtime guard (deadline.ts) reads, so that day would pause
+# signups and all outbound sends for everyone at once, while also tripping
+# every build gate simultaneously (the remediation itself can't be shipped
+# until it's done). This is the exact trap AuditLab filed about twice
+# before (2026-09-19, 09-25): clearing a cohort in one batch rebuilds the
+# same wall 31 days later. A preship check is the only version of "remember
+# to stagger" that survives a busy remediation night.
+CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE = 10
+
+
+def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list[str]:
+    """Fails if more than CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE
+    cpa_deadlines.json records share the same `last_verified` date.
+    cpa_deadlines specifically (not cpe_hours/reinstatement/renewal_fees,
+    which only block a build, never pause runtime) because it's the one
+    dataset worker/src/deadline.ts's runtime guard reads -- a concentrated
+    cohort there is a scheduled outage, not just a scheduled build-gate
+    refusal. Deliberately does NOT also gate the other three datasets:
+    they share the same re-verification pipeline and the same remediation
+    discipline fixes all four at once, but only cpa_deadlines carries the
+    runtime consequence that makes concentration a HARD gate rather than
+    advisory noise (the advisory per-record staleness check already covers
+    the other three at ship time).
+
+    HomeLab owns re-verifying for real (never just bumping last_verified)
+    in daily tranches so no date accumulates past the cap -- this gate
+    exists so a future bulk remediation that skips that discipline fails
+    loudly at ship time instead of silently re-arming the same 31-days-out
+    trap.
+    """
+    cpa_path = repo_root / "data" / "cpa_deadlines.json"
+    if not cpa_path.exists():
+        return [f"[GATE] {cpa_path} not found -- check_cpa_deadlines_verification_date_concentration() is measuring nothing."]
+    cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
+    by_date: dict[str, list[str]] = {}
+    for r in cpa_data["records"]:
+        last_verified = r.get("last_verified")
+        if not isinstance(last_verified, str) or not last_verified:
+            continue  # a missing/malformed last_verified is the staleness advisory's own job, not this one's
+        by_date.setdefault(last_verified, []).append(r.get("id", "?"))
+    errors = []
+    for date, ids in sorted(by_date.items()):
+        if len(ids) > CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE:
+            errors.append(
+                f"[STALE27][{date}] {len(ids)} cpa_deadlines records share this exact last_verified "
+                f"date (cap {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}) -- they will all go stale "
+                f"together 31 days later ({date} + 31d), pausing signups and all outbound sends on "
+                f"that one day instead of spreading the risk. Stagger the re-verification across "
+                f"different dates instead of bumping them all in one batch. Affected ids: "
+                f"{', '.join(sorted(ids)[:15])}{' ...' if len(ids) > 15 else ''}"
+            )
+    return errors
+
+
 def check_renewal_fee_currency(repo_root: Path) -> list[str]:
     """Roadmap 2026-08-11 (14:30 item #6): the state pages now show a public,
     dated renewal-fee claim (or an honest "unconfirmed" disclosure) sourced
@@ -7868,6 +7925,7 @@ def main():
     all_errors += check_citations_are_primary(repo_root)
     all_errors += check_fee_basis_supported(repo_root)
     all_errors += check_firm_fee_disclosure(repo_root)
+    all_errors += check_cpa_deadlines_verification_date_concentration(repo_root)
     all_errors += check_renewal_fee_currency(repo_root)
     all_errors += check_competitor_price_currency(repo_root)
     all_errors += check_field_computed_states_sync(repo_root)
