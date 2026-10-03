@@ -501,6 +501,11 @@ describe("Slack -- roadmap #151 value-line gate", () => {
     // Real "now" created_at (createFirm's own default) is always after the
     // fixed-in-the-past VALUE_LINE_CUTOVER_DATE -- genuinely post-cutover,
     // no extra setup needed.
+    // PR6 (migration 0085, 2026-10-02): but createFirm() also grants this
+    // "now" firm a real 14-day trial, which would let it through via ITS
+    // own OR-condition regardless of the cutover rule this helper exists
+    // to test -- cleared.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
     return { firmId, memberId };
   }
 
@@ -545,6 +550,14 @@ describe("Slack -- roadmap #151 value-line gate", () => {
     // slack_webhook_url on downgrade).
     const future = new Date(Date.now() + 86_400_000).toISOString();
     await env.DB.prepare("UPDATE firms SET plan_tier = 'free', created_at = ?1 WHERE id = ?2").bind(future, firmId).run();
+    // PR6 (migration 0085, 2026-10-02): newFirm() created this firm via the
+    // real store.createFirm(), which stamped trial_ends_at from the ACTUAL
+    // creation moment -- backdating/forward-dating created_at afterward
+    // (just above) doesn't touch it, so an active trial would still let
+    // this "downgraded" firm through regardless. Cleared so this is
+    // genuinely neither grandfathered nor mid-trial, which is the gap
+    // this test means to exercise.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
 
     await addRosterSubscriber(firmId, "ohio", isoDaysFromUtcMidnight(asOf, 30));
 

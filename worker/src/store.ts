@@ -1401,6 +1401,14 @@ export interface FirmRow {
   // Always non-null in practice: every existing firm was backfilled by
   // migration 0062 itself, and createFirm() sets it on every new row.
   admin_unsubscribe_token: string;
+  // migration 0085 (PR6, 2026-10-02). Which Stripe Price cadence a paid
+  // firm is actually on -- see that migration's own comment for why this
+  // is metadata-sourced at webhook time, never inferred from the Price id.
+  billing_interval: string;
+  // migration 0085 (PR6, 2026-10-02). Set once at signup to created_at+14d,
+  // never reset -- see that migration's own comment. Null for any firm
+  // created before this migration (no retroactive grant).
+  trial_ends_at: string | null;
 }
 
 export interface FirmLoginTokenRow {
@@ -1933,21 +1941,30 @@ export async function createFirm(db: D1Database, input: CreateFirmInput): Promis
   // at signup. A brand-new free-tier firm that hasn't paid yet has no code
   // to share; the dashboard shows its own "no active code yet" state for
   // that (see handleFirmLicensesList in index.ts).
+  //
+  // PR6 (migration 0085, 2026-10-02): trial_ends_at is signup time + 14
+  // days, computed from the SAME `now` as created_at (not two separate
+  // `new Date()` calls) so the two can never land a millisecond apart.
+  // One grant, set here only -- see that migration's own comment for why
+  // nothing else ever rewrites this column.
+  const now = new Date();
+  const trialEndsAt = new Date(now.getTime() + 14 * 86_400_000).toISOString();
   await db
     .prepare(
-      `INSERT INTO firms (id, name, admin_email, admin_name, plan_tier, status, created_at, tos_accepted_version, referred_by_firm_id, signup_ip, admin_unsubscribe_token)
-       VALUES (?1,?2,?3,?4,'free','active',?5,?6,?7,?8,?9)`
+      `INSERT INTO firms (id, name, admin_email, admin_name, plan_tier, status, created_at, tos_accepted_version, referred_by_firm_id, signup_ip, admin_unsubscribe_token, trial_ends_at)
+       VALUES (?1,?2,?3,?4,'free','active',?5,?6,?7,?8,?9,?10)`
     )
     .bind(
       id,
       name,
       input.adminEmail,
       adminName,
-      nowIso(),
+      now.toISOString(),
       input.tosAcceptedVersion ?? null,
       input.referredByFirmId ?? null,
       input.signupIp ?? null,
-      newToken()
+      newToken(),
+      trialEndsAt
     )
     .run();
   // migration 0045 (roadmap #11/#13/#14/#51): every firm now needs a
@@ -3311,8 +3328,27 @@ export async function countFirmLicenses(db: D1Database, firmId: string): Promise
 export async function updateFirmBilling(
   db: D1Database,
   firmId: string,
-  fields: { planTier: string; stripeCustomerId: string; stripeSubscriptionId: string | null }
+  fields: {
+    planTier: string;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string | null;
+    // PR6 (migration 0085, 2026-10-02). Optional so the existing
+    // customer.subscription.deleted call site (which reverts to 'free' and
+    // has no interval to report) can keep passing 3 fields -- undefined
+    // leaves the column exactly as it already was rather than forcing a
+    // value on a call site this feature doesn't touch.
+    billingInterval?: "annual" | "monthly";
+  }
 ): Promise<void> {
+  if (fields.billingInterval) {
+    await db
+      .prepare(
+        `UPDATE firms SET plan_tier = ?1, stripe_customer_id = ?2, stripe_subscription_id = ?3, billing_interval = ?4 WHERE id = ?5`
+      )
+      .bind(fields.planTier, fields.stripeCustomerId, fields.stripeSubscriptionId, fields.billingInterval, firmId)
+      .run();
+    return;
+  }
   await db
     .prepare(
       `UPDATE firms SET plan_tier = ?1, stripe_customer_id = ?2, stripe_subscription_id = ?3 WHERE id = ?4`
@@ -6148,12 +6184,16 @@ export interface FirmBasicInfo {
   // needs this to build a real List-Unsubscribe target -- same "free to
   // add" reasoning as the two fields above.
   admin_unsubscribe_token: string;
+  // PR6 (migration 0085, 2026-10-02): hasValueLineAccess() (which
+  // runSmsAlertPass()/runAdminDigestAlertPass() gate the send with) now
+  // requires this field.
+  trial_ends_at: string | null;
 }
 
 export async function listAllFirmsBasicInfo(db: D1Database): Promise<FirmBasicInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, reply_to_email, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status, admin_email, admin_digest_enabled, admin_unsubscribe_token
+      `SELECT id, name, reply_to_email, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status, admin_email, admin_digest_enabled, admin_unsubscribe_token, trial_ends_at
          FROM firms`
     )
     .all<FirmBasicInfo>();
@@ -6194,12 +6234,15 @@ export interface FirmSlackConnectedInfo {
   plan_tier: string;
   created_at: string;
   status: string;
+  // PR6 (migration 0085, 2026-10-02): hasValueLineAccess() (which
+  // runSlackAlertPass() gates the send with) now requires this field.
+  trial_ends_at: string | null;
 }
 
 export async function listFirmsWithSlackConnected(db: D1Database): Promise<FirmSlackConnectedInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, slack_webhook_url, slack_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status
+      `SELECT id, name, slack_webhook_url, slack_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status, trial_ends_at
          FROM firms
         WHERE slack_webhook_url IS NOT NULL`
     )
@@ -6322,12 +6365,15 @@ export interface FirmTeamsConnectedInfo {
   plan_tier: string;
   created_at: string;
   status: string;
+  // PR6 (migration 0085, 2026-10-02): hasValueLineAccess() (which
+  // runTeamsAlertPass() gates the send with) now requires this field.
+  trial_ends_at: string | null;
 }
 
 export async function listFirmsWithTeamsConnected(db: D1Database): Promise<FirmTeamsConnectedInfo[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, name, teams_webhook_url, teams_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status
+      `SELECT id, name, teams_webhook_url, teams_webhook_url_iv, reminder_thresholds, demo_locked, is_test_tenant, plan_tier, created_at, status, trial_ends_at
          FROM firms
         WHERE teams_webhook_url IS NOT NULL`
     )

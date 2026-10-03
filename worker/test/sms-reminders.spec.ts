@@ -662,6 +662,11 @@ describe("runSmsAlertPass -- roadmap #151 value-line gate", () => {
     const asOf = freshAsOf(9100);
     const safeAsOf = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate(), 18, 0, 0));
     const { id: firmId } = await store.createFirm(env.DB, { name: "SMS Gate Firm", adminEmail: `smsgatefirm-${Date.now()}@example.com` });
+    // PR6 (migration 0085, 2026-10-02): createFirm() grants every new firm
+    // a real 14-day trial, which would let this "now" firm through via its
+    // own OR-condition regardless of the post-cutover rule this test means
+    // to exercise.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
     const email = `smsgate-blocked-${Date.now()}@example.com`;
     await store.addPending(env.DB, {
       email,

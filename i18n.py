@@ -470,7 +470,12 @@ EN: dict[str, str] = {
     "pricing.card_individual_cta": "Create a free account",
     "pricing.staff_up_to": "Up to {n} staff.",
     "pricing.card_more_title": "More than 35 staff?",
-    "pricing.card_more_detail": "{contact_link} — no formula, we'll work out what fits.",
+    # PR6 (2026-10-02): "no formula, we'll work out what fits" became
+    # factually wrong the moment the per-seat add-on shipped self-serve
+    # checkout above 35 staff -- Enterprise's own button now handles it,
+    # priced off the live roster count. Factual correction, not new
+    # persuasive copy (GrowthLab still owns terms/FAQ prose for PR6).
+    "pricing.card_more_detail": "Pick Enterprise above — it includes the first 35 seats, plus $15/seat/year (or $1.50/seat/month) for the rest, billed automatically. Questions? {contact_link}.",
     "pricing.contact_us_link_text": "Contact us",
     "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
     "pricing.includes_admin_digest": "Daily firm-wide digest",

@@ -2606,6 +2606,16 @@ PAGE_CSS = """
   .dr-paywall-tier-btn span { display: block; font-weight: 500; font-size: 0.82rem; opacity: 0.9; }
   .dr-paywall-tier-btn:hover { opacity: 0.9; }
   .dr-paywall-tier-btn:disabled { opacity: 0.6; cursor: default; }
+  /* PR6 (2026-10-02): the annual/monthly toggle above the tier buttons --
+     same --accent/--on-accent pairing as .dr-paywall-tier-btn above, just
+     a plain two-way switch rather than a call-to-action button. */
+  .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
+  .dr-interval-btn {
+    flex: 1 1 auto; background: var(--row-alt); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 7px; font-weight: 600;
+    font-size: 0.88rem; padding: 0.45rem 0.8rem; cursor: pointer; font-family: inherit;
+  }
+  .dr-interval-btn.dr-interval-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   /* Task #8 (2026-08-06) -- reuses .dr-paywall-tier-btn's own button styling
      (var(--accent), already global) rather than the unscoped .cta-button
      class, which turns out to only actually be styled inside .remind-panel
@@ -3397,6 +3407,25 @@ _NAV_TOGGLE_JS_HTML = """<script>
 # landing there, not signup.
 _PRICING_CHECKOUT_JS_HTML = f"""<script>
 (function() {{
+  // PR6 (2026-10-02): which cadence the toggle above the cards currently
+  // shows -- same client-UI-state-only posture as the dashboard's own
+  // drBillingInterval (the server resolves its own Stripe Price id,
+  // this is never trusted as the price itself).
+  var drPricingInterval = 'annual';
+  var toggleEl = document.getElementById('dr-pricing-interval-toggle');
+  if (toggleEl) {{
+    toggleEl.addEventListener('click', function(ev) {{
+      var btn = ev.target.closest('.dr-interval-btn');
+      if (!btn) return;
+      drPricingInterval = btn.getAttribute('data-interval') === 'monthly' ? 'monthly' : 'annual';
+      toggleEl.querySelectorAll('.dr-interval-btn').forEach(function(b) {{
+        b.classList.toggle('dr-interval-active', b === btn);
+      }});
+      document.querySelectorAll('.price-annual').forEach(function(el) {{ el.hidden = drPricingInterval !== 'annual'; }});
+      document.querySelectorAll('.price-monthly').forEach(function(el) {{ el.hidden = drPricingInterval !== 'monthly'; }});
+    }});
+  }}
+
   var buttons = document.querySelectorAll('.dr-pricing-tier-btn');
   var errEl = document.getElementById('dr-pricing-error');
   for (var i = 0; i < buttons.length; i++) {{
@@ -3409,7 +3438,7 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
         method: 'POST',
         credentials: 'include',
         headers: {{'content-type': 'application/json'}},
-        body: JSON.stringify({{tier: tier}})
+        body: JSON.stringify({{tier: tier, interval: drPricingInterval}})
       }}).then(function(res) {{
         if (res.status === 401) {{
           // ShopLab cold-read (2026-08-20, orchestrator-approved): carry the
@@ -3418,7 +3447,11 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
           // and the magic-link email round trip, as long as that link is
           // opened in this same browser -- read back on /firm-dashboard/'s
           // load, see drCheckPendingCheckoutTier().
-          try {{ window.localStorage.setItem('dr_pending_checkout_tier', tier); }} catch (e) {{}}
+          // PR6 (2026-10-02): the chosen interval rides along the same way.
+          try {{
+            window.localStorage.setItem('dr_pending_checkout_tier', tier);
+            window.localStorage.setItem('dr_pending_checkout_interval', drPricingInterval);
+          }} catch (e) {{}}
           window.location.href = '/firm-login/?tier=' + encodeURIComponent(tier) + '#dr-view-signup';
           return null;
         }}
@@ -8680,6 +8713,45 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
     return "\n".join(f"  <tr><td>{label}</td><td>{free_cell}</td><td>{paid_cell}</td></tr>" for label, free_cell, paid_cell in rows)
 
 
+# PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
+# FIRM_TIERS (and generate.py's own DR_BILLING_TIERS JS table on the
+# dashboard) -- duplicated here deliberately, same "two places, same
+# numbers, no shared import across the Python/TS boundary" precedent this
+# page's prices already set. Must stay exactly in sync with tiers.ts if
+# either ever changes.
+_PRICING_TIERS = [
+    {"tier": "firm_starter", "label": "Essentials", "seat_cap": 5, "annual_usd": 199, "monthly_usd": 20},
+    {"tier": "firm_growth", "label": "Growth", "seat_cap": 10, "annual_usd": 299, "monthly_usd": 29},
+    {"tier": "firm_standard", "label": "Professional", "seat_cap": 20, "annual_usd": 399, "monthly_usd": 39},
+    {"tier": "firm_scale", "label": "Enterprise", "seat_cap": 35, "annual_usd": 549, "monthly_usd": 55},
+]
+
+
+def _annual_savings_percent(annual_usd: int, monthly_usd: int) -> int:
+    """Exact, computed savings percent -- never a hand-typed "save X%"
+    string (Orchestrator ruling, 2026-10-02: "no copy says 'save X%' unless
+    the math is exact"). Rounds to the nearest whole percent for display
+    only; annual_usd/monthly_usd are what actually gets charged."""
+    monthly_total = monthly_usd * 12
+    return round((monthly_total - annual_usd) / monthly_total * 100)
+
+
+def _pricing_tier_card_html(t: dict, lang: str = "en") -> str:
+    """One paid-tier card, built for BOTH intervals at once -- the toggle
+    (_PRICING_INTERVAL_TOGGLE_JS_HTML below) just shows/hides the matching
+    .price-annual/.price-monthly element, no server round trip and no
+    second page render needed to switch."""
+    savings = _annual_savings_percent(t["annual_usd"], t["monthly_usd"])
+    return f"""  <div class="pricing-card" id="{t['label'].lower()}">
+    <h2>{t['label']}</h2>
+    <p class="price price-annual">${t['annual_usd']}<span>/year &middot; save {savings}%</span></p>
+    <p class="price price-monthly" hidden>${t['monthly_usd']}<span>/month</span></p>
+    <p class="detail">{_t("pricing.staff_up_to", lang, n=t['seat_cap'])}</p>
+    {_paid_tier_includes_html(lang)}
+    <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="{t['tier']}">Get {t['label']}</button>
+  </div>"""
+
+
 # 2026-08-11, Devin's live report ("still a lot of white space" -- screenshot of the
 # 4 paid-tier cards, each with a big empty gap between "Up to N staff" and the button):
 # root cause is .pricing-card p.detail's flex:1 stretching a single short sentence to
@@ -8755,6 +8827,15 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 <p class="field-hint">{_t("pricing.plans_intro", lang)}</p>
 <p id="dr-pricing-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
 
+<!-- PR6 (2026-10-02): annual/monthly toggle -- see
+     _PRICING_INTERVAL_TOGGLE_JS_HTML below for the show/hide logic and
+     drStartCheckout()'s own interval param for what gets sent at
+     checkout time. -->
+<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval" id="dr-pricing-interval-toggle">
+  <button type="button" class="dr-interval-btn dr-interval-active" data-interval="annual">Annual</button>
+  <button type="button" class="dr-interval-btn" data-interval="monthly">Monthly</button>
+</div>
+
 <div class="pricing-grid">
   <div class="pricing-card" id="individual">
     <h2>{_t("pricing.card_individual_title", lang)}</h2>
@@ -8762,34 +8843,7 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
     <p class="detail">{_t("pricing.card_individual_detail", lang, signup_link=signup_link)}</p>
     <a class="dr-paywall-tier-btn" href="/firm-login/#dr-view-signup">{_t("pricing.card_individual_cta", lang)}</a>
   </div>
-  <div class="pricing-card" id="essentials">
-    <h2>Essentials</h2>
-    <p class="price">$199<span>/year</span></p>
-    <p class="detail">{_t("pricing.staff_up_to", lang, n=5)}</p>
-    {_paid_tier_includes_html(lang)}
-    <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="firm_starter">Get Essentials</button>
-  </div>
-  <div class="pricing-card" id="growth">
-    <h2>Growth</h2>
-    <p class="price">$299<span>/year</span></p>
-    <p class="detail">{_t("pricing.staff_up_to", lang, n=10)}</p>
-    {_paid_tier_includes_html(lang)}
-    <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="firm_growth">Get Growth</button>
-  </div>
-  <div class="pricing-card" id="professional">
-    <h2>Professional</h2>
-    <p class="price">$399<span>/year</span></p>
-    <p class="detail">{_t("pricing.staff_up_to", lang, n=20)}</p>
-    {_paid_tier_includes_html(lang)}
-    <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="firm_standard">Get Professional</button>
-  </div>
-  <div class="pricing-card" id="enterprise">
-    <h2>Enterprise</h2>
-    <p class="price">$549<span>/year</span></p>
-    <p class="detail">{_t("pricing.staff_up_to", lang, n=35)}</p>
-    {_paid_tier_includes_html(lang)}
-    <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="firm_scale">Get Enterprise</button>
-  </div>
+{chr(10).join(_pricing_tier_card_html(t, lang) for t in _PRICING_TIERS)}
   <div class="pricing-card pricing-card--wide">
     <h2>{_t("pricing.card_more_title", lang)}</h2>
     <p class="detail">{_t("pricing.card_more_detail", lang, contact_link=contact_link)}</p>
@@ -12591,6 +12645,41 @@ var drSeatCap = null;
 // the first real load" posture as drSeatCap above.
 var drBilling = null;
 
+// PR6 (2026-10-02): which cadence the upgrade-tiers toggle currently shows.
+// Client-side UI state only -- drStartCheckout() sends it to the server at
+// checkout time, but it is never trusted as the price itself (the server
+// resolves its own Stripe Price id per tiers.ts's stripePriceIdForTier()).
+var drBillingInterval = 'annual';
+
+// PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
+// FIRM_TIERS -- duplicated here deliberately, same "two places, same
+// numbers, no shared import across the Python/TS boundary" precedent the
+// $199/$299/$399/$549 annual prices already set a few lines below (now
+// folded into this one table instead of four separate hardcoded strings).
+// annualUsd/monthlyUsd must stay exactly in sync with tiers.ts's own
+// FIRM_TIERS array -- if either changes, update both.
+var DR_BILLING_TIERS = [
+  {tier: 'firm_starter', label: 'Essentials', seatCap: 5, annualUsd: 199, monthlyUsd: 20},
+  {tier: 'firm_growth', label: 'Growth', seatCap: 10, annualUsd: 299, monthlyUsd: 29},
+  {tier: 'firm_standard', label: 'Professional', seatCap: 20, annualUsd: 399, monthlyUsd: 39},
+  {tier: 'firm_scale', label: 'Enterprise', seatCap: 35, annualUsd: 549, monthlyUsd: 55}
+];
+
+// PR6 per-seat add-on (2026-10-02) -- same two numbers as worker/src/
+// tiers.ts's PER_SEAT_ADDON_ANNUAL_USD/PER_SEAT_ADDON_MONTHLY_USD. Must
+// stay exactly in sync with that file if either ever changes.
+var PER_SEAT_ADDON_ANNUAL_USD_JS = 15;
+var PER_SEAT_ADDON_MONTHLY_USD_JS = 1.5;
+
+// Exact, computed savings percent -- never a hand-typed "save X%" string
+// (Orchestrator ruling, 2026-10-02: "no copy says 'save X%' unless the
+// math is exact"). Rounds to the nearest whole percent for display only;
+// the underlying annualUsd/monthlyUsd are what actually gets charged.
+function drAnnualSavingsPercent(annualUsd, monthlyUsd) {
+  var monthlyTotal = monthlyUsd * 12;
+  return Math.round((monthlyTotal - annualUsd) / monthlyTotal * 100);
+}
+
 // Roadmap #151 Phase 4 (2026-08-10): server-computed (index.ts's
 // handleFirmLicensesList) so the client never reimplements the cutover-date
 // math itself. Starts true (not null/false) so the brief pre-load window
@@ -12677,12 +12766,14 @@ function drClearWarning() {
   el.hidden = true;
   el.textContent = '';
 }
-function drStartCheckout(tier, btn, errElId) {
+function drStartCheckout(tier, btn, errElId, interval) {
   // Task #12: the billing panel's upgrade buttons (the only remaining caller
   // -- the old whole-dashboard paywall panel was removed 2026-08-06 once
   // Roster/Calendar/CPE Hours became a standing free tier with nothing left
   // to gate there) surface their error in the Account tab's dr-billing-error
   // box.
+  // PR6 (2026-10-02): interval defaults to 'annual' -- every existing
+  // caller that doesn't pass one keeps checking out exactly as before.
   var errEl = document.getElementById(errElId || 'dr-billing-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
   if (btn) btn.disabled = true;
@@ -12690,7 +12781,7 @@ function drStartCheckout(tier, btn, errElId) {
     method: 'POST',
     credentials: 'include',
     headers: {'content-type': 'application/json'},
-    body: JSON.stringify({tier: tier})
+    body: JSON.stringify({tier: tier, interval: interval || 'annual'})
   }).then(function(res) {
     if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
     return drReadJsonSafe(res).then(function(data) {
@@ -14189,6 +14280,46 @@ function drRenderLastLoginBanner() {
   el.hidden = false;
 }
 
+// PR6 (migration 0085, 2026-10-02). Client-side mirror of entitlements.ts's
+// hasActiveTrial() -- for DISPLAY only (what the banner says), never for
+// access control, which always happens server-side. A null/malformed/
+// already-past trialEndsAt hides the banner the same way hasActiveTrial()
+// would deny access for it.
+function drRenderTrialBanner() {
+  var el = document.getElementById('dr-trial-banner');
+  if (!el || !drBilling) return;
+  // Already on a real paid tier -- the trial grant is moot (checkPaidFeatureAccess()
+  // already covers everything it would), and telling a paying customer
+  // their "trial" is ending is confusing, not useful. Same truthiness
+  // check drRenderMapValueCallout() already uses for "is this firm paid".
+  if (DR_PLAN_TIER_LABELS[drBilling.planTier]) { el.hidden = true; return; }
+  var trialEndsAt = drBilling.trialEndsAt;
+  if (!trialEndsAt) { el.hidden = true; return; }
+  var endMs = Date.parse(trialEndsAt);
+  if (!isFinite(endMs) || Date.now() >= endMs) { el.hidden = true; return; }
+  var daysLeft = Math.ceil((endMs - Date.now()) / 86400000);
+  var textEl = document.getElementById('dr-trial-banner-text');
+  if (textEl) {
+    var base = daysLeft === 1
+      ? 'Your 14-day trial of every paid feature ends tomorrow.'
+      : 'Your 14-day trial of every paid feature ends in ' + daysLeft + ' days.';
+    // Orchestrator ruling (2026-10-02): the day-14 path for an oversized
+    // roster reuses the EXISTING passive grandfathering (seatCapForFirmTier/
+    // countFirmLicenses gate) -- the roster freezes at its current count,
+    // new adds blocked, nothing deactivated or deleted. This warns about
+    // that specific, real consequence ahead of time, not a generic upsell.
+    var seatCount = drLicenses.length;
+    var freeCap = 3; // tiers.ts's NEW_SIGNUP_FREE_SEAT_CAP -- see that file's own comment
+    var freezeWarning = seatCount > freeCap
+      ? (' Your roster (' + seatCount + ' staff) is above the free tier’s ' + freeCap + '-staff limit -- ' +
+         'pick a plan before then or your roster freezes at ' + seatCount + ' (nothing is removed, you just ' +
+         'can’t add more until you upgrade).')
+      : ' Pick a plan any time to keep full access after that.';
+    textEl.textContent = base + freezeWarning;
+  }
+  el.hidden = false;
+}
+
 // Roadmap #144: null until the load response sets it. Shown after a "Mark
 // renewed" success (drRenewLicense() reloads via drLoadLicenses(), which
 // re-checks this) or on ordinary page load once the quarterly cooldown has
@@ -14325,20 +14456,36 @@ function drRenderBillingPanel() {
     // whole-dashboard paywall panel used (courtesy only -- checkout
     // re-checks the real roster count server-side either way).
     var seatCount = drLicenses.length;
-    var tiersHtml = '<div class="dr-paywall-tiers" id="dr-billing-upgrade-tiers">' +
-      '<button type="button" class="dr-paywall-tier-btn" data-tier="firm_starter" data-seat-cap="5" ' + (seatCount > 5 ? 'hidden' : '') + '>Essentials<br><span>$199/year &middot; up to 5 staff</span></button>' +
-      '<button type="button" class="dr-paywall-tier-btn" data-tier="firm_growth" data-seat-cap="10" ' + (seatCount > 10 ? 'hidden' : '') + '>Growth<br><span>$299/year &middot; up to 10 staff</span></button>' +
-      '<button type="button" class="dr-paywall-tier-btn" data-tier="firm_standard" data-seat-cap="20" ' + (seatCount > 20 ? 'hidden' : '') + '>Professional<br><span>$399/year &middot; up to 20 staff</span></button>' +
-      '<button type="button" class="dr-paywall-tier-btn" data-tier="firm_scale" data-seat-cap="35" ' + (seatCount > 35 ? 'hidden' : '') + '>Enterprise<br><span>$549/year &middot; up to 35 staff</span></button>' +
+    var topTier = DR_BILLING_TIERS[DR_BILLING_TIERS.length - 1];
+    // PR6 (2026-10-02): annual/monthly toggle -- exact prices from
+    // DR_BILLING_TIERS, savings % always computed (drAnnualSavingsPercent),
+    // never a hand-typed figure.
+    var toggleHtml = '<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval">' +
+      '<button type="button" class="dr-interval-btn' + (drBillingInterval === 'annual' ? ' dr-interval-active' : '') + '" data-interval="annual">Annual</button>' +
+      '<button type="button" class="dr-interval-btn' + (drBillingInterval === 'monthly' ? ' dr-interval-active' : '') + '" data-interval="monthly">Monthly</button>' +
       '</div>';
-    // AuditLab PAYNOW-1 (2026-08-05, caught pre-deploy): a roster over the
-    // top tier's cap hides all buttons -- without this, that firm sees the
-    // intro line then an empty box, no explanation. Ceiling moved to 35
-    // with the 2026-08-09 seat-cliff re-tier (was 25).
-    var moreThanTopTierHtml = '<p style="font-size:0.85rem; color:var(--muted); margin-top:0.7rem;">' +
-      'More than 35 staff? <a href="/for-firms/">Contact us</a>.</p>';
+    var tiersHtml = '<div class="dr-paywall-tiers" id="dr-billing-upgrade-tiers">' +
+      DR_BILLING_TIERS.map(function(t) {
+        // AuditLab PAYNOW-1 (2026-08-05, caught pre-deploy): a roster over
+        // the top tier's cap used to hide every button, leaving an empty
+        // box. PR6 per-seat add-on (2026-10-02): the top tier itself no
+        // longer hides over its own cap -- checkout now covers any roster
+        // size on that tier via the add-on, priced server-side off the
+        // LIVE roster count (never a client-supplied number).
+        var hidden = (t.tier !== topTier.tier && seatCount > t.seatCap) ? 'hidden' : '';
+        var isMonthly = drBillingInterval === 'monthly';
+        var priceUsd = isMonthly ? t.monthlyUsd : t.annualUsd;
+        var priceLabel = '$' + priceUsd + '/' + (isMonthly ? 'month' : 'year');
+        var seatLabel = (t.tier === topTier.tier && seatCount > t.seatCap)
+          ? ('up to 35 staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
+          : ('up to ' + t.seatCap + ' staff');
+        var savingsLabel = !isMonthly ? (' &middot; save ' + drAnnualSavingsPercent(t.annualUsd, t.monthlyUsd) + '%') : '';
+        return '<button type="button" class="dr-paywall-tier-btn" data-tier="' + t.tier + '" data-seat-cap="' + t.seatCap + '" ' + hidden + '>' +
+          drEscapeHtml(t.label) + '<br><span>' + drEscapeHtml(priceLabel) + ' &middot; ' + drEscapeHtml(seatLabel) + savingsLabel + '</span></button>';
+      }).join('') +
+      '</div>';
     body.innerHTML = '<p class="dr-panel-empty">You are on the free tier. Upgrade any time for the ' +
-      'map and firm-level registration check.</p>' + tiersHtml + moreThanTopTierHtml;
+      'map and firm-level registration check.</p>' + toggleHtml + tiersHtml;
     if (drBilling.demoLocked) body.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
     return;
   }
@@ -14439,7 +14586,9 @@ function drToggleCancellation(cancel, btn) {
       drBilling = {
         planTier: drBilling.planTier,
         cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
-        currentPeriodEnd: data.current_period_end || null
+        currentPeriodEnd: data.current_period_end || null,
+        demoLocked: drBilling.demoLocked,
+        trialEndsAt: drBilling.trialEndsAt
       };
       if (okEl) {
         okEl.textContent = cancel ? 'Subscription set to cancel at period end.' : 'Subscription resumed.';
@@ -14481,7 +14630,16 @@ function drCheckPendingCheckoutTier(currentTier) {
   var tier;
   try { tier = window.localStorage.getItem('dr_pending_checkout_tier'); } catch (e) { return; }
   if (!tier) return;
-  try { window.localStorage.removeItem('dr_pending_checkout_tier'); } catch (e) {}
+  // PR6 (2026-10-02): the interval chosen on /pricing/ rides along the
+  // same localStorage round trip as the tier itself -- defaults to
+  // 'annual' if absent (an older pending entry from before this field
+  // existed, or localStorage was cleared between the two writes).
+  var interval = 'annual';
+  try { interval = window.localStorage.getItem('dr_pending_checkout_interval') || 'annual'; } catch (e) {}
+  try {
+    window.localStorage.removeItem('dr_pending_checkout_tier');
+    window.localStorage.removeItem('dr_pending_checkout_interval');
+  } catch (e) {}
   var label = DR_PLAN_TIER_LABELS[tier];
   if (!label) return;
   var tierOrder = Object.keys(DR_PLAN_TIER_LABELS);
@@ -17472,7 +17630,11 @@ function drLoadLicenses() {
         planTier: data.plan_tier || 'free',
         cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
         currentPeriodEnd: data.current_period_end || null,
-        demoLocked: Boolean(data.demo_locked)
+        demoLocked: Boolean(data.demo_locked),
+        // PR6 (migration 0085, 2026-10-02): null for any firm created
+        // before this migration, or once the trial has simply lapsed --
+        // drRenderTrialBanner() treats both the same (nothing to show).
+        trialEndsAt: data.trial_ends_at || null
       };
       drRole = data.role || 'partner';
       drMemberId = data.member_id || null;
@@ -17549,6 +17711,7 @@ function drLoadLicenses() {
       drRenderBillingPanel();
       drRenderMapValueCallout();
       drRenderLastLoginBanner();
+      drRenderTrialBanner();
       // Roadmap #6: firm-level, so this comes from the same /firm/licenses
       // response but isn't part of drLicenses/drRenderStats at all.
       drPeerReviewDueDate = data.peer_review_due_date || null;
@@ -18322,9 +18485,18 @@ document.addEventListener('DOMContentLoaded', function() {
   var billingBody = document.getElementById('dr-billing-body');
   if (billingBody) {
     billingBody.addEventListener('click', function(e) {
+      // PR6 (2026-10-02): the interval toggle re-renders the whole panel
+      // (same delegated-listener reasoning as the tier buttons below --
+      // drRenderBillingPanel() rebuilds #dr-billing-body's innerHTML).
+      var intervalBtn = e.target.closest('.dr-interval-btn');
+      if (intervalBtn) {
+        drBillingInterval = intervalBtn.getAttribute('data-interval') === 'monthly' ? 'monthly' : 'annual';
+        drRenderBillingPanel();
+        return;
+      }
       var btn = e.target.closest('.dr-paywall-tier-btn');
       if (!btn) return;
-      drStartCheckout(btn.getAttribute('data-tier'), btn, 'dr-billing-error');
+      drStartCheckout(btn.getAttribute('data-tier'), btn, 'dr-billing-error', drBillingInterval);
     });
   }
 
@@ -21074,6 +21246,15 @@ def build_firm_dashboard_page(
     <div class="callout" id="dr-last-login-banner" hidden>
       <p><span id="dr-last-login-banner-text"></span>
       <button type="button" class="dr-link-btn" id="dr-last-login-banner-dismiss">Dismiss</button></p>
+    </div>
+
+    <!-- PR6 (migration 0085, 2026-10-02): the 14-day full-feature trial.
+         trial_ends_at comes from the same GET /firm/licenses response as
+         drBilling above -- no second fetch. Hidden whenever hasActiveTrial()
+         would return false (null, malformed, or already past) -- see
+         drRenderTrialBanner()'s own comment. -->
+    <div class="callout" id="dr-trial-banner" hidden>
+      <p><span id="dr-trial-banner-text"></span></p>
     </div>
 
     <div class="dr-panel-row">

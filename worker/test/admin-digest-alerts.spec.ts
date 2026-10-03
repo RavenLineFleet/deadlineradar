@@ -385,6 +385,10 @@ describe("runAdminDigestAlertPass -- roadmap #151 value-line gate", () => {
   async function postCutoverFreeFirm(label: string): Promise<{ firmId: string; adminEmail: string }> {
     const adminEmail = `${label}-${Date.now()}-${Math.floor(performance.now())}@examplefirm.com`;
     const { id: firmId } = await store.createFirm(env.DB, { name: `${label} LLP`, adminEmail });
+    // PR6 (migration 0085, 2026-10-02): createFirm() grants every new firm
+    // a real 14-day trial, which would let it through via ITS own
+    // OR-condition regardless of the cutover rule this helper tests.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
     return { firmId, adminEmail }; // real "now" created_at -- genuinely post-cutover
   }
 

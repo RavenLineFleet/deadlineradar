@@ -372,6 +372,12 @@ describe("document storage -- roadmap #151 value-line gate", () => {
       adminEmail: `docgate-${tier}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`,
     });
     await env.DB.prepare("UPDATE firms SET plan_tier = ?1, created_at = ?2 WHERE id = ?3").bind(tier, createdAt, firm.id).run();
+    // PR6 (migration 0085, 2026-10-02): this helper tests the grandfather/
+    // cutover rule specifically -- a real 14-day trial (store.createFirm()
+    // grants one to every new firm) would let even a post-cutover free
+    // firm through regardless of createdAt, which isn't what these tests
+    // are exercising. Cleared, same as the other firmOnTier() variants.
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firm.id).run();
     const { rawSessionToken } = await store.createSession(env.DB, firm.id);
     return { firmId: firm.id, cookie: `dr_firm_session=${rawSessionToken}` };
   }

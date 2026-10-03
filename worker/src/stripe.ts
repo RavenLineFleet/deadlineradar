@@ -37,6 +37,11 @@ interface StripeCheckoutSessionParams {
    * ever passed in; this function never validates or infers eligibility
    * itself. Absent for every non-referred checkout, unchanged from today. */
   couponId?: string;
+  /** PR6 per-seat add-on (2026-10-02): an OPTIONAL second line item --
+   * quantity = seats beyond firm_scale's cap, priced at its own per-seat
+   * Price id. Absent for every checkout at or under a tier's own seat cap,
+   * unchanged from today. */
+  extraLineItem?: { priceId: string; quantity: number };
 }
 
 export interface StripeCheckoutSession {
@@ -58,6 +63,10 @@ export async function createCheckoutSession(
   body.set("mode", "subscription");
   body.set("line_items[0][price]", params.priceId);
   body.set("line_items[0][quantity]", "1");
+  if (params.extraLineItem) {
+    body.set("line_items[1][price]", params.extraLineItem.priceId);
+    body.set("line_items[1][quantity]", String(params.extraLineItem.quantity));
+  }
   body.set("success_url", params.successUrl);
   body.set("cancel_url", params.cancelUrl);
   for (const [key, value] of Object.entries(params.metadata)) {
