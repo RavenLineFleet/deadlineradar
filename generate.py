@@ -4950,6 +4950,12 @@ _COOKIE_NOTICE_HTML = """<div class="dr-cookie-notice" id="dr-cookie-notice" hid
 # DeadlineRadar chat assistant embed (2026-08-28, Devin: "yes -- embed the
 # chat assistant on the live site, bottom-right"). Site-wide (rendered from
 # page_shell(), same as the cookie notice above), same-origin proxy at
+# Devin, 2026-10-02 23:20 (via orchestrator, hide_chat): hidden for now --
+# flip to True to restore in one line. The /api/assistant/chat endpoint
+# itself is untouched (no customer path reaches it once the widget markup
+# below is gated out of every page).
+CHAT_WIDGET_ENABLED = False
+
 # /api/assistant/chat -- see handleAssistantChat() in worker/src/index.ts
 # for why a proxy is needed (the droplet itself has no CORS headers) and
 # the rate-limit bucket backing it. A real bottom-right bubble+panel built
@@ -5511,7 +5517,7 @@ def page_shell(
 {site_footer(lang=lang)}
 {_SHOW_PASSWORD_TOGGLE_HTML}
 {_COOKIE_NOTICE_HTML}
-{_CHAT_WIDGET_HTML}
+{_CHAT_WIDGET_HTML if CHAT_WIDGET_ENABLED else ''}
 {_SCROLL_REVEAL_BODY_JS}
 {_TABLE_SCROLL_HINT_JS}
 {_STALE_BADGE_RUNTIME_JS}
