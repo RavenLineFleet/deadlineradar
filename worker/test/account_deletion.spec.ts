@@ -570,6 +570,88 @@ describe("store.hardDeleteExpiredFirms", () => {
     expect(redelivered).toBe(false);
   });
 
+  // RETAIN-5 (AuditLab, MEDIUM, 2026-10-02): same shape as RETAIN-4 above,
+  // a different retained row. firms.referred_by_firm_id (migration 0058)
+  // is an enforced FK into firms(id) with no ON DELETE action -- so a
+  // referrer firm could never be hard-deleted once it had referred
+  // anyone, because the REFERRED firm's row (correctly retained -- it's
+  // a real, separate customer, not deleted by this pass at all) still
+  // points at the referrer's id. The referred firm itself must survive
+  // untouched; only the dangling pointer is released.
+  it("RETAIN-5: a referrer firm deletes cleanly, and the referred (surviving) firm's pointer is released, not the referred firm", async () => {
+    const referrerId = await deletedFirm(31);
+    const { id: referredId } = await store.createFirm(env.DB, {
+      name: "Referred LLC",
+      adminEmail: `retain5-referred-${Date.now()}@example.com`,
+      referredByFirmId: referrerId,
+    });
+
+    expect(
+      await env.DB.prepare("SELECT referred_by_firm_id FROM firms WHERE id = ?1").bind(referredId).first<{ referred_by_firm_id: string | null }>()
+    ).toMatchObject({ referred_by_firm_id: referrerId });
+
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    expect(deleted).toContain(referrerId);
+    expect(await store.getFirmById(env.DB, referrerId)).toBeNull();
+
+    // The referred firm was never past its own grace period -- it must
+    // still exist, untouched except for the released pointer.
+    const referredAfter = await env.DB.prepare("SELECT status, referred_by_firm_id FROM firms WHERE id = ?1")
+      .bind(referredId)
+      .first<{ status: string; referred_by_firm_id: string | null }>();
+    expect(referredAfter).not.toBeNull();
+    expect(referredAfter!.status).not.toBe(store.FIRM_STATUS_DELETED);
+    expect(referredAfter!.referred_by_firm_id).toBeNull();
+  });
+
+  // RETAIN-6 (SecurityLab, LOW, 2026-10-02): RETAIN-4's per-firm try/catch
+  // made a stuck firm's failure permanently quiet -- retried and failed
+  // every daily pass, with only the one-line-per-firm log to notice it.
+  // Forces a REAL failure (not asserted-away) via a Proxy around a single
+  // targeted D1 statement -- the firm's own primary_member_id UPDATE --
+  // so the rest of the function runs its genuine code path, including the
+  // catch block and the two new summary lines.
+  it("RETAIN-6: a stuck firm past the stale-alert threshold produces both a failure-count summary and a stale alert, without blocking a clean firm in the same pass", async () => {
+    const stuckFirmId = await deletedFirm(40); // past both the 30-day grace AND the 35-day stale-alert threshold
+    const okFirmId = await deletedFirm(31);
+
+    const realPrepare = env.DB.prepare.bind(env.DB);
+    const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation((sql: string) => {
+      const stmt = realPrepare(sql);
+      if (!sql.includes("UPDATE firms SET primary_member_id")) return stmt;
+      return new Proxy(stmt, {
+        get(target, prop, receiver) {
+          if (prop !== "bind") return Reflect.get(target, prop, receiver);
+          return (...bindArgs: unknown[]) => {
+            const bound = Reflect.apply(target.bind, target, bindArgs);
+            if (bindArgs[0] !== stuckFirmId) return bound;
+            return new Proxy(bound, {
+              get(boundTarget, boundProp, boundReceiver) {
+                if (boundProp === "run") return () => Promise.reject(new Error("RETAIN-6 test: forced failure"));
+                return Reflect.get(boundTarget, boundProp, boundReceiver);
+              },
+            });
+          };
+        },
+      });
+    });
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    prepareSpy.mockRestore();
+
+    expect(deleted).toContain(okFirmId);
+    expect(deleted).not.toContain(stuckFirmId);
+    expect(await store.getFirmById(env.DB, stuckFirmId)).not.toBeNull(); // still there, retried next pass
+
+    const lines = logSpy.mock.calls.map((args) => String(args[0]));
+    logSpy.mockRestore();
+
+    expect(lines.some((l) => l.startsWith("[hard-delete-firm-failed]") && l.includes(stuckFirmId))).toBe(true);
+    expect(lines.some((l) => l.startsWith("[hard-delete-sweep] 1 succeeded, 1 failed") && l.includes(stuckFirmId))).toBe(true);
+    expect(lines.some((l) => l.startsWith("[hard-delete-stale-alert]") && l.includes(stuckFirmId))).toBe(true);
+  });
+
   it("never touches a firm that hasn't been deleted at all", async () => {
     const { id: firmId } = await store.createFirm(env.DB, { name: "Untouched LLC", adminEmail: `untouched-${Date.now()}@example.com` });
     const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());

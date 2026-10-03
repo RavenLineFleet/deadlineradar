@@ -2527,7 +2527,9 @@ export const SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES = [
  */
 export const FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES = ["firm_member_backup_codes"] as const;
 
-export async function hardDeleteExpiredFirms(db: D1Database, bucket: R2Bucket, asOf: Date, graceDays = 30): Promise<string[]> {
+export async function hardDeleteExpiredFirms(
+  db: D1Database, bucket: R2Bucket, asOf: Date, graceDays = 30, staleAlertDays = 35
+): Promise<string[]> {
   const cutoff = new Date(asOf.getTime() - graceDays * 86_400_000).toISOString();
   const { results } = await db
     .prepare(`SELECT id FROM firms WHERE status = ?1 AND deletion_requested_at IS NOT NULL AND deletion_requested_at <= ?2`)
@@ -2536,6 +2538,7 @@ export async function hardDeleteExpiredFirms(db: D1Database, bucket: R2Bucket, a
 
   const ids = results.map((r) => r.id);
   const deleted: string[] = [];
+  const failed: string[] = [];
   for (const firmId of ids) {
     // RETAIN-4 (AuditLab, HIGH, 2026-10-02): one firm failing here must
     // never stall every OTHER firm queued behind it in the same daily cron
@@ -2614,12 +2617,59 @@ export async function hardDeleteExpiredFirms(db: D1Database, bucket: R2Bucket, a
       // WHERE clause's match is gone along with the row it would have
       // matched.
       await db.prepare(`UPDATE stripe_webhook_events SET firm_id = NULL WHERE firm_id = ?1`).bind(firmId).run();
+      // RETAIN-5 (AuditLab, MEDIUM, 2026-10-02): same shape as RETAIN-4
+      // above, a different retained row -- migration 0058's
+      // `firms.referred_by_firm_id` is an enforced FK into firms(id) with
+      // no ON DELETE action. This firm may be the REFERRER on another
+      // live firm's row (that OTHER firm is correctly retained -- it's a
+      // real customer, not deleted), but that other row still points at
+      // THIS firm's id, which the DELETE below removes. Nulling it here
+      // only zeroes the deleted referrer's own `countRewardedReferrals()`
+      // count, which is moot (the referrer is being erased); the
+      // referred firm's reward itself was already applied at
+      // referrer_rewarded_at and isn't re-read anywhere. Must run BEFORE
+      // the firms DELETE, same ordering reason as the statement above.
+      await db.prepare(`UPDATE firms SET referred_by_firm_id = NULL WHERE referred_by_firm_id = ?1`).bind(firmId).run();
       await db.prepare(`DELETE FROM firms WHERE id = ?1`).bind(firmId).run();
       deleted.push(firmId);
     } catch (err) {
+      failed.push(firmId);
       console.log(`[hard-delete-firm-failed] firmId=${firmId} err=${String(err)}`);
     }
   }
+
+  // RETAIN-6 (SecurityLab, LOW, 2026-10-02): the per-firm try/catch above
+  // (RETAIN-4) fixed "one bad firm blocks the queue" but turned every
+  // failure permanently QUIET instead -- the only trace was the one-line
+  // log per firm, with nothing counting failures, nothing in a summary,
+  // and nothing watching how long a firm has been stuck. A firm that
+  // fails here is re-selected and retried every daily pass forever,
+  // reporting identically to "nothing was pending" at the call site
+  // unless someone is grep-ing logs. This summary line fires every run
+  // failures occur, independent of the per-firm lines, so a log-volume
+  // alert or a simple grep on this one line is enough to notice.
+  if (failed.length > 0) {
+    console.log(`[hard-delete-sweep] ${deleted.length} succeeded, ${failed.length} failed: ${failed.join(", ")}`);
+  }
+
+  // A firm stuck past staleAlertDays (5 days beyond the normal grace
+  // period) has failed at least 5 consecutive daily passes -- loud enough
+  // to distinguish "today's transient failure" (covered by the summary
+  // line above) from "something is persistently broken for this firm and
+  // a human should look," without needing to correlate daily log lines
+  // by hand.
+  const staleCutoff = new Date(asOf.getTime() - staleAlertDays * 86_400_000).toISOString();
+  const { results: staleRows } = await db
+    .prepare(`SELECT id FROM firms WHERE status = ?1 AND deletion_requested_at IS NOT NULL AND deletion_requested_at <= ?2`)
+    .bind(FIRM_STATUS_DELETED, staleCutoff)
+    .all<{ id: string }>();
+  if (staleRows.length > 0) {
+    console.log(
+      `[hard-delete-stale-alert] ${staleRows.length} firm(s) pending deletion past ${staleAlertDays} days: ` +
+        staleRows.map((r) => r.id).join(", ")
+    );
+  }
+
   return deleted;
 }
 

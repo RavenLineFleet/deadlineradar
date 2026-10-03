@@ -5709,33 +5709,65 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
-# RETAIN-4 (AuditLab, HIGH, 2026-10-02): deliberately_excluded above is doing
-# two different jobs at once -- "not the firm's data to erase" and "safe to
-# ignore when deleting a firm" -- and stripe_webhook_events is the one
-# member where those diverge: it IS genuinely retained, but it ALSO holds an
-# enforced firm_id FK into firms(id) with no ON DELETE action, so retaining
-# it without releasing that FK made every paying firm (any firm with a
-# Stripe event) un-deletable. "firms" (the root row, deleted outright) and
-# "subscribers" (its own dedicated DELETE) don't need this -- this set is
-# only for a table that is BOTH retained AND FK-linked to the row being
-# deleted.
-RETAINED_TABLES_REQUIRING_FK_RELEASE = {"stripe_webhook_events"}
+# RETAIN-4/RETAIN-5 (AuditLab, 2026-10-02): the original version of this
+# check was a hand-maintained {"stripe_webhook_events"} literal -- itself
+# exactly the kind of drift-prone list this file exists to replace with a
+# derived one. RETAIN-5 is the proof: firms.referred_by_firm_id (migration
+# 0058) is a SECOND enforced FK into firms(id) with nothing releasing it,
+# and a firm_id-keyed scan would never find it anyway -- it's a SELF-
+# reference (another live firm's row points at the one being deleted), not
+# a child table's firm_id column at all. Derived straight from the
+# migrations' REFERENCES clauses instead: every (table, column) pair with
+# an enforced REFERENCES firms(id), minus the ones already covered because
+# their OWNING ROW is deleted outright (a FIRM_SCOPED_TABLES table, or
+# `subscribers` via its own dedicated DELETE -- both always keyed on a
+# literal `firm_id` column). Whatever's left must be explicitly released.
+def _firms_referencing_columns(repo_root: Path) -> set[tuple[str, str]]:
+    """Every (table, column) pair across worker/migrations/*.sql where
+    `column` carries an enforced `REFERENCES firms(id)` -- including a
+    self-reference on `firms` itself (referred_by_firm_id), which is a
+    table referencing ITSELF, not a child table referencing a parent."""
+    migrations_dir = repo_root / "worker" / "migrations"
+    table_block_re = re.compile(r"CREATE TABLE(?:\s+IF NOT EXISTS)?\s+(\w+)\s*\(([\s\S]*?)\)\s*;")
+    col_ref_firms_re = re.compile(r"(\w+)\s+[^,\n]*?REFERENCES\s+firms\s*\(\s*id\s*\)", re.IGNORECASE)
+    alter_ref_firms_re = re.compile(
+        r"ALTER TABLE\s+(\w+)\s+ADD\s+(?:COLUMN\s+)?(\w+)[^;]*?REFERENCES\s+firms\s*\(\s*id\s*\)",
+        re.IGNORECASE,
+    )
+    pairs: set[tuple[str, str]] = set()
+    for sql_file in sorted(migrations_dir.glob("*.sql")):
+        sql_text = sql_file.read_text(encoding="utf-8")
+        for table, body in table_block_re.findall(sql_text):
+            for col in col_ref_firms_re.findall(body):
+                pairs.add((table, col))
+        for table, col in alter_ref_firms_re.findall(sql_text):
+            pairs.add((table, col))
+    return pairs
 
 
 def check_retained_table_fk_released(repo_root: Path) -> list[str]:
-    """RETAIN-4: asserts hardDeleteExpiredFirms() releases firm_id on every
-    table in RETAINED_TABLES_REQUIRING_FK_RELEASE -- an `UPDATE ... SET
-    firm_id = NULL WHERE firm_id = ?1`, the same statement shape migration
-    0045's primary_member_id release already uses for the analogous
-    circular-FK problem one table over -- and that it runs BEFORE the
-    `DELETE FROM firms`, not just somewhere in the function. A release
-    statement after the firms DELETE would never match anything: the row
-    the WHERE clause is looking for is already gone."""
+    """RETAIN-4/RETAIN-5: every (table, column) with an enforced
+    `REFERENCES firms(id)` must either have its owning row deleted
+    (table is in FIRM_SCOPED_TABLES or is `subscribers`, AND column is the
+    literal `firm_id` those deletes key on), or have that specific column
+    explicitly released -- `UPDATE <table> SET <column> = NULL WHERE
+    <column> = ?1`, the same statement shape migration 0045's
+    primary_member_id release already uses -- BEFORE the `DELETE FROM
+    firms`, not just somewhere in the function. A release after the firms
+    DELETE would never match anything: the row (or, for a self-reference,
+    the OTHER firm's row) the WHERE clause is looking for is unaffected by
+    this firm's own deletion, so lateness is harmless for a self-reference
+    specifically -- but still flagged, since a reordering that happened to
+    land late here could land fatally early for a future child-table case."""
     store_ts = repo_root / "worker" / "src" / "store.ts"
-    if not store_ts.exists():
+    migrations_dir = repo_root / "worker" / "migrations"
+    if not store_ts.exists() or not migrations_dir.exists():
         print("  (skipping retained-table-fk-released check -- worker/ tree not present in this checkout)")
         return []
     text = store_ts.read_text(encoding="utf-8")
+
+    m = re.search(r"FIRM_SCOPED_TABLES\s*=\s*\[([\s\S]*?)\]", text)
+    covered_by_deletion = (set(re.findall(r'"(\w+)"', m.group(1))) if m else set()) | {"subscribers"}
 
     m = re.search(r"export async function hardDeleteExpiredFirms\b[\s\S]*?\n\}", text)
     if not m:
@@ -5747,19 +5779,22 @@ def check_retained_table_fk_released(repo_root: Path) -> list[str]:
         return ["[RETAIN-FK] hardDeleteExpiredFirms() has no `DELETE FROM firms` -- can't verify FK-release ordering"]
 
     errors = []
-    for table in sorted(RETAINED_TABLES_REQUIRING_FK_RELEASE):
+    for table, column in sorted(_firms_referencing_columns(repo_root)):
+        if table in covered_by_deletion and column == "firm_id":
+            continue  # the row itself is deleted, taking the FK with it
         release_match = re.search(
-            rf"UPDATE\s+{re.escape(table)}\s+SET\s+firm_id\s*=\s*NULL\s+WHERE\s+firm_id\s*=\s*\?1", body
+            rf"UPDATE\s+{re.escape(table)}\s+SET\s+{re.escape(column)}\s*=\s*NULL\s+WHERE\s+{re.escape(column)}\s*=\s*\?1",
+            body,
         )
         if not release_match:
             errors.append(
-                f"[RETAIN-FK] {table} is retained (never deleted) but its firm_id FK into firms(id) is "
-                "never released in hardDeleteExpiredFirms() -- the firms DELETE will throw "
-                "SQLITE_CONSTRAINT_FOREIGNKEY for any firm with a row here"
+                f"[RETAIN-FK] {table}.{column} references firms(id) and is neither deleted with its "
+                "own row nor released in hardDeleteExpiredFirms() -- the firms DELETE will throw "
+                "SQLITE_CONSTRAINT_FOREIGNKEY for any firm with a row pointing at it here"
             )
         elif release_match.start() > firms_delete_match.start():
             errors.append(
-                f"[RETAIN-FK] {table}'s firm_id release runs AFTER `DELETE FROM firms` in "
+                f"[RETAIN-FK] {table}.{column}'s release runs AFTER `DELETE FROM firms` in "
                 "hardDeleteExpiredFirms() -- too late to prevent the FK violation"
             )
     return errors
