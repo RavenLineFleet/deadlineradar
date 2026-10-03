@@ -1,0 +1,17 @@
+-- RETAIN-5 follow-up (Orchestrator ruling, 2026-10-02): hardDeleteExpiredFirms()
+-- nulls a surviving referee's firms.referred_by_firm_id when the referrer is
+-- hard-deleted (RETAIN-5's own fix, unavoidable -- the referrer row is gone).
+-- But referred_by_firm_id is also what handleFirmBillingCheckout (index.ts)
+-- reads to decide whether THIS firm's own one-time referred-checkout
+-- discount still applies, so nulling it silently cost an un-claimed referee
+-- their pending discount the moment their unrelated referrer deleted their
+-- account -- a real, if narrow, revenue/fairness bug SecurityLab and
+-- AuditLab both flagged as a decision, not something to decide in code.
+-- Orchestrator's ruling: keep the discount. This column records the
+-- entitlement independently of the (about-to-be-nulled) attribution
+-- pointer, set ONLY when referral_reward_applied_at is still null (the
+-- firm hasn't spent its discount yet) at the moment its referrer is
+-- deleted -- see hardDeleteExpiredFirms()'s own comment for the exact
+-- statement. INTEGER boolean, same convention as demo_locked/
+-- cancel_at_period_end.
+ALTER TABLE firms ADD COLUMN referral_discount_pending INTEGER NOT NULL DEFAULT 0;

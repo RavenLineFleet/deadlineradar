@@ -3600,8 +3600,16 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   // later real attempt. Always tier 1 (10% off) -- the REFERRED firm's own
   // discount doesn't compound, only the referrer's side does (see
   // applyReferralRewardIfEligible()).
+  // RETAIN-5 follow-up (Orchestrator ruling, 2026-10-02): referred_by_firm_id
+  // alone used to gate this -- but hardDeleteExpiredFirms() nulls it on a
+  // surviving referee the moment that referee's referrer is hard-deleted
+  // (RETAIN-5's own fix, unavoidable). referral_discount_pending (migration
+  // 0084) is set by that same function, ONLY for a referee that hadn't
+  // spent this discount yet, specifically so eligibility survives losing
+  // the pointer. Either signal is enough; referral_reward_applied_at still
+  // gates both the same way (one-time use).
   const referralCouponId =
-    firm.referred_by_firm_id && !firm.referral_reward_applied_at && env.STRIPE_COUPON_REFERRAL
+    (firm.referred_by_firm_id || firm.referral_discount_pending) && !firm.referral_reward_applied_at && env.STRIPE_COUPON_REFERRAL
       ? referralTierCouponId(env.STRIPE_COUPON_REFERRAL, 1)
       : undefined;
 
