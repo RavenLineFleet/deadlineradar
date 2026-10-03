@@ -78,6 +78,20 @@ def _es_page_has_real_translation(en_html: str, es_html: str) -> bool:
 # Config
 # ---------------------------------------------------------------------------
 
+# reference-deadlineradar-autocrlf-pitfall: Path.write_text()'s default
+# newline handling applies the platform line ending, so every generated
+# file came out CRLF on Windows even with core.autocrlf=false -- a full-file
+# diff against the LF-only committed blobs on every single regen. Pin the
+# write to LF unconditionally so the on-disk output always matches git HEAD.
+_original_write_text = pathlib.Path.write_text
+
+
+def _write_text_lf(self, data, encoding=None, errors=None, newline="\n"):
+    return _original_write_text(self, data, encoding=encoding, errors=errors, newline=newline)
+
+
+pathlib.Path.write_text = _write_text_lf
+
 ROOT = pathlib.Path(__file__).resolve().parent
 DATA_PATH = ROOT / "data" / "cpa_deadlines.json"
 # Separate dataset (2026-07-15): CPE HOUR requirements, distinct from the renewal
@@ -9182,8 +9196,8 @@ href="/terms/">Terms of Service</a>.</p>
 """
     return page_shell(
         f"Privacy Policy — {SITE_NAME}",
-        "How Deadline-Radar collects, uses, and protects your information. We only send the CPA license "
-        "deadline reminders you request — we never sell or share your data.",
+        "How Deadline-Radar collects, uses, and protects your information. We only send the renewal "
+        "reminders you request — we never sell or share your data.",
         body,
         home_href="../",
         canonical_path="/privacy/",
@@ -10422,10 +10436,8 @@ to create an account yet? <a href="#firm-lead">Leave your email instead</a> and 
 """
     return page_shell(
         f"For Firms — {SITE_NAME}",
-        "CPA firm license tracking: roster, calendar, CPE hours, and individual Practice Privilege "
-        "Check free forever, plus paid plans from $199/year (5 staff) to $549/year (35 staff) for the "
-        "map and firm-level registration check. Sourced to the same codified state law Deadline-Radar "
-        "verifies for every state.",
+        "CPA firm license tracking: roster, calendar, CPE hours, Practice Privilege Check free "
+        "forever — paid plans add the firm-registration check, from $199/year.",
         body,
         home_href="../",
         canonical_path="/for-firms/",
@@ -20748,7 +20760,7 @@ pricing and the whole feature set.</p>
 <p class="backlink"><a href="/">&larr; Back to all states</a></p>
 """
     return page_shell(
-        f"Compliance Reports & Audit Trail for CPA Firms — {SITE_NAME}",
+        f"Compliance Reports & Audit Trail — {SITE_NAME}",
         "A dated record of every roster change and every reminder we actually sent, exportable for a "
         "board inquiry or your own file. Free on every tier, no export limit.",
         body,
@@ -22128,7 +22140,10 @@ firm-permit deadlines and aren't on this table.</p>
         # <title>/og:title/twitter:title -- what a reader actually sees
         # first, in a SERP/tab/share card -- still claimed "every". Matches
         # the H1's own narrowed scope now, within the ~60-char SERP budget.
-        f"Every CPA License & Firm-Permit Deadline Due Dec 31, 2026 — {SITE_NAME}",
+        # Phase 3 item 4 (2026-10-02): shortened further, the full
+        # "Every CPA License & Firm-Permit Deadline Due Dec 31, 2026" title
+        # ran to 74 chars with the site-name suffix.
+        f"Dec 31, 2026 CPA & Firm Deadlines — {SITE_NAME}",
         f"{state_count} states have a CPA license or firm-permit deadline due December 31, 2026 -- "
         "see exactly which, sourced to each state's own rule.",
         body,
@@ -22237,11 +22252,11 @@ def build_cpe_hours_page(
         # meta description, a live SERP-facing typo this fix's own goal
         # (sharper copy) made doubly relevant to catch.
         meta_ethics_word = "hour" if ethics_hours == 1 else "hours"
-        meta_tail = f"including {ethics_hours} ethics {meta_ethics_word}, verified against the state's own rule."
+        meta_tail = f"including {ethics_hours} ethics {meta_ethics_word}, sourced to the state's rule."
     else:
-        meta_tail = "verified against the state's own board rule, not a guess."
+        meta_tail = "sourced to the state's own board rule, not a guess."
     meta_description = (
-        f"How many CPE hours does {state_name} require for CPAs, and by when? "
+        f"How many CPE hours does {state_name} require, and by when? "
         f"{cpe_record['total_hours']} hours {period_phrase}, {meta_tail}"
     )
 
@@ -22748,8 +22763,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
     else:
         meta_description = (
             f"What does it cost to reinstate a lapsed {state_name} CPA license? "
-            f"The fee follows a formula, not a flat rate -- see the exact breakdown and the "
-            f"catch-up CPE required."
+            f"The fee follows a formula, not a flat rate -- see the breakdown and catch-up CPE."
         )
 
     # A record whose own data_gap_note admits the board-page leg of the 2-source
@@ -22834,6 +22848,7 @@ BLOG_ARTICLES = [
         # stamp (sourced from data/guide_reviews.json) correctly does not.
         "content_modified": "2026-09-26",
         "title": "What Your State Board Actually Promises About Renewal Reminders",
+        "seo_title": "What Your Board Promises on Renewals",
         "meta_description": (
             "We checked what ten state boards actually commit to about renewal notices, in their "
             "own rules — and one state promises the opposite of what you'd expect."
@@ -22927,10 +22942,10 @@ on any one board's notice arriving on time.</p>
         "slug": "how-a-superseded-rule-hid-on-an-official-site",
         "published": "2026-08-14",  # first-introduction commit date, from git history
         "title": "The State's Own Website Was Serving a Repealed Rule",
+        "seo_title": "A Repealed Rule, Still Live Online",
         "meta_description": (
-            "Georgia's rules site still showed a CPE requirement replaced in 2024. Here's how we "
-            "found it, what we changed across every citation on this site, and why we publish the "
-            "corrections."
+            "Georgia's rules site still showed a CPE requirement replaced in 2024. Here's "
+            "how we found it, what we changed, and why we publish the corrections."
         ),
         "body_html": """
 <p class="intro">If you looked up Georgia's CPA continuing-education rule this month on the Georgia
@@ -23042,9 +23057,10 @@ public.</em></p>
         "slug": "cpe-vs-license-renewal",
         "published": "2026-07-06",  # first-introduction commit date, from git history
         "title": "CPE Requirements vs. License Renewal — The Deadline CPAs Mix Up",
+        "seo_title": "CPE Deadlines vs. License Renewal",
         "meta_description": (
-            "CPE completion and license renewal are two different deadlines with two different "
-            "rules. Here's how they differ, state by state, and what happens if you miss either one."
+            "CPE completion and license renewal are two different deadlines with different "
+            "rules. Here's how they differ, and what happens if you miss either one."
         ),
         "body_html": """
 <p class="intro">CPAs juggle two deadlines that sound like they should be the same thing but often
@@ -23095,10 +23111,11 @@ track that separately too.</p>
         "slug": "common-cpa-renewal-mistakes",
         "published": "2026-07-06",  # first-introduction commit date, from git history
         "title": "The Most Common CPA License-Renewal Mistakes (and How to Avoid Them)",
+        "seo_title": "Common CPA License-Renewal Mistakes",
         "meta_description": (
-            "The renewal mistakes that trip up CPAs most often — wrong deadline, wrong cycle "
-            "length, and the ones that assume renewal rules are the same everywhere. How to avoid "
-            "each one."
+            "The renewal mistakes that trip up CPAs most often, wrong deadline, wrong "
+            "cycle length, and assuming rules are the same everywhere. How to avoid each "
+            "one."
         ),
         "body_html": """
 <p class="intro">Most CPA license lapses aren't dramatic &mdash; they're small, avoidable mix-ups.
@@ -23145,6 +23162,7 @@ real reminder tied to the actual date &mdash; not a guess, a memory, or someone 
         "slug": "missouri-cpa-license-renewal-guide",
         "published": "2026-07-06",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Missouri: Dates, Fees, CPE, and Deadlines",
+        "seo_title": "Missouri CPA License Renewal Guide",
         "meta_description": (
             "Missouri CPA license renewal: the real dates for individual licenses and firm "
             "permits, CPE requirements, fees, and what happens if you miss a deadline."
@@ -23200,6 +23218,7 @@ you don't have to hold all three in your head.</p>
         "slug": "arizona-cpa-license-renewal-guide",
         "published": "2026-07-10",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Arizona: Birth-Month Cycles, Firm Registration, and Deadlines",
+        "seo_title": "Arizona CPA License Renewal Guide",
         "meta_description": (
             "Arizona CPA license renewal: how the birth-month/parity cycle works, why firm "
             "registration runs on a separate clock, and what happens if you miss the deadline."
@@ -23252,9 +23271,11 @@ at when "renewal season" is.</p>
         "slug": "why-some-states-need-your-birth-month",
         "published": "2026-07-15",  # first-introduction commit date, from git history
         "title": "Why This Site Sometimes Asks for Your Birth Month Instead of Just Showing a Date",
+        "seo_title": "Why We Ask for Your Birth Month",
         "meta_description": (
-            "Some states renew every CPA license on one fixed date. Others compute it from your "
-            "birth month or year. The real difference, state by state, and why we ask instead of guess."
+            "Some states renew every CPA license on one fixed date. Others compute it from "
+            "your birth month or year. The real difference, and why we ask instead of "
+            "guess."
         ),
         "body_html": """
 <p class="intro">Most of this site works the same way for every visitor to a given state page: pick
@@ -23316,6 +23337,7 @@ guess.</p>
         "slug": "illinois-cpa-license-renewal-guide",
         "published": "2026-07-17",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Illinois: Dates, CPE, and Firm Registration",
+        "seo_title": "Illinois CPA License Renewal Guide",
         "meta_description": (
             "Illinois CPA license renewal: the 3-year individual and firm cycles, the 120-hour "
             "CPE requirement, and the separate sexual harassment prevention training rule."
@@ -23366,6 +23388,7 @@ second, separate line item from your 4 ethics hours.
         "slug": "connecticut-cpa-license-renewal-guide",
         "published": "2026-07-17",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Connecticut: Two Clocks That Don't Line Up",
+        "seo_title": "Connecticut CPA License Renewal Guide",
         "meta_description": (
             "Connecticut CPA license renewal: the calendar-year license cycle, the separate "
             "fiscal-year CPE clock, and the firm-permit date that isn't codified."
@@ -23423,10 +23446,11 @@ catches you off guard.</p>
         "slug": "wisconsin-cpa-license-renewal-guide",
         "published": "2026-07-17",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Wisconsin: One Date for Everyone",
+        "seo_title": "Wisconsin CPA License Renewal Guide",
         "meta_description": (
-            "Wisconsin CPA license renewal: the biennial December 15 deadline for individuals and "
-            "firms, the 80-hour CPE two-half pacing rule, and a real discrepancy between the "
-            "statute and Board materials."
+            "Wisconsin CPA license renewal: the biennial December 15 deadline, the 80-hour "
+            "CPE two-half pacing rule, and a discrepancy between statute and Board "
+            "materials."
         ),
         "body_html": """
 <p class="intro">Wisconsin keeps this simpler than most states in one specific way: individual
@@ -23475,10 +23499,11 @@ for you instead of sneaking up on you.</p>
         "slug": "florida-cpa-license-renewal-guide",
         "published": "2026-08-07",  # first-introduction commit date, from git history
         "title": "Florida CPA License Renewal: Why There's No Single Date to Give You",
+        "seo_title": "Florida CPA License Renewal Guide",
         "meta_description": (
-            "Florida CPA license renewal doesn't follow a public odd/even pattern for "
-            "individuals — here's why, what actually determines your date, the firm-license "
-            "rule that IS fixed, and the 80-hour CPE requirement."
+            "Florida CPA license renewal doesn't follow a public odd/even pattern. Here's "
+            "what determines your date, the fixed firm-license rule, and the CPE "
+            "requirement."
         ),
         "body_html": """
 <p class="intro">If you've searched for "Florida CPA renewal date" expecting a single answer the way
@@ -23609,10 +23634,11 @@ license renewal page</a>.</p>
         "slug": "minnesota-cpa-license-renewal-guide",
         "published": "2026-08-22",  # first-introduction commit date, from git history
         "title": "How CPA License Renewal Works in Minnesota: One Deadline, Three Different Fees",
+        "seo_title": "Minnesota CPA License Renewal Guide",
         "meta_description": (
             "Minnesota CPA license renewal: the December 31 deadline every license and "
-            "firm shares, the rolling 3-year CPE clock, and why a firm's own renewal can "
-            "fail even when the firm itself did everything right."
+            "firm shares, the rolling 3-year CPE clock, and why a firm's renewal can "
+            "still fail."
         ),
         "body_html": """
 <p class="intro">Minnesota keeps every CPA license and firm permit on the same calendar-year clock &mdash;
@@ -23674,10 +23700,11 @@ deadline here</a> so none of these get missed.</p>
         "slug": "new-york-to-new-jersey-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "New York CPA Practicing in New Jersey — What Actually Applies",
+        "seo_title": "New York CPA Mobility to New Jersey",
         "meta_description": (
-            "New Jersey rewrote its practice-privilege rule in 2026 — moving from an "
-            "NASBA-verified test to individual criteria. Here's exactly what a New York CPA "
-            "needs to qualify, sourced to the actual statute."
+            "New Jersey rewrote its practice-privilege rule in 2026, moving from an "
+            "NASBA-verified test to individual criteria. Here's what a New York CPA needs "
+            "to qualify."
         ),
         "body_html": """
 <p class="intro">If you hold a New York CPA license and want to work with a New Jersey client &mdash;
@@ -23739,10 +23766,10 @@ registration date here</a>.</p>
         "slug": "california-to-nevada-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "California CPA Practicing in Nevada — What Actually Applies",
+        "seo_title": "California CPA Mobility to Nevada",
         "meta_description": (
-            "Nevada runs one of the simplest mobility rules in the country — open CPA=CPA, "
-            "no notice, no fee. Here's what actually applies for a California-licensed CPA, "
-            "and the one condition that trips people up on attest work."
+            "Nevada runs one of the simplest mobility rules in the country: open CPA=CPA, "
+            "no notice, no fee. Here's the one catch for a California CPA doing attest work."
         ),
         "body_html": """
 <p class="intro">Of all the state pairs a CPA might ask about, California-to-Nevada is one of the
@@ -23797,10 +23824,10 @@ California renewal &mdash; it runs on a birth-month/odd-even cycle that's easy t
         "slug": "texas-to-oklahoma-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Texas CPA Practicing in Oklahoma — What Actually Applies (and What Changes Nov. 1, 2026)",
+        "seo_title": "Texas CPA Mobility to Oklahoma",
         "meta_description": (
-            "Oklahoma's mobility rule is open today but rewrites itself to individual criteria "
-            "on November 1, 2026. Here's what a Texas CPA needs to know before and after that "
-            "date, sourced to the actual statute."
+            "Oklahoma's mobility rule is open today but switches to individual criteria "
+            "Nov. 1, 2026. Here's what a Texas CPA needs to know before and after."
         ),
         "body_html": """
 <p class="intro">Oklahoma is a genuinely useful example of why "check the current rule, not what you
@@ -23873,10 +23900,10 @@ Oklahoma Accountancy Board directly. And keep your own Texas renewal on track wh
         "slug": "new-york-to-connecticut-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "New York CPA Practicing in Connecticut — What Actually Applies",
+        "seo_title": "New York CPA Mobility to Connecticut",
         "meta_description": (
             "Connecticut replaced its NASBA-based mobility test with individual criteria in "
-            "October 2025. Here's exactly what a New York CPA needs to qualify, and where "
-            "the state's own rules still disagree with each other."
+            "2025. Here's what a New York CPA needs to qualify."
         ),
         "body_html": """
 <p class="intro">Connecticut rewrote its mobility rule less than a year ago, and the state's own
@@ -23934,10 +23961,10 @@ track &mdash; it's easy to lose track of since it's not tied to your license's o
         "slug": "california-to-texas-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "California CPA Practicing in Texas — What Actually Applies",
+        "seo_title": "California CPA Mobility to Texas",
         "meta_description": (
-            "Texas moved to an individual-criteria mobility test in September 2025 — and "
-            "the state board's own website still describes the old rule. Here's what a "
-            "California CPA actually needs, sourced to the current statute."
+            "Texas moved to an individual-criteria mobility test in 2025, but the board's "
+            "site still describes the old rule. Here's what a California CPA needs to know."
         ),
         "body_html": """
 <p class="intro">Texas has full firm mobility and an open individual privilege &mdash; but the specific
@@ -23987,10 +24014,10 @@ renewal while you're at it &mdash; it runs on a birth-month/odd-even cycle that'
         "slug": "illinois-to-indiana-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Illinois CPA Practicing in Indiana — What Actually Applies",
+        "seo_title": "Illinois CPA Mobility to Indiana",
         "meta_description": (
-            "Indiana is one of the few states with NO firm mobility — a firm permit is "
-            "required regardless of whether you have an Indiana office. Here's what an "
-            "Illinois CPA actually needs to know before doing attest work there."
+            "Indiana requires a firm permit regardless of office location, one of the few "
+            "states with no firm mobility. Here's what an Illinois CPA needs to know."
         ),
         "body_html": """
 <p class="intro">Most of the state pairs on this site follow a similar shape: open individual mobility,
@@ -24037,11 +24064,10 @@ Illinois renewal on track &mdash; it's a 3-year cycle, easy to lose track of.
         "slug": "florida-to-georgia-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Florida CPA Practicing in Georgia — What Actually Applies",
+        "seo_title": "Florida CPA Mobility to Georgia",
         "meta_description": (
-            "Georgia rewrote its mobility rule effective January 2026 — but the board's own "
-            "compiled rules still describe the old test and directly contradict the new firm "
-            "rule. Here's what a Florida CPA needs to know, and where the state disagrees "
-            "with itself."
+            "Georgia rewrote its mobility rule in 2026, but the board's own rules still "
+            "describe the old test. Here's what a Florida CPA needs to know."
         ),
         "body_html": """
 <p class="intro">Georgia is a genuinely useful example of a state mid-transition where the statute and
@@ -24098,10 +24124,10 @@ certificate date, not a public calendar rule, so check it directly.
         "slug": "virginia-to-maryland-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Virginia CPA Practicing in Maryland — What Actually Applies",
+        "seo_title": "Virginia CPA Mobility to Maryland",
         "meta_description": (
-            "Maryland runs one of the more open mobility rules on the East Coast for both "
-            "individuals and firms. Here's exactly what a Virginia CPA needs to qualify, "
-            "sourced to the current statute."
+            "Maryland runs one of the more open East Coast mobility rules for individuals "
+            "and firms. Here's what a Virginia CPA needs, sourced to the statute."
         ),
         "body_html": """
 <p class="intro">Maryland is one of the more genuinely open mobility states for a Virginia CPA to work
@@ -24150,10 +24176,11 @@ every June 30. <a href="../../virginia/">Check your Virginia renewal date here</
         "slug": "pennsylvania-to-new-jersey-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Pennsylvania CPA Practicing in New Jersey — What Actually Applies",
+        "seo_title": "Pennsylvania CPA Mobility to New Jersey",
         "meta_description": (
-            "Pennsylvania and New Jersey both overhauled their mobility rules within months "
-            "of each other in 2025-2026. Here's what a Pennsylvania CPA actually needs to "
-            "qualify for New Jersey practice privilege today."
+            "Pennsylvania and New Jersey both overhauled mobility rules within months of "
+            "each other. Here's what a Pennsylvania CPA needs for New Jersey practice "
+            "privilege."
         ),
         "body_html": """
 <p class="intro">Pennsylvania and New Jersey both rewrote their mobility rules within roughly a year of
@@ -24207,10 +24234,10 @@ renewal date here</a>.</p>
         "slug": "virginia-to-washington-dc-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
         "title": "Virginia CPA Practicing in Washington, D.C. — What Actually Applies (and the November 8 Catch)",
+        "seo_title": "Virginia CPA Mobility to D.C.",
         "meta_description": (
-            "D.C. rewrote its CPA practice-privilege rule by emergency act effective August 10, "
-            "2026 — and that act expires November 8, 2026. Here's what a Virginia CPA needs "
-            "to know, including exactly what's settled and what isn't."
+            "D.C. rewrote its CPA practice-privilege rule by emergency act effective Aug. 10, "
+            "2026, expiring Nov. 8, 2026. Here's what a Virginia CPA needs to know."
         ),
         "body_html": """
 <p class="intro">Of every state pair covered in this series, Virginia-to-D.C. is the one where the
@@ -24626,7 +24653,7 @@ so both clocks work for you instead of quietly running past you.</p>
         "slug": "massachusetts-cpa-license-renewal-guide",
         "published": "2026-09-19",
         "title": "Massachusetts CPA Renewal: Every Two Years, Always June 30 — But No One Publishes Which Year Is Yours",
-        "seo_title": "Massachusetts CPA Renewal: Which Year Is Yours?",
+        "seo_title": "Massachusetts CPA Renewal: Your Year",
         "meta_description": (
             "Massachusetts CPA licenses renew every 2 years on June 30 — but which year is never published. Here's what checking real license records showed."
         ),
