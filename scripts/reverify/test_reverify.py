@@ -304,7 +304,7 @@ def test_cpa_cap_equals_the_preship_ratchet_constant_stale33():
     m = re.search(r"^CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE\s*=\s*(\d+)", src, re.M)
     if not m:
         pytest.skip("ratchet not on this tree yet (AssetLab 831fed08a)")
-    assert runner.CPA_STAMP_CAP == int(m.group(1))
+    assert runner.CPA_STAMP_CAP == int(m.group(1)) - runner.HAND_STAMPS_PER_DAY   # STALE-40: room for a hand-stamp
 
 
 def test_tranche_runs_daily_and_backstop_still_applies(env):
@@ -700,7 +700,10 @@ def test_watchdog_live_worker_age_alert_stale27():
     assert wd.live_check({"status": "ok", "worst_record_age_days": 20})[0] is True
     ok, msg = wd.live_check({"status": "ok", "worst_record_age_days": 21})
     assert ok is False and "LIVE" in msg and "deploy_worker" in msg
-    assert wd.live_check({"status": "ok"}) == (True, "live age: not exposed by /api/health yet")   # today's API
+    from datetime import date
+    assert wd.live_check({"status": "ok"}, today=date(2026, 10, 8)) == (True, "live age: not exposed by /api/health yet")
+    ok, msg = wd.live_check({"status": "ok"}, today=date(2026, 10, 9))   # MON-10: a missing field is not silent forever
+    assert ok is False and "worst_record_age_days" in msg
     assert wd.live_check({"worst_record_age_days": True})[0] is True                              # not a number
     assert wd.live_check(None)[0] is True                                                         # unreachable
     down = lambda url, timeout=None: (_ for _ in ()).throw(OSError("down"))

@@ -56,9 +56,11 @@ TRANCHE_CYCLE_DAYS = 10
 # verification-date cohort past its cap -- including a new date going 0 -> 11 -- and the job runs that gate
 # before committing, so one over-cap run loses the whole night's work. Whatever selects them (tranche, the
 # DUE_DAYS backstop, recovering failures), at most this many cpa_deadlines records are checked per run;
-# the rest wait for the next run, oldest first. Must equal preship_gate.CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE
-# (asserted in test_reverify.py).
-CPA_STAMP_CAP = 10
+# the rest wait for the next run, oldest first. STALE-40: AssetLab hand-stamps MANUAL records outside this job,
+# one per day (Orchestrator 2026-10-02 22:17), possibly onto the same date, so the job leaves room for it.
+# Must equal preship_gate.CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE - HAND_STAMPS_PER_DAY (asserted in tests).
+HAND_STAMPS_PER_DAY = 1
+CPA_STAMP_CAP = 10 - HAND_STAMPS_PER_DAY
 STALE_DAYS = 25    # watchdog alert threshold
 
 RECIPE_DOC = """
