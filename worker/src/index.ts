@@ -4022,13 +4022,27 @@ async function applyReferralRewardIfEligible(env: Env, referredFirmId: string, c
   if (checkoutSessionObject.payment_status !== "paid") return;
 
   const firm = await store.getFirmById(env.DB, referredFirmId);
-  if (!firm || !firm.referred_by_firm_id || firm.referral_reward_applied_at) return;
+  // RETAIN-10 (SecurityLab, MEDIUM, 2026-10-02): this guard used to require
+  // referred_by_firm_id alone, so a firm granted the coupon at checkout via
+  // ONLY referral_discount_pending (its referrer was already hard-deleted,
+  // migration 0084/RETAIN-5-follow-up) never reached claimReferralReward()
+  // here -- referral_reward_applied_at was never set, so the SAME firm's
+  // next checkout saw the unclaimed flag again and got the discount a
+  // second time, and every time after. Either signal is enough to proceed;
+  // claimReferralReward() itself clears referral_discount_pending too.
+  if (!firm || (!firm.referred_by_firm_id && !firm.referral_discount_pending) || firm.referral_reward_applied_at) return;
 
   // Unconditional claim -- this firm's OWN referred-checkout discount was
   // just spent on this real, paid session, regardless of what happens
   // below. Never reverted (see this function's own docstring for why).
   const claimed = await store.claimReferralReward(env.DB, referredFirmId);
   if (!claimed) return; // lost the race to a concurrent invocation, or already applied
+
+  // A referrer that was hard-deleted (referred_by_firm_id null, the claim
+  // above ran on referral_discount_pending alone) has nothing left to
+  // reward -- the referred firm's own claim is already done; there is no
+  // referrer-side reward to even attempt.
+  if (!firm.referred_by_firm_id) return;
 
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_COUPON_REFERRAL) return;
   const referrer = await store.getFirmById(env.DB, firm.referred_by_firm_id);

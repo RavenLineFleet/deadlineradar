@@ -459,6 +459,46 @@ describe("POST /stripe/webhook -- referral reward (referrer side)", () => {
     }
   });
 
+  // RETAIN-10 (SecurityLab, MEDIUM, 2026-10-02): applyReferralRewardIfEligible()
+  // used to require referred_by_firm_id alone, so a firm granted the coupon
+  // at checkout via ONLY referral_discount_pending (its referrer already
+  // hard-deleted) never reached claimReferralReward() here -- the claim
+  // never recorded, so the SAME firm's next checkout saw the unclaimed flag
+  // again and got the discount a second time, forever.
+  it("RETAIN-10: a referee whose referrer is already gone (referral_discount_pending only, no referred_by_firm_id) still gets its claim recorded, exactly once -- and no referrer-side Stripe call is attempted", async () => {
+    const referred = await store.createFirm(env.DB, {
+      name: "RETAIN-10 Flagged Referee",
+      adminEmail: `retain10-referee-${Date.now()}@example.com`,
+    });
+    // Simulate the post-hard-delete state directly: referrer is gone,
+    // only the preserved entitlement flag remains.
+    await env.DB.prepare("UPDATE firms SET referral_discount_pending = 1 WHERE id = ?1").bind(referred.id).run();
+    const before = await store.getFirmById(env.DB, referred.id);
+    expect(before?.referred_by_firm_id).toBeNull();
+    expect(before?.referral_discount_pending).toBe(1);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    try {
+      const eventId = `evt_retain10_${referred.id}`;
+      const payload = await checkoutCompletedPayload(eventId, referred.id);
+      const t = Math.floor(Date.now() / 1000);
+      const sig = await signPayload(SECRET, t, payload);
+      const resp = await postWebhook(payload, sig, STRIPE_ENV);
+      expect(resp.status).toBe(200);
+
+      const after = await store.getFirmById(env.DB, referred.id);
+      expect(after?.referral_reward_applied_at).not.toBeNull();
+      expect(after?.referral_discount_pending).toBe(0); // claimed and cleared
+
+      // No referrer to reward -- confirm no /subscriptions/ coupon call
+      // was ever attempted (there is no referrer id to look one up by).
+      const subscriptionCall = fetchSpy.mock.calls.find((c) => (c[0] as string).includes("/subscriptions/"));
+      expect(subscriptionCall).toBeUndefined();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("compounding tiers (2026-08-11): a referrer's SECOND successful referral applies tier 2 (20% off), not tier 1 again", async () => {
     const { referrerId, referredId } = await setupReferralPair("tier2");
     // Simulate one prior successful reward for this same referrer, exactly
