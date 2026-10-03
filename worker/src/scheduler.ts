@@ -2685,6 +2685,24 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
  * legitimately missing live-mode price ids), matching the standalone
  * script's own "NOT CONFIGURED" (not "MISMATCH") category.
  */
+/**
+ * BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03): a stable
+ * hash of the CURRENT mismatch set's content, used as half of the dedup
+ * key in claimStripePriceParityAlertForMonth() below -- see that
+ * function's own docstring for why month-alone was the bug. `checks`
+ * iterates FIRM_TIERS in a fixed order every run, so `mismatches` is
+ * already deterministically ordered; this just needs to be a stable
+ * string encoding of envVar+problems, not a cryptographic property --
+ * reuses store.hashToken() (plain SHA-256) rather than inventing a new
+ * hash primitive for a non-secret dedup key.
+ */
+async function buildStripePriceParityMismatchSignature(
+  mismatches: { envVar: string; problems: string[] }[]
+): Promise<string> {
+  const content = mismatches.map((m) => `${m.envVar}:${m.problems.join("|")}`).join(";");
+  return store.hashToken(content);
+}
+
 export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   if (!requireSendApproval(env, "stripePriceParityAlert")) return;
   if (!env.STRIPE_SECRET_KEY) return;
@@ -2758,16 +2776,24 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     return;
   }
   const monthUtc = new Date().toISOString().slice(0, 7);
-  const claimed = await store.claimStripePriceParityAlertForMonth(env.DB, monthUtc);
+  // BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03): the
+  // claim used to be keyed on `monthUtc` alone, so the FIRST mismatch of
+  // a month claimed the whole month and a different, later mismatch sent
+  // nothing. Signing the current mismatch SET's content means a changed
+  // set claims its own row (and alerts), while an unchanged, persistently
+  // -failing set still claims the same row it already has (still at most
+  // one send per month for the SAME problem -- the original intent).
+  const mismatchSignature = await buildStripePriceParityMismatchSignature(mismatches);
+  const claimed = await store.claimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
   if (!claimed) return;
   try {
     const built = buildStripePriceParityAlertEmail(mismatches);
     const ok = await sendEmail(env.RESEND_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
-      await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
+      await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
     }
   } catch (err) {
-    await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
+    await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
     console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
   }
 }

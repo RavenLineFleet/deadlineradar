@@ -52,18 +52,31 @@ const PR6_ENV = {
   STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY: "price_addon_monthly",
 };
 
-describe("claimStripePriceParityAlertForMonth / unclaim -- month-keyed dedup", () => {
-  it("first claim for a month succeeds, a second claim the same month fails", async () => {
+describe("claimStripePriceParityAlertForMonth / unclaim -- (month, mismatch signature)-keyed dedup", () => {
+  it("first claim for a (month, signature) succeeds, a second claim of the SAME pair fails", async () => {
     const month = "2099-01";
-    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
-    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(false);
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(true);
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(false);
   });
 
-  it("unclaim releases the month so a later attempt can claim it again", async () => {
+  it("unclaim releases that (month, signature) so a later attempt can claim it again", async () => {
     const month = "2099-02";
-    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
-    await store.unclaimStripePriceParityAlertForMonth(env.DB, month);
-    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(true);
+    await store.unclaimStripePriceParityAlertForMonth(env.DB, month, "sig-a");
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(true);
+  });
+
+  // BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03): this is
+  // the actual fix -- the OLD month-only key would have made this second
+  // claim fail, silencing a different, later mismatch for the rest of
+  // the month. AuditLab's ablation on the real pass is covered below;
+  // this pins the store-level primitive the fix rests on.
+  it("a DIFFERENT signature in the SAME month claims its own row -- the BILL-24 fix", async () => {
+    const month = "2099-03";
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(true);
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-b")).toBe(true);
+    // and the first signature still correctly stays claimed
+    expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "sig-a")).toBe(false);
   });
 });
 
@@ -154,6 +167,49 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       expect(captured[0]?.text).toContain("STRIPE_PRICE_FIRM_STARTER");
       expect(captured[0]?.text).toContain("unit_amount=18800");
       expect(captured[0]?.text).toContain("expected 19900");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03): the
+  // dedup used to be keyed on month alone, so mismatch A's send claimed
+  // the WHOLE month and a different mismatch B later the same month sent
+  // nothing -- AuditLab's own ablation, reproduced here against the real
+  // pass (not just the store-level primitive above).
+  it("BILL-24: a DIFFERENT mismatch later in the same month alerts too, not silenced by an earlier one", async () => {
+    const captured: string[] = [];
+    let priceStarterAmount = 18800; // mismatch A: Starter mispriced
+    let priceGrowthAmount = 29900; // correct, for now
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: priceStarterAmount }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: priceGrowthAmount }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      // Tick 1: mismatch A (Starter) alerts.
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_FIRM_STARTER");
+
+      // Starter fixed, Growth now mispriced -- a DIFFERENT mismatch, same calendar month.
+      priceStarterAmount = 19900;
+      priceGrowthAmount = 18800;
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(captured).toHaveLength(2); // the old bug: this stayed at 1
+      expect(captured[1]).toContain("STRIPE_PRICE_FIRM_GROWTH");
+
+      // The SAME (now-fixed) mismatch set again -- still at most once per month.
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(captured).toHaveLength(2);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -335,8 +391,9 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     try {
       const month = new Date().toISOString().slice(0, 7);
       await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", RESEND_API_KEY: undefined })).resolves.toBeUndefined();
-      // Month was never claimed -- a later tick with SendGrid configured can still alert.
-      expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
+      // Nothing was claimed for this month at all -- a later tick with SendGrid
+      // configured can still alert, regardless of signature.
+      expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "any-signature")).toBe(true);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -435,20 +492,27 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     }
   });
 
-  it("a SendGrid failure (non-202) unclaims the month, so a later tick can retry rather than losing the alert silently", async () => {
+  it("a SendGrid failure (non-202) unclaims the (month, signature), so a later tick can retry rather than losing the alert silently", async () => {
+    let resendAttempts = 0;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
       if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 1 }));
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
-      if (url === RESEND_URL) return new Response("simulated failure", { status: 500 });
+      if (url === RESEND_URL) {
+        resendAttempts++;
+        return new Response("simulated failure", { status: 500 });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
-      const month = new Date().toISOString().slice(0, 7);
+      // Same mismatch (SAME signature) on both ticks -- if the claim had
+      // been burned rather than released on failure, the second tick
+      // would see "already claimed" and never attempt a second send.
       await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
-      expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true); // released, not burned
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(resendAttempts).toBe(2); // released, not burned
     } finally {
       fetchSpy.mockRestore();
     }
