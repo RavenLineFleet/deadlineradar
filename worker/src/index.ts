@@ -9745,8 +9745,20 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       // WORSE of as_of age and worst single-record age (the exact value
       // checkDataFreshness()'s own runtime guard compares against STALENESS_THRESHOLD_DAYS),
       // not a second, looser computation of our own.
-      const worstRecordAgeDays = dataFreshnessInfo(new Date()).age_days;
-      return jsonResponse(200, { status: "ok", version: env.CF_VERSION_METADATA?.id ?? null, worst_record_age_days: worstRecordAgeDays });
+      // MON-12 (AuditLab, 2026-10-03): dataFreshnessInfo() deliberately exports a -1
+      // sentinel in age_days (not `stale`) when as_of_date itself is unparseable --
+      // ST-3's own fix for failing open. -1 reads as healthy to HomeLab's `>= 21`
+      // check ("live age -1d", alert=False) during the exact state where
+      // checkDataFreshness() has already paused every signup and send. Omit the key
+      // entirely in that case so the field-absence branch handles it instead of a
+      // sentinel for "unknown" silently comparing as "fine".
+      const freshness = dataFreshnessInfo(new Date());
+      const body: { status: string; version: string | null; worst_record_age_days?: number } = {
+        status: "ok",
+        version: env.CF_VERSION_METADATA?.id ?? null,
+      };
+      if (freshness.age_days !== -1) body.worst_record_age_days = freshness.age_days;
+      return jsonResponse(200, body);
     }
 
     // Orchestrator directive (2026-09-25): the MT Society of CPAs eConnect
