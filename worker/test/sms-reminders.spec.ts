@@ -471,6 +471,31 @@ describe("runSmsAlertPass", () => {
     void sub;
   });
 
+  // AuditLab PR6-K (MEDIUM, 2026-10-02): allSmsOptedInConfirmed() carried
+  // no paused_at filter, unlike allConfirmedActive() -- a paused over-cap
+  // trial-lapsed staffer kept getting SMS reminders regardless.
+  it("PR6-K: a PAUSED, SMS-opted-in subscriber is never texted", async () => {
+    const { runSmsAlertPass } = await import("../src/scheduler");
+    const asOf = freshAsOf(3000);
+    const safeAsOf = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate(), 18, 0, 0));
+    const email = `smse2e-pr6k-${Date.now()}@example.com`;
+    const sub = await seedConfirmedSubscriber("ohio", isoDaysFromUtcMidnight(safeAsOf, 30), email);
+    await store.setSubscriberSmsOptedIn(env.DB, store.normalizeEmail(email), "+15551110099", "sms-consent-2026-08-09", "203.0.113.99");
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), sub.id).run();
+
+    const sent: { to: string; body: string }[] = [];
+    const summary = await runSmsAlertPass(env, {
+      asOf: safeAsOf,
+      send: async (to, body) => {
+        sent.push({ to, body });
+        return true;
+      },
+    });
+
+    expect(sent.length).toBe(0);
+    expect(summary.sent).toBe(0);
+  });
+
   it("a subscriber outside quiet hours is skipped entirely, not just delayed within the pass", async () => {
     const { runSmsAlertPass } = await import("../src/scheduler");
     const asOf = freshAsOf(2000);

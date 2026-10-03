@@ -3395,11 +3395,39 @@ function rosterPauseGraceHasElapsed(trialEndsAt: string | null): boolean {
   return Date.now() >= t + ROSTER_PAUSE_GRACE_DAYS * 86_400_000;
 }
 
-function firmNeedsRosterPauseReconciliation(firm: FirmRow, liveRosterCount: number): boolean {
+/**
+ * Over this firm's own (non-trial) cap, unpaid, and not mid-trial -- the
+ * base condition both firmNeedsRosterPauseReconciliation() below and the
+ * active-picks handler (index.ts) need, factored out so they can't drift.
+ *
+ * AuditLab PR6-H (MEDIUM, 2026-10-02, on 413ab77af): `POST
+ * /firm/licenses/active-picks` had no check at all before recording a
+ * choice, so a pick made WHILE STILL MID-TRIAL set `active_staff_choice_at`
+ * even though there was nothing to choose between yet (the trial covers
+ * the whole roster) -- `reconcileRosterPauseState()`'s own mid-trial branch
+ * then unpaused everyone the pick had just paused (trial exemption wins),
+ * but the choice marker survived. When the trial later lapsed, the
+ * "admin already chose" branch early-returned on that stale marker, so
+ * the over-cap roster was NEVER actually paused -- a one-call, permanent,
+ * self-service bypass of the entire PR6-B mechanism. Exported so
+ * handleFirmRosterActivePicks() can refuse the pick outright (400) rather
+ * than recording a choice that isn't meaningful yet -- a pick is refused
+ * for the identical reason reconciliation would have been a no-op anyway,
+ * so this single function is what both call sites trust instead of two
+ * independently-maintained conditions that could drift. (The grace window,
+ * PR6-D, does NOT gate this -- an admin picking during grace is choosing
+ * early, which this function correctly treats as meaningful; only the
+ * AUTOMATIC default is deferred by grace, never the admin's own action.)
+ */
+export function firmRosterOverCapUnpaidPostTrial(firm: FirmRow, liveRosterCount: number): boolean {
   if (checkPaidFeatureAccess(firm).allowed) return false;
   if (hasActiveTrial(firm.trial_ends_at)) return false;
   const cap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
-  if (liveRosterCount <= cap) return false;
+  return liveRosterCount > cap;
+}
+
+function firmNeedsRosterPauseReconciliation(firm: FirmRow, liveRosterCount: number): boolean {
+  if (!firmRosterOverCapUnpaidPostTrial(firm, liveRosterCount)) return false;
   if (firm.active_staff_choice_at) return true;
   return rosterPauseGraceHasElapsed(firm.trial_ends_at);
 }
@@ -6913,10 +6941,17 @@ export async function listSmsNotifiedThresholds(db: D1Database, subscriberId: st
 /** Filtered at the query, same "small subset of the table" reasoning as
  * listFirmsWithSlackConnected()/listFirmsWithTeamsConnected() -- most
  * subscribers will never opt into SMS. runSmsAlertPass() iterates this
- * directly (per-subscriber, unlike the firm-centric Slack/Teams passes). */
+ * directly (per-subscriber, unlike the firm-centric Slack/Teams passes).
+ *
+ * AuditLab PR6-K (MEDIUM, 2026-10-02): used to have no `paused_at` filter
+ * at all, unlike allConfirmedActive() right above it -- a paused staff
+ * member (over-cap trial lapsed, not one of the admin's chosen active N)
+ * kept getting SMS reminders regardless. Same fix, same place: filtered in
+ * SQL rather than per-row in runSmsAlertPass(), matching
+ * allConfirmedActive()'s own posture. */
 export async function allSmsOptedInConfirmed(db: D1Database): Promise<SubscriberRow[]> {
   const { results } = await db
-    .prepare(`SELECT * FROM subscribers WHERE status = ?1 AND sms_opted_in = 1`)
+    .prepare(`SELECT * FROM subscribers WHERE status = ?1 AND sms_opted_in = 1 AND paused_at IS NULL`)
     .bind(STATUS_CONFIRMED)
     .all<SubscriberRow>();
   return results;

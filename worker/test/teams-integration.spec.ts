@@ -236,6 +236,34 @@ describe("runTeamsAlertPass", () => {
     expect(summary.itemsClaimed).toBe(2);
   });
 
+  // AuditLab PR6-K (MEDIUM, 2026-10-02): same fix, same reasoning as
+  // runSlackAlertPass()'s identical test -- listFirmLicenses() includes
+  // paused rows, this pass must exclude them itself.
+  it("PR6-K: a PAUSED staffer is excluded from the Teams digest entirely", async () => {
+    const { runTeamsAlertPass } = await import("../src/scheduler");
+    const asOf = freshAsOf(2000);
+    const { firmId } = await newFirm("teamse2e-pr6k");
+    await seedTeamsWebhook(firmId);
+    const due = isoDaysFromUtcMidnight(asOf, 30);
+    await addRosterSubscriber(firmId, "ohio", due); // stays active
+    const pausedSub = await addRosterSubscriber(firmId, "texas", due);
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), pausedSub.id).run();
+
+    const posted: { webhookUrl: string; text: string }[] = [];
+    const summary = await runTeamsAlertPass({ ...env, TOTP_ENCRYPTION_KEY: KEY }, {
+      asOf,
+      send: async (webhookUrl, text) => {
+        posted.push({ webhookUrl, text });
+        return true;
+      },
+    });
+
+    expect(posted.length).toBe(1);
+    expect(posted[0]!.text).toContain("Ohio");
+    expect(posted[0]!.text).not.toContain("Texas");
+    expect(summary.itemsClaimed).toBe(1);
+  });
+
   it("AuditLab CHAT-1 (2026-08-09, fixed 2026-08-13): the message carries the absolute date, not just a relative phrase that goes stale", async () => {
     const { runTeamsAlertPass } = await import("../src/scheduler");
     const asOf = freshAsOf(42501);
