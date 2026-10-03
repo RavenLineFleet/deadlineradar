@@ -9495,14 +9495,31 @@ def build_methodology_page(
         '<link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/methodology/">\n'
         '<link rel="alternate" hreflang="x-default" href="https://deadline-radar.com/methodology/">'
     ) if publish_es else ""
+    methodology_path = "/methodology/" if lang == "en" else "/es/methodology/"
+    # Phase 3 item 5 (structured data, 2026-10-02, per outside-review spec):
+    # this page's own content -- the two-source verification rule, the
+    # Verified badge, what's NOT verified -- is explanatory, citeable prose,
+    # not an app or a FAQ, so Article is the accurate schema.org type.
+    article_schema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": _t("methodology.title", lang),
+        "description": _t("methodology.meta_description", lang),
+        "url": f"{SITE_BASE_URL}{methodology_path}",
+        "datePublished": "2026-07-15",
+        "dateModified": real_today.isoformat(),
+        "author": {"@type": "Organization", "name": BRAND_NAME},
+        "publisher": {"@type": "Organization", "name": BRAND_NAME},
+    }
     return page_shell(
         f"{_t('methodology.title', lang)} — {SITE_NAME}",
         _t("methodology.meta_description", lang),
         body,
         home_href="../" if lang == "en" else "../../",
-        canonical_path="/methodology/" if lang == "en" else "/es/methodology/",
+        canonical_path=methodology_path,
         lang=lang,
         extra_head=hreflang_html,
+        json_ld=[article_schema],
     )
 
 
@@ -20115,15 +20132,32 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
         '<link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/practice-privilege-check/">\n'
         '<link rel="alternate" hreflang="x-default" href="https://deadline-radar.com/practice-privilege-check/">'
     ) if publish_es else ""
+    ppc_path = "/practice-privilege-check/" if lang == "en" else "/es/practice-privilege-check/"
+    # Phase 3 item 5 (structured data, 2026-10-02, per outside-review spec):
+    # WebApplication per the spec's explicit call-out. Note this page is the
+    # EXPLAINER/landing page for the check (the interactive tool itself lives
+    # at /firm-mobility/, which is noindex -- see that page's own docstring),
+    # same "marketing page describing an app" pattern as a SaaS feature page;
+    # schema.org doesn't require the widget to render on this exact URL.
+    web_app_schema = {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": _t("ppc.title", lang),
+        "description": _t("ppc.meta_description", lang),
+        "url": f"{SITE_BASE_URL}{ppc_path}",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Any (web-based)",
+    }
     return page_shell(
         f"{_t('ppc.title', lang)} — {SITE_NAME}",
         _t("ppc.meta_description", lang),
         body,
         home_href="../" if lang == "en" else "../../",
-        canonical_path="/practice-privilege-check/" if lang == "en" else "/es/practice-privilege-check/",
+        canonical_path=ppc_path,
         has_remind_anchor=False,
         lang=lang,
         extra_head=hreflang_html,
+        json_ld=[web_app_schema],
     )
 
 
@@ -20601,15 +20635,30 @@ def build_deadline_calculator_page(
         '<link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/deadline-calculator/">\n'
         '<link rel="alternate" hreflang="x-default" href="https://deadline-radar.com/deadline-calculator/">'
     ) if publish_es else ""
+    calc_path = "/deadline-calculator/" if lang == "en" else "/es/deadline-calculator/"
+    # Phase 3 item 5 (structured data, 2026-10-02, per outside-review spec):
+    # WebApplication is accurate here -- the live calculator widget
+    # (_state_quick_search_html() below) is embedded directly on this page,
+    # not just linked to from it.
+    web_app_schema = {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": _t("calc.title", lang),
+        "description": _t("calc.meta_description", lang),
+        "url": f"{SITE_BASE_URL}{calc_path}",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Any (web-based)",
+    }
     return page_shell(
         f"{_t('calc.title', lang)} — {SITE_NAME}",
         _t("calc.meta_description", lang),
         body,
         home_href="../" if lang == "en" else "../../",
-        canonical_path="/deadline-calculator/" if lang == "en" else "/es/deadline-calculator/",
+        canonical_path=calc_path,
         has_remind_anchor=False,
         lang=lang,
         extra_head=hreflang_html,
+        json_ld=[web_app_schema],
     )
 
 
