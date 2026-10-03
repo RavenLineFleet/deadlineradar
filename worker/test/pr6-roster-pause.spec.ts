@@ -378,7 +378,11 @@ describe("POST /firm/licenses/active-picks", () => {
 
   it("400s on an id that doesn't belong to this firm's roster", async () => {
     const { firmId, cookie } = await createFirmWithSession("Picks Ownership Firm", `picksownership-${Date.now()}@example.com`);
-    await fillRosterStaggered(firmId, 2, "picksownership");
+    // Over cap AND trial-lapsed -- a pick must be MEANINGFUL (PR6-H's own
+    // gate) before the ownership check below is even reached, or this test
+    // would 400 for the wrong reason and stop exercising ownership at all.
+    await fillRosterStaggered(firmId, 6, "picksownership");
+    await expireTrial(firmId);
     const { firmId: otherFirmId } = await createFirmWithSession("Other Firm", `otherfirm-${Date.now()}@example.com`);
     const [otherId] = await fillRosterStaggered(otherFirmId, 1, "otherfirm");
 
@@ -424,6 +428,74 @@ describe("POST /firm/licenses/active-picks", () => {
     const body = (await resp.json()) as { licenses: { id: string; paused: boolean }[] };
     const activeIds = body.licenses.filter((l) => !l.paused).map((l) => l.id);
     expect(activeIds.sort()).toEqual([...chosen].sort());
+  });
+
+  // AuditLab PR6-H (MEDIUM, 2026-10-02, on 413ab77af): a pick made WHILE
+  // STILL MID-TRIAL set active_staff_choice_at even though the trial
+  // exemption meant there was nothing to choose between yet --
+  // reconcileRosterPauseState()'s own mid-trial branch then unpaused
+  // everyone the pick had just paused, but the choice marker survived, so
+  // the post-trial default never applied once the trial lapsed. A
+  // self-service, permanent bypass in one API call.
+  it("400s a pick made while the trial is still active -- nothing to choose yet", async () => {
+    const { firmId, cookie } = await createFirmWithSession("Picks Mid Trial Firm", `picksmidtrial-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "picksmidtrial"); // trial_ends_at is still in the future
+
+    const resp = await workerFetch(
+      new Request(`${BASE}/firm/licenses/active-picks`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ active_subscriber_ids: ids.slice(0, 3) }),
+      })
+    );
+    expect(resp.status).toBe(400);
+
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.active_staff_choice_at).toBeFalsy(); // the refused pick must not have recorded a choice
+    const roster = await store.listFirmLicenses(env.DB, firmId);
+    expect(roster.every((r) => r.paused_at === null)).toBe(true); // and must not have paused anyone either
+  });
+
+  it("400s a pick made while under cap (unpaid, trial already lapsed, but not over the limit)", async () => {
+    const { firmId, cookie } = await createFirmWithSession("Picks Under Cap Firm", `picksundercap-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 2, "picksundercap"); // under the free cap of 3
+    await expireTrial(firmId);
+
+    const resp = await workerFetch(
+      new Request(`${BASE}/firm/licenses/active-picks`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ active_subscriber_ids: ids }),
+      })
+    );
+    expect(resp.status).toBe(400);
+  });
+
+  it("regression: a pick during the trial does NOT survive to disarm the day-21 default -- the exact PR6-H bypass", async () => {
+    const { firmId, cookie } = await createFirmWithSession("Picks Regression Firm", `picksregression-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "picksregression");
+
+    // The attempted mid-trial bypass -- must be refused (asserted above,
+    // re-asserted here as the setup for what follows).
+    const midTrialResp = await workerFetch(
+      new Request(`${BASE}/firm/licenses/active-picks`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ active_subscriber_ids: ids.slice(3) }), // the LATEST 3, deliberately NOT the earliest-3 default
+      })
+    );
+    expect(midTrialResp.status).toBe(400);
+
+    // Trial lapses, past the grace window -- the day-21 default must now
+    // apply, choosing the EARLIEST 3 (since no real choice was ever
+    // recorded), not the latest 3 the refused pick tried to set.
+    await expireTrial(firmId);
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual(ids.slice(0, 3).sort());
+
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.active_staff_choice_at).toBeFalsy(); // still no real choice on record
   });
 });
 

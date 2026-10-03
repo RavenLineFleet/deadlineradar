@@ -217,6 +217,40 @@ describe("runDigestPass", () => {
     }
   });
 
+  // AuditLab PR6-K (MEDIUM, 2026-10-02): listSubscriberLicenses() (and
+  // listDigestEligibleEmails() above it) carried no paused_at filter at
+  // all -- a paused over-cap trial-lapsed row still reached threshold
+  // evaluation and could still be bundled into the digest email.
+  it("PR6-K: a PAUSED row is excluded from the digest bundle entirely", async () => {
+    const { runDigestPass } = await import("../src/scheduler");
+    const asOf = freshAsOf(4000);
+    const email = `digeste2e-pr6k-${Date.now()}@example.com`;
+    const due = isoDaysFromUtcMidnight(asOf, 30);
+    await seedUserDate(email, "ohio", due); // stays active
+    const pausedRow = await seedUserDate(email, "texas", due);
+    await store.setSubscriberNotificationMode(env.DB, store.normalizeEmail(email), store.NOTIFICATION_MODE_DIGEST);
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), pausedRow.id).run();
+
+    const target = store.normalizeEmail(email);
+    const sentTo: string[] = [];
+    let targetBody = "";
+    await runDigestPass(env, {
+      asOf,
+      send: async (toEmail, built) => {
+        sentTo.push(toEmail);
+        if (toEmail === target) targetBody = built.textBody;
+        return true;
+      },
+    });
+
+    expect(sentTo.filter((e) => e === target).length).toBe(1);
+    expect(targetBody).toContain("Ohio");
+    expect(targetBody).not.toContain("Texas");
+
+    const pausedAfter = await env.DB.prepare("SELECT reminders_sent FROM subscribers WHERE id = ?1").bind(pausedRow.id).first<{ reminders_sent: string }>();
+    expect(JSON.parse(pausedAfter?.reminders_sent ?? "[]")).not.toContain(30); // never even claimed
+  });
+
   it("AuditLab DIGEST-2 (2026-08-09, fixed 2026-08-13): bundled items are ordered by urgency (fewest days first), not alphabetically by state", async () => {
     const { runDigestPass } = await import("../src/scheduler");
     const asOf = freshAsOf(43501);

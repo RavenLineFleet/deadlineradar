@@ -283,6 +283,38 @@ describe("runSlackAlertPass", () => {
     expect(summary.itemsClaimed).toBe(2);
   });
 
+  // AuditLab PR6-K (MEDIUM, 2026-10-02): listFirmLicenses() deliberately
+  // includes paused rows (the dashboard needs to see them); this pass must
+  // exclude them itself. A paused over-cap trial-lapsed staffer must never
+  // appear in the firm's Slack digest.
+  it("PR6-K: a PAUSED staffer is excluded from the Slack digest entirely", async () => {
+    const { runSlackAlertPass } = await import("../src/scheduler");
+    const asOf = freshAsOf(2000);
+    const { firmId } = await newFirm("slacke2e-pr6k");
+    await seedSlackIntegration(firmId, "https://hooks.slack.com/services/T000/B000/pr6k", {
+      teamName: "PR6K Co",
+      channelName: "alerts",
+    });
+    const due = isoDaysFromUtcMidnight(asOf, 30);
+    await addRosterSubscriber(firmId, "ohio", due); // stays active
+    const pausedSub = await addRosterSubscriber(firmId, "texas", due);
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), pausedSub.id).run();
+
+    const posted: { webhookUrl: string; text: string }[] = [];
+    const summary = await runSlackAlertPass({ ...env, TOTP_ENCRYPTION_KEY: KEY }, {
+      asOf,
+      send: async (webhookUrl, text) => {
+        posted.push({ webhookUrl, text });
+        return true;
+      },
+    });
+
+    expect(posted.length).toBe(1);
+    expect(posted[0]!.text).toContain("Ohio");
+    expect(posted[0]!.text).not.toContain("Texas");
+    expect(summary.itemsClaimed).toBe(1); // not 2 -- the paused row was never even claimed
+  });
+
   it("AuditLab CHAT-1 (2026-08-09, fixed 2026-08-13): the message carries the absolute date, not just a relative phrase that goes stale", async () => {
     const { runSlackAlertPass } = await import("../src/scheduler");
     const asOf = freshAsOf(41501);

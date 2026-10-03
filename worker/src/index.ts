@@ -6829,6 +6829,16 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
   const requestedIds = idsRaw as string[];
 
   const roster = await store.listFirmLicenses(env.DB, session.firmId);
+
+  // AuditLab PR6-H (MEDIUM): refuse the pick outright while it isn't
+  // meaningful yet (still mid-trial, under cap, or already paid) -- see
+  // firmRosterOverCapUnpaidPostTrial()'s own comment for the exact bypass
+  // this closes. Checked before ownership/cap below since there's nothing
+  // to validate a selection against if there's nothing to choose between.
+  if (!store.firmRosterOverCapUnpaidPostTrial(session.firm, roster.length)) {
+    return jsonResponse(400, { error: "There's nothing to choose yet -- your roster isn't over your plan's staff limit." });
+  }
+
   const rosterIds = new Set(roster.map((r) => r.id));
   const unknownIds = requestedIds.filter((id) => !rosterIds.has(id));
   if (unknownIds.length > 0) {

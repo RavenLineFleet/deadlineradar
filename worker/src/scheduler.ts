@@ -1149,6 +1149,12 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
         // includes non-removed stopped/pending rows too, which must never
         // reach threshold evaluation.
         if (sub.status !== store.STATUS_CONFIRMED) continue;
+        // AuditLab PR6-K (MEDIUM, 2026-10-02): listSubscriberLicenses() (and
+        // listDigestEligibleEmails() above it) carry no paused_at filter --
+        // same reasoning as allConfirmedActive()'s own filter for the
+        // immediate pass, applied here per-row instead of in SQL since this
+        // function's query is deliberately coarse (see its own docstring).
+        if (sub.paused_at !== null) continue;
         // A person's rows can straddle both modes mid-transition (a mode
         // change writes across every row sharing the email, but a row
         // added between that write and this pass could theoretically
@@ -1476,6 +1482,11 @@ export async function runSlackAlertPass(env: Env, opts: RunSlackAlertOptions = {
     try {
       for (const sub of roster) {
         if (sub.status !== store.STATUS_CONFIRMED) continue;
+        // AuditLab PR6-K (MEDIUM, 2026-10-02): listFirmLicenses() deliberately
+        // includes paused rows (the dashboard needs to show them) -- this
+        // pass must exclude them itself, same as allConfirmedActive()'s own
+        // filter for the immediate email pass.
+        if (sub.paused_at !== null) continue;
         if (sub.snoozed_until && sub.snoozed_until >= todayIso) continue;
 
         let deadline: Date | null;
@@ -1706,6 +1717,11 @@ export async function runTeamsAlertPass(env: Env, opts: RunTeamsAlertOptions = {
     try {
       for (const sub of roster) {
         if (sub.status !== store.STATUS_CONFIRMED) continue;
+        // AuditLab PR6-K (MEDIUM, 2026-10-02): listFirmLicenses() deliberately
+        // includes paused rows (the dashboard needs to show them) -- this
+        // pass must exclude them itself, same as allConfirmedActive()'s own
+        // filter for the immediate email pass.
+        if (sub.paused_at !== null) continue;
         if (sub.snoozed_until && sub.snoozed_until >= todayIso) continue;
 
         let deadline: Date | null;
@@ -2119,6 +2135,11 @@ export async function runAdminDigestAlertPass(env: Env, opts: RunAdminDigestAler
     try {
       for (const sub of roster) {
         if (sub.status !== store.STATUS_CONFIRMED) continue;
+        // Same PR6-K fix as runSlackAlertPass()/runTeamsAlertPass() above --
+        // kept in sync even though this pass is currently dead code (see
+        // this function's own top-of-loop comment), cheap insurance against
+        // it being wired back in with the same gap.
+        if (sub.paused_at !== null) continue;
         if (sub.snoozed_until && sub.snoozed_until >= todayIso) continue;
 
         let deadline: Date | null;

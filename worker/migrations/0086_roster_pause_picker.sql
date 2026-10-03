@@ -14,8 +14,17 @@
 -- an explicit pick; the pause reconciliation applies its own default (the
 -- earliest-added N stay active) and may keep re-applying it as the roster
 -- changes. Non-NULL = the admin has explicitly chosen at least once;
--- reconciliation then only ever acts within that chosen set (e.g. shrinking
--- it further if the roster grows past it again), never silently reverting
--- to the earliest-N default after an explicit choice exists.
+-- reconciliation then leaves paused_at exactly as that choice set it and
+-- never silently reverts to the earliest-N default again -- it does NOT
+-- re-validate the chosen set against a roster that grows further past it
+-- (AuditLab PR6-I, LOW, 2026-10-02: this comment used to describe a
+-- dynamic re-shrinking behaviour the code never implemented; corrected to
+-- match store.ts's reconcileRosterPauseState(), the actual, tested
+-- behaviour). Only store.setRosterActivePicks() -- a fresh explicit
+-- choice -- changes paused_at once this field is set. Also only ever set
+-- while firmRosterOverCapUnpaidPostTrial() is true (AuditLab PR6-H,
+-- MEDIUM): the active-picks handler refuses a pick made while the roster
+-- is still mid-trial, under cap, or already paid, so this field can never
+-- record a choice that wasn't meaningful yet.
 ALTER TABLE subscribers ADD COLUMN paused_at TEXT;
 ALTER TABLE firms ADD COLUMN active_staff_choice_at TEXT;
