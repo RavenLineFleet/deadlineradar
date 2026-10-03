@@ -52,6 +52,13 @@ DUE_DAYS = 20      # re-verify anything older than this (daily rolling run) -- t
 # ALSO re-verifies ceil(automatable/TRANCHE_CYCLE_DAYS) of the oldest records per dataset, so dates spread
 # over a rolling TRANCHE_CYCLE_DAYS window (at most ~8 cpa_deadlines records share a date).
 TRANCHE_CYCLE_DAYS = 10
+# STALE-33/34/39 (AuditLab 2026-10-03): AssetLab's preship ratchet fails any change that GROWS a cpa_deadlines
+# verification-date cohort past its cap -- including a new date going 0 -> 11 -- and the job runs that gate
+# before committing, so one over-cap run loses the whole night's work. Whatever selects them (tranche, the
+# DUE_DAYS backstop, recovering failures), at most this many cpa_deadlines records are checked per run;
+# the rest wait for the next run, oldest first. Must equal preship_gate.CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE
+# (asserted in test_reverify.py).
+CPA_STAMP_CAP = 10
 STALE_DAYS = 25    # watchdog alert threshold
 
 RECIPE_DOC = """
@@ -291,6 +298,14 @@ def tranche(automatable: list[str], by_id: dict, today: date, failing=()) -> lis
     return picked
 
 
+def cap_cpa(todo: list[str], by_id: dict, today: date) -> list[str]:
+    """Keep at most CPA_STAMP_CAP cpa_deadlines ids (oldest first, same tie-break as tranche); others untouched."""
+    cpa = [i for i in todo if by_id[i][0] == "cpa_deadlines"]
+    cpa.sort(key=lambda i: (-_age_days(by_id[i][1], "cpa_deadlines", today), hashlib.sha256(i.encode()).hexdigest()))
+    keep = set(cpa[:CPA_STAMP_CAP])
+    return [i for i in todo if by_id[i][0] != "cpa_deadlines" or i in keep]
+
+
 def advance_as_of(data: dict) -> str | None:
     """STALE-27 ruling (Orchestrator 2026-10-02 22:17): cpa_deadlines.as_of_date = the OLDEST record
     last_verified, forward-only. It can never read fresher than the data under it (STALE-5) and is never
@@ -361,6 +376,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
         due = set(tranche(automatable, by_id, tday, failing=fail_counts))
         todo = [i for i in automatable if i in due or _age_days(by_id[i][1], by_id[i][0], tday) > DUE_DAYS
                 or i in fail_counts]
+        todo = cap_cpa(todo, by_id, tday)
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for rid in todo:
         ds, rec = by_id[rid]

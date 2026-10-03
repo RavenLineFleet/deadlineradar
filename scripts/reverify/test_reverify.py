@@ -6,6 +6,7 @@ import collections
 import io
 import json
 import os
+import re
 import sys
 import urllib.error
 
@@ -284,6 +285,26 @@ def test_tranche_failing_record_does_not_take_a_quota_slot():
     assert "down" in runner.tranche(sorted(by_id), by_id, date(2026, 10, 4))
     picks = runner.tranche(sorted(by_id), by_id, date(2026, 10, 4), failing={"down": 1})
     assert len(picks) == 2 and "down" not in picks                       # quota ceil(20/10)=2, both drain 10-02
+
+
+def test_cpa_cap_bounds_backstop_and_recoveries_stale39():
+    from datetime import date
+    by_id = {f"r{i:02d}": ("cpa_deadlines", {"id": f"r{i:02d}", "last_verified": "2026-10-02"}) for i in range(81)}
+    by_id["old"] = ("cpa_deadlines", {"id": "old", "last_verified": "2026-09-21"})
+    by_id["fee"] = ("renewal_fees", {"id": "fee", "verified_date": "2026-10-02"})
+    allids = sorted(by_id)                                                  # 10-23: whole cohort past DUE_DAYS
+    kept = runner.cap_cpa(allids, by_id, date(2026, 10, 23))
+    cpa = [i for i in kept if by_id[i][0] == "cpa_deadlines"]
+    assert len(cpa) == runner.CPA_STAMP_CAP and "old" in cpa and "fee" in kept   # oldest kept; other datasets untouched
+    assert runner.cap_cpa(allids[:5], by_id, date(2026, 10, 23)) == allids[:5]    # under the cap: unchanged
+
+
+def test_cpa_cap_equals_the_preship_ratchet_constant_stale33():
+    src = open(os.path.join(os.path.dirname(__file__), "..", "preship_gate.py"), encoding="utf-8").read()
+    m = re.search(r"^CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE\s*=\s*(\d+)", src, re.M)
+    if not m:
+        pytest.skip("ratchet not on this tree yet (AssetLab 831fed08a)")
+    assert runner.CPA_STAMP_CAP == int(m.group(1))
 
 
 def test_tranche_runs_daily_and_backstop_still_applies(env):
