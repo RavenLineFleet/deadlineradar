@@ -105,6 +105,15 @@ export interface StripePrice {
   unitAmount: number | null;
   currency: string | null;
   recurringInterval: string | null;
+  // BILL-23 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03):
+  // interval alone doesn't fix the billing PERIOD -- interval_count=3 on
+  // a "month" price bills quarterly. null (not defaulted to the expected
+  // value) so the caller's own comparison is what decides pass/fail.
+  recurringIntervalCount: number | null;
+  // BILL-23b: must be "licensed" (not "metered") for any price sent with
+  // a line-item quantity -- only the per-seat add-on prices today, but
+  // asserted on all of them since nothing in this app bills metered.
+  usageType: string | null;
   active: boolean;
 }
 
@@ -127,7 +136,7 @@ export async function fetchStripePrice(secretKey: string, priceId: string): Prom
     id?: string;
     unit_amount?: number | null;
     currency?: string | null;
-    recurring?: { interval?: string | null } | null;
+    recurring?: { interval?: string | null; interval_count?: number | null; usage_type?: string | null } | null;
     active?: boolean;
   };
   if (!json.id) return null;
@@ -136,6 +145,8 @@ export async function fetchStripePrice(secretKey: string, priceId: string): Prom
     unitAmount: json.unit_amount ?? null,
     currency: json.currency ?? null,
     recurringInterval: json.recurring?.interval ?? null,
+    recurringIntervalCount: json.recurring?.interval_count ?? null,
+    usageType: json.recurring?.usage_type ?? null,
     active: json.active ?? false,
   };
 }

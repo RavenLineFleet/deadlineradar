@@ -103,6 +103,19 @@ import urllib.request
 # ANNUAL prices only, with no entry at all for the 6 prices PR6 added
 # (4 monthly tiers + 2 per-seat). "interval" added so a monthly entry
 # checks against "month"/monthlyPriceUsd, not the annual expectation.
+# BILL-22/23 (SecurityLab, confirmed by AuditLab, 2026-10-03): every price
+# in EXPECTED_TIERS is expected to share this same shape -- a real,
+# unarchived, licensed (not metered) price billing exactly once per
+# interval. ONE shared definition (not a magic literal at each of the 3
+# new per-price checks below) so the two new rules can't drift from each
+# other inside this file, and the worker-side mirror
+# (worker/src/scheduler.ts's runStripePriceParityAlertPass(), via
+# stripe.ts) uses the identical two values -- kept in sync by hand across
+# the Python/TypeScript boundary, same "duplicated deliberately" precedent
+# EXPECTED_TIERS itself already sets against tiers.ts.
+EXPECTED_PRICE_INTERVAL_COUNT = 1
+EXPECTED_PRICE_USAGE_TYPE = "licensed"
+
 EXPECTED_TIERS = {
     "STRIPE_PRICE_FIRM_STARTER": {"label": "Essentials (annual)", "price_usd": 199, "interval": "year"},
     "STRIPE_PRICE_FIRM_GROWTH": {"label": "Growth (annual)", "price_usd": 299, "interval": "year"},
@@ -177,6 +190,24 @@ def main() -> int:
         actual_cents = price.get("unit_amount")
         actual_interval = (price.get("recurring") or {}).get("interval")
         actual_currency = price.get("currency")
+        # BILL-22 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03):
+        # a Stripe Price's unit_amount is immutable -- changing a price
+        # means creating a new one and ARCHIVING the old, so an archived
+        # id with a still-correct amount/interval/currency is the LIKELY
+        # misconfiguration, not an exotic one, and it used to pass this
+        # gate clean while refusing every checkout for that tier. `is not
+        # True` (not a truthiness test) so a missing key is a problem too.
+        actual_active = price.get("active")
+        # BILL-23/23b (SecurityLab, MEDIUM, confirmed by AuditLab,
+        # 2026-10-03): interval alone doesn't fix the billing PERIOD --
+        # interval_count=3 on a "month" price bills quarterly, passing
+        # every check above clean while charging 1/3 as often. usage_type
+        # must be "licensed" (not "metered") for the per-seat add-on
+        # prices specifically, since they're the only line items sent
+        # with a quantity (stripe.ts) -- asserted on all 10 uniformly
+        # since nothing in this app bills any price any other way.
+        actual_interval_count = (price.get("recurring") or {}).get("interval_count")
+        actual_usage_type = (price.get("recurring") or {}).get("usage_type")
 
         problems = []
         if actual_cents != expected_cents:
@@ -185,6 +216,15 @@ def main() -> int:
             problems.append(f"recurring.interval={actual_interval!r} (expected {expected['interval']!r})")
         if actual_currency != "usd":
             problems.append(f"currency={actual_currency!r} (expected 'usd')")
+        if actual_active is not True:
+            problems.append(f"active={actual_active!r} (expected True -- Stripe refuses checkout on an archived price)")
+        if actual_interval_count != EXPECTED_PRICE_INTERVAL_COUNT:
+            problems.append(
+                f"recurring.interval_count={actual_interval_count!r} (expected {EXPECTED_PRICE_INTERVAL_COUNT!r} -- "
+                f"otherwise bills every {actual_interval_count} {expected['interval']}s, not every {expected['interval']})"
+            )
+        if actual_usage_type != EXPECTED_PRICE_USAGE_TYPE:
+            problems.append(f"recurring.usage_type={actual_usage_type!r} (expected {EXPECTED_PRICE_USAGE_TYPE!r})")
         if problems:
             mismatches.append((env_name, expected["label"], price_id, problems))
 

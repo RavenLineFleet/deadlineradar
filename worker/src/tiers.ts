@@ -69,6 +69,21 @@ export const PER_SEAT_ADDON_MONTHLY_USD = 1.5;
 // no migration concern) -- firm_scale is the one genuinely NEW slug, for
 // the new top band. Labels shifted up one level to match: "Enterprise" now
 // means the real top tier (35 seats), not the old 25-seat one.
+// BILL-22/23 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03): the
+// expected shape every Stripe Price should have, beyond amount/currency/
+// interval -- ONE shared definition so stripe.ts/scheduler.ts's cron and
+// check_stripe_price_reconciliation.py's pre-push gate can't drift from
+// each other (the Python side keeps its own copy of the same two values,
+// same "duplicated deliberately, kept in sync by hand" precedent the rest
+// of this cross-language boundary already uses). interval_count=1 means
+// "bills every interval", not every N of them (interval_count=3 on
+// "month" bills quarterly); usage_type="licensed" (not "metered") is
+// required for any price sent with a line-item quantity -- today, only
+// the per-seat add-ons, but asserted uniformly since nothing here bills
+// metered.
+export const EXPECTED_PRICE_INTERVAL_COUNT = 1;
+export const EXPECTED_PRICE_USAGE_TYPE = "licensed";
+
 // BILL-22/23 (HomeLab, 2026-10-03): no live-mode Stripe monthly Price ids
 // exist yet -- handleFirmBillingCheckout (index.ts) rejects interval:
 // "monthly" with a friendly message while this is false, before even
