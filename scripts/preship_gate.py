@@ -2470,16 +2470,38 @@ CPA_DEADLINES_COHORT_IMMINENT_DAYS = 14
 CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- a record is stale at +31
 
 
-def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> dict[str, int]:
-    """{last_verified date -> record count}, skipping missing/malformed
-    dates (that's the staleness advisory's own job, not this one's)."""
+def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> tuple[dict[str, int], int]:
+    """({normalized last_verified calendar date -> record count}, skipped
+    count). Skips (and counts, AuditLab GATE-35: the skip used to be
+    silent, so a dataset where most records carry no verification date at
+    all would measure nothing and say nothing) missing/malformed dates --
+    disclosing them is the whole fix, actually excluding them from the
+    cohort count is still the staleness advisory's own job, not this
+    one's.
+
+    AuditLab GATE-36: keys on the NORMALIZED calendar date
+    (`date.fromisoformat(value[:10])`), not the raw string -- "2026-12-01"
+    and "2026-12-01T00:00:00Z" are the same real-world cohort and must
+    count as one, or a single 20-record cohort split 50/50 between the two
+    spellings would silently pass at 10 and 10 instead of failing at 20.
+    Failure direction matters here: the old raw-string key failed SILENT
+    (a pass that should have been a fail), the normalized key cannot
+    under-count, only over-merge truly-same-day records, which is correct.
+    """
     counts: dict[str, int] = {}
+    skipped = 0
     for r in cpa_data.get("records", []):
         last_verified = r.get("last_verified")
         if not isinstance(last_verified, str) or not last_verified:
+            skipped += 1
             continue
-        counts[last_verified] = counts.get(last_verified, 0) + 1
-    return counts
+        try:
+            normalized = date.fromisoformat(last_verified[:10]).isoformat()
+        except ValueError:
+            skipped += 1
+            continue
+        counts[normalized] = counts.get(normalized, 0) + 1
+    return counts, skipped
 
 
 def _cpa_deadlines_committed_verification_date_counts(repo_root: Path) -> dict[str, int] | None:
@@ -2504,7 +2526,8 @@ def _cpa_deadlines_committed_verification_date_counts(repo_root: Path) -> dict[s
         committed_data = json.loads(result.stdout)
     except json.JSONDecodeError:
         return None
-    return _cpa_deadlines_verification_date_counts(committed_data)
+    counts, _skipped = _cpa_deadlines_verification_date_counts(committed_data)
+    return counts
 
 
 def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list[str]:
@@ -2527,7 +2550,7 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
     if not cpa_path.exists():
         return [f"[GATE] {cpa_path} not found -- check_cpa_deadlines_verification_date_concentration() is measuring nothing."]
     cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
-    current_counts = _cpa_deadlines_verification_date_counts(cpa_data)
+    current_counts, _skipped = _cpa_deadlines_verification_date_counts(cpa_data)
     committed_counts = _cpa_deadlines_committed_verification_date_counts(repo_root)
     today = datetime.now(timezone.utc).date()
 
@@ -2551,9 +2574,22 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
                     f"different, less-crowded date instead."
                 )
                 continue  # (a) and (b) are not both reported for the same date -- (a) already explains why this ships red
-        # (b) imminent: already over cap (and not grown by this change) is
-        # only safe to leave as an advisory while there's real lead time
-        # left to stagger it before it actually goes stale.
+            # AuditLab pre-review (2026-10-02, stale27_ratchet_prereview.md):
+            # a cohort that SHRANK since the committed baseline is evidence
+            # the remediation is actively working -- if (b) below fired on
+            # it anyway once imminent, every one of HomeLab's own
+            # incremental tranche commits (each one shrinking the cohort by
+            # ~8) would hard-fail during the final 14 days, reproducing the
+            # EXACT deadlock this gate was rewritten to fix, just delayed
+            # to ~10-19 instead of today. Never block a shrinking cohort on
+            # imminence grounds -- only a FLAT (stalled) or growing one.
+            if count < previously:
+                continue
+        # (b) imminent: already over cap, and either flat since the last
+        # commit (stalled remediation -- the real backstop this exists
+        # for) or with no baseline to compare against at all, is only safe
+        # to leave as an advisory while there's real lead time left to
+        # stagger it before it actually goes stale.
         try:
             stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
         except ValueError:
@@ -2579,9 +2615,16 @@ def print_cpa_deadlines_cohort_concentration_advisory(repo_root: Path) -> None:
     if not cpa_path.exists():
         return
     cpa_data = json.loads(cpa_path.read_text(encoding="utf-8"))
-    current_counts = _cpa_deadlines_verification_date_counts(cpa_data)
+    current_counts, skipped = _cpa_deadlines_verification_date_counts(cpa_data)
     over_cap = {d: c for d, c in current_counts.items() if c > CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE}
     print("\n--- cpa-deadlines-cohort-concentration advisory (STALE-27; a HARD-FAILING date is reported above, not here) ---")
+    if skipped:
+        # AuditLab GATE-35: this used to be a silent skip -- a dataset where
+        # most records carry no (or a malformed) last_verified would measure
+        # nothing and say nothing. Reported unconditionally, not just when
+        # it's suspiciously large, so the measurement is always honest
+        # about its own coverage.
+        print(f"  {skipped} record(s) skipped (missing/malformed last_verified) -- not counted in any cohort; see the staleness advisory.")
     if not over_cap:
         print(f"  no cpa_deadlines last_verified date currently shares more than {CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE} records.")
         return

@@ -144,6 +144,61 @@ def test_missing_last_verified_ignored_not_miscounted(tmp_path):
     assert gate.check_cpa_deadlines_verification_date_concentration(repo) == []
 
 
+def test_imminent_does_not_fire_on_a_shrinking_cohort(tmp_path):
+    """AuditLab pre-review (stale27_ratchet_prereview.md): if imminent
+    fired on a shrinking cohort too, every one of HomeLab's own daily
+    tranche commits (each shrinking an over-cap cohort by ~8) would
+    hard-fail once inside the 14-day window, reproducing the exact
+    deadlock this gate was rewritten to fix -- just delayed to ~10-19."""
+    repo = _git_repo_at(tmp_path, _records(15, IMMINENT_DATE))  # committed: over cap, imminent
+    _set_working_tree(repo, _records(12, IMMINENT_DATE))  # shrank, still over cap, still imminent
+    assert gate.check_cpa_deadlines_verification_date_concentration(repo) == []
+
+
+def test_imminent_fires_on_a_flat_cohort_the_real_backstop(tmp_path):
+    """A cohort that is neither growing nor shrinking (the remediation has
+    stalled) must still eventually hard-block once imminent -- that is
+    the actual backstop against a dead/failing reverify job, distinct
+    from (and not weakened by) the shrinking exemption above."""
+    repo = _git_repo_at(tmp_path, _records(11, IMMINENT_DATE))
+    _set_working_tree(repo, _records(11, IMMINENT_DATE))  # flat
+    errors = gate.check_cpa_deadlines_verification_date_concentration(repo)
+    assert len(errors) == 1
+    assert "STALE27-IMMINENT" in errors[0]
+
+
+def test_gate35_skip_count_reported_by_the_advisory(tmp_path, capsys):
+    records = _records(3, FAR_DATE) + [{"id": "no-date"}, {"id": "bad-date", "last_verified": "not-a-date"}]
+    repo = _git_repo_at(tmp_path, records)
+    gate.print_cpa_deadlines_cohort_concentration_advisory(repo)
+    out = capsys.readouterr().out
+    assert "2 record(s) skipped" in out
+
+
+def test_gate35_skip_count_silent_when_nothing_skipped(tmp_path, capsys):
+    repo = _git_repo_at(tmp_path, _records(3, FAR_DATE))
+    gate.print_cpa_deadlines_cohort_concentration_advisory(repo)
+    out = capsys.readouterr().out
+    assert "skipped" not in out
+
+
+def test_gate36_a_date_and_its_full_timestamp_form_count_as_one_cohort(tmp_path):
+    """"2026-12-01" and "2026-12-01T00:00:00Z" are the same real-world
+    cohort. Split, 6 + 6 each individually look under cap; merged, 12
+    exceeds it -- the old raw-string key silently passed this (GATE-36)."""
+    plain = [{"id": f"p{i}", "last_verified": FAR_DATE} for i in range(6)]
+    timestamped = [{"id": f"t{i}", "last_verified": f"{FAR_DATE}T00:00:00Z"} for i in range(6)]
+    repo = _git_repo_at(tmp_path, plain + timestamped)
+    counts, skipped = gate._cpa_deadlines_verification_date_counts({"records": plain + timestamped})
+    assert skipped == 0
+    assert counts[FAR_DATE] == 12
+    _set_working_tree(repo, plain + timestamped + [{"id": "extra", "last_verified": FAR_DATE}])  # grows 12 -> 13
+    errors = gate.check_cpa_deadlines_verification_date_concentration(repo)
+    assert len(errors) == 1
+    assert "STALE27-RATCHET" in errors[0]
+    assert "from 12 to 13" in errors[0]
+
+
 def test_multiple_dates_each_evaluated_independently(tmp_path):
     committed = _records(10, FAR_DATE) + _records(11, IMMINENT_DATE)
     repo = _git_repo_at(tmp_path, committed)
