@@ -2,6 +2,7 @@
 
     python -m pytest scripts/reverify -q
 """
+import collections
 import io
 import json
 import os
@@ -251,6 +252,68 @@ def test_daily_selection_only_due_records(env):
     ff.calls.clear()
     runner.run(apply=True, fetcher=ff, today="2026-10-22")         # 21 days old: due again
     assert "https://x.gov/a" in ff.calls
+
+
+def test_tranche_spreads_a_same_day_cohort_stale27():
+    """STALE-27: 81 records confirmed on one day must not stay on one date. Simulate 30 daily runs with
+    every pick confirmed: each record re-verified within 10 days, never more than ceil(n/10) per date."""
+    from datetime import date, timedelta
+    ids = [f"r{i:02d}" for i in range(81)]
+    by_id = {i: ("cpa_deadlines", {"id": i, "last_verified": "2026-10-02"}) for i in ids}
+    by_id["old"] = ("cpa_deadlines", {"id": "old", "last_verified": "2026-09-21"})
+    by_id["f1"] = ("renewal_fees", {"id": "f1", "verified_date": "2026-10-02"})
+    first = runner.tranche(sorted(by_id), by_id, date(2026, 10, 4))
+    assert len(first) == 9 + 1 and "old" in first and "f1" in first        # ceil(82/10)=9 cpa, ceil(1/10)=1
+    assert first == runner.tranche(sorted(by_id), by_id, date(2026, 10, 4))  # deterministic
+    d = date(2026, 10, 4)
+    for _ in range(30):
+        for i in runner.tranche(sorted(by_id), by_id, d):
+            ds, r = by_id[i]
+            r[runner.DATE_FIELD[ds]] = d.isoformat()
+        ages = [runner._age_days(r, ds, d) for ds, r in by_id.values()]
+        assert max(ages) <= 10
+        d += timedelta(days=1)
+    per = collections.Counter(r["last_verified"] for ds, r in by_id.values() if ds == "cpa_deadlines")
+    assert max(per.values()) <= 9 and len(per) >= 9
+
+
+def test_tranche_runs_daily_and_backstop_still_applies(env):
+    tmp, ff = env
+    runner.run(apply=True, fetcher=ff, today="2026-10-01")            # a-fee confirmed 10-01
+    ff.calls.clear()
+    out = runner.run(apply=True, fetcher=ff, today="2026-10-02")      # quota ceil(3/10)=1 + 2 failing
+    assert out["report"]["checked"] == 2 and "https://x.gov/a" not in ff.calls
+
+
+def test_as_of_date_follows_oldest_record_forward_only_stale27():
+    data = {"cpa_deadlines": {"as_of_date": "2026-10-02", "records": [
+        {"id": "a", "last_verified": "2026-10-05"}, {"id": "b", "last_verified": "2026-10-09"}]}}
+    assert runner.advance_as_of(data) == "2026-10-05" and data["cpa_deadlines"]["as_of_date"] == "2026-10-05"
+    data["cpa_deadlines"]["records"][0]["last_verified"] = "2026-09-21"  # an older record: never moves back
+    assert runner.advance_as_of(data) is None and data["cpa_deadlines"]["as_of_date"] == "2026-10-05"
+    data["cpa_deadlines"]["records"][0]["last_verified"] = None          # unparseable: no move (fail closed)
+    data["cpa_deadlines"]["records"][1]["last_verified"] = "2026-11-01"
+    assert runner.advance_as_of(data) is None and data["cpa_deadlines"]["as_of_date"] == "2026-10-05"
+    assert runner.advance_as_of({"cpa_deadlines": {"records": []}}) is None   # empty dataset: no move
+
+
+def test_run_and_replay_both_advance_as_of(env, tmp_path):
+    tmp, ff = env
+    p = tmp / "data" / "cpa_deadlines.json"
+    p.write_text(json.dumps({"as_of_date": "2026-09-01", "records": [{"id": "z", "last_verified": "2026-09-20"}]}),
+                 encoding="utf-8")
+    out = runner.run(apply=True, fetcher=ff, today="2026-10-01")
+    assert out["report"]["as_of_moved_to"] == "2026-09-20"
+    assert json.loads(p.read_text(encoding="utf-8"))["as_of_date"] == "2026-09-20"
+    p.write_text(json.dumps({"as_of_date": "2026-09-01", "records": [{"id": "z", "last_verified": "2026-09-20"}]}),
+                 encoding="utf-8")
+    saved = runner.run(apply=False, all_records=True, fetcher=ff, today="2026-10-02")
+    sp = tmp_path / "results.json"
+    sp.write_text(json.dumps(saved, default=str), encoding="utf-8")
+    base_txt = (tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8")
+    runner.replay(str(sp), base_loader=lambda ds: json.loads(base_txt)["records"] if ds == "renewal_fees" else
+                  [{"id": "z", "last_verified": "2026-09-20"}] if ds == "cpa_deadlines" else [])
+    assert json.loads(p.read_text(encoding="utf-8"))["as_of_date"] == "2026-09-20"
 
 
 def test_failed_escalates_after_two_runs_and_changed_notified_once(env):
