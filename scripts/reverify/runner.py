@@ -20,7 +20,9 @@ Outcomes per record (Orchestrator directive 2026-10-02):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import random
 import re
@@ -44,7 +46,12 @@ DATASETS = ("cpa_deadlines", "cpe_hours", "reinstatement", "renewal_fees")
 DATE_FIELD = {"cpa_deadlines": "last_verified", "cpe_hours": "verified_date",
               "reinstatement": "last_verified", "renewal_fees": "verified_date"}
 FAILS_BEFORE_ESCALATION = 2
-DUE_DAYS = 20      # re-verify anything older than this (daily rolling run)
+DUE_DAYS = 20      # re-verify anything older than this (daily rolling run) -- the backstop, see TRANCHE
+# STALE-27 (AuditLab/Orchestrator 2026-10-02 22:15): selecting only "older than DUE_DAYS" kept every record
+# confirmed on the same day on the same date forever, so they all went stale together. Each daily run now
+# ALSO re-verifies ceil(automatable/TRANCHE_CYCLE_DAYS) of the oldest records per dataset, so dates spread
+# over a rolling TRANCHE_CYCLE_DAYS window (at most ~8 cpa_deadlines records share a date).
+TRANCHE_CYCLE_DAYS = 10
 STALE_DAYS = 25    # watchdog alert threshold
 
 RECIPE_DOC = """
@@ -269,6 +276,33 @@ def _age_days(rec: dict, dataset: str, today: date) -> int:
         return 10_000          # no/invalid date: treat as maximally stale (always due)
 
 
+def tranche(automatable: list[str], by_id: dict, today: date) -> list[str]:
+    """Per dataset, the ceil(n/TRANCHE_CYCLE_DAYS) oldest automatable records; ties broken by sha256(id) so
+    the order is stable from run to run and does not follow alphabetical (state-clustered) order."""
+    picked = []
+    for ds in DATASETS:
+        ids = [i for i in automatable if by_id[i][0] == ds]
+        ids.sort(key=lambda i: (-_age_days(by_id[i][1], ds, today), hashlib.sha256(i.encode()).hexdigest()))
+        picked += ids[:math.ceil(len(ids) / TRANCHE_CYCLE_DAYS)]
+    return picked
+
+
+def advance_as_of(data: dict) -> str | None:
+    """STALE-27 ruling (Orchestrator 2026-10-02 22:17): cpa_deadlines.as_of_date = the OLDEST record
+    last_verified, forward-only. It can never read fresher than the data under it (STALE-5) and is never
+    bulk-bumped. Any missing/unparseable record date -> no move (fail toward the older stamp)."""
+    cpa = data["cpa_deadlines"]
+    try:
+        oldest = min(date.fromisoformat(str(r.get("last_verified"))[:10]) for r in cpa["records"])
+        cur = date.fromisoformat(str(cpa.get("as_of_date"))[:10])
+    except ValueError:
+        return None
+    if oldest > cur:
+        cpa["as_of_date"] = oldest.isoformat()
+        return cpa["as_of_date"]
+    return None
+
+
 def _excerpt_line(rec, ds, urls, fetcher, excerpter) -> str:
     """One ticket line: a model-picked, code-verified verbatim excerpt with provenance, or why there isn't one.
     Robots-disallowed sources are never fetched (the model doesn't change what we may fetch)."""
@@ -294,8 +328,8 @@ def _excerpt_line(rec, ds, urls, fetcher, excerpter) -> str:
 
 def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None = None,
         ids: list[str] | None = None, excerpter=None) -> dict:
-    """Daily rolling mode (Orchestrator 2026-10-02 12:43, from AuditLab STALE-23): re-verify every
-    automatable record whose verified date is older than DUE_DAYS, plus any with pending failures.
+    """Daily rolling mode (Orchestrator 2026-10-02 12:43, from AuditLab STALE-23; tranches STALE-27): re-verify
+    today's tranche, every automatable record older than DUE_DAYS, and any with pending failures.
     all_records=True checks every record (acceptance dry run)."""
     now = datetime.now(timezone.utc).astimezone()
     day = today or date.today().isoformat()
@@ -320,7 +354,9 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     elif all_records:
         todo = sorted(set(by_id) & set(recipes))
     else:
-        todo = [i for i in automatable if _age_days(by_id[i][1], by_id[i][0], tday) > DUE_DAYS or i in fail_counts]
+        due = set(tranche(automatable, by_id, tday))
+        todo = [i for i in automatable if i in due or _age_days(by_id[i][1], by_id[i][0], tday) > DUE_DAYS
+                or i in fail_counts]
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for rid in todo:
         ds, rec = by_id[rid]
@@ -395,7 +431,8 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
                 lines.append(_excerpt_line(rec, ds, urls, fetcher, excerpter))
             manual_notified[i] = vd
         _note("assetlab", f"MANUAL_DUE_{len(manual_due)}", "\n".join(lines) + "\n", now)
-    if apply and results:
+    as_of_moved = advance_as_of(data) if apply else None
+    if apply and (results or as_of_moved):
         for ds in DATASETS:
             _dump(os.path.join(DATA, ds + ".json"), data[ds])
     counts = {}
@@ -406,7 +443,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     ages = {i: _age_days(by_id[i][1], by_id[i][0], tday) for i in sorted(by_id)}
     report = {"mode": "apply" if apply else "dry-run", "selection": "ids" if ids else ("all" if all_records else "due"),
               "run_date": day, "started": started, "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "total_records": len(by_id), "checked": len(todo), "counts": counts,
+              "total_records": len(by_id), "checked": len(todo), "counts": counts, "as_of_moved_to": as_of_moved,
               "missing_recipe": missing_recipe,
               "manual_ids": sorted(i for i in by_id if recipes.get(i, {}).get("manual")),
               "not_confirmed_this_run": sorted(i for i, r in results.items() if r["outcome"] != "CONFIRMED"),
@@ -475,6 +512,7 @@ def replay(results_path: str, today: str | None = None, base: str | None = None,
                 stored_ok = False
         if stored_ok and apply_confirmed(rec, ds, history_line(day, res["checks"], recipes[rid]), day):
             n += 1
+    advance_as_of(data)               # same rule as run(): follows the oldest record, forward-only
     for ds in DATASETS:
         _dump(os.path.join(DATA, ds + ".json"), data[ds])
     return n
