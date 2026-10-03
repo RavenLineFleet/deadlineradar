@@ -63,6 +63,9 @@ def live_check(health: dict | None, today: date | None = None) -> tuple[bool, st
             return False, (f"ALERT reverify: /api/health still has no worst_record_age_days (due {LIVE_FIELD_DUE}) "
                            f"-- the live-age watchdog is blind; AssetLab to expose it")
         return True, "live age: not exposed by /api/health yet"
+    if not age >= 0:   # MON-12: -1 (unparseable as_of_date) or NaN means unknown, and the runtime guard has paused
+        return False, (f"ALERT reverify: LIVE worker reports worst record age {age!r} (unknown) -- the freshness "
+                       f"guard treats this as stale and pauses signups and sends; check as_of_date")
     if age >= LIVE_ALERT_DAYS:
         return False, (f"ALERT reverify: LIVE worker worst record age {age}d >= {LIVE_ALERT_DAYS}d "
                        f"(signups pause at >30d) -- run scripts/deploy_worker.py")

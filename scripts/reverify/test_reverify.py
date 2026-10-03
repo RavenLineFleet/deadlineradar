@@ -706,5 +706,9 @@ def test_watchdog_live_worker_age_alert_stale27():
     assert ok is False and "worst_record_age_days" in msg
     assert wd.live_check({"worst_record_age_days": True})[0] is True                              # not a number
     assert wd.live_check(None)[0] is True                                                         # unreachable
+    for unknown in (-1, float("nan")):                                                           # MON-12: unknown is not fine
+        ok, msg = wd.live_check({"status": "ok", "worst_record_age_days": unknown})
+        assert ok is False and "unknown" in msg
+    assert wd.live_check({"status": "ok", "worst_record_age_days": 0})[0] is True
     down = lambda url, timeout=None: (_ for _ in ()).throw(OSError("down"))
     assert wd.fetch_health(opener=down) is None
