@@ -663,3 +663,15 @@ def test_extract_html_still_reads_normal_utf8():
     body = html.encode("utf-8")
     text = fetch._extract_html(body)
     assert "$150.00" in text, f"normal UTF-8 body mis-detected as UTF-16: {text[:120]!r}"
+
+
+def test_watchdog_live_worker_age_alert_stale27():
+    import watchdog_check as wd
+    assert wd.live_check({"status": "ok", "worst_record_age_days": 20})[0] is True
+    ok, msg = wd.live_check({"status": "ok", "worst_record_age_days": 21})
+    assert ok is False and "LIVE" in msg and "deploy_worker" in msg
+    assert wd.live_check({"status": "ok"}) == (True, "live age: not exposed by /api/health yet")   # today's API
+    assert wd.live_check({"worst_record_age_days": True})[0] is True                              # not a number
+    assert wd.live_check(None)[0] is True                                                         # unreachable
+    down = lambda url, timeout=None: (_ for _ in ()).throw(OSError("down"))
+    assert wd.fetch_health(opener=down) is None
