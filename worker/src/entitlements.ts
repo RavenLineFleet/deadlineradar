@@ -244,7 +244,26 @@ export function trialLiftsSeatCap(firm: EntitlementSubject & { trial_ends_at: st
  * ("ALL paid features") -- this is the one function every #151 gate
  * (document handlers, Slack/Teams connect + send passes, dashboard
  * synthesis) already goes through, so adding it here covers every one of
- * them at once rather than patching each call site. */
+ * them at once rather than patching each call site.
+ *
+ * SecurityLab TRIAL-1 (MEDIUM, 2026-10-02, verified by running the real
+ * code against a2a9471b4): both exception ORs below used to apply with no
+ * `status` check, so a `requestFirmDeletion()`'d firm -- status set to
+ * 'deleted' specifically so "a deleted account's staff would keep getting
+ * emailed forever" can't happen (that function's own docstring) -- kept
+ * getting Slack/Teams/document sends for up to 14 days on an active trial,
+ * and forever if pre-cutover-grandfathered. index.ts's
+ * requireFirmSessionAndPaidTier() already had the right shape (honours the
+ * trial only when `access.reason === "tier_not_paid"`); gating both
+ * exceptions on that same reason here closes both in the one place that
+ * matters, rather than patching the trial alone and leaving the older,
+ * pre-existing grandfather gap half-fixed next to it. `reason ===
+ * "tier_not_paid"` is possible only when `status === 'active'` (see
+ * checkPaidFeatureAccess() above), so this is exactly a status gate,
+ * expressed in this file's own idiom instead of a second status check. */
 export function hasValueLineAccess(firm: EntitlementSubject & { created_at: string; trial_ends_at: string | null }): boolean {
-  return checkPaidFeatureAccess(firm).allowed || isPreCutoverSignup(firm.created_at) || hasActiveTrial(firm.trial_ends_at);
+  const access = checkPaidFeatureAccess(firm);
+  if (access.allowed) return true;
+  if (access.reason !== "tier_not_paid") return false;
+  return isPreCutoverSignup(firm.created_at) || hasActiveTrial(firm.trial_ends_at);
 }

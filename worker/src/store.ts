@@ -3363,7 +3363,9 @@ export async function countFirmLicenses(db: D1Database, firmId: string): Promise
 // grandfathered) once the trial lapses unpaid. At that point the admin
 // picks which staff stay active; everyone else is PAUSED (no reminders,
 // nothing deleted, restored the moment the roster is back at or under cap
-// -- an upgrade, or the admin removing staff another way).
+// -- an upgrade, or the admin removing staff another way). Days 14-21 are a
+// grace window before the automatic default applies -- see
+// rosterPauseGraceHasElapsed()'s own comment below.
 // ---------------------------------------------------------------------------
 
 /**
@@ -3374,11 +3376,32 @@ export async function countFirmLicenses(db: D1Database, firmId: string): Promise
  * mid-trial is deliberately exempt (TRIAL_SEAT_CAP covers it) until the
  * trial itself lapses.
  */
+// PR6-D (Devin ruling via orchestrator, pr6d, 2026-10-02): trial end (day
+// 14) is not the moment the AUTOMATIC default-pause applies. Days 14-21 are
+// a grace window -- everyone keeps reminders regardless of cap, giving the
+// admin time to choose, and the default (earliest-`cap` stay active) only
+// applies at day 21 if they haven't. The admin's own explicit pick
+// (active_staff_choice_at) is never subject to this delay -- it can be made
+// and takes effect at any point, including during grace; only the
+// AUTOMATIC fallback is deferred. A firm with no trial_ends_at at all (pre-
+// PR6, or malformed) has no grace window to be in, so it falls through to
+// immediate reconciliation same as before this fix.
+const ROSTER_PAUSE_GRACE_DAYS = 7;
+
+function rosterPauseGraceHasElapsed(trialEndsAt: string | null): boolean {
+  if (!trialEndsAt) return true;
+  const t = Date.parse(trialEndsAt);
+  if (!Number.isFinite(t)) return true;
+  return Date.now() >= t + ROSTER_PAUSE_GRACE_DAYS * 86_400_000;
+}
+
 function firmNeedsRosterPauseReconciliation(firm: FirmRow, liveRosterCount: number): boolean {
   if (checkPaidFeatureAccess(firm).allowed) return false;
   if (hasActiveTrial(firm.trial_ends_at)) return false;
   const cap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
-  return liveRosterCount > cap;
+  if (liveRosterCount <= cap) return false;
+  if (firm.active_staff_choice_at) return true;
+  return rosterPauseGraceHasElapsed(firm.trial_ends_at);
 }
 
 /**
@@ -3391,10 +3414,17 @@ function firmNeedsRosterPauseReconciliation(firm: FirmRow, liveRosterCount: numb
  *   under/at cap, or paid, or mid-trial  -> unpause everyone (covers
  *                                           "upgrade restores all instantly"
  *                                           and the ordinary non-trial case)
- *   over cap, no explicit admin choice   -> pause all but the earliest-
+ *   over cap, trial lapsed < 7 days ago,
+ *     no explicit admin choice yet       -> unpause everyone (grace window,
+ *                                           PR6-D -- nobody auto-paused
+ *                                           before day 21 of a 14-day trial)
+ *   over cap, grace elapsed (>= 7 days),
+ *     no explicit admin choice           -> pause all but the earliest-
  *                                           added `cap` rows (by created_at)
  *   over cap, admin HAS chosen           -> leave existing paused_at exactly
- *                                           as the admin's own pick set it;
+ *                                           as the admin's own pick set it
+ *                                           (applies immediately, grace or
+ *                                           not);
  *                                           never silently revert to the
  *                                           earliest-N default once a real
  *                                           choice exists
