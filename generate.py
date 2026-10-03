@@ -8725,6 +8725,15 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
     return "\n".join(f"  <tr><td>{label}</td><td>{free_cell}</td><td>{paid_cell}</td></tr>" for label, free_cell, paid_cell in rows)
 
 
+# BILL-22/23 (HomeLab, 2026-10-03): PR6's monthly toggle shipped with the
+# worker's own monthly billing code, but no live-mode Stripe monthly Price
+# ids exist yet -- a real visitor could pick Monthly here and hit a
+# checkout error after already filling in signup. Flag off until Devin's
+# live-mode keys, the real Stripe test-mode loop, and a clean price
+# reconciliation run are all done -- see worker/src/tiers.ts's matching
+# MONTHLY_BILLING_ENABLED for the server-side half of this gate.
+MONTHLY_BILLING_ENABLED = False
+
 # PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
 # FIRM_TIERS (and generate.py's own DR_BILLING_TIERS JS table on the
 # dashboard) -- duplicated here deliberately, same "two places, same
@@ -8746,6 +8755,20 @@ def _annual_savings_percent(annual_usd: int, monthly_usd: int) -> int:
     only; annual_usd/monthly_usd are what actually gets charged."""
     monthly_total = monthly_usd * 12
     return round((monthly_total - annual_usd) / monthly_total * 100)
+
+
+def _pricing_interval_toggle_html() -> str:
+    """BILL-22/23: the toggle is the only way a visitor can ever set
+    drPricingInterval to 'monthly' (see _PRICING_CHECKOUT_JS_HTML) -- with
+    it omitted entirely, every card's .price-monthly element stays
+    permanently hidden and checkout always sends 'annual', exactly PR6's
+    pre-toggle behavior. No half-built "coming soon" UI to maintain."""
+    if not MONTHLY_BILLING_ENABLED:
+        return ""
+    return """<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval" id="dr-pricing-interval-toggle">
+  <button type="button" class="dr-interval-btn dr-interval-active" data-interval="annual">Annual</button>
+  <button type="button" class="dr-interval-btn" data-interval="monthly">Monthly</button>
+</div>"""
 
 
 def _pricing_tier_card_html(t: dict, lang: str = "en") -> str:
@@ -8839,14 +8862,7 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 <p class="field-hint">{_t("pricing.plans_intro", lang)}</p>
 <p id="dr-pricing-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
 
-<!-- PR6 (2026-10-02): annual/monthly toggle -- see
-     _PRICING_INTERVAL_TOGGLE_JS_HTML below for the show/hide logic and
-     drStartCheckout()'s own interval param for what gets sent at
-     checkout time. -->
-<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval" id="dr-pricing-interval-toggle">
-  <button type="button" class="dr-interval-btn dr-interval-active" data-interval="annual">Annual</button>
-  <button type="button" class="dr-interval-btn" data-interval="monthly">Monthly</button>
-</div>
+{_pricing_interval_toggle_html()}
 
 <div class="pricing-grid">
   <div class="pricing-card" id="individual">
@@ -12663,6 +12679,12 @@ var drBilling = null;
 // resolves its own Stripe Price id per tiers.ts's stripePriceIdForTier()).
 var drBillingInterval = 'annual';
 
+// BILL-22/23 (HomeLab, 2026-10-03): gates the dashboard upgrade panel's
+// monthly toggle -- see generate.py's MONTHLY_BILLING_ENABLED (the
+// pricing-page half) and worker/src/tiers.ts's matching constant (the
+// server-side half) for the rest of this gate. Flip all three together.
+var DR_MONTHLY_BILLING_ENABLED = false;
+
 // PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
 // FIRM_TIERS -- duplicated here deliberately, same "two places, same
 // numbers, no shared import across the Python/TS boundary" precedent the
@@ -14570,10 +14592,16 @@ function drRenderBillingPanel() {
     // PR6 (2026-10-02): annual/monthly toggle -- exact prices from
     // DR_BILLING_TIERS, savings % always computed (drAnnualSavingsPercent),
     // never a hand-typed figure.
-    var toggleHtml = '<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval">' +
+    // BILL-22/23 (HomeLab, 2026-10-03): no live-mode Stripe monthly Price
+    // ids exist yet -- omit the toggle entirely rather than render a
+    // control that leads to a checkout error. drBillingInterval stays its
+    // 'annual' default, since nothing can ever flip it without this markup.
+    var toggleHtml = DR_MONTHLY_BILLING_ENABLED
+      ? ('<div class="dr-billing-interval-toggle" role="group" aria-label="Billing interval">' +
       '<button type="button" class="dr-interval-btn' + (drBillingInterval === 'annual' ? ' dr-interval-active' : '') + '" data-interval="annual">Annual</button>' +
       '<button type="button" class="dr-interval-btn' + (drBillingInterval === 'monthly' ? ' dr-interval-active' : '') + '" data-interval="monthly">Monthly</button>' +
-      '</div>';
+      '</div>')
+      : '';
     var tiersHtml = '<div class="dr-paywall-tiers" id="dr-billing-upgrade-tiers">' +
       DR_BILLING_TIERS.map(function(t) {
         // AuditLab PAYNOW-1 (2026-08-05, caught pre-deploy): a roster over

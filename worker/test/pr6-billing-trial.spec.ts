@@ -176,7 +176,14 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
     }
   });
 
-  it("interval: 'monthly' resolves the MONTHLY price id, not the annual one", async () => {
+  // BILL-22/23 (HomeLab, 2026-10-03): the live pricing page shipped a
+  // working Monthly toggle before any live-mode Stripe monthly Price ids
+  // existed -- a real visitor could pick it and hit a checkout error.
+  // MONTHLY_BILLING_ENABLED (tiers.ts) now gates the route itself, below
+  // the UI-side gate (generate.py), so a stale cached page or a direct
+  // API call still gets a clean, friendly rejection rather than reaching
+  // Stripe at all.
+  it("BILL-22/23: interval 'monthly' is rejected with a friendly message while MONTHLY_BILLING_ENABLED is false -- no Stripe call", async () => {
     const { cookie } = await createFirmWithSession("Interval Firm B", `interval-b-${Date.now()}@example.com`);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ id: "cs_test_2", url: "https://checkout.stripe.com/pay/cs_test_2" }), { status: 200 })
@@ -188,17 +195,28 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify({ tier: "firm_starter", interval: "monthly" }),
         }),
+        // Fully configured on purpose -- proves the gate fires on the flag
+        // itself, not as a side effect of a missing price id (that's the
+        // separate, still-covered 503 path below).
         { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_annual_x", STRIPE_PRICE_FIRM_STARTER_MONTHLY: "price_monthly_x" }
       );
-      expect(resp.status).toBe(200);
-      const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = (calledInit.body as string) ?? "";
-      expect(sentBody).toContain("price_monthly_x");
-      expect(sentBody).not.toContain("price_annual_x");
-      expect(sentBody).toContain("metadata%5Bbilling_interval%5D=monthly");
+      expect(resp.status).toBe(400);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error).toMatch(/coming soon/i);
+      expect(fetchSpy).not.toHaveBeenCalled(); // never reaches Stripe
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  it("unit: stripePriceIdForTier still resolves the MONTHLY price id correctly -- the underlying logic the HTTP gate above sits in front of", async () => {
+    const { stripePriceIdForTier } = await import("../src/tiers");
+    const priceId = stripePriceIdForTier(
+      { STRIPE_PRICE_FIRM_STARTER: "price_annual_x", STRIPE_PRICE_FIRM_STARTER_MONTHLY: "price_monthly_x" } as never,
+      "firm_starter",
+      "monthly"
+    );
+    expect(priceId).toBe("price_monthly_x");
   });
 
   it("400s on an unrecognised interval", async () => {
@@ -214,7 +232,7 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
     expect(resp.status).toBe(400);
   });
 
-  it("monthly checkout 503s cleanly when the monthly price id isn't configured yet (annual still works)", async () => {
+  it("monthly checkout is rejected by the BILL-22/23 gate before the missing-price-id 503 path is ever reached (annual still works)", async () => {
     const { cookie } = await createFirmWithSession("Interval Firm D", `interval-d-${Date.now()}@example.com`);
     const resp = await workerFetch(
       new Request(`${BASE}/firm/billing/checkout`, {
@@ -224,7 +242,7 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
       }),
       { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_annual_x" } // no _MONTHLY var set
     );
-    expect(resp.status).toBe(503);
+    expect(resp.status).toBe(400); // the flag gate, not the 503 a missing price id alone would cause once flipped on
   });
 
   it("a roster above firm_scale's 35-seat cap can check out on firm_scale WITH the per-seat add-on as a second line item", async () => {
