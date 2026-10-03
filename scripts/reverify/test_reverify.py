@@ -277,6 +277,15 @@ def test_tranche_spreads_a_same_day_cohort_stale27():
     assert max(per.values()) <= 9 and len(per) >= 9
 
 
+def test_tranche_failing_record_does_not_take_a_quota_slot():
+    from datetime import date
+    by_id = {f"r{i:02d}": ("cpa_deadlines", {"id": f"r{i:02d}", "last_verified": "2026-10-02"}) for i in range(19)}
+    by_id["down"] = ("cpa_deadlines", {"id": "down", "last_verified": "2026-09-21"})      # oldest, source down
+    assert "down" in runner.tranche(sorted(by_id), by_id, date(2026, 10, 4))
+    picks = runner.tranche(sorted(by_id), by_id, date(2026, 10, 4), failing={"down": 1})
+    assert len(picks) == 2 and "down" not in picks                       # quota ceil(20/10)=2, both drain 10-02
+
+
 def test_tranche_runs_daily_and_backstop_still_applies(env):
     tmp, ff = env
     runner.run(apply=True, fetcher=ff, today="2026-10-01")            # a-fee confirmed 10-01

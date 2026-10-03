@@ -276,14 +276,18 @@ def _age_days(rec: dict, dataset: str, today: date) -> int:
         return 10_000          # no/invalid date: treat as maximally stale (always due)
 
 
-def tranche(automatable: list[str], by_id: dict, today: date) -> list[str]:
+def tranche(automatable: list[str], by_id: dict, today: date, failing=()) -> list[str]:
     """Per dataset, the ceil(n/TRANCHE_CYCLE_DAYS) oldest automatable records; ties broken by sha256(id) so
-    the order is stable from run to run and does not follow alphabetical (state-clustered) order."""
+    the order is stable from run to run and does not follow alphabetical (state-clustered) order.
+    Records with pending failures are retried every run anyway, so they don't take a quota slot: a source
+    that stays down (guam-firm, 10-02) would otherwise slow the drain of the cohort by one record a day."""
     picked = []
     for ds in DATASETS:
         ids = [i for i in automatable if by_id[i][0] == ds]
+        quota = math.ceil(len(ids) / TRANCHE_CYCLE_DAYS)
+        ids = [i for i in ids if i not in failing]
         ids.sort(key=lambda i: (-_age_days(by_id[i][1], ds, today), hashlib.sha256(i.encode()).hexdigest()))
-        picked += ids[:math.ceil(len(ids) / TRANCHE_CYCLE_DAYS)]
+        picked += ids[:quota]
     return picked
 
 
@@ -354,7 +358,7 @@ def run(apply: bool, all_records: bool = False, fetcher=None, today: str | None 
     elif all_records:
         todo = sorted(set(by_id) & set(recipes))
     else:
-        due = set(tranche(automatable, by_id, tday))
+        due = set(tranche(automatable, by_id, tday, failing=fail_counts))
         todo = [i for i in automatable if i in due or _age_days(by_id[i][1], by_id[i][0], tday) > DUE_DAYS
                 or i in fail_counts]
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
