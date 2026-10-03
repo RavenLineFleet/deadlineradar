@@ -18,7 +18,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
@@ -4406,15 +4406,23 @@ NOINDEX_APP_AUTH_ALLOWLIST: frozenset[str] = frozenset({
 def check_noindex_set_matches_intent(
     html_files: list[Path], docs_dir: Path, repo_root: Path,
     reinstatement_slugs: frozenset[str] | None = None,
+    year_end_target_date: date | None = None,
+    year_end_slug: str | None = None,
+    today: date | None = None,
 ) -> list[str]:
     """CRAWL-8: the actual noindexed set in docs/ must equal the intended one
-    -- SEO_NOINDEX_REINSTATEMENT_SLUGS's reinstatement pages plus
-    NOINDEX_APP_AUTH_ALLOWLIST -- exactly, both directions. A page missing
-    from `actual` was never built, or lost its noindex tag; a page present in
-    `actual` but not `expected` was silently de-indexed by a template edit or
-    an unreviewed slug addition. `reinstatement_slugs` is injectable for
-    tests; production leaves it None and imports the real generate.py."""
-    if reinstatement_slugs is None:
+    -- SEO_NOINDEX_REINSTATEMENT_SLUGS's reinstatement pages, plus
+    NOINDEX_APP_AUTH_ALLOWLIST, plus /year-end-renewals/ ONCE its own target
+    date has passed (YE-5) -- exactly, both directions. A page missing from
+    `actual` was never built, or lost its noindex tag; a page present in
+    `actual` but not `expected` was silently de-indexed by a template edit
+    or an unreviewed slug addition. The year-end page's membership is
+    computed "by date rule", the same comparison generate.py's own page
+    builder makes, never a hand-added allowlist entry that could drift from
+    when the page actually expires. All of `reinstatement_slugs`,
+    `year_end_target_date`, `year_end_slug` are injectable for tests;
+    production leaves them None and imports the real generate.py."""
+    if reinstatement_slugs is None or year_end_target_date is None or year_end_slug is None:
         sys.path.insert(0, str(repo_root))
         try:
             import generate as generate_module
@@ -4423,7 +4431,15 @@ def check_noindex_set_matches_intent(
                 "[NOINDEX-GATE] generate.py could not be imported -- this check is measuring "
                 "nothing and must be repaired, not silently skipped"
             ]
-        reinstatement_slugs = generate_module.SEO_NOINDEX_REINSTATEMENT_SLUGS
+        if reinstatement_slugs is None:
+            reinstatement_slugs = generate_module.SEO_NOINDEX_REINSTATEMENT_SLUGS
+        if year_end_target_date is None:
+            year_end_target_date = generate_module.YEAR_END_TARGET_DATE
+        if year_end_slug is None:
+            year_end_slug = generate_module.YEAR_END_PAGE_SLUG
+
+    if today is None:
+        today = datetime.now(timezone.utc).date()
 
     errors = []
     if len(reinstatement_slugs) != NOINDEX_REINSTATEMENT_SLUG_COUNT:
@@ -4442,6 +4458,8 @@ def check_noindex_set_matches_intent(
         )
 
     expected = {f"/{slug}-cpa-license-reinstatement/" for slug in reinstatement_slugs} | NOINDEX_APP_AUTH_ALLOWLIST
+    if today > year_end_target_date:
+        expected.add(f"/{year_end_slug}/")
     actual = _noindex_paths(html_files, docs_dir)
 
     if not actual:
@@ -4462,6 +4480,53 @@ def check_noindex_set_matches_intent(
             f"[NOINDEX-GATE] {len(extra)} page(s) are noindexed but not in the intended set -- a page "
             f"may have been silently de-indexed: {', '.join(extra)}"
         )
+    return errors
+
+
+def check_year_end_page_no_raw_enum_tokens(
+    docs_dir: Path, repo_root: Path, year_end_slug: str | None = None
+) -> list[str]:
+    """YE-4 (AuditLab/Orchestrator, 2026-10-02): the year-end page's KS/MD
+    individual-licence cells must show cycle_description's human text,
+    never the raw renewal_pattern machine token -- Maryland's own value is
+    literally the string "other", which would otherwise render as-is to a
+    customer. Derives the full set of renewal_pattern values straight from
+    data/cpa_deadlines.json rather than hardcoding them, so a future state
+    added with a new pattern name is covered automatically. Scoped to this
+    one page, not site-wide -- a few of these tokens (e.g. "other") are
+    ordinary English words and would false-positive against unrelated
+    prose elsewhere on the site."""
+    if year_end_slug is None:
+        sys.path.insert(0, str(repo_root))
+        try:
+            import generate as generate_module
+        except ImportError:
+            return [
+                "[YE-GATE] generate.py could not be imported -- this check is measuring nothing "
+                "and must be repaired, not silently skipped"
+            ]
+        year_end_slug = generate_module.YEAR_END_PAGE_SLUG
+
+    page_path = docs_dir / year_end_slug / "index.html"
+    if not page_path.exists():
+        return [f"[YE-GATE] {page_path} not found -- did generate.py run?"]
+
+    cpa_path = repo_root / "data" / "cpa_deadlines.json"
+    records = json.loads(cpa_path.read_text(encoding="utf-8"))["records"]
+    tokens = sorted({r["renewal_pattern"] for r in records if r.get("renewal_pattern")})
+    if not tokens:
+        return ["[YE-GATE] parsed ZERO renewal_pattern values from data/cpa_deadlines.json -- this "
+                "check is measuring nothing and must be repaired."]
+
+    text = page_path.read_text(encoding="utf-8")
+    errors = []
+    for token in tokens:
+        if re.search(rf"\b{re.escape(token)}\b", text):
+            errors.append(
+                f"[YE-GATE] raw renewal_pattern token {token!r} appears verbatim on the year-end "
+                "page -- a machine enum value leaked into customer-facing copy, use "
+                "cycle_description instead"
+            )
     return errors
 
 
@@ -7701,6 +7766,7 @@ def main():
     all_errors += check_snoozed_until_cleared_on_cycle_bump(repo_root)
     all_errors += check_sitemap_completeness(html_files, docs_dir)
     all_errors += check_noindex_set_matches_intent(html_files, docs_dir, repo_root)
+    all_errors += check_year_end_page_no_raw_enum_tokens(docs_dir, repo_root)
     all_errors += check_email_transport_scope(repo_root)
     all_errors += check_demo_locked_email_coverage(repo_root)
     all_errors += check_demo_locked_mutation_coverage(repo_root)

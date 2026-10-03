@@ -21952,6 +21952,184 @@ to hope someone's watching. <a href="../for-firms/">See firm-tier pricing &rarr;
     return slug, title, html
 
 
+def _individual_relevant_record(records: list[dict]) -> dict | None:
+    """Symmetric counterpart to _firm_relevant_record(): picks the record
+    that represents a state's INDIVIDUAL-license-holder deadline. At most
+    one non-firm-only record exists per state in this dataset (verified: no
+    state carries two individual-ish records), so this is just that record
+    if one exists -- 'all' counts as individual-relevant (it covers both),
+    same as every other individual-grouping filter in this file
+    (_FIRM_ONLY_LICENSE_TYPES). Returns None only for a state with no
+    individual-facing record at all."""
+    for r in records:
+        if r.get("license_type") not in _FIRM_ONLY_LICENSE_TYPES:
+            return r
+    return None
+
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[a-z0-9\)]\.)\s+(?=[A-Z])")
+
+
+def _first_meaningful_sentence(text: str) -> str:
+    """Year-end page (AuditLab YE-3/YE-4, 2026-10-02): the individual-license
+    cell for a cohort/anniversary state (no single next_deadline_computed)
+    must show cycle_description's own words, never the raw renewal_pattern
+    enum token -- but the full field is paragraphs long, too much for a
+    table cell. Splits only where the character before the period is
+    lowercase/digit/close-paren (never a bare capital letter), so a mid-
+    sentence statutory citation like "K.S.A. 1-310" is never mistaken for a
+    sentence boundary (every letter in an abbreviation like that is
+    uppercase). Kansas's real first sentence is just the one-word label
+    "Biennial." -- not informative alone -- so a sentence under 20 chars
+    pulls in the next one too; every other state's first sentence already
+    stands on its own (checked against both target states today)."""
+    sentences = _SENTENCE_SPLIT_RE.split(text.strip())
+    first = sentences[0]
+    if len(first) < 20 and len(sentences) > 1:
+        return f"{first} {sentences[1]}"
+    return first
+
+
+YEAR_END_PAGE_SLUG = "year-end-renewals"
+# 2026-10-02 (AuditLab YE-1 through YE-5, Orchestrator rulings): the Dec-31
+# cutoff this whole page is built around. ONE constant -- the table query,
+# the self-expiry check, and the noindex gate all read it, so they cannot
+# disagree about which date the page is "about".
+YEAR_END_TARGET_DATE = date(2026, 12, 31)
+
+
+def _year_end_dec31_rows(by_slug: dict[str, list[dict]]) -> list[dict]:
+    """YE-1's structural fix: the state count and table rows are DERIVED
+    from data/cpa_deadlines.json at build time, never hand-typed -- the
+    original draft's "Ten states" was actually 12, missing Kansas and
+    Maryland entirely. A state is included if ANY of its records
+    (individual, firm, or a combined 'all' record) has
+    next_deadline_computed == YEAR_END_TARGET_DATE. Returns one row per
+    matching state, each carrying both the individual and firm cells
+    independently -- a state can match on only one of the two, like
+    Nevada's individual-only (firm is 2027-01-31) or Kansas/Maryland's
+    firm-only (individual is a cohort/anniversary pattern, not a shared
+    date) -- see each state's own callout on the page for why."""
+    target = YEAR_END_TARGET_DATE.isoformat()
+    rows = []
+    for slug, records in by_slug.items():
+        if not any(r.get("next_deadline_computed") == target for r in records):
+            continue
+        individual = _individual_relevant_record(records)
+        firm = _firm_relevant_record(records)
+        ind_date = individual.get("next_deadline_computed") if individual else None
+        ind_text = _first_meaningful_sentence(individual["cycle_description"]) if individual and not ind_date else None
+        rows.append({
+            "state_slug": slug,
+            "state_name": records[0]["state"],
+            "individual_date": ind_date,
+            "individual_text": ind_text,
+            "firm_date": firm.get("next_deadline_computed") if firm else None,
+        })
+    rows.sort(key=lambda r: r["state_name"])
+    return rows
+
+
+def build_year_end_renewals_page(by_slug: dict[str, list[dict]], real_today: date) -> tuple[str, bool]:
+    """/year-end-renewals/ -- every CPA licence and firm-permit deadline
+    landing on December 31, 2026, one page, built from data rather than
+    hand-typed (YE-1 above).
+
+    YE-5: this is a DATED page, and all 17 records in the Dec-31 cohort
+    have `computation: null` -- nothing rolls next_deadline_computed
+    forward, so without an explicit expiry the page would keep presenting
+    December 31, 2026 as an upcoming deadline forever (verified by AuditLab:
+    the build query still returns the same 12 states as of a simulated
+    2027-02-01). Past YEAR_END_TARGET_DATE, this renders a short "these
+    deadlines have passed" notice instead of the table, with
+    noindex,follow -- the caller must also drop it from the sitemap (see
+    build_sitemap's year_end_expired param) and check_noindex_set_matches_
+    intent (CRAWL-8's gate) expects it noindexed past the same date,
+    computed the same way, never hand-added to an allowlist. Returns
+    (html, is_expired)."""
+    expired = real_today > YEAR_END_TARGET_DATE
+
+    if expired:
+        body = """<h1>These December 31, 2026 deadlines have passed</h1>
+<p class="intro">This page tracked every CPA licence and firm-permit deadline that landed on December
+31, 2026. That date has passed, so the table that was here is no longer current &mdash; each state's
+own page always carries its next actual deadline.</p>
+<p><a href="/">See every state's current deadline &rarr;</a></p>
+<p class="backlink"><a href="/">&larr; Back to all states</a></p>
+"""
+        return page_shell(
+            f"December 31, 2026 CPA Deadlines (Past) — {SITE_NAME}",
+            "This page tracked CPA licence and firm-permit deadlines landing on December 31, 2026. "
+            "That date has passed.",
+            body,
+            home_href="../",
+            canonical_path=f"/{YEAR_END_PAGE_SLUG}/",
+            extra_head='<meta name="robots" content="noindex,follow">',
+        ), True
+
+    rows = _year_end_dec31_rows(by_slug)
+    state_count = len(rows)
+
+    def _individual_cell(r: dict) -> str:
+        if r["individual_date"]:
+            return esc(fmt_date(date.fromisoformat(r["individual_date"])))
+        if r["individual_text"]:
+            return esc(r["individual_text"])
+        return "&mdash;"
+
+    def _firm_cell(r: dict) -> str:
+        return esc(fmt_date(date.fromisoformat(r["firm_date"]))) if r["firm_date"] else "&mdash;"
+
+    table_rows = "\n".join(
+        f'<tr><td><a href="../{esc(r["state_slug"])}/">{esc(r["state_name"])}</a></td>'
+        f'<td>{_individual_cell(r)}</td><td>{_firm_cell(r)}</td></tr>'
+        for r in rows
+    )
+
+    body = f"""<h1>Every CPA license and firm-permit deadline landing on December 31, 2026</h1>
+<p class="subhead">{state_count} states have a CPA license or firm-permit deadline on the exact same
+day this year. If your firm has staff licensed in any of them, here's what's actually due.</p>
+<p class="intro">{state_count} states have a CPA license or firm-permit deadline (or both) due
+December 31, 2026. Deadline-Radar tracks every one automatically and sends a reminder before each is
+due &mdash; free for up to 3 people, self-serve, no demo call.</p>
+<p class="field-hint">Covers individual licenses and firm permits only &mdash; Alabama's and
+Minnesota's CPE-<em>reporting</em> deadlines also fall on December 31, but aren't licence or
+firm-permit deadlines and aren't on this table.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>State</th><th>Individual license</th><th>Firm permit</th></tr></thead>
+    <tbody>
+    {table_rows}
+    </tbody>
+  </table>
+</div>
+
+<div class="callout">
+  <p class="rule">Minnesota's own page states there is no grace period for unlicensed practice, and a
+  $50/year delinquency fee applies if you renew late &mdash; one of the stricter deadlines on this
+  list.</p>
+</div>
+<div class="callout">
+  <p class="rule">Nevada's individual license is due December 31, 2026, but its firm registration is a
+  separate date, January 31, 2027 &mdash; don't let the shared headline date make you miss the second
+  one.</p>
+</div>
+
+<p><strong>Check your state and set up a reminder, free for up to 3 people.</strong>
+<a href="../firm-login/#dr-view-signup">No demo call, no card &rarr;</a></p>
+<p class="backlink"><a href="../">&larr; Back to all states</a></p>
+"""
+    return page_shell(
+        f"Every CPA Deadline Due December 31, 2026 — {SITE_NAME}",
+        f"{state_count} states have a CPA license or firm-permit deadline due December 31, 2026 -- "
+        "see exactly which, sourced to each state's own rule.",
+        body,
+        home_href="../",
+        canonical_path=f"/{YEAR_END_PAGE_SLUG}/",
+    ), False
+
+
 def _cpe_hours_signup_html(cpe_record: dict, renewal_records: list[dict], as_of: date) -> str:
     """Light single-line capture (2026-07-15, per orchestrator go-live review):
     option 1 -- capture reminder intent where it lands on the CPE-hours page,
@@ -24765,7 +24943,9 @@ def _translated_page_sitemap_urls(slug: str, as_of: date, es_ready: bool) -> str
   </url>"""
 
 
-def build_sitemap(states: list[dict], as_of: date, es_ready: dict[str, bool] | None = None) -> str:
+def build_sitemap(
+    states: list[dict], as_of: date, es_ready: dict[str, bool] | None = None, year_end_expired: bool = False
+) -> str:
     es_ready = es_ready or {}
     urls = [f"""  <url>
     <loc>{SITE_BASE_URL}/</loc>
@@ -24806,6 +24986,17 @@ def build_sitemap(states: list[dict], as_of: date, es_ready: dict[str, bool] | N
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""",
         _translated_page_sitemap_urls("methodology", as_of, es_ready.get("methodology", False)),
+    ]
+    # YE-5 (AuditLab, 2026-10-02): dropped from the sitemap past its own
+    # target date, by the same date rule build_year_end_renewals_page()
+    # itself uses -- never a hand-added exclusion that could drift from
+    # when the page actually expires.
+    if not year_end_expired:
+        urls.append(f"""  <url>
+    <loc>{SITE_BASE_URL}/{YEAR_END_PAGE_SLUG}/</loc>
+    <lastmod>{as_of.isoformat()}</lastmod>
+  </url>""")
+    urls += [
         f"""  <url>
     <loc>{SITE_BASE_URL}/changelog/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
@@ -25297,6 +25488,14 @@ def main() -> None:
     (roadmap_dir / "index.html").write_text(build_roadmap_page(), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/roadmap/index.html")
 
+    # year_end_expired must be known before build_sitemap() runs below --
+    # it decides whether /year-end-renewals/ is listed there too.
+    year_end_html, year_end_expired = build_year_end_renewals_page(by_slug, real_today)
+    year_end_dir = SITE_DIR / YEAR_END_PAGE_SLUG
+    year_end_dir.mkdir(parents=True, exist_ok=True)
+    (year_end_dir / "index.html").write_text(year_end_html, encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/{YEAR_END_PAGE_SLUG}/index.html" + (" (expired)" if year_end_expired else ""))
+
     # ES-2 (AuditLab, 2026-08-19): see the practice-privilege-check block above.
     _contact_es_check = build_contact_page(lang="es")
     es_ready["contact"] = _es_page_has_real_translation(build_contact_page(), _contact_es_check)
@@ -25347,7 +25546,9 @@ def main() -> None:
     # REINSTATEMENT_PAGES, COMPETITOR_COMPARE_PAGES (populated by loops
     # earlier in main()) and es_ready (populated by the translated-page
     # blocks just above) -- must be written after both.
-    (SITE_DIR / "sitemap.xml").write_text(build_sitemap(built, as_of, es_ready), encoding="utf-8")
+    (SITE_DIR / "sitemap.xml").write_text(
+        build_sitemap(built, as_of, es_ready, year_end_expired=year_end_expired), encoding="utf-8"
+    )
     print(f"wrote {SITE_DIR.name}/sitemap.xml")
 
     changelog_dir = SITE_DIR / "changelog"
