@@ -33,6 +33,19 @@ const BASE_ENV = {
   STRIPE_PRICE_FIRM_SCALE: "price_scale",
 };
 
+// PR6-A (AuditLab, 2026-10-02): the 6 prices PR6 added (4 monthly tiers +
+// 2 per-seat) -- a separate const so the pre-existing tests above (which
+// deliberately leave these unset to prove "unconfigured = skipped, not a
+// mismatch") are unaffected.
+const PR6_ENV = {
+  STRIPE_PRICE_FIRM_STARTER_MONTHLY: "price_starter_monthly",
+  STRIPE_PRICE_FIRM_GROWTH_MONTHLY: "price_growth_monthly",
+  STRIPE_PRICE_FIRM_STANDARD_MONTHLY: "price_standard_monthly",
+  STRIPE_PRICE_FIRM_SCALE_MONTHLY: "price_scale_monthly",
+  STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL: "price_addon_annual",
+  STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY: "price_addon_monthly",
+};
+
 describe("claimStripePriceParityAlertForMonth / unclaim -- month-keyed dedup", () => {
   it("first claim for a month succeeds, a second claim the same month fails", async () => {
     const month = "2099-01";
@@ -226,6 +239,99 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", RESEND_API_KEY: undefined })).resolves.toBeUndefined();
       // Month was never claimed -- a later tick with SendGrid configured can still alert.
       expect(await store.claimStripePriceParityAlertForMonth(env.DB, month)).toBe(true);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("PR6-A: all 10 prices (4 annual + 4 monthly + 2 per-seat) configured and matching -- 10 fetches, no send", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      const amounts: Record<string, { amount: number; interval: string }> = {
+        price_starter: { amount: 19900, interval: "year" },
+        price_growth: { amount: 29900, interval: "year" },
+        price_standard: { amount: 39900, interval: "year" },
+        price_scale: { amount: 54900, interval: "year" },
+        price_starter_monthly: { amount: 2000, interval: "month" },
+        price_growth_monthly: { amount: 2900, interval: "month" },
+        price_standard_monthly: { amount: 3900, interval: "month" },
+        price_scale_monthly: { amount: 5500, interval: "month" },
+        price_addon_annual: { amount: 1500, interval: "year" },
+        price_addon_monthly: { amount: 150, interval: "month" },
+      };
+      for (const [id, v] of Object.entries(amounts)) {
+        if (url === STRIPE_PRICE_URL(id)) return Response.json(stripePriceResponse({ unit_amount: v.amount, interval: v.interval }));
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(fetchSpy).toHaveBeenCalledTimes(10);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("PR6-A: a MONTHLY price pointed at the annual amount is caught -- the exact failure PR6-A named (copy-pasting the wrong Price id)", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      // Essentials-monthly Price id was accidentally pointed at the $199/yr annual Price.
+      if (url === STRIPE_PRICE_URL("price_starter_monthly")) return Response.json(stripePriceResponse({ unit_amount: 19900, interval: "year" }));
+      if (url === STRIPE_PRICE_URL("price_growth_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_standard_monthly")) return Response.json(stripePriceResponse({ unit_amount: 3900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_scale_monthly")) return Response.json(stripePriceResponse({ unit_amount: 5500, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_addon_annual")) return Response.json(stripePriceResponse({ unit_amount: 1500 }));
+      if (url === STRIPE_PRICE_URL("price_addon_monthly")) return Response.json(stripePriceResponse({ unit_amount: 150, interval: "month" }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_FIRM_STARTER_MONTHLY");
+      expect(captured[0]).toContain("$20/mo"); // PR6-A's own emails.ts fix: not the old hardcoded "/yr"
+      expect(captured[0]).toContain('unit_amount=19900 (expected 2000');
+      expect(captured[0]).toContain('recurring.interval=year (expected "month")');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("PR6-A: the per-seat add-on prices are checked too, independent of the tier prices", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      if (url === STRIPE_PRICE_URL("price_starter_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2000, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_growth_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_standard_monthly")) return Response.json(stripePriceResponse({ unit_amount: 3900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_scale_monthly")) return Response.json(stripePriceResponse({ unit_amount: 5500, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_addon_annual")) return Response.json(stripePriceResponse({ unit_amount: 999 })); // mismatch: expected 1500
+      if (url === STRIPE_PRICE_URL("price_addon_monthly")) return Response.json(stripePriceResponse({ unit_amount: 150, interval: "month" }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL");
+      expect(captured[0]).toContain("unit_amount=999 (expected 1500, i.e. $15)");
     } finally {
       fetchSpy.mockRestore();
     }

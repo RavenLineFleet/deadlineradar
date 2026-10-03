@@ -6166,6 +6166,16 @@ def check_write_endpoint_rate_limits(repo_root: Path) -> list[str]:
         "handleRenewed": "consumes a subscriber's own token via store.stop(..., \"renewed\") -- the exact same call handleUnsubscribe makes with a different reason string, same token-is-the-credential shape",
         "handleNewsletterConfirm": "consumes a newsletter subscriber's own confirm token (store.confirmNewsletterSubscriberIfPending) -- same one-click, no-login, token-is-the-credential shape as handleUnsubscribe",
         "handleNewsletterUnsubscribe": "consumes a newsletter subscriber's own unsubscribe token (store.unsubscribeNewsletterSubscriber) -- same one-click, no-login, token-is-the-credential shape as handleUnsubscribe, RFC 8058 List-Unsubscribe-Post requires this to work without a session",
+        # PR6-B (migration 0086, 2026-10-02): the primary dashboard load --
+        # called on every page view/tab switch by design, the opposite of
+        # the rare, deliberate actions a per-caller counter is meant to
+        # throttle. Session-authenticated already (the real access
+        # control); the one mutating call it now makes
+        # (reconcileRosterPauseState) is idempotent and derives its result
+        # entirely from already-stored facts, so hammering it has no abuse
+        # value to bound -- same reasoning MUTATING_GET_HANDLERS' entry for
+        # this same function uses for the CSRF-4 half of this exact change.
+        "handleFirmLicensesList": "primary dashboard load, called on every page view by design; its one mutating call (reconcileRosterPauseState) is idempotent and server-derived, nothing to rate-limit against",
     }
 
     errors = []
@@ -6796,6 +6806,18 @@ MUTATING_GET_HANDLERS = {
     "handleFirmSlackConnectStart": "infrastructural-write (rate-limit counter + OAuth state row, itself CSRF-inert -- the state row is looked up by its own random id, not trusted input)",
     "handleOauthStart": "infrastructural-write (rate-limit counter + OAuth state row, same reasoning)",
     "handleAttrSummary": "infrastructural-write (rate-limit counter only, same reasoning as handleFirmPacketExport)",
+    # PR6-B (migration 0086, 2026-10-02): reconcileRosterPauseState() is a
+    # pure, idempotent, DERIVED reconciliation off already-stored facts
+    # (live roster count vs. the firm's own cap, trial status, any
+    # existing explicit pick) -- nothing an attacker chooses or supplies.
+    # A forged cross-site GET can't read the response (CORS) and can't
+    # influence WHICH staff end up paused (deterministic earliest-added
+    # math, or an existing admin pick); it can only cause this firm's own
+    # already-correct state to be (re-)computed early, which is the exact
+    # behavior the real dashboard load triggers on purpose. Same
+    # "infrastructural-write, nothing to gain by forging it" category as
+    # the three entries above.
+    "handleFirmLicensesList": "infrastructural-write (idempotent roster-pause reconciliation off server-derived facts, same reasoning as handleFirmPacketExport)",
     # OAuth callbacks (2) -- GET by protocol necessity; the only possible
     # defense is the `state` parameter, verified end to end by AuditLab:
     # consumeOauthState() requires state to exist, be unused, be unexpired,

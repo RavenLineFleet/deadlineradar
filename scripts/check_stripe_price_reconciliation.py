@@ -97,11 +97,23 @@ import urllib.request
 # compares the label itself against Stripe, only price_usd, but the day this
 # check ever prints a mismatch, it would name the wrong tier in the error.
 # Real current labels per tiers.ts's own FIRM_TIERS (source of truth).
+# PR6 (2026-10-02, AuditLab PR6-A): this script's own coverage had the
+# SAME gap the nightly cron pass (runStripePriceParityAlertPass,
+# scheduler.ts) had before this commit -- four entries for the four
+# ANNUAL prices only, with no entry at all for the 6 prices PR6 added
+# (4 monthly tiers + 2 per-seat). "interval" added so a monthly entry
+# checks against "month"/monthlyPriceUsd, not the annual expectation.
 EXPECTED_TIERS = {
-    "STRIPE_PRICE_FIRM_STARTER": {"label": "Essentials", "price_usd": 199},
-    "STRIPE_PRICE_FIRM_GROWTH": {"label": "Growth", "price_usd": 299},
-    "STRIPE_PRICE_FIRM_STANDARD": {"label": "Professional", "price_usd": 399},
-    "STRIPE_PRICE_FIRM_SCALE": {"label": "Enterprise", "price_usd": 549},
+    "STRIPE_PRICE_FIRM_STARTER": {"label": "Essentials (annual)", "price_usd": 199, "interval": "year"},
+    "STRIPE_PRICE_FIRM_GROWTH": {"label": "Growth (annual)", "price_usd": 299, "interval": "year"},
+    "STRIPE_PRICE_FIRM_STANDARD": {"label": "Professional (annual)", "price_usd": 399, "interval": "year"},
+    "STRIPE_PRICE_FIRM_SCALE": {"label": "Enterprise (annual)", "price_usd": 549, "interval": "year"},
+    "STRIPE_PRICE_FIRM_STARTER_MONTHLY": {"label": "Essentials (monthly)", "price_usd": 20, "interval": "month"},
+    "STRIPE_PRICE_FIRM_GROWTH_MONTHLY": {"label": "Growth (monthly)", "price_usd": 29, "interval": "month"},
+    "STRIPE_PRICE_FIRM_STANDARD_MONTHLY": {"label": "Professional (monthly)", "price_usd": 39, "interval": "month"},
+    "STRIPE_PRICE_FIRM_SCALE_MONTHLY": {"label": "Enterprise (monthly)", "price_usd": 55, "interval": "month"},
+    "STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL": {"label": "Per-seat add-on (annual)", "price_usd": 15, "interval": "year"},
+    "STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY": {"label": "Per-seat add-on (monthly)", "price_usd": 1.5, "interval": "month"},
 }
 
 # referralTierCouponId() (worker/src/index.ts) -- MAX_REFERRAL_TIER, kept as
@@ -161,7 +173,7 @@ def main() -> int:
             continue
 
         checked += 1
-        expected_cents = expected["price_usd"] * 100
+        expected_cents = round(expected["price_usd"] * 100)
         actual_cents = price.get("unit_amount")
         actual_interval = (price.get("recurring") or {}).get("interval")
         actual_currency = price.get("currency")
@@ -169,8 +181,8 @@ def main() -> int:
         problems = []
         if actual_cents != expected_cents:
             problems.append(f"unit_amount={actual_cents} (expected {expected_cents}, i.e. ${expected['price_usd']})")
-        if actual_interval != "year":
-            problems.append(f"recurring.interval={actual_interval!r} (expected 'year')")
+        if actual_interval != expected["interval"]:
+            problems.append(f"recurring.interval={actual_interval!r} (expected {expected['interval']!r})")
         if actual_currency != "usd":
             problems.append(f"currency={actual_currency!r} (expected 'usd')")
         if problems:

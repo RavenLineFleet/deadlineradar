@@ -56,8 +56,10 @@ import {
   buildAssistantErrorBurstAlertEmail,
   buildStripePriceParityAlertEmail,
   buildGatedDatasetStalenessAlertEmail,
+  buildTrialEndingSoonEmail,
+  buildRosterPausedEmail,
 } from "./emails";
-import { FIRM_TIERS, stripePriceIdForTier } from "./tiers";
+import { FIRM_TIERS, PER_SEAT_ADDON_ANNUAL_USD, PER_SEAT_ADDON_MONTHLY_USD, seatCapForFirmTier, stripePriceIdForPerSeatAddon, stripePriceIdForTier } from "./tiers";
 import { fetchStripePrice } from "./stripe";
 import {
   DEFAULT_DAILY_SEND_CAP,
@@ -2657,38 +2659,54 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   if (!requireSendApproval(env, "stripePriceParityAlert")) return;
   if (!env.STRIPE_SECRET_KEY) return;
 
-  const mismatches: { envVar: string; label: string; expectedUsd: number; problems: string[] }[] = [];
+  // PR6-A (AuditLab, 2026-10-02, HOLD on a2a9471b4): stripePriceIdForTier()'s
+  // new `interval` parameter defaults to "annual" so every PRE-PR6 call
+  // site stays byte-identical -- which is exactly what made this loop
+  // (unchanged in that commit) silently narrower than its real subject
+  // matter without a line of it changing: it guarded 4 prices when PR6
+  // shipped 10. Built as one flat list of checks -- 4 tiers x 2 intervals,
+  // plus the 2 per-seat add-on prices -- so a future tier or interval
+  // addition is one more entry here, not a parallel loop to remember.
+  const checks: { envVar: string; label: string; priceId: string | null; expectedUsd: number; expectedInterval: "year" | "month" }[] = [];
   for (const tier of FIRM_TIERS) {
-    const priceId = stripePriceIdForTier(env, tier.planTier);
+    const envBase = `STRIPE_PRICE_FIRM_${tier.planTier.replace(/^firm_/, "").toUpperCase()}`;
+    checks.push({ envVar: envBase, label: `${tier.label} (annual)`, priceId: stripePriceIdForTier(env, tier.planTier, "annual"), expectedUsd: tier.priceUsd, expectedInterval: "year" });
+    checks.push({ envVar: `${envBase}_MONTHLY`, label: `${tier.label} (monthly)`, priceId: stripePriceIdForTier(env, tier.planTier, "monthly"), expectedUsd: tier.monthlyPriceUsd, expectedInterval: "month" });
+  }
+  checks.push({ envVar: "STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL", label: "Per-seat add-on (annual)", priceId: stripePriceIdForPerSeatAddon(env, "annual"), expectedUsd: PER_SEAT_ADDON_ANNUAL_USD, expectedInterval: "year" });
+  checks.push({ envVar: "STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY", label: "Per-seat add-on (monthly)", priceId: stripePriceIdForPerSeatAddon(env, "monthly"), expectedUsd: PER_SEAT_ADDON_MONTHLY_USD, expectedInterval: "month" });
+
+  const mismatches: { envVar: string; label: string; expectedUsd: number; expectedInterval: "year" | "month"; problems: string[] }[] = [];
+  for (const check of checks) {
+    const { envVar, label, priceId, expectedUsd, expectedInterval } = check;
     if (!priceId) continue; // not configured in this environment -- not a mismatch
-    const envVar = `STRIPE_PRICE_FIRM_${tier.planTier.replace(/^firm_/, "").toUpperCase()}`;
     let price;
     try {
       price = await fetchStripePrice(env.STRIPE_SECRET_KEY, priceId);
     } catch (err) {
-      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems: [`fetch failed: ${String(err)}`] });
+      mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`fetch failed: ${String(err)}`] });
       continue;
     }
     if (!price) {
-      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems: [`price id ${priceId} not found or rejected by Stripe -- checkout for this tier would fail`] });
+      mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`price id ${priceId} not found or rejected by Stripe -- checkout for this price would fail`] });
       continue;
     }
     const problems: string[] = [];
-    const expectedCents = tier.priceUsd * 100;
+    const expectedCents = Math.round(expectedUsd * 100);
     if (price.unitAmount !== expectedCents) {
-      problems.push(`unit_amount=${price.unitAmount ?? "null"} (expected ${expectedCents}, i.e. $${tier.priceUsd})`);
+      problems.push(`unit_amount=${price.unitAmount ?? "null"} (expected ${expectedCents}, i.e. $${expectedUsd})`);
     }
     if (price.currency !== "usd") {
       problems.push(`currency=${price.currency ?? "null"} (expected "usd")`);
     }
-    if (price.recurringInterval !== "year") {
-      problems.push(`recurring.interval=${price.recurringInterval ?? "null"} (expected "year")`);
+    if (price.recurringInterval !== expectedInterval) {
+      problems.push(`recurring.interval=${price.recurringInterval ?? "null"} (expected "${expectedInterval}")`);
     }
     if (!price.active) {
       problems.push(`active=false -- Stripe would refuse a checkout using this price entirely`);
     }
     if (problems.length > 0) {
-      mismatches.push({ envVar, label: tier.label, expectedUsd: tier.priceUsd, problems });
+      mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems });
     }
   }
 
@@ -2710,6 +2728,142 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc);
     console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Roster-pause reconciliation + notices (PR6-B, migration 0086/0087,
+// 2026-10-02, Devin's ruling via orchestrator). The trial seat cap is 35,
+// not unlimited -- a firm can still end up over its own non-trial free/paid
+// cap once the trial lapses unpaid. Two SEPARATE passes, deliberately:
+//
+//   runRosterPauseReconciliationPass() -- pure state maintenance, no email,
+//     no consent gate needed (nothing is communicated to anyone). Ensures
+//     a firm that never logs back into the dashboard still gets its
+//     over-cap roster paused (store.ts's reconcileRosterPauseState() also
+//     runs lazily on dashboard load and on checkout webhook, but a firm
+//     that does neither still needs this to actually stop sending
+//     reminders for staff beyond its cap -- see allConfirmedActive()'s
+//     own comment for why the reminder cron trusts paused_at being
+//     already correct by the time IT runs, rather than reconciling itself).
+//
+//   runTrialEndingAlertPass() -- the two real customer emails ("ends soon",
+//     "has ended, N paused"). Gated behind requireSendApproval() per the
+//     standing consent-gate directive, same as every pass added after it.
+// ---------------------------------------------------------------------------
+
+export interface RosterPauseReconciliationSummary {
+  firmsChecked: number;
+  errors: { firm_id: string; error: string }[];
+}
+
+export async function runRosterPauseReconciliationPass(env: Env): Promise<RosterPauseReconciliationSummary> {
+  const summary: RosterPauseReconciliationSummary = { firmsChecked: 0, errors: [] };
+  // preship_gate.py's check_send_pass_consent_gate_coverage() requires
+  // EVERY dispatched run*Pass to call requireSendApproval() or be
+  // explicitly grandfathered -- no exception for "this one sends no
+  // email." Used here as a generic "may this pass run at all" switch,
+  // not specifically a send gate: pausing a real firm's reminders is a
+  // consequential behavior change in its own right, and holding it
+  // behind the same explicit go/no-go as every other new automated
+  // action is the more conservative reading of the standing directive,
+  // not a weaker one.
+  if (!requireSendApproval(env, "rosterPauseReconciliation")) return summary;
+  const firmIds = await store.listFirmIdsWithLapsedTrial(env.DB, new Date().toISOString());
+  for (const firmId of firmIds) {
+    summary.firmsChecked += 1;
+    try {
+      await store.reconcileRosterPauseState(env.DB, firmId);
+    } catch (err) {
+      summary.errors.push({ firm_id: firmId, error: String(err) });
+    }
+  }
+  return summary;
+}
+
+export interface TrialEndingAlertSummary {
+  endingSoonChecked: number;
+  endingSoonSent: number;
+  pausedChecked: number;
+  pausedSent: number;
+  errors: { firm_id: string; error: string }[];
+}
+
+export interface RunTrialEndingAlertOptions {
+  now?: Date;
+  send?: ReminderSendFn;
+}
+
+// PR6-B spec: "before day 14" -- a 3-day warning window, same order of
+// magnitude as the other pre-expiry warnings in this file (mobility
+// staleness, gated-dataset staleness) rather than inventing a new constant
+// class for one feature.
+const TRIAL_ENDING_SOON_WARNING_DAYS = 3;
+
+export async function runTrialEndingAlertPass(env: Env, opts: RunTrialEndingAlertOptions = {}): Promise<TrialEndingAlertSummary> {
+  const now = opts.now ?? new Date();
+  const summary: TrialEndingAlertSummary = { endingSoonChecked: 0, endingSoonSent: 0, pausedChecked: 0, pausedSent: 0, errors: [] };
+  if (!requireSendApproval(env, "trialEndingAlert")) return summary;
+
+  const send: ReminderSendFn =
+    opts.send ??
+    ((to, built) => {
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    });
+  const staticBase = staticSiteAbsoluteBaseUrl(env);
+  const dashboardUrl = `${staticBase}/firm-dashboard/#account`;
+
+  const windowEnd = new Date(now.getTime() + TRIAL_ENDING_SOON_WARNING_DAYS * 86_400_000);
+  const endingSoon = await store.listFirmsForTrialEndingSoonNotice(env.DB, now.toISOString(), windowEnd.toISOString());
+  for (const firm of endingSoon) {
+    summary.endingSoonChecked += 1;
+    // Same AuditLab DEMO-5 reasoning as every other pass -- already
+    // filtered at the SQL layer (listFirmsForTrialEndingSoonNotice()'s
+    // own WHERE clause), checked again here too (DEMO-EMAIL gate wants a
+    // live guard in the sending function's own body, not just upstream).
+    if (firm.demo_locked || firm.is_test_tenant) continue;
+    try {
+      const rosterCount = await store.countFirmLicenses(env.DB, firm.id);
+      const freeCap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
+      if (rosterCount <= freeCap) continue; // not actually over cap -- nothing to warn about
+      const trialEndsAtMs = Date.parse(firm.trial_ends_at ?? "");
+      const daysRemaining = Math.max(1, Math.ceil((trialEndsAtMs - now.getTime()) / 86_400_000));
+      const claimed = await store.claimTrialEndingSoonNotice(env.DB, firm.id);
+      if (!claimed) continue;
+      const built = buildTrialEndingSoonEmail({ firmName: firm.name, daysRemaining, rosterCount, freeCap, dashboardUrl });
+      const ok = await send(firm.admin_email, built);
+      if (ok) summary.endingSoonSent += 1;
+      else summary.errors.push({ firm_id: firm.id, error: "send returned false" });
+    } catch (err) {
+      summary.errors.push({ firm_id: firm.id, error: String(err) });
+    }
+  }
+
+  const paused = await store.listFirmsForRosterPausedNotice(env.DB, now.toISOString());
+  for (const firm of paused) {
+    summary.pausedChecked += 1;
+    if (firm.demo_locked || firm.is_test_tenant) continue;
+    try {
+      // Reconciles first -- this pass may run before
+      // runRosterPauseReconciliationPass() does on the same tick, and the
+      // notice must reflect the REAL post-reconciliation state, not a
+      // stale pre-reconciliation roster.
+      const roster = await store.reconcileRosterPauseState(env.DB, firm.id);
+      const pausedCount = roster.filter((r) => r.paused_at !== null).length;
+      if (pausedCount === 0) continue; // trial lapsed but never went over cap -- no notice needed
+      const activeCount = roster.length - pausedCount;
+      const claimed = await store.claimRosterPausedNotice(env.DB, firm.id);
+      if (!claimed) continue;
+      const built = buildRosterPausedEmail({ firmName: firm.name, pausedCount, activeCount, dashboardUrl });
+      const ok = await send(firm.admin_email, built);
+      if (ok) summary.pausedSent += 1;
+      else summary.errors.push({ firm_id: firm.id, error: "send returned false" });
+    } catch (err) {
+      summary.errors.push({ firm_id: firm.id, error: String(err) });
+    }
+  }
+
+  return summary;
 }
 
 // ---------------------------------------------------------------------------
