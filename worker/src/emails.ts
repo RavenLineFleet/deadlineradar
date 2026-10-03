@@ -2452,6 +2452,45 @@ export function buildAssistantLatencyAlertEmail(stats: {
 }
 
 /**
+ * MON-9 (AuditLab, MEDIUM, 2026-10-02): buildAssistantLatencyAlertEmail()
+ * above is blind to a fast-failure outage (it measures success-only
+ * p95/max, and a total outage that fails in ~1-3s instead of the normal
+ * ~15-18s LOWERS p95). This is the complementary alert: a straight error
+ * count over the most recent `windowCount` chats, independent of timing.
+ */
+export function buildAssistantErrorBurstAlertEmail(stats: {
+  errorCount: number;
+  windowCount: number;
+  errorCountThreshold: number;
+  errorRateThreshold: number;
+}): BuiltEmail {
+  const rate = (stats.errorCount / stats.windowCount * 100).toFixed(0);
+  const subject = `Deadline-Radar: assistant chat error burst (${stats.errorCount}/${stats.windowCount} recent chats failed)`;
+  const textBody =
+    `${stats.errorCount} of the last ${stats.windowCount} assistant chat requests failed (${rate}%) -- ` +
+    `either an unhandled exception on the droplet, or an honest non-answer (the apology text), both logged ` +
+    `as status='error'.\n\n` +
+    `Alert fires when errorCount >= ${stats.errorCountThreshold}, or errorCount/windowCount >= ` +
+    `${(stats.errorRateThreshold * 100).toFixed(0)}% -- the count floor catches a burst in a short window ` +
+    `where the percentage alone would need very few total chats to trip; the percentage catches a majority ` +
+    `failure the count floor alone might not reach.\n\n` +
+    `Worth checking first: is the claude CLI subprocess reachable on the droplet at all (PATH, binary ` +
+    `location, auth) -- that is the failure shape this alert was added to catch, after a case where every ` +
+    `leg threw a plain FileNotFoundError.\n\n` +
+    `This email fires at most once per UTC day no matter how many cron ticks still see the breach.`;
+  const htmlBody =
+    `<p><strong>${stats.errorCount} of the last ${stats.windowCount}</strong> assistant chat requests failed ` +
+    `(${rate}%) &mdash; either an unhandled exception on the droplet, or an honest non-answer (the apology ` +
+    `text), both logged as <code>status='error'</code>.</p>` +
+    `<p>Alert fires when errorCount &gt;= ${stats.errorCountThreshold}, or errorCount/windowCount &gt;= ` +
+    `${(stats.errorRateThreshold * 100).toFixed(0)}%.</p>` +
+    `<p>Worth checking first: is the <code>claude</code> CLI subprocess reachable on the droplet at all ` +
+    `(PATH, binary location, auth) &mdash; that is the failure shape this alert was added to catch.</p>` +
+    `<p>This email fires at most once per UTC day no matter how many cron ticks still see the breach.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * AuditLab BILL-17 (MEDIUM, 2026-09-09): nothing previously read a Stripe
  * Price object back and compared it against what generate.py/tiers.ts
  * advertise -- an ordinary dashboard edit or a repointed STRIPE_PRICE_FIRM_*

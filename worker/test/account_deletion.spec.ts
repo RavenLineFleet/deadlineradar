@@ -652,6 +652,52 @@ describe("store.hardDeleteExpiredFirms", () => {
     expect(lines.some((l) => l.startsWith("[hard-delete-stale-alert]") && l.includes(stuckFirmId))).toBe(true);
   });
 
+  // RETAIN-9 (SecurityLab, LOW, 2026-10-02): the test above only asserts
+  // the stale alert FIRES at 40 days -- nothing pinned the 35-day
+  // threshold itself, so staleAlertDays could be mutated to 1 (or 30) and
+  // the suite would stay green. This is the negative control: a firm that
+  // fails the SAME way, but is only 31 days past deletion_requested_at --
+  // past the 30-day grace (so it's selected and attempted) but short of
+  // the 35-day stale-alert threshold. The sweep-summary line must still
+  // fire (it has genuinely failed this pass); the stale-alert line must
+  // NOT, or the threshold means nothing.
+  it("RETAIN-9: a firm that fails but hasn't reached the 35-day stale threshold gets a sweep-summary line but NOT a stale alert", async () => {
+    const recentlyStuckFirmId = await deletedFirm(31); // past the 30-day grace, well short of 35
+
+    const realPrepare = env.DB.prepare.bind(env.DB);
+    const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation((sql: string) => {
+      const stmt = realPrepare(sql);
+      if (!sql.includes("UPDATE firms SET primary_member_id")) return stmt;
+      return new Proxy(stmt, {
+        get(target, prop, receiver) {
+          if (prop !== "bind") return Reflect.get(target, prop, receiver);
+          return (...bindArgs: unknown[]) => {
+            const bound = Reflect.apply(target.bind, target, bindArgs);
+            if (bindArgs[0] !== recentlyStuckFirmId) return bound;
+            return new Proxy(bound, {
+              get(boundTarget, boundProp, boundReceiver) {
+                if (boundProp === "run") return () => Promise.reject(new Error("RETAIN-9 test: forced failure"));
+                return Reflect.get(boundTarget, boundProp, boundReceiver);
+              },
+            });
+          };
+        },
+      });
+    });
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    prepareSpy.mockRestore();
+
+    expect(deleted).not.toContain(recentlyStuckFirmId);
+
+    const lines = logSpy.mock.calls.map((args) => String(args[0]));
+    logSpy.mockRestore();
+
+    expect(lines.some((l) => l.startsWith("[hard-delete-sweep]") && l.includes(recentlyStuckFirmId))).toBe(true);
+    expect(lines.some((l) => l.startsWith("[hard-delete-stale-alert]"))).toBe(false);
+  });
+
   it("never touches a firm that hasn't been deleted at all", async () => {
     const { id: firmId } = await store.createFirm(env.DB, { name: "Untouched LLC", adminEmail: `untouched-${Date.now()}@example.com` });
     const deleted = await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
