@@ -31,6 +31,10 @@ DATE_FIELD = {"cpa_deadlines": "last_verified", "cpe_hours": "verified_date",
               "reinstatement": "last_verified", "renewal_fees": "verified_date"}
 LOG = os.path.join(STATE_DIR, "reverify_job.log")
 ASSETLAB_INBOX = os.environ.get("REVERIFY_ASSETLAB_INBOX", r"C:\Users\Devin\AssetLab\inbox")
+COHORT_BASELINE = "scripts/cohort_baseline.json"   # AssetLab's STALE-37 ratchet baseline (lowered, never raised)
+# Runs AssetLab's own tightening function if this tree has it (no-op before the ratchet lands on main).
+TIGHTEN = ("import sys, pathlib; sys.path.insert(0, 'scripts'); import preship_gate as g; "
+           "f = getattr(g, 'tighten_cpa_deadlines_cohort_baseline', None); f and f(pathlib.Path('.'))")
 DATA_FILES = ["data/cpa_deadlines.json", "data/cpe_hours.json", "data/reinstatement.json", "data/renewal_fees.json"]
 WORKER_COPIES = {f: "worker/src/" + os.path.basename(f) for f in DATA_FILES}
 
@@ -185,6 +189,16 @@ def _gate_commit(mode, py, push):
     # unattended job (AuditLab 2026-10-02): an alert asks AssetLab to run deploy_worker.py.
     for f in DATA_FILES:
         shutil.copyfile(os.path.join(JOB_DIR, f), os.path.join(JOB_DIR, WORKER_COPIES[f]))
+    # AssetLab 2026-10-03: bank tonight's shrink by lowering the cohort baseline to the real counts, in the
+    # SAME commit as the data, before the gates run so the committed baseline is gated too.
+    t = sh(py, "-c", TIGHTEN, check=False)
+    if t.returncode != 0:
+        note("GATE_FAILED_no_deploy", f"cohort baseline tighten failed (rc={t.returncode}); nothing committed.\n"
+                                     f"```\n{t.stdout[-1500:]}\n{t.stderr[-1500:]}\n```")
+        sh("git", "checkout", "--force", "--", ".")
+        if push:
+            _publish_status(False, "cohort baseline tighten failed")
+        return 2
     for gate in ([py, "-m", "pytest", "scripts/reverify", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
         g = sh(*gate, check=False)
         if g.returncode != 0:
@@ -197,7 +211,8 @@ def _gate_commit(mode, py, push):
                 _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
             return 2
         log(f"gate ok: {' '.join(gate[1:])}")
-    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), "docs")
+    baseline = [COHORT_BASELINE] if os.path.exists(os.path.join(JOB_DIR, COHORT_BASELINE)) else []
+    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), "docs", *baseline)
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",
        f"reverify: automated {mode} re-verification {datetime.now():%Y-%m-%d} ({n} data file(s) updated)")
