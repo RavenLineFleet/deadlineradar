@@ -69,6 +69,16 @@ export const PER_SEAT_ADDON_MONTHLY_USD = 1.5;
 // no migration concern) -- firm_scale is the one genuinely NEW slug, for
 // the new top band. Labels shifted up one level to match: "Enterprise" now
 // means the real top tier (35 seats), not the old 25-seat one.
+// BILL-22/23 (HomeLab, 2026-10-03): no live-mode Stripe monthly Price ids
+// exist yet -- handleFirmBillingCheckout (index.ts) rejects interval:
+// "monthly" with a friendly message while this is false, before even
+// looking up a price id. generate.py's MONTHLY_BILLING_ENABLED/
+// DR_MONTHLY_BILLING_ENABLED are the matching UI-side half (pricing page
+// + dashboard upgrade panel) -- flip all three together once Devin's
+// live-mode keys, the real test-mode loop, and a clean
+// check_stripe_price_reconciliation.py run are done.
+export const MONTHLY_BILLING_ENABLED = false;
+
 export const FIRM_TIERS: FirmTierDef[] = [
   { planTier: "firm_starter", label: "Essentials", priceUsd: 199, monthlyPriceUsd: 20, seatCap: 5 },
   { planTier: "firm_growth", label: "Growth", priceUsd: 299, monthlyPriceUsd: 29, seatCap: 10 },

@@ -282,7 +282,15 @@ import {
   buildAssistantMobilityResponse,
   assistantStateName,
 } from "./assistant";
-import { FIRM_TIERS, firmTierByPlanTier, firmTierForSeatCount, seatCapForFirmTier, stripePriceIdForPerSeatAddon, stripePriceIdForTier } from "./tiers";
+import {
+  FIRM_TIERS,
+  MONTHLY_BILLING_ENABLED,
+  firmTierByPlanTier,
+  firmTierForSeatCount,
+  seatCapForFirmTier,
+  stripePriceIdForPerSeatAddon,
+  stripePriceIdForTier,
+} from "./tiers";
 import {
   createCheckoutSession,
   updateSubscriptionCancelAtPeriodEnd,
@@ -3570,6 +3578,15 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
       : "annual";
   if (requestedIntervalRaw !== "annual" && requestedIntervalRaw !== "monthly") {
     return jsonResponse(400, { error: "Unrecognised billing interval." });
+  }
+  // BILL-22/23 (HomeLab, 2026-10-03): rejected before the price-id lookup
+  // below (which already fails closed with a 503) so the error reads as
+  // "not offered yet" rather than "something's misconfigured" -- the UI
+  // never offers this choice while the flag is off (generate.py's
+  // MONTHLY_BILLING_ENABLED/DR_MONTHLY_BILLING_ENABLED), so this only
+  // fires for a stale cached page or a direct API call.
+  if (requestedIntervalRaw === "monthly" && !MONTHLY_BILLING_ENABLED) {
+    return jsonResponse(400, { error: "Monthly billing is coming soon -- please choose Annual for now." });
   }
   const interval: "annual" | "monthly" = requestedIntervalRaw;
 
