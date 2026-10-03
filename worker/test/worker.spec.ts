@@ -5351,36 +5351,85 @@ function computeExpectedGatedDatasetNearing(now: Date): GatedDatasetRow[] {
   return rows;
 }
 
+// AuditLab TEST-13 (2026-10-02, STALE-27's own note): the three clock dates
+// below used to be hardcoded literals picked by eye against whatever the
+// real cohort structure happened to be on the day they were written --
+// "re-point them when the data changes" turned out not to survive a busy
+// remediation night (STALE-20's remaining batches alone forced a repoint).
+// Derived here instead, straight from the same real bundled data and the
+// same real exported thresholds computeExpectedGatedDatasetNearing() above
+// already uses -- so staggering the cohorts (STALE-27's own remediation)
+// moves these dates automatically instead of breaking the tests again.
+function realGatedDatasetWindowTimestampsMs(): { opensMs: number; expiresMs: number }[] {
+  const out: { opensMs: number; expiresMs: number }[] = [];
+  const thresholdMs = (GATED_DATASET_STALENESS_THRESHOLD_DAYS + 1) * 86_400_000;
+  const add = (verifiedDateStr: unknown, warningDays: number) => {
+    if (typeof verifiedDateStr !== "string") return;
+    const verified = Date.parse(verifiedDateStr);
+    if (Number.isNaN(verified)) return;
+    const expiresMs = verified + thresholdMs;
+    out.push({ opensMs: expiresMs - warningDays * 86_400_000, expiresMs });
+  };
+  for (const raw of (cpeHoursDataForTest.records ?? []) as Record<string, unknown>[]) add(raw.verified_date, GATED_DATASET_STALENESS_WARNING_DAYS);
+  for (const raw of (reinstatementDataForTest.records ?? []) as Record<string, unknown>[]) add(raw.last_verified, GATED_DATASET_STALENESS_WARNING_DAYS);
+  for (const raw of (renewalFeesDataForTest.records ?? []) as Record<string, unknown>[]) add(raw.verified_date, GATED_DATASET_STALENESS_WARNING_DAYS);
+  for (const raw of (cpaDeadlinesData.records ?? []) as Record<string, unknown>[]) add(raw.last_verified, CPA_DEADLINES_STALENESS_WARNING_DAYS);
+  return out;
+}
+
+/** A moment strictly before every window opens -- "nothing nearing" with
+ * real headroom, not a boundary value. */
+function deriveNothingNearingClock(): Date {
+  const windows = realGatedDatasetWindowTimestampsMs();
+  const earliestOpen = Math.min(...windows.map((w) => w.opensMs));
+  return new Date(earliestOpen - 86_400_000);
+}
+
+/** The earliest moment at which MORE THAN ONE distinct daysUntilExpiry
+ * value is already in its warning window -- found by walking the real
+ * window-open times in order and stopping at the first one that produces
+ * genuine multi-cohort coverage (AuditLab TEST-10: a single-cohort window
+ * can't catch a broken sort, since every element would carry the same
+ * daysUntilExpiry). Throws loudly rather than silently degrading to a
+ * single-cohort check if the real data ever collapses to one cohort. */
+function deriveMultiCohortClock(): Date {
+  const opens = [...new Set(realGatedDatasetWindowTimestampsMs().map((w) => w.opensMs))].sort((a, b) => a - b);
+  for (const openMs of opens) {
+    const candidate = new Date(openMs);
+    const expected = computeExpectedGatedDatasetNearing(candidate);
+    if (new Set(expected.map((r) => r.daysUntilExpiry)).size > 1) return candidate;
+  }
+  throw new Error("TEST-13: no real clock value produces multi-cohort gated-dataset coverage -- the fixture data no longer has 2+ distinct warning windows open at once");
+}
+
+/** Strictly after every window's expiry -- "everything already stale", the
+ * one case gatedDatasetRowsNearingExpiry() must return empty for (that's
+ * preship_gate.py's own job, not this warning's). */
+function deriveAllExpiredClock(): Date {
+  const windows = realGatedDatasetWindowTimestampsMs();
+  const latestExpiry = Math.max(...windows.map((w) => w.expiresMs));
+  return new Date(latestExpiry + 86_400_000);
+}
+
 describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRESH-3)", () => {
   // Real bundled data, checked against an INDEPENDENTLY recomputed
   // expectation (computeExpectedGatedDatasetNearing() above) -- same
   // decoupling as the mobility describe block above, for the same reason:
-  // this cohort's composition has legitimately reshuffled many times
-  // (the original 74-record fix, a 2026-09-20 cliff, 22 more single-digit
-  // cohorts, CITE-70/CITE-71, STALE-20 batch 1, and more to come as
-  // STALE-20's remaining batches land) and hand-editing a count every time
-  // teaches "just edit the number." Re-pointed 2026-10-02 after STALE-20's
-  // remaining batches re-verified nearly the entire dataset on the same
-  // day, collapsing the old 2026-10-10/2026-10-13 pair into one 2026-11-02
-  // mega-cohort (234 records across all 4 datasets) plus a few small
-  // stragglers at 2026-10-22/23/24/30 left over from records verified a
-  // few days earlier -- 2026-10-20/2026-10-21 below land inside both the
-  // stragglers' windows and the mega-cohort's cpa_deadlines portion (whose
-  // longer 14-day warning opens before the other three datasets' 7-day
-  // one), so a date landing inside more than one window is still needed
-  // to exercise sort order at all (AuditLab TEST-10, LOW, 2026-09-12: a
-  // single-cohort window can't catch a broken sort, since every element
-  // would carry the same daysUntilExpiry).
+  // this cohort's composition has legitimately reshuffled many times and
+  // will again (STALE-27's own remediation staggers it further). The three
+  // clock values below are DERIVED (see deriveNothingNearingClock() /
+  // deriveMultiCohortClock() / deriveAllExpiredClock() above), not
+  // hardcoded -- AuditLab TEST-13.
 
-  it("nothing is nearing expiry today (2026-09-12) -- the nearest real cohort is 40 days out", async () => {
+  it("nothing is nearing expiry strictly before the earliest real window opens", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-09-12T00:00:00Z"));
+    const nearing = gatedDatasetRowsNearingExpiry(deriveNothingNearingClock());
     expect(nearing).toEqual([]);
   });
 
   it("rows ARE nearing expiry once inside the real warning windows, across more than one cohort, sorted soonest-first, and exactly match an independently recomputed expectation", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    const now = new Date("2026-10-20T00:00:00Z"); // lands inside both the 2026-10-22/23/24 stragglers' windows and the 2026-11-02 mega-cohort's cpa_deadlines portion -- see describe-block comment
+    const now = deriveMultiCohortClock();
     const nearing = gatedDatasetRowsNearingExpiry(now);
     const expected = computeExpectedGatedDatasetNearing(now);
     expect(nearing).toEqual(expected); // full row-for-row match: length, sort order, and every field, all at once
@@ -5393,10 +5442,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("already-expired rows are EXCLUDED, not included -- that's preship_gate.py's own job, not this warning's", async () => {
     const { gatedDatasetRowsNearingExpiry } = await import("../src/scheduler");
-    // The latest real cohort (234 records re-verified 2026-10-02 across
-    // all 4 datasets) expires 2026-11-02, so by 2026-11-15 (well past the
-    // 31-day bar for even that cohort) every row has already gone stale.
-    const nearing = gatedDatasetRowsNearingExpiry(new Date("2026-11-15T00:00:00Z"));
+    const nearing = gatedDatasetRowsNearingExpiry(deriveAllExpiredClock());
     expect(nearing).toEqual([]);
   });
 
@@ -5404,7 +5450,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
+      vi.setSystemTime(deriveMultiCohortClock()); // genuinely inside a real warning window -- TEST-13, derived not hardcoded
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
         throw new Error(`unexpected fetch in FRESH-3 unapproved-pass test: ${typeof input === "string" ? input : (input as Request).url}`);
       });
@@ -5421,14 +5467,7 @@ describe("gatedDatasetRowsNearingExpiry / runGatedDatasetStalenessAlertPass (FRE
 
   it("runGatedDatasetStalenessAlertPass sends a correct, complete alert once approved, in the window, with a key -- and dedupes within the same UTC day", async () => {
     const { runGatedDatasetStalenessAlertPass } = await import("../src/scheduler");
-    const clockDate = new Date("2026-10-21T00:00:00Z");
-    // Independently derived, not hardcoded -- see the describe-block
-    // comment and computeExpectedGatedDatasetNearing() above. Which
-    // dataset names appear (and the cliff date in the subject) have both
-    // legitimately changed before (STALE-20 batch 1 emptied cpe_hours/
-    // reinstatement out of this exact cohort, then STALE-20's remaining
-    // batches re-verified nearly everything on 2026-10-02, collapsing the
-    // prior cohort into the new 2026-11-02 mega-cohort) and may again.
+    const clockDate = deriveMultiCohortClock(); // TEST-13: derived, not hardcoded -- see computeExpectedGatedDatasetNearing() above
     const expected = computeExpectedGatedDatasetNearing(clockDate);
     expect(expected.length).toBeGreaterThan(0); // this test asserts a SEND happened; a drained cohort would make that assertion vacuous
     const expectedDatasets = new Set(expected.map((r) => r.dataset));
