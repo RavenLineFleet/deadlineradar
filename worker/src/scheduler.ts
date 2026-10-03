@@ -59,7 +59,16 @@ import {
   buildTrialEndingSoonEmail,
   buildRosterPausedEmail,
 } from "./emails";
-import { FIRM_TIERS, PER_SEAT_ADDON_ANNUAL_USD, PER_SEAT_ADDON_MONTHLY_USD, seatCapForFirmTier, stripePriceIdForPerSeatAddon, stripePriceIdForTier } from "./tiers";
+import {
+  EXPECTED_PRICE_INTERVAL_COUNT,
+  EXPECTED_PRICE_USAGE_TYPE,
+  FIRM_TIERS,
+  PER_SEAT_ADDON_ANNUAL_USD,
+  PER_SEAT_ADDON_MONTHLY_USD,
+  seatCapForFirmTier,
+  stripePriceIdForPerSeatAddon,
+  stripePriceIdForTier,
+} from "./tiers";
 import { fetchStripePrice } from "./stripe";
 import {
   DEFAULT_DAILY_SEND_CAP,
@@ -2725,6 +2734,18 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     }
     if (!price.active) {
       problems.push(`active=false -- Stripe would refuse a checkout using this price entirely`);
+    }
+    // BILL-23 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03):
+    // interval_count=3 on a "month" price bills quarterly, passing every
+    // check above clean while charging 1/3 as often.
+    if (price.recurringIntervalCount !== EXPECTED_PRICE_INTERVAL_COUNT) {
+      problems.push(`recurring.interval_count=${price.recurringIntervalCount ?? "null"} (expected ${EXPECTED_PRICE_INTERVAL_COUNT})`);
+    }
+    // BILL-23b: only the per-seat add-on prices are sent with a line-item
+    // quantity (stripe.ts), which a "metered" price does not accept the
+    // same way a "licensed" one does -- asserted on all prices uniformly.
+    if (price.usageType !== EXPECTED_PRICE_USAGE_TYPE) {
+      problems.push(`recurring.usage_type=${price.usageType ?? "null"} (expected "${EXPECTED_PRICE_USAGE_TYPE}")`);
     }
     if (problems.length > 0) {
       mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems });

@@ -14,12 +14,18 @@ import * as store from "../src/store";
 const RESEND_URL = "https://api.resend.com/emails";
 const STRIPE_PRICE_URL = (id: string) => `https://api.stripe.com/v1/prices/${id}`;
 
-function stripePriceResponse(overrides: Partial<{ unit_amount: number; currency: string; interval: string; active: boolean }> = {}) {
+function stripePriceResponse(
+  overrides: Partial<{ unit_amount: number; currency: string; interval: string; interval_count: number | null; usage_type: string | null; active: boolean }> = {}
+) {
   return {
     id: "price_test",
     unit_amount: overrides.unit_amount ?? 19900,
     currency: overrides.currency ?? "usd",
-    recurring: { interval: overrides.interval ?? "year" },
+    // BILL-23/23b (SecurityLab, confirmed by AuditLab, 2026-10-03): every
+    // fixture defaults to the correct shape (interval_count=1, licensed)
+    // so the existing "all match" tests stay all-matching; the new
+    // BILL-22/23 tests below override exactly one field at a time.
+    recurring: { interval: overrides.interval ?? "year", interval_count: overrides.interval_count ?? 1, usage_type: overrides.usage_type ?? "licensed" },
     active: overrides.active ?? true,
   };
 }
@@ -173,6 +179,98 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
       expect(captured).toHaveLength(1);
       expect(captured[0]).toContain('currency=eur (expected "usd")');
       expect(captured[0]).toContain('recurring.interval=month (expected "year")');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // BILL-22 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03): an
+  // archived Price (amount/interval/currency all still correct) refuses
+  // every checkout for that tier -- the nightly cron already checked
+  // `active` before this fix (unlike the script), but had no test pinning
+  // it; this is that test (AuditLab's own TEST-14).
+  it("BILL-22/TEST-14: active=false is flagged even when amount/interval/currency are all correct", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ active: false }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("active=false -- Stripe would refuse a checkout using this price entirely");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // BILL-23 (SecurityLab, MEDIUM, confirmed by AuditLab, 2026-10-03): an
+  // interval_count=3 "month" price bills quarterly, not monthly -- every
+  // other field (amount/interval/currency/active) stays correct.
+  it("BILL-23: recurring.interval_count=3 on a monthly price is flagged (bills quarterly, not monthly)", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ interval_count: 3 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("recurring.interval_count=3 (expected 1)");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // BILL-23b (SecurityLab, confirmed by AuditLab, 2026-10-03): a metered
+  // Price doesn't accept a line-item quantity the way a licensed one
+  // does -- checked on every price uniformly since nothing here bills
+  // metered, but the per-seat add-ons are the only ones sent WITH a
+  // quantity, so this is the one that would actually bite.
+  it("BILL-23b: recurring.usage_type=metered on the per-seat add-on is flagged", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      if (url === STRIPE_PRICE_URL("price_starter_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2000, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_growth_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_standard_monthly")) return Response.json(stripePriceResponse({ unit_amount: 3900, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_scale_monthly")) return Response.json(stripePriceResponse({ unit_amount: 5500, interval: "month" }));
+      if (url === STRIPE_PRICE_URL("price_addon_annual")) return Response.json(stripePriceResponse({ unit_amount: 1500, usage_type: "metered" }));
+      if (url === STRIPE_PRICE_URL("price_addon_monthly")) return Response.json(stripePriceResponse({ unit_amount: 150, interval: "month" }));
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { text: string };
+        captured.push(body.text ?? "");
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL");
+      expect(captured[0]).toContain('recurring.usage_type=metered (expected "licensed")');
     } finally {
       fetchSpy.mockRestore();
     }
