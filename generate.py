@@ -22121,7 +22121,14 @@ firm-permit deadlines and aren't on this table.</p>
 <p class="backlink"><a href="../">&larr; Back to all states</a></p>
 """
     return page_shell(
-        f"Every CPA Deadline Due December 31, 2026 — {SITE_NAME}",
+        # YE-2 (AuditLab, 2026-10-02, reopened): this used to say "Every CPA
+        # Deadline Due December 31, 2026" -- the page's own H1/body narrow
+        # to licence + firm-permit deadlines only (Alabama's/Minnesota's
+        # CPE-reporting deadlines are explicitly out of scope), but the
+        # <title>/og:title/twitter:title -- what a reader actually sees
+        # first, in a SERP/tab/share card -- still claimed "every". Matches
+        # the H1's own narrowed scope now, within the ~60-char SERP budget.
+        f"Every CPA License & Firm-Permit Deadline Due Dec 31, 2026 — {SITE_NAME}",
         f"{state_count} states have a CPA license or firm-permit deadline due December 31, 2026 -- "
         "see exactly which, sourced to each state's own rule.",
         body,
