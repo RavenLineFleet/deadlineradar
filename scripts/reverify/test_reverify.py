@@ -701,10 +701,14 @@ def test_watchdog_live_worker_age_alert_stale27():
     ok, msg = wd.live_check({"status": "ok", "worst_record_age_days": 21})
     assert ok is False and "LIVE" in msg and "deploy_worker" in msg
     from datetime import date
-    assert wd.live_check({"status": "ok"}, today=date(2026, 10, 8)) == (True, "live age: not exposed by /api/health yet")
-    ok, msg = wd.live_check({"status": "ok"}, today=date(2026, 10, 9))   # MON-10: a missing field is not silent forever
-    assert ok is False and "worst_record_age_days" in msg
-    assert wd.live_check({"worst_record_age_days": True})[0] is True                              # not a number
+    assert wd.live_check({"status": "ok"}, today=date(2026, 10, 2)) == (True, "live age: not exposed by /api/health yet")
+    ok, msg = wd.live_check({"status": "ok"}, today=date(2026, 10, 3))   # MON-10/13: live since 10-03, absence alerts
+    assert ok is False and "worst_record_age_days" in msg and "unparseable" in msg
+    assert wd.live_check({"worst_record_age_days": True}, today=date(2026, 10, 2))[0] is True     # not a number
+    ok, msg = wd.live_check({"status": "ok", "stale": True})                  # MON-13: stale alerts with the key omitted
+    assert ok is False and "stale=true" in msg
+    assert wd.live_check({"status": "ok", "stale": True, "worst_record_age_days": 5})[0] is False # ...or with a fine age
+    assert wd.live_check({"status": "ok", "stale": False, "worst_record_age_days": 12}) == (True, "live age 12d")
     assert wd.live_check(None)[0] is True                                                         # unreachable
     for unknown in (-1, float("nan")):                                                           # MON-12: unknown is not fine
         ok, msg = wd.live_check({"status": "ok", "worst_record_age_days": unknown})
