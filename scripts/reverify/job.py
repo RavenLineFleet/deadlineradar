@@ -33,6 +33,9 @@ LOG = os.path.join(STATE_DIR, "reverify_job.log")
 ASSETLAB_INBOX = os.environ.get("REVERIFY_ASSETLAB_INBOX", r"C:\Users\Devin\AssetLab\inbox")
 DATA_FILES = ["data/cpa_deadlines.json", "data/cpe_hours.json", "data/reinstatement.json", "data/renewal_fees.json"]
 WORKER_COPIES = {f: "worker/src/" + os.path.basename(f) for f in DATA_FILES}
+# MON-3 (2026-10-05): resynced each run so a stale capture can never block this job's own gate --
+# a fleet-wide pause stops ordinary ships, but this unattended job runs regardless (not throttle-gated).
+COVERAGE_STATS_FILE = "data/rule_change_coverage_stats.json"
 
 
 def log(msg):
@@ -119,6 +122,10 @@ def run(mode, push=True):
                 except OSError:
                     pass
                 return subprocess.run([py, me, *sys.argv[1:]], env=os.environ).returncode
+    # MON-3: resync before anything else runs, so a stale capture is fixed on THIS run even if
+    # nothing else changed below (sync failure is logged, never fatal -- the source may be down).
+    cov = sh(py, "scripts/sync_rule_change_coverage_stats.py", check=False)
+    log(f"coverage-stats sync rc={cov.returncode}: {cov.stdout.strip()[-300:]}")
     # the runner writes to a PENDING state dir; the real status is only updated by _publish_status
     os.makedirs(PENDING, exist_ok=True)
     if os.path.exists(STATUS):
@@ -135,7 +142,7 @@ def run(mode, push=True):
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
         return 1
-    if not sh("git", "status", "--porcelain", "--", *DATA_FILES).stdout.strip():
+    if not sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE).stdout.strip():
         log("no data changes (nothing newly CONFIRMED); nothing to deploy")
         if push:
             _publish_status(True)
@@ -174,7 +181,7 @@ def run(mode, push=True):
 
 def _gate_commit(mode, py, push):
     """Mirror worker copies, run all gates, commit. Returns an exit code, or "pushed?" when ready to push."""
-    changed = sh("git", "status", "--porcelain", "--", *DATA_FILES).stdout.strip()
+    changed = sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE).stdout.strip()
     if not changed:
         log("nothing left to commit after replay (main already carries these dates)")
         if push:
@@ -197,7 +204,7 @@ def _gate_commit(mode, py, push):
                 _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
             return 2
         log(f"gate ok: {' '.join(gate[1:])}")
-    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), "docs")
+    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), COVERAGE_STATS_FILE, "docs")
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",
        f"reverify: automated {mode} re-verification {datetime.now():%Y-%m-%d} ({n} data file(s) updated)")
