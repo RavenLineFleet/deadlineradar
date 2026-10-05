@@ -1,0 +1,15 @@
+#!/bin/sh
+# ATTR-5 (AuditLab, 2026-10-05): this repo is the live public site -- a
+# Claude Code attribution footer in a commit message is visible to anyone
+# browsing its history. Rejects the commit before it's made; preship_gate.py's
+# check_no_claude_attribution_in_commit_history() is the same check as a
+# build-time backstop for a commit made without this hook installed.
+# Install: git config core.hooksPath scripts/git-hooks   (run once per clone/worktree)
+
+msg_file="$1"
+if grep -qiE 'Co-Authored-By:[[:space:]]*Claude|Generated with \[Claude Code\]|Claude-Session:|noreply@anthropic\.com' "$msg_file"; then
+  echo "REJECTED: commit message contains a Claude Code attribution marker." >&2
+  echo "This repo is the live public site -- no Claude attribution in commit messages (ATTR-5)." >&2
+  exit 1
+fi
+exit 0

@@ -1298,6 +1298,59 @@ def _looks_like_secret_filename(name: str, full_path: Path | None = None) -> boo
     return _secret_filename_reason(name, full_path) is not None
 
 
+_CLAUDE_ATTRIBUTION_RE = re.compile(
+    r"Co-Authored-By:\s*Claude"
+    r"|Generated with \[Claude Code\]"
+    r"|Claude-Session:"
+    r"|noreply@anthropic\.com",
+    re.IGNORECASE,
+)
+
+
+def check_no_claude_attribution_in_commit_history(repo_root: Path) -> list[str]:
+    """ATTR-5 (AuditLab, 2026-10-05): this repo IS the live public site
+    (RavenLineFleet/deadlineradar) -- a Claude Code attribution footer in a
+    commit message is visible to anyone browsing the public history, the
+    same exposure class as a leaked fleet codename (see LB-1 immediately
+    above). No history rewrite: a force-push rewriting published commits is
+    its own hazard (see [[feedback_history_rewrite_orphans_commit_hash_
+    markers]] for why) and the repo goes private after the Pages/Cloudflare
+    cutover anyway. This is a forward-looking gate on NEW commits only --
+    checks commits not yet on origin/main (falling back to the last 20 on
+    HEAD if there's no local origin/main to diff against, e.g. a fresh
+    clone or a detached checkout) -- paired with a commit-msg hook that
+    catches the same patterns before the commit is even made."""
+    git = shutil.which("git")
+    if not git:
+        return ["[ERR] git not found on PATH -- cannot scan commit messages for Claude attribution."]
+    range_spec = "origin/main..HEAD"
+    probe = subprocess.run(
+        [git, "rev-parse", "--verify", "origin/main"], cwd=repo_root, capture_output=True, text=True,
+    )
+    if probe.returncode != 0:
+        range_spec = "-20"  # no local origin/main ref -- fall back to a bounded recent window
+    result = subprocess.run(
+        [git, "log", range_spec, "--format=%H%x00%B%x03"], cwd=repo_root, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return [f"[ERR] `git log {range_spec}` failed -- cannot scan commit messages for Claude attribution: {result.stderr.strip()[:200]}"]
+    errors: list[str] = []
+    for entry in result.stdout.split("\x03"):
+        entry = entry.strip("\n")
+        if not entry or "\x00" not in entry:
+            continue
+        sha, msg = entry.split("\x00", 1)
+        m = _CLAUDE_ATTRIBUTION_RE.search(msg)
+        if m:
+            errors.append(
+                f"[ATTR-5][{sha[:9]}] commit message carries a Claude Code attribution marker "
+                f"'{m.group(0)}' -- this repo is the live public site, visible to anyone browsing "
+                f"its history. Fix going forward with a new commit, NEVER a history rewrite "
+                f"(force-push hazard; the fix here is prevention, not erasure)."
+            )
+    return errors
+
+
 def check_no_untracked_secret_looking_files(repo_root: Path) -> list[str]:
     git = shutil.which("git")
     if not git:
@@ -8259,6 +8312,7 @@ def main():
     all_errors += check_firm_mobility_verification_marker_leak(repo_root)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
+    all_errors += check_no_claude_attribution_in_commit_history(repo_root)
     all_errors += check_no_untracked_secret_looking_files(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_focus_indicator_compensation(docs_dir)
