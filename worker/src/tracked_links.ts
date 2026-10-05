@@ -100,10 +100,10 @@ export interface ClassifyInput {
   userAgent: string | null;
   method: string;
   asn: number | null;
-  /** How many OTHER clicks on this same code landed in the 60s immediately
-   * before this one -- 0 for a lone click. See classifyClick's own comment
-   * for why a rolling count, not a "since first click" timestamp. */
-  priorHitsInLast60s: number;
+  /** Seconds between `clicked_at` and the earliest prior click on this
+   * same code TODAY (UTC) -- 0 if this IS the earliest today. See
+   * classifyClick's own comment on why "today" and not "ever". */
+  secondsSinceFirstSeenToday: number;
 }
 
 export interface ClassifyResult {
@@ -118,31 +118,25 @@ export interface ClassifyResult {
  * 2026-10-05: HEAD alone left POST/DELETE/etc. unflagged, and with no rate
  * limiting on this endpoint, anyone who learns a short, guessable,
  * published-in-email code like `x` or `li` could otherwise inflate its
- * count arbitrarily); or arriving as part of a burst -- at least one OTHER
- * click on the same code in the preceding 60 seconds. This is deliberately
- * a rolling burst count, not "60s after a *known send time*" (there is no
- * per-recipient send timestamp to compare against for these campaign
- * codes) and not "60s after the day's first click" either -- AuditLab
- * caught two problems with that earlier design in the same review:
- *
- *   - TL-2 (MEDIUM): scoped to a code's entire lifetime, it only ever
- *     fired in a code's first 60 seconds EVER, then was permanently inert
- *     -- true-ish for one-shot `co1`/`w1`, but wrong for `li`/`bsky`/
- *     `mast`/`x`/`nl`, which get a fresh scanner/preview burst on EVERY
- *     day's post or send.
- *   - TL-8 (LOW): day-scoping that fixed TL-2 introduced a new cost --
- *     the FIRST hit of every UTC day was unconditionally flagged even
- *     when it was a perfectly ordinary human click, because an empty
- *     window reads as "0 seconds since the first hit".
- *
- * A rolling "was there a burst" count fixes both at once: a lone click
- * (human or a single one-shot scanner hit) is never flagged by this
- * signal alone, a real multi-engine scanner sweep (which is what the
- * directive's four named gateways actually produce -- plural prefetches
- * within seconds, not one) still is, and it re-arms continuously rather
- * than needing any day-boundary logic at all. Trade-off, stated plainly:
- * a lone scanner hit with no UA/ASN match and no sibling hit within 60s
- * is NOT caught by this signal (the UA/ASN lists carry that case).
+ * count arbitrarily); or landing within 60s of the earliest hit on this
+ * code TODAY. That last one is deliberately not "60s after a *known send
+ * time*" -- these are campaign codes with no per-recipient token, so
+ * there is no send-time record to compare against. AuditLab TL-2 (MEDIUM,
+ * 2026-10-05): scoped to the calendar day (UTC), not the code's entire
+ * lifetime -- `co1`/`w1` are one-shot, but `li`/`bsky`/`mast`/`x`/`nl` get
+ * a fresh preview/scanner burst on EVERY day's post or send, and an
+ * unwindowed "ever" check went permanently inert after each code's first
+ * 60 seconds of existence, leaving those five to rely on the UA/ASN lists
+ * alone from day 2 onward. In practice a code gets no traffic before that
+ * day's send goes out, so the scanner burst that precedes any real
+ * recipient opening the message IS that day's earliest handful of hits --
+ * real humans essentially never read and click within a minute of send.
+ * Trade-off, stated plainly: if a human is *genuinely* the earliest click
+ * on a code on a given day (e.g. someone tests the link right after
+ * posting it), that hit -- and every hit in the 60s after it, not just
+ * that one row -- is misclassified as mail_scanner. Nothing is lost by
+ * that -- flagged hits are stored, not dropped -- it just undercounts
+ * "human" for that burst.
  */
 export function classifyClick(input: ClassifyInput): ClassifyResult {
   const ua = (input.userAgent ?? "").toLowerCase();
@@ -157,20 +151,27 @@ export function classifyClick(input: ClassifyInput): ClassifyResult {
   if (uaClass === "browser" && input.method !== "GET") {
     uaClass = "bot";
   }
-  if (uaClass === "browser" && input.priorHitsInLast60s > 0) {
+  if (uaClass === "browser" && input.secondsSinceFirstSeenToday < 60) {
     uaClass = "mail_scanner";
   }
 
   return { uaClass, isHuman: uaClass === "browser" };
 }
 
-async function priorHitsInLast60sForCode(db: D1Database, code: string, now: Date): Promise<number> {
-  const windowStart = new Date(now.getTime() - 60_000).toISOString();
+function startOfUtcDay(now: Date): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+}
+
+async function secondsSinceFirstSeenTodayForCode(db: D1Database, code: string, now: Date): Promise<number> {
   const row = await db
-    .prepare("SELECT COUNT(*) as n FROM link_clicks WHERE code = ?1 AND clicked_at >= ?2")
-    .bind(code, windowStart)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .prepare("SELECT MIN(clicked_at) as first FROM link_clicks WHERE code = ?1 AND clicked_at >= ?2")
+    .bind(code, startOfUtcDay(now))
+    .first<{ first: string | null }>();
+  const firstIso = row?.first ?? null;
+  if (!firstIso) return 0;
+  const firstMs = Date.parse(firstIso);
+  if (Number.isNaN(firstMs)) return 0;
+  return Math.max(0, (now.getTime() - firstMs) / 1000);
 }
 
 /**
@@ -194,12 +195,12 @@ export async function handleTrackedLink(url: URL, request: Request, env: Env): P
     const asn = typeof cf?.asn === "number" ? cf.asn : null;
     const now = new Date();
 
-    const priorHitsInLast60s = await priorHitsInLast60sForCode(env.DB, code, now);
+    const secondsSinceFirstSeenToday = await secondsSinceFirstSeenTodayForCode(env.DB, code, now);
     const { uaClass, isHuman } = classifyClick({
       userAgent: request.headers.get("User-Agent"),
       method: request.method,
       asn,
-      priorHitsInLast60s,
+      secondsSinceFirstSeenToday,
     });
 
     await env.DB.prepare(

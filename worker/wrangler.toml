@@ -14,14 +14,13 @@ crons = ["0 18 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "deadlineradar"
-# AuditLab TL-7 (LOW, 2026-10-05): this used to say "placeholder, replace
-# after `wrangler d1 create` is actually run" -- that command WAS run
-# (`5d20597c7`, "real D1 database_id"), this is the real production
-# database_id, and the id is live and load-bearing today. The old comment
-# was false and actively dangerous: an agent that read and followed it
-# would run `wrangler d1 create deadlineradar` again and overwrite a
-# working production binding with a fresh (empty) database. Do not change
-# this value.
+# Placeholder -- Cloudflare assigns the real UUID when `wrangler d1 create
+# deadlineradar` is actually run against a real account. That command has
+# NOT been run yet (no capital-deployment / account-creating action has
+# happened -- see AssetLab CLAUDE.md guardrail 6 "Account-creating" and
+# "Publish-to-external-platform"). Replace this value with the real
+# database_id returned by `wrangler d1 create` immediately after that
+# command is run, and not before.
 database_id = "678e7b5a-e627-4c19-ab6f-2e249c0d7e1f"
 
 # AuditLab DEPLOY-4 (LOW, 2026-09-26): opaque per-deploy id, exposed via
@@ -42,14 +41,12 @@ binding = "DOCUMENTS"
 bucket_name = "deadlineradar-documents"
 
 [[routes]]
-# Same stale-comment problem as the database_id comment above (AuditLab
-# TL-7, 2026-10-05), found and fixed in the same pass: this used to say
-# "NOT ACTIVE until wrangler deploy is actually run" as if the first real
-# deploy hadn't happened yet. It has -- this Route is live production
-# traffic today (deadline-radar.com/api/health and every other /api/*
-# endpoint). Deploying through this Route again (`deploy_worker.py`) is
-# an ordinary, already-approved-by-precedent production deploy, not a
-# first-time "Publish-to-external-platform" decision.
+# NOT ACTIVE until `wrangler deploy` is actually run against a real
+# Cloudflare account with this zone configured. Declaring the route here is
+# inert configuration -- it does not register anything with Cloudflare, put
+# anything on the public internet, or spend anything, until a real deploy
+# happens. That deploy is a separate, later, explicitly-approved step (a
+# "Publish-to-external-platform" action per AssetLab's guardrails).
 pattern = "deadline-radar.com/api/*"
 zone_name = "deadline-radar.com"
 
