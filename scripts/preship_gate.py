@@ -1302,7 +1302,8 @@ _CLAUDE_ATTRIBUTION_RE = re.compile(
     r"Co-Authored-By:\s*Claude"
     r"|Generated with \[Claude Code\]"
     r"|Claude-Session:"
-    r"|noreply@anthropic\.com",
+    r"|noreply@anthropic\.com"
+    r"|claude\.ai/code",
     re.IGNORECASE,
 )
 
@@ -1312,14 +1313,18 @@ def check_no_claude_attribution_in_commit_history(repo_root: Path) -> list[str]:
     (RavenLineFleet/deadlineradar) -- a Claude Code attribution footer in a
     commit message is visible to anyone browsing the public history, the
     same exposure class as a leaked fleet codename (see LB-1 immediately
-    above). No history rewrite: a force-push rewriting published commits is
-    its own hazard (see [[feedback_history_rewrite_orphans_commit_hash_
-    markers]] for why) and the repo goes private after the Pages/Cloudflare
-    cutover anyway. This is a forward-looking gate on NEW commits only --
-    checks commits not yet on origin/main (falling back to the last 20 on
-    HEAD if there's no local origin/main to diff against, e.g. a fresh
-    clone or a detached checkout) -- paired with a commit-msg hook that
-    catches the same patterns before the commit is even made."""
+    above). A force-push rewriting published commits is its own hazard
+    (orphans anything keyed off the old SHAs -- deploy markers, downstream
+    clones, reflog/backup residue -- and is hard to fully undo if mishandled)
+    and is NOT a routine fix for this: the 2026-10-05 rewrite that cleared
+    87 pre-existing commits was a one-off Devin-approved exception, not a
+    standing policy to repeat. The standing fix is prevention -- this gate
+    plus the commit-msg hook below -- not erasure. This is a forward-looking
+    gate on NEW commits only -- checks commits not yet on origin/main
+    (falling back to the last 20 on HEAD if there's no local origin/main to
+    diff against, e.g. a fresh clone or a detached checkout) -- paired with a
+    commit-msg hook that catches the same patterns before the commit is even
+    made."""
     git = shutil.which("git")
     if not git:
         return ["[ERR] git not found on PATH -- cannot scan commit messages for Claude attribution."]
@@ -1345,8 +1350,8 @@ def check_no_claude_attribution_in_commit_history(repo_root: Path) -> list[str]:
             errors.append(
                 f"[ATTR-5][{sha[:9]}] commit message carries a Claude Code attribution marker "
                 f"'{m.group(0)}' -- this repo is the live public site, visible to anyone browsing "
-                f"its history. Fix going forward with a new commit, NEVER a history rewrite "
-                f"(force-push hazard; the fix here is prevention, not erasure)."
+                f"its history. Fix going forward with a new commit -- a history rewrite needs "
+                f"Devin's explicit go (force-push hazard); prevention, not erasure, is the standing fix."
             )
     return errors
 
