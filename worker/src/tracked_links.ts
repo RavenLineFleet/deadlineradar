@@ -19,16 +19,21 @@ export type UaClass = "browser" | "bot" | "mail_scanner";
 
 // code -> destination path (resolved against https://deadline-radar.com/).
 // Adding a code is a one-line change here; nothing else needs to know
-// about it.
-export const TRACKED_LINK_CODES: Record<string, string> = {
-  co1: "/colorado/", // Colorado batch outreach (email + forms)
-  w1: "/", // week-1 multi-state batch
-  li: "/", // daily LinkedIn posts
-  bsky: "/", // daily Bluesky posts
-  mast: "/", // daily Mastodon posts
-  x: "/", // daily X posts
-  nl: "/", // Deadline-Radar Brief (Beehiiv newsletter)
-};
+// about it. AuditLab TL-1 (MEDIUM, 2026-10-05): a plain object literal
+// inherits Object.prototype, so a lookup like `obj["constructor"]` returns
+// a non-undefined value for 12 keys that were never added here, bypassing
+// the "unknown code" branch below. A Map has no prototype-chain lookups at
+// all -- the whole bug class is structurally impossible, not just guarded
+// against at the call site.
+export const TRACKED_LINK_CODES: ReadonlyMap<string, string> = new Map([
+  ["co1", "/colorado/"], // Colorado batch outreach (email + forms)
+  ["w1", "/"], // week-1 multi-state batch
+  ["li", "/"], // daily LinkedIn posts
+  ["bsky", "/"], // daily Bluesky posts
+  ["mast", "/"], // daily Mastodon posts
+  ["x", "/"], // daily X posts
+  ["nl", "/"], // Deadline-Radar Brief (Beehiiv newsletter)
+]);
 
 // Mail-security gateways the directive names (Microsoft Safe Links/O365
 // ATP, Proofpoint URL Defense, Mimecast, Barracuda) now mostly fetch links
@@ -96,9 +101,9 @@ export interface ClassifyInput {
   method: string;
   asn: number | null;
   /** Seconds between `clicked_at` and the earliest prior click on this
-   * same code (0 if this IS the earliest -- see classifyClick's own
-   * comment on that choice). */
-  secondsSinceFirstSeen: number;
+   * same code TODAY (UTC) -- 0 if this IS the earliest today. See
+   * classifyClick's own comment on why "today" and not "ever". */
+  secondsSinceFirstSeenToday: number;
 }
 
 export interface ClassifyResult {
@@ -108,19 +113,30 @@ export interface ClassifyResult {
 
 /**
  * Three independent signals, any one of which is sufficient to flag a hit
- * as automated: a known mail-scanner/bot UA or ASN; a HEAD request (a real
- * browser only ever GETs a clicked link); or landing within 60s of the
- * earliest-ever hit on this code. That last one is deliberately not "60s
- * after a *known send time*" -- these are one-shot campaign codes with no
- * per-recipient token, so there is no send-time record to compare against.
- * In practice a brand-new code gets no traffic before its campaign goes
- * out, so the scanner burst that precedes any real recipient opening the
- * message IS the earliest handful of hits -- real humans essentially never
- * read and click within a minute of send. Trade-off, stated plainly: if a
- * human is *genuinely* the very first-ever click on a code (e.g. someone
- * tests the link right after posting it), that hit is misclassified as
- * mail_scanner. Nothing is lost by that -- flagged hits are stored, not
- * dropped -- it just slightly undercounts "human" on that one row.
+ * as automated: a known mail-scanner/bot UA or ASN; a non-GET request (a
+ * real browser only ever GETs a clicked link -- AuditLab TL-4, MEDIUM,
+ * 2026-10-05: HEAD alone left POST/DELETE/etc. unflagged, and with no rate
+ * limiting on this endpoint, anyone who learns a short, guessable,
+ * published-in-email code like `x` or `li` could otherwise inflate its
+ * count arbitrarily); or landing within 60s of the earliest hit on this
+ * code TODAY. That last one is deliberately not "60s after a *known send
+ * time*" -- these are campaign codes with no per-recipient token, so
+ * there is no send-time record to compare against. AuditLab TL-2 (MEDIUM,
+ * 2026-10-05): scoped to the calendar day (UTC), not the code's entire
+ * lifetime -- `co1`/`w1` are one-shot, but `li`/`bsky`/`mast`/`x`/`nl` get
+ * a fresh preview/scanner burst on EVERY day's post or send, and an
+ * unwindowed "ever" check went permanently inert after each code's first
+ * 60 seconds of existence, leaving those five to rely on the UA/ASN lists
+ * alone from day 2 onward. In practice a code gets no traffic before that
+ * day's send goes out, so the scanner burst that precedes any real
+ * recipient opening the message IS that day's earliest handful of hits --
+ * real humans essentially never read and click within a minute of send.
+ * Trade-off, stated plainly: if a human is *genuinely* the earliest click
+ * on a code on a given day (e.g. someone tests the link right after
+ * posting it), that hit -- and every hit in the 60s after it, not just
+ * that one row -- is misclassified as mail_scanner. Nothing is lost by
+ * that -- flagged hits are stored, not dropped -- it just undercounts
+ * "human" for that burst.
  */
 export function classifyClick(input: ClassifyInput): ClassifyResult {
   const ua = (input.userAgent ?? "").toLowerCase();
@@ -132,20 +148,25 @@ export function classifyClick(input: ClassifyInput): ClassifyResult {
     uaClass = "bot";
   }
 
-  if (uaClass === "browser" && input.method === "HEAD") {
+  if (uaClass === "browser" && input.method !== "GET") {
     uaClass = "bot";
   }
-  if (uaClass === "browser" && input.secondsSinceFirstSeen < 60) {
+  if (uaClass === "browser" && input.secondsSinceFirstSeenToday < 60) {
     uaClass = "mail_scanner";
   }
 
   return { uaClass, isHuman: uaClass === "browser" };
 }
 
-async function secondsSinceFirstSeenForCode(db: D1Database, code: string, now: Date): Promise<number> {
-  const row = await db.prepare("SELECT MIN(clicked_at) as first FROM link_clicks WHERE code = ?").bind(code).first<{
-    first: string | null;
-  }>();
+function startOfUtcDay(now: Date): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+}
+
+async function secondsSinceFirstSeenTodayForCode(db: D1Database, code: string, now: Date): Promise<number> {
+  const row = await db
+    .prepare("SELECT MIN(clicked_at) as first FROM link_clicks WHERE code = ?1 AND clicked_at >= ?2")
+    .bind(code, startOfUtcDay(now))
+    .first<{ first: string | null }>();
   const firstIso = row?.first ?? null;
   if (!firstIso) return 0;
   const firstMs = Date.parse(firstIso);
@@ -161,11 +182,11 @@ async function secondsSinceFirstSeenForCode(db: D1Database, code: string, now: D
  */
 export async function handleTrackedLink(url: URL, request: Request, env: Env): Promise<Response> {
   const code = url.pathname.slice("/r/".length);
-  const destination = TRACKED_LINK_CODES[code];
 
-  if (destination === undefined) {
+  if (!TRACKED_LINK_CODES.has(code)) {
     return new Response(null, { status: 302, headers: { Location: "https://deadline-radar.com/" } });
   }
+  const destination = TRACKED_LINK_CODES.get(code)!;
 
   try {
     const cf = request.cf;
@@ -174,12 +195,12 @@ export async function handleTrackedLink(url: URL, request: Request, env: Env): P
     const asn = typeof cf?.asn === "number" ? cf.asn : null;
     const now = new Date();
 
-    const secondsSinceFirstSeen = await secondsSinceFirstSeenForCode(env.DB, code, now);
+    const secondsSinceFirstSeenToday = await secondsSinceFirstSeenTodayForCode(env.DB, code, now);
     const { uaClass, isHuman } = classifyClick({
       userAgent: request.headers.get("User-Agent"),
       method: request.method,
       asn,
-      secondsSinceFirstSeen,
+      secondsSinceFirstSeenToday,
     });
 
     await env.DB.prepare(

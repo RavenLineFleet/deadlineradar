@@ -26,7 +26,7 @@ async function countClicks(code?: string): Promise<number> {
 
 describe("GET /r/:code -- tracked outreach short links", () => {
   it("every allowlisted code 302s to its destination with ?src=<code> and logs one row", async () => {
-    for (const [code, destination] of Object.entries(TRACKED_LINK_CODES)) {
+    for (const [code, destination] of TRACKED_LINK_CODES) {
       const before = await countClicks(code);
       const resp = await SELF.fetch(`https://deadline-radar.com/r/${code}`, {
         headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
@@ -59,6 +59,36 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     expect(await countClicks()).toBe(before);
   });
 
+  // AuditLab TL-1 (MEDIUM, 2026-10-05): a plain object literal's inherited
+  // Object.prototype keys (constructor, toString, __proto__, ...) used to
+  // return a non-undefined value from a bracket lookup, bypassing the
+  // unknown-code branch -- 12 keys, enumerated in AuditLab's report. The
+  // fix (a Map, which has no prototype-chain lookups) makes the whole
+  // class structurally impossible rather than guarding each one.
+  it("inherited Object.prototype keys are NOT bypasses -- all 12 are treated as unknown codes", async () => {
+    const inheritedKeys = [
+      "constructor",
+      "__defineGetter__",
+      "__defineSetter__",
+      "hasOwnProperty",
+      "__lookupGetter__",
+      "__lookupSetter__",
+      "isPrototypeOf",
+      "propertyIsEnumerable",
+      "toString",
+      "valueOf",
+      "__proto__",
+      "toLocaleString",
+    ];
+    for (const key of inheritedKeys) {
+      const before = await countClicks();
+      const resp = await SELF.fetch(`https://deadline-radar.com/r/${encodeURIComponent(key)}`, { redirect: "manual" });
+      expect(resp.status).toBe(302);
+      expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/");
+      expect(await countClicks()).toBe(before);
+    }
+  });
+
   it("a known scanner User-Agent (Barracuda Sentinel) is flagged, not counted human", async () => {
     // Use a code not yet exercised by the "every allowlisted code" case's
     // >60s-later run so this isn't ALSO caught by the first-seen timing
@@ -66,7 +96,7 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     await SELF.fetch("https://deadline-radar.com/r/w1", {
       headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
       redirect: "manual",
-    }); // seed an earlier "first seen" so the next hit isn't itself flagged by timing
+    }); // seed an earlier "first seen today" so the next hit isn't itself flagged by timing
 
     const resp = await SELF.fetch("https://deadline-radar.com/r/w1", {
       headers: { "User-Agent": "Barracuda Sentinel (EE)" },
@@ -132,7 +162,28 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     expect(row.is_human).toBe(0);
   });
 
-  it("the very first-ever hit on a code is flagged (within-60s-of-first-seen, seeded by itself)", async () => {
+  // AuditLab TL-4 (MEDIUM, 2026-10-05): HEAD alone left POST/PUT/DELETE/etc.
+  // unflagged -- with no rate limiting and a short, guessable, published
+  // code, that let anyone inflate the human count arbitrarily.
+  it("a POST (or any non-GET) is flagged even with an ordinary browser User-Agent", async () => {
+    await SELF.fetch("https://deadline-radar.com/r/co1", {
+      headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
+      redirect: "manual",
+    });
+
+    const resp = await SELF.fetch("https://deadline-radar.com/r/co1", {
+      method: "POST",
+      headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
+      redirect: "manual",
+      cf: { asn: 64512 } as any,
+    });
+    expect(resp.status).toBe(302);
+    const row = await latestClick();
+    expect(row.ua_class).toBe("bot");
+    expect(row.is_human).toBe(0);
+  });
+
+  it("the very first hit on a code today is flagged (within-60s-of-first-seen-today, seeded by itself)", async () => {
     const resp = await SELF.fetch("https://deadline-radar.com/r/mast", {
       headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
       redirect: "manual",
@@ -144,14 +195,15 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     expect(row.is_human).toBe(0);
   });
 
-  it("an ordinary browser hit well after the first-seen burst is counted human", async () => {
+  it("an ordinary browser hit well after the first-seen-today burst is counted human", async () => {
     await SELF.fetch("https://deadline-radar.com/r/x", {
       headers: { "User-Agent": "MicrosoftPreview/1.0" },
       redirect: "manual",
     });
 
     // Back-date that seed row's clicked_at so "now" reads as > 60s after
-    // the code's first-ever hit, without sleeping the test suite for real.
+    // the code's first-seen-today hit, without sleeping the test suite
+    // for real (and without crossing a UTC day boundary -- 5 minutes).
     await env.DB
       .prepare(
         "UPDATE link_clicks SET clicked_at = ? WHERE id = (SELECT id FROM link_clicks WHERE code = 'x' ORDER BY id ASC LIMIT 1)"
@@ -168,6 +220,39 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     const row = await latestClick();
     expect(row.ua_class).toBe("browser");
     expect(row.is_human).toBe(1);
+  });
+
+  // AuditLab TL-2 (MEDIUM, 2026-10-05): the original "first-ever" query was
+  // unwindowed, so a recurring code (li/bsky/mast/x/nl) went permanently
+  // inert on this signal after its first 60 seconds of existence -- a NEW
+  // day's post/send burst was never caught again. Proven here: a code with
+  // only YESTERDAY's history still gets today's first hit flagged.
+  it("a recurring code's EARLIER-DAY history does not suppress today's new burst from being flagged", async () => {
+    await SELF.fetch("https://deadline-radar.com/r/nl", {
+      headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
+      redirect: "manual",
+      cf: { asn: 64512 } as any,
+    });
+    await env.DB
+      .prepare(
+        "UPDATE link_clicks SET clicked_at = ? WHERE id = (SELECT id FROM link_clicks WHERE code = 'nl' ORDER BY id DESC LIMIT 1)"
+      )
+      .bind(new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()) // 25h ago -- a prior UTC day
+      .run();
+
+    // Today's first hit on this same recurring code: ordinary browser UA,
+    // unlisted ASN -- if the day-window fix is missing, this reads as "not
+    // the first-ever hit, and it's been >60s since that old one" and gets
+    // counted human. With the fix, it's the first hit TODAY and is flagged.
+    const resp = await SELF.fetch("https://deadline-radar.com/r/nl", {
+      headers: { "User-Agent": "Mozilla/5.0 Chrome/120" },
+      redirect: "manual",
+      cf: { asn: 64512 } as any,
+    });
+    expect(resp.status).toBe(302);
+    const row = await latestClick();
+    expect(row.ua_class).toBe("mail_scanner");
+    expect(row.is_human).toBe(0);
   });
 
   it("logs no IP and no raw user-agent string -- only code/time/coarse-geo/classification columns", async () => {
@@ -192,27 +277,32 @@ describe("GET /r/:code -- tracked outreach short links", () => {
 });
 
 describe("classifyClick (unit)", () => {
-  it("plain browser hit, long after first-seen, no scanner signal -> browser/human", () => {
+  it("plain browser hit, long after first-seen-today, no scanner signal -> browser/human", () => {
     const result = classifyClick({
       userAgent: "Mozilla/5.0 Chrome/120",
       method: "GET",
       asn: 64512,
-      secondsSinceFirstSeen: 3600,
+      secondsSinceFirstSeenToday: 3600,
     });
     expect(result).toEqual({ uaClass: "browser", isHuman: true });
   });
 
-  it("UA/ASN/HEAD/timing signals each independently flag, and UA/ASN beat a late timestamp", () => {
-    expect(classifyClick({ userAgent: "Barracuda Sentinel (EE)", method: "GET", asn: 64512, secondsSinceFirstSeen: 3600 }).uaClass).toBe(
+  it("UA/ASN/non-GET/timing signals each independently flag, and UA/ASN beat a late timestamp", () => {
+    expect(
+      classifyClick({ userAgent: "Barracuda Sentinel (EE)", method: "GET", asn: 64512, secondsSinceFirstSeenToday: 3600 }).uaClass
+    ).toBe("mail_scanner");
+    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: 8075, secondsSinceFirstSeenToday: 3600 }).uaClass).toBe(
       "mail_scanner"
     );
-    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: 8075, secondsSinceFirstSeen: 3600 }).uaClass).toBe("mail_scanner");
-    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "HEAD", asn: 64512, secondsSinceFirstSeen: 3600 }).uaClass).toBe("bot");
-    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: 64512, secondsSinceFirstSeen: 10 }).uaClass).toBe("mail_scanner");
+    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "HEAD", asn: 64512, secondsSinceFirstSeenToday: 3600 }).uaClass).toBe("bot");
+    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "POST", asn: 64512, secondsSinceFirstSeenToday: 3600 }).uaClass).toBe("bot");
+    expect(classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: 64512, secondsSinceFirstSeenToday: 10 }).uaClass).toBe(
+      "mail_scanner"
+    );
   });
 
   it("a null/unknown ASN never matches the scanner set", () => {
-    const result = classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: null, secondsSinceFirstSeen: 3600 });
+    const result = classifyClick({ userAgent: "Mozilla/5.0", method: "GET", asn: null, secondsSinceFirstSeenToday: 3600 });
     expect(result).toEqual({ uaClass: "browser", isHuman: true });
   });
 });
