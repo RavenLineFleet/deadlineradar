@@ -49,3 +49,11 @@ bucket_name = "deadlineradar-documents"
 # "Publish-to-external-platform" action per AssetLab's guardrails).
 pattern = "deadline-radar.com/api/*"
 zone_name = "deadline-radar.com"
+
+[[routes]]
+# Tracked outreach short links (Orchestrator directive, 2026-10-05, Devin
+# RED-approved) -- bound separately from /api/* so the public URL is
+# https://deadline-radar.com/r/<code>, matching what the outreach batches
+# and social posts will actually use. See src/tracked_links.ts.
+pattern = "deadline-radar.com/r/*"
+zone_name = "deadline-radar.com"

@@ -306,6 +306,7 @@ import {
   type StripeWebhookEvent,
 } from "./stripe";
 import { buildIcs, type IcsEvent } from "./ics";
+import { handleTrackedLink } from "./tracked_links";
 
 const SITE_NAME_FOR_WORKER = "Deadline-Radar";
 
@@ -9972,6 +9973,15 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       };
       if (freshness.age_days !== -1) body.worst_record_age_days = freshness.age_days;
       return jsonResponse(200, body);
+    }
+
+    // Orchestrator directive (2026-10-05, Devin RED-approved): outreach
+    // short links -- see tracked_links.ts for the allowlist, the click log
+    // (migration 0089), and the automated-traffic classification. Bound to
+    // its own deadline-radar.com/r/* Route (wrangler.toml) so the public
+    // URL is https://deadline-radar.com/r/<code>, not nested under /api/.
+    if (url.pathname.startsWith("/r/") && url.pathname.length > "/r/".length) {
+      return handleTrackedLink(url, request, env);
     }
 
     // Orchestrator directive (2026-09-25): the MT Society of CPAs eConnect
