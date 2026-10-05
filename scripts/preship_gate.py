@@ -230,9 +230,20 @@ _PROSE_TRACKER_REF_RE = re.compile(r"\b(?:roadmap|ticket|backlog|issue|epic|stor
 # it is pure noise and would train the next reader to ignore this gate.
 # "Contender" is likewise an ordinary English word. Both are unmatchable
 # against their internal use here, so they get no rule rather than a bad one.
+# LB-1 (SecurityLab, 2026-10-05): the original list above was written when
+# only AuditLab/ValueLab/DiffLab/AssetLab/BotLab/StockLab/PortfolioMeta/
+# BettingBot existed -- HomeLab/SecurityLab/ScoutLab/LedgerLab/ShopLab/
+# Orchestrator were added to the fleet later and never backfilled here,
+# which is exactly how south-dakota-reinstatement's data_gap_note shipped
+# "HomeLab P0 30-day-wall sweep" to a live page: every other check in this
+# file ran clean because none of them look for a bare codename, only for
+# the OTHER leak shapes (snake_case, finding-IDs, tracker refs, dated
+# changelog syntax). Listed alphabetically so a future addition is a
+# one-line diff, not a hunt for where the list "really" lives.
 _PROSE_INTERNAL_NAME_RE = re.compile(
-    r"\b(?:AuditLab|ValueLab|DiffLab|AssetLab|BotLab|StockLab|PortfolioMeta|"
-    r"BettingBot|FleetDeck|firmchat|HANDOFF)\b"
+    r"\b(?:AssetLab|AuditLab|BettingBot|BotLab|DiffLab|FleetDeck|HANDOFF|"
+    r"HomeLab|LedgerLab|Orchestrator|PortfolioMeta|ScoutLab|SecurityLab|"
+    r"ShopLab|StockLab|ValueLab|firmchat)\b"
 )
 
 # GATE-1 hardening (AuditLab, COPY-3 2026-08-14 residual report, implemented
@@ -690,6 +701,38 @@ def check_no_shipped_html_comments(html_files: list[Path]) -> list[str]:
     return errors
 
 
+def check_no_fleet_codenames_in_shipped_html(html_files: list[Path]) -> list[str]:
+    """LB-1 (SecurityLab, 2026-10-05): south-dakota-reinstatement's
+    data_gap_note leaked "HomeLab P0 30-day-wall sweep" to a live page, and
+    separately, generate.py's own f-string template literals had shipped
+    several "// ShopLab cold-read ..." / "// AuditLab A11Y-18 ..." JS
+    comments straight into /pricing/ and /roadmap/'s <script> blocks --
+    viewable in "view source" by anyone, not just a reader of rendered
+    prose. check_prose_leak_shapes()'s _PROSE_INTERNAL_NAME_RE match covers
+    the data-field half (rendered prose, scripts/comments stripped before
+    scanning) and check_assistant_api_fields_no_internal_notes() now covers
+    the /api/assistant/* half -- this is the THIRD leak path, source code
+    comments inside a shipped <script>/<!-- --> block, which both of those
+    deliberately exclude by design (they scan what a reader SEES, not the
+    raw markup). Scans the full, unstripped page text on purpose -- a
+    maintainer's code comment has no legitimate reason to ever contain a
+    fleet codename, so there is no "stripped normally, this is different"
+    case to protect, unlike real reader-facing prose."""
+    if not html_files:
+        return ["[CODENAME] no HTML files handed to check_no_fleet_codenames_in_shipped_html() -- a zero here would be a silent pass"]
+    errors: list[str] = []
+    for f in html_files:
+        text = f.read_text(encoding="utf-8")
+        for m in _PROSE_INTERNAL_NAME_RE.finditer(text):
+            snippet = " ".join(text[max(0, m.start() - 60): m.end() + 90].split())
+            errors.append(
+                f"[CODENAME][{f}] internal fleet name '{m.group(0)}' shipped in the raw page "
+                f"(markup, script, or comment) -- ...{snippet}... (visible in \"view source\" even "
+                f"when stripped from rendered prose -- see LB-1, 2026-10-05)"
+            )
+    return errors
+
+
 def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> list[str]:
     calc_files = [f for f in html_files if f.name == "index.html" and f.parent.name == "deadline-calculator"]
     if not calc_files:
@@ -809,6 +852,7 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
                     (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                     (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                     (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                    (_PROSE_INTERNAL_NAME_RE, "internal fleet name (LB-1 shape)"),
                 ):
                     pm = pat.search(val)
                     if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
@@ -898,6 +942,7 @@ def collect_firm_mobility_internal_note_candidates(repo_root: Path) -> list[str]
                 (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
                 (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
                 (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                (_PROSE_INTERNAL_NAME_RE, "internal fleet name (LB-1 shape)"),
                 (_PROSE_DATED_PAREN_RE, "dated-parenthetical shape (may be a legitimate as-of date, read it)"),
                 (_PROSE_URL_RE, "embedded URL (verify it's sourcing transparency, not a repointing note)"),
             ):
@@ -8207,6 +8252,7 @@ def main():
     all_errors += check_double_hyphen_hand_copy_pages(docs_dir)
     all_errors += check_blog_approval_gate(repo_root)
     all_errors += check_no_shipped_html_comments(html_files)
+    all_errors += check_no_fleet_codenames_in_shipped_html(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)

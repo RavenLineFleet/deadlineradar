@@ -3453,8 +3453,7 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
         body: JSON.stringify({{tier: tier, interval: drPricingInterval}})
       }}).then(function(res) {{
         if (res.status === 401) {{
-          // ShopLab cold-read (2026-08-20, orchestrator-approved): carry the
-          // tier through the redirect so it isn't lost. localStorage (not
+          // Carry the tier through the redirect so it isn't lost. localStorage (not
           // just the URL) so it survives the signup form's own navigation
           // and the magic-link email round trip, as long as that link is
           // opened in this same browser -- read back on /firm-dashboard/'s
@@ -9050,13 +9049,12 @@ _ROADMAP_JS_HTML = f"""<script>
         voteHtml +
         '<button type="button" class="dr-roadmap-notify-toggle">Notify me when this ships</button>' +
         '<form class="dr-roadmap-notify-form" data-idea-id="' + esc(idea.id) + '" hidden>' + hiddenFieldsHtml +
-        // AuditLab A11Y-18 (LOW-MEDIUM, 2026-09-19): a placeholder is not a
-        // valid accessible name (WCAG 4.1.2) and disappears once typed into
-        // (3.3.2) -- caught only once AuditLab checked this control in its
-        // actually-revealed state (after "Notify me when this ships" is
-        // clicked), which a static-HTML sweep can't see since this whole
-        // form is assembled by JS at render() time, not present in the
-        // built page source at all.
+        // A11Y-18: a placeholder is not a valid accessible name (WCAG 4.1.2)
+        // and disappears once typed into (3.3.2) -- only visible once this
+        // control is checked in its actually-revealed state (after "Notify
+        // me when this ships" is clicked), which a static-HTML sweep can't
+        // see since this whole form is assembled by JS at render() time,
+        // not present in the built page source at all.
         '<input type="email" class="dr-roadmap-notify-email" placeholder="you@example.com" required autocomplete="email" aria-label="' + esc('Email address for ' + idea.title + ' ship notification') + '">' +
         '<button type="submit">Notify me</button></form>' +
         '<p class="dr-roadmap-notify-result" hidden></p>' +
@@ -10851,8 +10849,7 @@ _FIRM_LOGIN_VIEW_JS_HTML = """<script>
     if (referralCodeEl) referralCodeEl.value = referralCodeParam;
   }
 
-  // ShopLab cold-read (2026-08-20, orchestrator-approved): reinforces the
-  // ?tier= param _PRICING_CHECKOUT_JS_HTML's 401 redirect carries here (same
+  // Reinforces the ?tier= param _PRICING_CHECKOUT_JS_HTML's 401 redirect carries here (same
   // pattern as ?ref= just above) into localStorage, so a direct/shared link
   // to this exact URL also works, not just the redirect that set it
   // originally. Validated against the known tier slugs rather than stored
@@ -14763,8 +14760,7 @@ function drToggleCancellation(cancel, btn) {
   });
 }
 
-// ShopLab cold-read (2026-08-20, orchestrator-approved "if only three
-// things" #2): resumes the checkout _PRICING_CHECKOUT_JS_HTML's 401 redirect
+// Resumes the checkout _PRICING_CHECKOUT_JS_HTML's 401 redirect
 // parked in localStorage (see that function's own comment for why
 // localStorage, not a server column). Runs once, on the first dashboard
 // data load after a signup/login that carried a pending tier -- reads it,
@@ -21336,8 +21332,7 @@ def build_firm_dashboard_page(
     <div id="dr-dash-error" class="callout" style="border-left-color:#c33737;" role="alert" hidden></div>
     <div id="dr-dash-success" class="callout" style="border-left-color:var(--verified-green);" role="status" hidden></div>
     <div id="dr-dash-warning" class="callout" style="border-left-color:var(--gold);" role="status" hidden></div>
-    <!-- ShopLab cold-read (2026-08-20, orchestrator-approved "if only three
-    things" #2): a logged-out click on a /pricing/ tier button 401s, and the
+    <!-- A logged-out click on a /pricing/ tier button 401s, and the
     redirect to /firm-login/ dropped which tier they wanted -- "buyer has to
     re-find their tier after the magic-link round-trip". Carried client-side
     via localStorage (no server/schema change -- the magic-link email round
