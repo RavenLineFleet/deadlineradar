@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS link_clicks (
     is_human INTEGER NOT NULL    -- 1 if ua_class = 'browser', 0 otherwise -- denormalized for a cheap WHERE
 );
 
--- The click handler's two reads are both point lookups on `code` (the
--- first-seen-time check in tracked_links.ts, and the report tool's per-code
--- rollups) -- never a full-table scan on the write path, per the directive.
+-- The click handler's read is a point lookup on `code` (the rolling
+-- burst-detection count in tracked_links.ts) -- never a full-table scan on
+-- the write path, per the directive. The report tool's per-code rollups
+-- use the same index.
 CREATE INDEX IF NOT EXISTS idx_link_clicks_code ON link_clicks(code, clicked_at);
