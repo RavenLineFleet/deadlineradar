@@ -281,7 +281,7 @@
 </html>
 <script>
 (function() {
-  // PR6 (2026-10-02): which cadence the toggle above the cards currently
+  // which cadence the toggle above the cards currently
   // shows -- same client-UI-state-only posture as the dashboard's own
   // drBillingInterval (the server resolves its own Stripe Price id,
   // this is never trusted as the price itself).
@@ -320,7 +320,7 @@
           // and the magic-link email round trip, as long as that link is
           // opened in this same browser -- read back on /firm-dashboard/'s
           // load, see drCheckPendingCheckoutTier().
-          // PR6 (2026-10-02): the chosen interval rides along the same way.
+          // the chosen interval rides along the same way.
           try {
             window.localStorage.setItem('dr_pending_checkout_tier', tier);
             window.localStorage.setItem('dr_pending_checkout_interval', drPricingInterval);

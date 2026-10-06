@@ -1300,7 +1300,8 @@ def _looks_like_secret_filename(name: str, full_path: Path | None = None) -> boo
 
 _CLAUDE_ATTRIBUTION_RE = re.compile(
     r"Co-Authored-By:\s*Claude"
-    r"|Generated with \[Claude Code\]"
+    r"|Generated with \[?Claude Code\]?"
+    r"|Assisted-By:\s*Claude"
     r"|Claude-Session:"
     r"|noreply@anthropic\.com"
     r"|claude\.ai/code",

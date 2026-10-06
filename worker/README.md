@@ -18,31 +18,26 @@ call to this codebase under the assumption that "Phase 2" means "later in
 this same session" -- it means a distinct future ticket, gated the same way
 this one was (plan-first to the orchestrator, explicit go).
 
-## Status: local / staged only -- NOT deployed
+## Status: DEPLOYED -- live production
 
-Nothing in this directory has been deployed to any real Cloudflare account.
-Specifically, as of this commit:
+This Worker is live at `deadline-radar.com/api/*` and `/r/*`
+(`https://deadline-radar.com/api/health` returns the current version id).
 
-- `wrangler d1 create deadlineradar` has **not** been run. `wrangler.toml`'s
-  `database_id` is the literal placeholder string `REPLACE_AFTER_D1_CREATE`,
-  not a real D1 database UUID.
-- `wrangler deploy` has **not** been run. The `[[routes]]` entry for
-  `deadline-radar.com/api/*` is inert configuration only -- it does not
-  register anything with Cloudflare or put anything on the public internet
-  until a real deploy happens against a real account.
-- No Cloudflare account, zone, or DNS changes have been made on this
-  project's behalf.
+- The production D1 database exists. `wrangler.toml`'s `database_id` is its
+  real UUID (set in `5d20597c7`). **Never re-run `wrangler d1 create`** -- it
+  would rebind `DB` to an empty database.
+- Deploy with `scripts/deploy_worker.py`, which also updates
+  `worker/.last_deploy_commit`. Do not use a bare `npx wrangler deploy`.
+- The `[[routes]]` entries are active production traffic, not inert config.
 
-Per AssetLab's standing guardrails, creating the real D1 database and
-running a real deploy are both **plan-first, account-creating /
-publish-to-external-platform actions** -- they require an explicit go from
-the orchestrator, tracked separately from this scaffolding step.
+Creating accounts, changing DNS/zone settings, or opening a new paid or
+public surface remains **plan-first** to the orchestrator (explicit go).
 
 ## What's here
 
 | File | Purpose |
 |---|---|
-| `wrangler.toml` | Worker config: name `deadlineradar-api`, D1 binding `DB`, inert route entry. No `[triggers]` cron block -- Phase 1 has no scheduler. |
+| `wrangler.toml` | Worker config: name `deadlineradar-api`, D1 binding `DB`, live route entries. No `[triggers]` cron block -- Phase 1 has no scheduler. |
 | `package.json` | `typescript`, `wrangler`, `vitest`, `@cloudflare/workers-types`, `@cloudflare/vitest-pool-workers` (local D1-emulated test runner). Note: `@cloudflare/workers-types` is pinned to the latest **v4.x** release (`4.20260702.1`), not the newer v5 line -- `wrangler@4.107.0`'s own peer dependency still expects `^4.20260701.1` as of this writing, and installing v5 produced an `ERESOLVE` conflict. Re-check this pin next time these deps are bumped. |
 | `tsconfig.json` | Workers-appropriate strict TS config (`ES2022` target, `ESNext` module, `@cloudflare/workers-types`). |
 | `migrations/0001_init_schema.sql` | D1 schema, ported field-for-field from `../reminders/store.py`. |
@@ -56,12 +51,12 @@ the orchestrator, tracked separately from this scaffolding step.
 | `src/env.ts` | The `Env` binding-shape type (`DB: D1Database`, optional `TURNSTILE_SECRET_KEY`). |
 | `test/worker.spec.ts` | `@cloudflare/vitest-pool-workers` integration tests against a real Miniflare-emulated D1 instance (migrations applied for real, not a hand-rolled schema) -- signup happy path, validation, honeypot (incl. whitespace-only), cooldown/dedupe (incl. Gmail dot/+tag folding), the full confirm/unsubscribe/renewed/rearm lifecycle (incl. the double-opt-in-bypass regression test), permanent-suppression, rate limiting, and pure-function unit tests. |
 
-## Status: WORKING and green, still NOT deployed
+## Status: WORKING and green (and deployed -- see Status above)
 
 `npm run typecheck` and `npm test` both pass clean (35/35 tests) as of this
 commit. "Working" here means: builds, typechecks, and passes its own test
-suite against a real D1 schema under Miniflare -- it does NOT mean deployed,
-see the deployment-gap section below, which is still fully true.
+suite against a real D1 schema under Miniflare -- it does NOT by itself mean
+the current commit is deployed; compare against `worker/.last_deploy_commit`.
 
 Before shipping, prefer `python ../scripts/run_worker_tests.py` over a bare
 `npm test`/`npx vitest run` -- same suite, but it separates the handful of

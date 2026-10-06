@@ -3419,7 +3419,7 @@ _NAV_TOGGLE_JS_HTML = """<script>
 # landing there, not signup.
 _PRICING_CHECKOUT_JS_HTML = f"""<script>
 (function() {{
-  // PR6 (2026-10-02): which cadence the toggle above the cards currently
+  // which cadence the toggle above the cards currently
   // shows -- same client-UI-state-only posture as the dashboard's own
   // drBillingInterval (the server resolves its own Stripe Price id,
   // this is never trusted as the price itself).
@@ -3458,7 +3458,7 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
           // and the magic-link email round trip, as long as that link is
           // opened in this same browser -- read back on /firm-dashboard/'s
           // load, see drCheckPendingCheckoutTier().
-          // PR6 (2026-10-02): the chosen interval rides along the same way.
+          // the chosen interval rides along the same way.
           try {{
             window.localStorage.setItem('dr_pending_checkout_tier', tier);
             window.localStorage.setItem('dr_pending_checkout_interval', drPricingInterval);
@@ -9049,7 +9049,7 @@ _ROADMAP_JS_HTML = f"""<script>
         voteHtml +
         '<button type="button" class="dr-roadmap-notify-toggle">Notify me when this ships</button>' +
         '<form class="dr-roadmap-notify-form" data-idea-id="' + esc(idea.id) + '" hidden>' + hiddenFieldsHtml +
-        // A11Y-18: a placeholder is not a valid accessible name (WCAG 4.1.2)
+        // A placeholder is not a valid accessible name (WCAG 4.1.2)
         // and disappears once typed into (3.3.2) -- only visible once this
         // control is checked in its actually-revealed state (after "Notify
         // me when this ships" is clicked), which a static-HTML sweep can't
@@ -12687,7 +12687,7 @@ var drSeatCap = null;
 // the first real load" posture as drSeatCap above.
 var drBilling = null;
 
-// PR6 (2026-10-02): which cadence the upgrade-tiers toggle currently shows.
+// which cadence the upgrade-tiers toggle currently shows.
 // Client-side UI state only -- drStartCheckout() sends it to the server at
 // checkout time, but it is never trusted as the price itself (the server
 // resolves its own Stripe Price id per tiers.ts's stripePriceIdForTier()).
@@ -12699,7 +12699,7 @@ var drBillingInterval = 'annual';
 // server-side half) for the rest of this gate. Flip all three together.
 var DR_MONTHLY_BILLING_ENABLED = false;
 
-// PR6 (2026-10-02): the SAME four tiers/prices as worker/src/tiers.ts's
+// the SAME four tiers/prices as worker/src/tiers.ts's
 // FIRM_TIERS -- duplicated here deliberately, same "two places, same
 // numbers, no shared import across the Python/TS boundary" precedent the
 // $199/$299/$399/$549 annual prices already set a few lines below (now

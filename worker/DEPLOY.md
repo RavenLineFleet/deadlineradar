@@ -1,9 +1,8 @@
 # Phase 1 deploy — exact token, commands, rollback
 
-**Status: NOT deployed. Nothing below has been run against a real Cloudflare account.**
-This document exists so the orchestrator/project maintainer can review the exact scope of what a real
-deploy would touch, and so the deploy itself is a fast, mechanical copy-paste once the go
-+ a token arrive — not something worked out live against production.
+**Status: DEPLOYED -- live production.** The Worker, D1 database and routes already exist; day-to-day
+deploys go through `python3 ../scripts/deploy_worker.py` (step 4 below). Steps 1-3 are the original
+first-time bootstrap, kept for reference -- **do not re-run step 1** (see its note).
 
 ## 1. Exact Cloudflare API token permissions needed
 
@@ -39,10 +38,10 @@ the one that makes the Worker reachable at a real Route.
 # 0. Confirm the token actually authenticates before doing anything else.
 npx wrangler whoami
 
-# 1. Create the real D1 database. Cloudflare returns a real database_id in the output --
-#    copy it into wrangler.toml's database_id field, replacing "REPLACE_AFTER_D1_CREATE".
-#    This is the ONLY manual edit required between commands.
-npx wrangler d1 create deadlineradar
+# 1. DO NOT run `wrangler d1 create deadlineradar` -- the production D1 database already
+#    exists and is live. wrangler.toml's database_id has held the real UUID since 5d20597c7
+#    (2026-07-04). Re-creating it would bind DB to a fresh empty database and lose all
+#    production data. Nothing to do at this step; it is kept only so step numbers stay stable.
 
 # 2. Apply the schema to the REAL (remote) database -- not --local this time.
 #    Run both migrations in order (0001 then 0002); `migrations apply` applies whichever
