@@ -122,6 +122,16 @@ def unapplied_migrations() -> list[str] | None:
     return names
 
 
+def remote_main_tip() -> str | None:
+    """Tip of origin's main from `git ls-remote` (NOT the local tracking ref,
+    which survives a failed fetch and so can lie). None if it can't be read."""
+    r = run(["git", "ls-remote", "origin", "refs/heads/main"], ROOT)
+    if r.returncode != 0:
+        return None
+    first = r.stdout.split()
+    return first[0] if first else None
+
+
 def head_commit() -> str:
     return run(["git", "rev-parse", "HEAD"], ROOT).stdout.strip()
 
@@ -130,6 +140,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Deploy the Worker and keep .last_deploy_commit honest.")
     ap.add_argument("--preview", action="store_true", help="deploy to preview (marker NOT updated)")
     ap.add_argument("--allow-dirty", action="store_true", help="deploy with uncommitted worker changes (marker NOT updated)")
+    ap.add_argument("--allow-non-origin-head", action="store_true", help="emergency override: deploy even if HEAD is not origin/main's tip (marker NOT updated)")
     ap.add_argument("--skip-migration-check", action="store_true", help="emergency override for the pending-migration guard")
     args = ap.parse_args()
 
@@ -176,6 +187,27 @@ def main() -> int:
             )
             return 1
 
+    # AuditLab DEPLOY-15 (2026-10-06): production only. This script deploys the
+    # checked-out TREE; nothing checked that the tree is what was reviewed. A
+    # clone on diverged/pre-rewrite history would silently ship superseded
+    # code and delete live files. Equality with origin's tip (not
+    # --is-ancestor): deploying an older ancestor is a rollback, which should
+    # be an explicit choice, not a silent one.
+    skip_marker = False
+    if not args.preview:
+        tip = remote_main_tip()
+        head = head_commit()
+        if tip is None or tip != head:
+            where = "could not read origin's main tip (git ls-remote failed)" if tip is None else f"HEAD {head[:9]} != origin/main tip {tip[:9]}"
+            if not args.allow_non_origin_head:
+                print(f"REFUSING: {where}.", file=sys.stderr)
+                print("A production deploy ships this working tree. Deploy from a checkout whose HEAD is exactly", file=sys.stderr)
+                print("origin/main (e.g. a fresh `git worktree add --detach <dir> origin/main`), or re-run with", file=sys.stderr)
+                print("--allow-non-origin-head (deploys, but will NOT update the marker).", file=sys.stderr)
+                return 1
+            print(f"WARNING: {where}; deploying anyway (--allow-non-origin-head). Marker will NOT be updated.", file=sys.stderr)
+            skip_marker = True
+
     cmd = ["npx", "wrangler", "deploy"]
     if args.preview:
         cmd += ["--config", "wrangler.preview.toml"]
@@ -208,6 +240,9 @@ def main() -> int:
         return 0
     if dirty:
         print("\nDeploy done, but marker NOT updated because the tree was dirty (--allow-dirty).")
+        return 0
+    if skip_marker:
+        print("\nDeploy done, but marker NOT updated because HEAD is not origin/main's tip (--allow-non-origin-head).")
         return 0
 
     commit = head_commit()
