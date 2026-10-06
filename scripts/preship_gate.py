@@ -243,7 +243,7 @@ _PROSE_TRACKER_REF_RE = re.compile(r"\b(?:roadmap|ticket|backlog|issue|epic|stor
 _PROSE_INTERNAL_NAME_RE = re.compile(
     r"\b(?:AssetLab|AuditLab|BettingBot|BotLab|DiffLab|FleetDeck|HANDOFF|"
     r"HomeLab|LedgerLab|Orchestrator|PortfolioMeta|ScoutLab|SecurityLab|"
-    r"ShopLab|StockLab|ValueLab|firmchat)\b"
+    r"ShopLab|StockLab|ValueLab|firmchat|GrowthLab|LocalBot|FleetChat|StockWatch)\b"
 )
 
 # GATE-1 hardening (AuditLab, COPY-3 2026-08-14 residual report, implemented
@@ -698,6 +698,50 @@ def check_no_shipped_html_comments(html_files: list[Path]) -> list[str]:
         for c in _html_comments_outside_scripts(f.read_text(encoding="utf-8")):
             snippet = " ".join(c.split())[:140]
             errors.append(f"[COMMENT][{f}] HTML comment shipped to the public tree: {snippet} (page_shell() strips these; this page bypassed it or the stripper regressed)")
+    return errors
+
+
+# LB-3 follow-up (AuditLab, 2026-10-05): the wide finding-ID shape, applied ONLY
+# to the maintainer-text regions of a raw page (<script>/<style> bodies and
+# <!-- --> comments) -- _PROSE_FINDING_ID_RE needs 2-10 consecutive letters so it
+# could never see "A11Y-18" or "PR6-B", and it never runs on raw markup at all.
+# Scoped to those regions on purpose: statute/rule cites in rendered prose
+# (R4-1, NAC-628, ...) are legitimate and would be pure noise; a code comment
+# has no legitimate reason to carry a tracker ID.
+_RAW_COMMENT_ID_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,9}-\d{1,4}\b|\bPR\d{1,3}(?:-[A-Z0-9]+)?\b")
+_RAW_COMMENT_REGION_RE = re.compile(
+    r"<!--.*?-->|<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>",
+    re.DOTALL | re.IGNORECASE,
+)
+_RAW_COMMENT_ID_ALLOWLIST: dict[str, str] = {
+    "UTF-8": "character-encoding name",
+    "SHA-256": "hash-algorithm name",
+    "PRE-2024": "Georgia CPE cohort label",
+    "RICR-00": "Rhode Island regulatory citation prefix",
+}
+
+
+def check_no_internal_ids_in_shipped_comments(html_files: list[Path]) -> list[str]:
+    """Raw-markup half of LB-3: internal finding/tracker IDs (A11Y-18, COPY-3)
+    inside <script>/<style> bodies or HTML comments. See _RAW_COMMENT_ID_RE."""
+    if not html_files:
+        return ["[CODENAME] no HTML files handed to check_no_internal_ids_in_shipped_comments() -- a zero here would be a silent pass"]
+    errors: list[str] = []
+    for f in html_files:
+        text = f.read_text(encoding="utf-8")
+        for region in _RAW_COMMENT_REGION_RE.finditer(text):
+            body = region.group(0)
+            if body[:20].lower().startswith("<script") and "json" in body[: body.find(">") + 1].lower():
+                continue  # JSON-LD etc. is rendered data (statute cites live there), not maintainer comments
+            for m in _RAW_COMMENT_ID_RE.finditer(body):
+                if m.group(0) in _RAW_COMMENT_ID_ALLOWLIST:
+                    continue
+                snippet = " ".join(body[max(0, m.start() - 60): m.end() + 90].split())
+                errors.append(
+                    f"[CODENAME][{f}] internal ID shape '{m.group(0)}' shipped in a script/style/comment "
+                    f"region -- ...{snippet}... (visible in \"view source\"; drop the label from the "
+                    f"comment, or allowlist WITH a reason if it is a real citation)"
+                )
     return errors
 
 
@@ -8312,6 +8356,7 @@ def main():
     all_errors += check_blog_approval_gate(repo_root)
     all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_no_fleet_codenames_in_shipped_html(html_files)
+    all_errors += check_no_internal_ids_in_shipped_comments(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
