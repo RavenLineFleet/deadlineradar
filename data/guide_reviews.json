@@ -125,6 +125,10 @@
     "nevada-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-02",
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+    },
+    "georgia-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-10-06",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
     }
   }
 }
