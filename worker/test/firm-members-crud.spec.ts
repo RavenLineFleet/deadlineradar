@@ -253,6 +253,28 @@ describe("DELETE /firm/members/:id -- remove", () => {
     expect(resp2.status).toBe(403);
   });
 
+  it("404s for a member id that belongs to a different firm, and leaves that member and their session untouched", async () => {
+    const attacker = await seedPaidFirm("Attacker Firm A");
+    const victim = await seedPaidFirm("Victim Firm B");
+    const victimStaff = await addMember(victim.firmId, "staff");
+
+    const resp = await SELF.fetch(`${BASE}/firm/members/${victimStaff.memberId}`, { method: "DELETE", headers: { Cookie: attacker.cookie } });
+    expect(resp.status).toBe(404);
+
+    const row = await env.DB.prepare("SELECT removed_at FROM firm_members WHERE id = ?1")
+      .bind(victimStaff.memberId)
+      .first<{ removed_at: string | null }>();
+    expect(row?.removed_at).toBeNull();
+    expect(await store.getFirmMemberById(env.DB, victim.firmId, victimStaff.memberId)).not.toBeNull();
+
+    const stillLive = await SELF.fetch(`${BASE}/firm/members`, { headers: { Cookie: victimStaff.cookie } });
+    expect(stillLive.status).toBe(200);
+
+    // Owner control: the same call from the victim's own Partner succeeds.
+    const own = await SELF.fetch(`${BASE}/firm/members/${victimStaff.memberId}`, { method: "DELETE", headers: { Cookie: victim.cookie } });
+    expect(own.status).toBe(200);
+  });
+
   it("refuses to remove a firm's only active Partner", async () => {
     const partner = await seedPaidFirm();
     const resp = await SELF.fetch(`${BASE}/firm/members/${partner.memberId}`, { method: "DELETE", headers: { Cookie: partner.cookie } });
