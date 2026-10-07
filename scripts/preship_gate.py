@@ -8327,6 +8327,42 @@ def check_security_header_layers(fetch=None) -> list[str]:
     return errors
 
 
+def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
+    """Run every advisory so none can change the gate verdict: a SystemExit or any
+    other exception from one advisory is reported and skipped, never propagated
+    (an advisory raising after the PASS line used to exit non-zero and skip the rest)."""
+    advisories = (
+        (lambda: print_worker_deploy_staleness_advisory(repo_root), "print_worker_deploy_staleness_advisory"),
+        (lambda: print_silent_drop_advisory(repo_root), "print_silent_drop_advisory"),
+        (lambda: print_cpa_deadlines_staleness_advisory(repo_root), "print_cpa_deadlines_staleness_advisory"),
+        (lambda: print_cpa_deadlines_cohort_concentration_advisory(repo_root), "print_cpa_deadlines_cohort_concentration_advisory"),
+        (lambda: print_cpe_hours_staleness_advisory(repo_root), "print_cpe_hours_staleness_advisory"),
+        (lambda: print_reinstatement_staleness_advisory(repo_root), "print_reinstatement_staleness_advisory"),
+        (lambda: print_renewal_fee_staleness_advisory(repo_root), "print_renewal_fee_staleness_advisory"),
+        (lambda: print_rule_change_monitoring_staleness_advisory(repo_root), "print_rule_change_monitoring_staleness_advisory"),
+        (lambda: print_deployed_rule_change_staleness_advisory(repo_root), "print_deployed_rule_change_staleness_advisory"),
+        (lambda: print_rule_change_ingestion_lag_advisory(repo_root), "print_rule_change_ingestion_lag_advisory"),
+        (lambda: print_dated_change_staleness_advisory(repo_root), "print_dated_change_staleness_advisory"),
+        (lambda: print_conflict_events_staleness_advisory(repo_root), "print_conflict_events_staleness_advisory"),
+        (lambda: print_firm_mobility_internal_notes_advisory(repo_root), "print_firm_mobility_internal_notes_advisory"),
+        (lambda: print_guide_review_staleness_advisory(repo_root), "print_guide_review_staleness_advisory"),
+        (lambda: print_changelog_staleness_advisory(repo_root), "print_changelog_staleness_advisory"),
+        (lambda: print_dual_credential_citation_advisory(repo_root), "print_dual_credential_citation_advisory"),
+        (lambda: print_flux_blocked_pending_reverification_advisory(repo_root), "print_flux_blocked_pending_reverification_advisory"),
+        (lambda: print_gap_list_advisory(repo_root), "print_gap_list_advisory"),
+        (lambda: print_es_translation_review_advisory(repo_root), "print_es_translation_review_advisory"),
+        (lambda: print_seo_length_drift_advisory(html_files, repo_root), "print_seo_length_drift_advisory"),
+        (lambda: print_double_hyphen_backlog_advisory(html_files, docs_dir), "print_double_hyphen_backlog_advisory"),
+    )
+    for fn, name in advisories:
+        try:
+            fn()
+        except SystemExit:
+            pass
+        except Exception as exc:
+            print(f"  (advisory {name} errored, ignored: {type(exc).__name__}: {exc})")
+
+
 def main():
     repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
     docs_dir = repo_root / "docs"
@@ -8449,50 +8485,10 @@ def main():
         print(f"\nFAIL -- {len(all_errors)} violation(s):\n")
         for e in all_errors:
             print(" ", e)
-        print_worker_deploy_staleness_advisory(repo_root)
-        print_silent_drop_advisory(repo_root)
-        print_cpa_deadlines_staleness_advisory(repo_root)
-        print_cpa_deadlines_cohort_concentration_advisory(repo_root)
-        print_cpe_hours_staleness_advisory(repo_root)
-        print_reinstatement_staleness_advisory(repo_root)
-        print_renewal_fee_staleness_advisory(repo_root)
-        print_rule_change_monitoring_staleness_advisory(repo_root)
-        print_deployed_rule_change_staleness_advisory(repo_root)
-        print_rule_change_ingestion_lag_advisory(repo_root)
-        print_dated_change_staleness_advisory(repo_root)
-        print_conflict_events_staleness_advisory(repo_root)
-        print_firm_mobility_internal_notes_advisory(repo_root)
-        print_guide_review_staleness_advisory(repo_root)
-        print_changelog_staleness_advisory(repo_root)
-        print_dual_credential_citation_advisory(repo_root)
-        print_flux_blocked_pending_reverification_advisory(repo_root)
-        print_gap_list_advisory(repo_root)
-        print_es_translation_review_advisory(repo_root)
-        print_seo_length_drift_advisory(html_files, repo_root)
-        print_double_hyphen_backlog_advisory(html_files, docs_dir)
+        _run_advisories(repo_root, html_files, docs_dir)
         sys.exit(1)
     print("\nPASS -- no violations found.")
-    print_worker_deploy_staleness_advisory(repo_root)
-    print_silent_drop_advisory(repo_root)
-    print_cpa_deadlines_staleness_advisory(repo_root)
-    print_cpa_deadlines_cohort_concentration_advisory(repo_root)
-    print_cpe_hours_staleness_advisory(repo_root)
-    print_reinstatement_staleness_advisory(repo_root)
-    print_renewal_fee_staleness_advisory(repo_root)
-    print_rule_change_monitoring_staleness_advisory(repo_root)
-    print_deployed_rule_change_staleness_advisory(repo_root)
-    print_rule_change_ingestion_lag_advisory(repo_root)
-    print_dated_change_staleness_advisory(repo_root)
-    print_conflict_events_staleness_advisory(repo_root)
-    print_firm_mobility_internal_notes_advisory(repo_root)
-    print_guide_review_staleness_advisory(repo_root)
-    print_changelog_staleness_advisory(repo_root)
-    print_dual_credential_citation_advisory(repo_root)
-    print_flux_blocked_pending_reverification_advisory(repo_root)
-    print_gap_list_advisory(repo_root)
-    print_es_translation_review_advisory(repo_root)
-    print_seo_length_drift_advisory(html_files, repo_root)
-    print_double_hyphen_backlog_advisory(html_files, docs_dir)
+    _run_advisories(repo_root, html_files, docs_dir)
     sys.exit(0)
 
 
