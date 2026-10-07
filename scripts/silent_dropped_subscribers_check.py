@@ -45,14 +45,46 @@ sys.path.insert(0, str(ROOT))
 from reminders.scheduler import compute_subscriber_deadline  # noqa: E402
 
 
+# 2026-10-07: a wedged `npx wrangler` (cold npx fetch at logon, 0 CPU, 0 sockets) sat 12+ min
+# inside ReverifyDaily's preship_gate with no timeout. Bound it; the caller already treats a
+# string SystemExit as "skip this advisory".
+D1_TIMEOUT_S = 120
+
+
+def _run_with_timeout(argv: list[str], cwd: Path, timeout: float) -> subprocess.CompletedProcess:
+    """subprocess.run with a timeout that also kills the CHILD TREE. On Windows npx.cmd -> cmd ->
+    node: killing only the direct child leaves node holding the stdout pipe, so a plain
+    run(timeout=) can block on the pipe after the kill and never return."""
+    kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if sys.platform == "win32" else {"start_new_session": True}
+    proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **kw)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        else:
+            import os
+            import signal
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        try:
+            proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        raise SystemExit(f"Live D1 query timed out after {timeout:g}s (wrangler wedged?); advisory skipped.")
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
 def _run_d1_query(sql: str) -> list[dict]:
     npx = shutil.which("npx")
     if npx is None:
         raise SystemExit("Could not find `npx` on PATH -- required to run `wrangler d1 execute`.")
-    result = subprocess.run(
+    result = _run_with_timeout(
         [npx, "wrangler", "d1", "execute", "deadlineradar", "--remote", "--json",
          "--command", sql],
-        cwd=WORKER_DIR, capture_output=True, text=True,
+        WORKER_DIR, D1_TIMEOUT_S,
     )
     if result.returncode != 0:
         raise SystemExit(
