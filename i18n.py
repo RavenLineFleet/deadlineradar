@@ -446,7 +446,7 @@ EN: dict[str, str] = {
     "pricing.row_map": "Multistate Map view",
     "pricing.row_map_free": "Free for one person*",
     "pricing.row_firm_reg_check": "Firm-level registration check",
-    "pricing.row_referral": "Refer firms: 10% off per referral, up to 100%",
+    "pricing.row_referral": "Refer firms: 10% off per referral, up to 100% (off your next month or next year, matching your plan)",
     "pricing.cell_yes": "Yes",
     "pricing.cell_no": "No",
     "pricing.footnote_solo": (
@@ -483,7 +483,7 @@ EN: dict[str, str] = {
     "pricing.includes_firm_reg": "Firm-level registration check",
     "pricing.includes_slack_teams": "Slack &amp; Teams alerts",
     "pricing.includes_documents": "Document storage",
-    "pricing.includes_referral": "Referral discounts, up to 100%",
+    "pricing.includes_referral": "Referral discounts, up to 100% off your next month or year",
     "pricing.faq_heading": "Questions firms ask before signing up",
     "pricing.backlink_body": "See exactly {methodology_link2}, or read the {breakdown_link}.",
     "pricing.methodology_link_text2": "how we verify every deadline",
