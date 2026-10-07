@@ -29,3 +29,15 @@ def test_advisory_systemexit_is_contained(monkeypatch):
             monkeypatch.setattr(pg, name, lambda *a: None)
     monkeypatch.setattr(pg, "print_cpe_hours_staleness_advisory", lambda *a: sys.exit("skip"))
     pg._run_advisories(Path("."), [], Path("."))
+
+
+def test_handler_print_survives_non_stdout_encodable_message(monkeypatch):
+    # ADVIS-2: the handler's own print must not raise on a char outside stdout's encoding
+    import io
+    for name in dir(pg):
+        if name.startswith("print_") and name.endswith("_advisory"):
+            monkeypatch.setattr(pg, name, lambda *a: None)
+    monkeypatch.setattr(pg, "print_gap_list_advisory", lambda *a: (_ for _ in ()).throw(ValueError("bad ✓ char")))
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", out)
+    pg._run_advisories(Path("."), [], Path("."))  # must not raise UnicodeEncodeError

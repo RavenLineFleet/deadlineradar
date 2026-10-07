@@ -8360,7 +8360,9 @@ def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
         except SystemExit:
             pass
         except Exception as exc:
-            print(f"  (advisory {name} errored, ignored: {type(exc).__name__}: {exc})")
+            enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+            msg = f"  (advisory {name} errored, ignored: {type(exc).__name__}: {exc})"
+            print(msg.encode(enc, "backslashreplace").decode(enc))
 
 
 def main():
