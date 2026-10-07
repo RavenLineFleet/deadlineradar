@@ -64,35 +64,44 @@ def check(root: Path = ROOT, ref: str = REF, fetch: bool = True) -> str:
         if f.returncode != 0:
             fetch_note = f" (fetch failed -- measured against the LAST-FETCHED {ref}, may be behind)"
 
-    m = _git(root, "show", f"{ref}:{LAST_DEPLOY_PATH}")
+    # MON-19 (AuditLab): resolve the ref's tip ONCE and read everything below from
+    # that SHA, so the label is a reading of what was measured -- not an f-string
+    # over the `ref` parameter, which would keep claiming "origin/main" after a
+    # wrong-ref regression.
+    t = _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    tip = t.stdout.strip() if t.returncode == 0 else ""
+    if not tip:
+        return f"ADVISORY: cannot resolve {ref}{fetch_note} -- cannot check staleness."
+
+    m = _git(root, "show", f"{tip}:{LAST_DEPLOY_PATH}")
     if m.returncode != 0 or not m.stdout.strip():
         return (
-            f"ADVISORY: {LAST_DEPLOY_PATH} not readable at {ref}{fetch_note} -- cannot check "
+            f"ADVISORY: {LAST_DEPLOY_PATH} not readable at {ref} {tip[:7]}{fetch_note} -- cannot check "
             f"staleness. Create it with the commit hash of the last real `wrangler deploy`."
         )
     last_deploy_commit = m.stdout.strip()
 
-    l = _git(root, "log", "--format=%H", "-1", ref, "--", WORKER_SRC_DIR)
+    l = _git(root, "log", "--format=%H", "-1", tip, "--", WORKER_SRC_DIR)
     last_src_commit = l.stdout.strip() if l.returncode == 0 else ""
     if not last_src_commit:
-        return f"ADVISORY: could not find any commit touching {WORKER_SRC_DIR}/ at {ref}{fetch_note}."
+        return f"ADVISORY: could not find any commit touching {WORKER_SRC_DIR}/ at {ref} {tip[:7]}{fetch_note}."
 
     # Is last_src_commit an ancestor of (or equal to) the marker commit? If so,
     # nothing under worker/src/ changed since the deploy the marker records.
     anc = _git(root, "merge-base", "--is-ancestor", last_src_commit, last_deploy_commit)
     if anc.returncode == 0:
         return (
-            f"PASS [measured at {ref} {last_src_commit[:7]}{fetch_note}] -- no file under "
+            f"PASS [measured at {ref} tip {tip[:7]}, last worker/src commit {last_src_commit[:7]}{fetch_note}] -- no file under "
             f"{WORKER_SRC_DIR}/ has changed since the last recorded deploy "
             f"({last_deploy_commit[:7]}). Worker bundle should be current."
         )
 
-    undeployed = _git(root, "log", "--format=%h %s", f"{last_deploy_commit}..{ref}", "--", WORKER_SRC_DIR).stdout.strip()
+    undeployed = _git(root, "log", "--format=%h %s", f"{last_deploy_commit}..{tip}", "--", WORKER_SRC_DIR).stdout.strip()
     undeployed_lines = undeployed.splitlines() if undeployed else []
-    files = _git(root, "diff", "--name-only", last_deploy_commit, ref, "--", WORKER_SRC_DIR).stdout.strip()
+    files = _git(root, "diff", "--name-only", last_deploy_commit, tip, "--", WORKER_SRC_DIR).stdout.strip()
     files_lines = files.splitlines() if files else []
     out = [
-        f"ADVISORY [measured at {ref} {last_src_commit[:7]}{fetch_note}]: {WORKER_SRC_DIR}/ changed "
+        f"ADVISORY [measured at {ref} tip {tip[:7]}, last worker/src commit {last_src_commit[:7]}{fetch_note}]: {WORKER_SRC_DIR}/ changed "
         f"AFTER the last recorded deploy ({last_deploy_commit[:7]}) -- the live Worker may be "
         f"running stale code or stale bundled data (this is the exact class that broke South "
         f"Dakota/Hawaii/Oklahoma signups on 2026-07-09). Deploy ONLY from a fresh "

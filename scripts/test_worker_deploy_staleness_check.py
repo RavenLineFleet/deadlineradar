@@ -130,7 +130,7 @@ def test_pass_label_names_origin_mains_own_src_commit(tmp_path):
     _commit(local, "worker/src/local_only.json", "x", "L1 local-only src")
     out = wdsc.check(local)
     expected = _g(local, "log", "--format=%h", "-1", "origin/main", "--", "worker/src")
-    assert f"origin/main {expected}" in out, f"label must name origin/main's src commit {expected}: {out}"
+    assert f"last worker/src commit {expected}" in out, f"label must name origin/main's src commit {expected}: {out}"
 
 
 def test_behind_checkout_must_not_pass(tmp_path):
@@ -139,3 +139,38 @@ def test_behind_checkout_must_not_pass(tmp_path):
     out = wdsc.check(_behind(tmp_path))
     assert out.startswith("ADVISORY"), f"behind checkout must not report PASS: {out}"
     assert "worker/src/a.json" in out, out
+
+
+def test_label_carries_the_resolved_tip_sha(tmp_path):
+    """MON-19: the label is a reading (rev-parse of the ref), not the ref name."""
+    _, local, _ = _build(tmp_path)
+    tip = _g(local, "rev-parse", "origin/main")
+    out = wdsc.check(local, fetch=False)
+    assert f"origin/main tip {tip[:7]}" in out, out
+
+
+def test_wrong_ref_resolution_changes_the_label(tmp_path):
+    """MON-19: if resolution drifts off origin/main (simulated: every origin/main
+    argument rewritten to HEAD) on a diverged checkout, the label must show the
+    HEAD sha -- claimed (origin/main) and measured (HEAD) visibly diverge."""
+    _, local, c1 = _build(tmp_path)
+    _g(local, "checkout", "-q", "-B", "main", c1)
+    l1 = _commit(local, "worker/src/a.json", "local-line", "L1 local src")
+    _commit(local, "worker/.last_deploy_commit", l1 + "\n", "L2 local marker=L1")
+    origin_tip = _g(local, "rev-parse", "origin/main")
+    head = _g(local, "rev-parse", "HEAD")
+    assert origin_tip != head
+    good = wdsc.check(local, fetch=False)
+    assert f"tip {origin_tip[:7]}" in good and f"tip {head[:7]}" not in good, good
+
+    real = wdsc._git
+
+    def drifted(root, *args):
+        return real(root, *[a.replace("origin/main", "HEAD") for a in args])
+
+    wdsc._git = drifted
+    try:
+        bad = wdsc.check(local, fetch=False)
+    finally:
+        wdsc._git = real
+    assert f"tip {head[:7]}" in bad and f"tip {origin_tip[:7]}" not in bad, bad
