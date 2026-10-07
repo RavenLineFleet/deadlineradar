@@ -95,3 +95,47 @@ def test_missing_marker_at_ref_is_advisory(tmp_path):
     _g(seed, "push", "-q", "origin", "main")
     out = wdsc.check(seed)
     assert out.startswith("ADVISORY") and "not readable at origin/main" in out, out
+
+
+def _behind(tmp_path):
+    """local is BEHIND origin/main (not diverged): its last worker/src commit is
+    old and ancestral to the marker, while origin/main has an undeployed change."""
+    origin, seed = tmp_path / "o.git", tmp_path / "s"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+    _g(seed, "remote", "add", "origin", str(origin))
+    c1 = _commit(seed, "worker/src/a.json", "1", "c1 src")
+    _commit(seed, "worker/.last_deploy_commit", c1 + "\n", "c2 marker=c1")
+    _g(seed, "push", "-q", "origin", "main")
+    local = tmp_path / "local"
+    subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
+    _commit(seed, "worker/src/a.json", "2", "c3 UNDEPLOYED src change")
+    _g(seed, "push", "-q", "origin", "main")
+    return local
+
+
+def test_pass_label_names_origin_mains_own_src_commit(tmp_path):
+    """DRIFT-2 (SecurityLab): the label must carry origin/main's last src commit,
+    not the local line's -- catches a revert of the last_src_commit half."""
+    origin, seed = tmp_path / "o.git", tmp_path / "s"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+    _g(seed, "remote", "add", "origin", str(origin))
+    c1 = _commit(seed, "worker/src/a.json", "1", "c1 src")
+    _commit(seed, "worker/.last_deploy_commit", c1 + "\n", "c2 marker=c1")
+    _g(seed, "push", "-q", "origin", "main")
+    local = tmp_path / "local"
+    subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
+    # local adds its OWN later worker/src commit, so HEAD's src commit != origin's
+    _commit(local, "worker/src/local_only.json", "x", "L1 local-only src")
+    out = wdsc.check(local)
+    expected = _g(local, "log", "--format=%h", "-1", "origin/main", "--", "worker/src")
+    assert f"origin/main {expected}" in out, f"label must name origin/main's src commit {expected}: {out}"
+
+
+def test_behind_checkout_must_not_pass(tmp_path):
+    """DRIFT-2: a checkout merely BEHIND origin/main -- where reading last_src_commit
+    from local HEAD silently PASSes."""
+    out = wdsc.check(_behind(tmp_path))
+    assert out.startswith("ADVISORY"), f"behind checkout must not report PASS: {out}"
+    assert "worker/src/a.json" in out, out
