@@ -2,6 +2,7 @@
 never the local checkout line. Fixture = a diverged checkout whose OWN
 worker/src commit precedes its OWN marker (the silent-PASS case) while
 origin/main has an undeployed worker/src change."""
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -98,8 +99,8 @@ def test_missing_marker_at_ref_is_advisory(tmp_path):
 
 
 def _behind(tmp_path):
-    """local is BEHIND origin/main (not diverged): its last worker/src commit is
-    old and ancestral to the marker, while origin/main has an undeployed change."""
+    """local is BEHIND origin/main (not diverged). origin/main has an undeployed
+    worker/src change, then a docs-only commit on top so tip != src commit."""
     origin, seed = tmp_path / "o.git", tmp_path / "s"
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
     subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
@@ -110,35 +111,34 @@ def _behind(tmp_path):
     local = tmp_path / "local"
     subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
     _commit(seed, "worker/src/a.json", "2", "c3 UNDEPLOYED src change")
+    _commit(seed, "docs/x.md", "y", "c4 docs only -- makes tip != src commit")
     _g(seed, "push", "-q", "origin", "main")
     return local
 
 
-def test_pass_label_names_origin_mains_own_src_commit(tmp_path):
-    """DRIFT-2 (SecurityLab): the label must carry origin/main's last src commit,
-    not the local line's -- catches a revert of the last_src_commit half."""
-    origin, seed = tmp_path / "o.git", tmp_path / "s"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
-    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
-    _g(seed, "remote", "add", "origin", str(origin))
-    c1 = _commit(seed, "worker/src/a.json", "1", "c1 src")
-    _commit(seed, "worker/.last_deploy_commit", c1 + "\n", "c2 marker=c1")
-    _g(seed, "push", "-q", "origin", "main")
-    local = tmp_path / "local"
-    subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
-    # local adds its OWN later worker/src commit, so HEAD's src commit != origin's
-    _commit(local, "worker/src/local_only.json", "x", "L1 local-only src")
+def test_behind_checkout_is_advisory_not_pass(tmp_path):
+    """THE verdict test. Fails if last_src_commit is ever resolved from local HEAD
+    again: on a behind checkout the local src commit is ancestral to the marker, so
+    the old logic returns a silent PASS. Independent of label format."""
+    local = _behind(tmp_path)
     out = wdsc.check(local)
-    expected = _g(local, "log", "--format=%h", "-1", "origin/main", "--", "worker/src")
-    assert f"last worker/src commit {expected}" in out, f"label must name origin/main's src commit {expected}: {out}"
-
-
-def test_behind_checkout_must_not_pass(tmp_path):
-    """DRIFT-2: a checkout merely BEHIND origin/main -- where reading last_src_commit
-    from local HEAD silently PASSes."""
-    out = wdsc.check(_behind(tmp_path))
     assert out.startswith("ADVISORY"), f"behind checkout must not report PASS: {out}"
     assert "worker/src/a.json" in out, out
+
+
+def test_label_sha_is_the_refs_own_src_commit(tmp_path):
+    """The sha disclosed in the label must be origin/main's last worker/src commit,
+    not the local line's. Matches any label layout: collects the 7-hex tokens and
+    requires the right one to be among them and the wrong one absent."""
+    local = _behind(tmp_path)
+    out = wdsc.check(local)
+    want = _g(local, "log", "--format=%h", "-1", "origin/main", "--", "worker/src")
+    local_src = _g(local, "log", "--format=%h", "-1", "HEAD", "--", "worker/src")
+    assert want != local_src, "fixture must distinguish the two, else the test proves nothing"
+    label = out.split("]")[0]
+    shas = set(re.findall(r"\b[0-9a-f]{7}\b", label))
+    assert want in shas, f"label must disclose origin/main's src commit {want}; label was {label!r}"
+    assert local_src not in shas, f"label discloses the LOCAL src commit {local_src}: {label!r}"
 
 
 def test_label_carries_the_resolved_tip_sha(tmp_path):
