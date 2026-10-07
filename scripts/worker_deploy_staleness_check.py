@@ -23,6 +23,16 @@ old check would have reported "Worker bundle should be current", because none
 of those changes touched cpa_deadlines.json specifically. Now scoped to the
 whole worker/src/ tree, so the claim matches what's actually checked.
 
+DRIFT-1 (SecurityLab MEDIUM, 2026-10-06): both inputs used to resolve from the
+LOCAL checkout (marker from the working tree, last worker/src commit from local
+HEAD). On a diverged checkout (b3_saas/deadlineradar was 1688 commits off
+origin/main) that printed 9 phantom undeployed files -- PR6 billing code that is
+not on origin/main -- and told the operator to `wrangler deploy`, while the true
+answer was 1 file; it could equally return a silent PASS. Both inputs now come
+from REF (origin/main, fetched first), and the PASS/ADVISORY text names the ref
+measured so a wrong-line run is visible instead of silent. Never reads the
+working tree or HEAD.
+
 Advisory only, same treatment as every other detector in this project: it flags
 a candidate for a human to check, it does not gate a build or a push. Update
 worker/.last_deploy_commit's contents after every real `wrangler deploy`.
@@ -35,64 +45,69 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LAST_DEPLOY_FILE = ROOT / "worker" / ".last_deploy_commit"
+LAST_DEPLOY_PATH = "worker/.last_deploy_commit"
 WORKER_SRC_DIR = "worker/src"
+REF = "origin/main"
 
 
-def git(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.strip()
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+
+
+def check(root: Path = ROOT, ref: str = REF, fetch: bool = True) -> str:
+    """Return the advisory text, measured entirely against `ref` (never HEAD or
+    the working tree)."""
+    fetch_note = ""
+    if fetch:
+        remote, _, branch = ref.partition("/")
+        f = _git(root, "fetch", "--quiet", remote, branch)
+        if f.returncode != 0:
+            fetch_note = f" (fetch failed -- measured against the LAST-FETCHED {ref}, may be behind)"
+
+    m = _git(root, "show", f"{ref}:{LAST_DEPLOY_PATH}")
+    if m.returncode != 0 or not m.stdout.strip():
+        return (
+            f"ADVISORY: {LAST_DEPLOY_PATH} not readable at {ref}{fetch_note} -- cannot check "
+            f"staleness. Create it with the commit hash of the last real `wrangler deploy`."
+        )
+    last_deploy_commit = m.stdout.strip()
+
+    l = _git(root, "log", "--format=%H", "-1", ref, "--", WORKER_SRC_DIR)
+    last_src_commit = l.stdout.strip() if l.returncode == 0 else ""
+    if not last_src_commit:
+        return f"ADVISORY: could not find any commit touching {WORKER_SRC_DIR}/ at {ref}{fetch_note}."
+
+    # Is last_src_commit an ancestor of (or equal to) the marker commit? If so,
+    # nothing under worker/src/ changed since the deploy the marker records.
+    anc = _git(root, "merge-base", "--is-ancestor", last_src_commit, last_deploy_commit)
+    if anc.returncode == 0:
+        return (
+            f"PASS [measured at {ref} {last_src_commit[:7]}{fetch_note}] -- no file under "
+            f"{WORKER_SRC_DIR}/ has changed since the last recorded deploy "
+            f"({last_deploy_commit[:7]}). Worker bundle should be current."
+        )
+
+    undeployed = _git(root, "log", "--format=%h %s", f"{last_deploy_commit}..{ref}", "--", WORKER_SRC_DIR).stdout.strip()
+    undeployed_lines = undeployed.splitlines() if undeployed else []
+    files = _git(root, "diff", "--name-only", last_deploy_commit, ref, "--", WORKER_SRC_DIR).stdout.strip()
+    files_lines = files.splitlines() if files else []
+    out = [
+        f"ADVISORY [measured at {ref} {last_src_commit[:7]}{fetch_note}]: {WORKER_SRC_DIR}/ changed "
+        f"AFTER the last recorded deploy ({last_deploy_commit[:7]}) -- the live Worker may be "
+        f"running stale code or stale bundled data (this is the exact class that broke South "
+        f"Dakota/Hawaii/Oklahoma signups on 2026-07-09). Deploy ONLY from a fresh "
+        f"`git worktree add --detach <dir> {ref}` (scripts/deploy_worker.py enforces HEAD == "
+        f"{ref} tip), then push the updated worker/.last_deploy_commit.",
+        f"  Undeployed commits touching {WORKER_SRC_DIR}/ ({len(undeployed_lines)}):",
+    ]
+    out += [f"    {line}" for line in undeployed_lines]
+    out.append(f"  Files changed: {', '.join(files_lines) if files_lines else '(none found)'}")
+    return chr(10).join(out)
 
 
 def main() -> None:
-    if not LAST_DEPLOY_FILE.exists():
-        print(
-            f"ADVISORY: {LAST_DEPLOY_FILE} does not exist -- cannot check staleness. "
-            f"Create it with the commit hash of the last real `wrangler deploy`."
-        )
-        sys.exit(0)
-
-    last_deploy_commit = LAST_DEPLOY_FILE.read_text(encoding="utf-8").strip()
-    last_src_commit = git("log", "--format=%H", "-1", "--", WORKER_SRC_DIR)
-
-    if not last_src_commit:
-        print(f"ADVISORY: could not find any commit touching {WORKER_SRC_DIR}/.")
-        sys.exit(0)
-
-    # Is last_src_commit an ancestor of (or equal to) last_deploy_commit? If so,
-    # nothing under worker/src/ has changed since the deploy the marker records
-    # -- not stale. If NOT an ancestor, something in the bundle changed after
-    # the last deploy.
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", last_src_commit, last_deploy_commit],
-        cwd=ROOT,
-    )
-    if result.returncode == 0:
-        print(
-            f"PASS -- no file under {WORKER_SRC_DIR}/ has changed since the last recorded "
-            f"deploy ({last_deploy_commit[:7]}). Worker bundle should be current."
-        )
-    else:
-        undeployed = git(
-            "log", "--format=%h %s", f"{last_deploy_commit}..HEAD", "--", WORKER_SRC_DIR
-        )
-        undeployed_lines = undeployed.splitlines() if undeployed else []
-        files_touched = git(
-            "diff", "--name-only", last_deploy_commit, "HEAD", "--", WORKER_SRC_DIR
-        )
-        files_lines = files_touched.splitlines() if files_touched else []
-        print(
-            f"ADVISORY: {WORKER_SRC_DIR}/ changed AFTER the last recorded deploy "
-            f"({last_deploy_commit[:7]}) -- the live Worker may be running stale code or "
-            f"stale bundled data (this is the exact class that broke South Dakota/Hawaii/"
-            f"Oklahoma signups on 2026-07-09). Run `wrangler deploy` from worker/, then "
-            f"update worker/.last_deploy_commit with the new HEAD hash.\n"
-            f"  Undeployed commits touching {WORKER_SRC_DIR}/ ({len(undeployed_lines)}):"
-        )
-        for line in undeployed_lines:
-            print(f"    {line}")
-        print(f"  Files changed: {', '.join(files_lines) if files_lines else '(none found)'}")
+    print(check())
+    sys.exit(0)
 
 
 if __name__ == "__main__":
