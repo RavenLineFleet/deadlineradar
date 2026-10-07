@@ -174,3 +174,87 @@ def test_wrong_ref_resolution_changes_the_label(tmp_path):
     finally:
         wdsc._git = real
     assert f"tip {head[:7]}" in bad and f"tip {origin_tip[:7]}" not in bad, bad
+
+
+# --- DRIFT-3 / DRIFT-3b (SecurityLab + AuditLab, 2026-10-06): pin each operand ALONE ---
+
+def _unpushed_marker(tmp_path):
+    """Local HEAD recorded a deploy of c3 in its own committed marker and never pushed it;
+    origin/main's committed marker still says c1 and its last worker/src commit is c3."""
+    origin, seed = tmp_path / "o.git", tmp_path / "s"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+    _g(seed, "remote", "add", "origin", str(origin))
+    c1 = _commit(seed, "worker/src/a.json", "1", "c1 src")
+    _commit(seed, "worker/.last_deploy_commit", c1 + "\n", "c2 marker=c1")
+    c3 = _commit(seed, "worker/src/a.json", "2", "c3 UNDEPLOYED src change")
+    _g(seed, "push", "-q", "origin", "main")
+    local = tmp_path / "local"
+    subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
+    _commit(local, "worker/.last_deploy_commit", c3 + "\n", "L1 marker=c3, never pushed")
+    return local
+
+
+def test_marker_comes_from_the_ref_not_local_HEAD(tmp_path):
+    local = _unpushed_marker(tmp_path)
+    head_marker = _g(local, "show", "HEAD:worker/.last_deploy_commit").strip()
+    ref_marker = _g(local, "show", "origin/main:worker/.last_deploy_commit").strip()
+    assert head_marker != ref_marker, "fixture must make the two markers differ"
+    out = wdsc.check(local, fetch=False)
+    assert out.startswith("ADVISORY"), f"must not PASS on local HEAD's marker: {out}"
+    assert ref_marker[:7] in out, f"must report origin/main's marker {ref_marker[:7]}: {out}"
+    # no "head_marker absent from the label" assert: the local marker is c3, which IS
+    # origin/main's tip, so it legitimately appears in the label.
+
+
+def _diverged_with_local_src(tmp_path):
+    """origin/main has 1 real undeployed worker/src commit; the local line adds 2 of
+    its own that exist nowhere on origin/main."""
+    origin, seed = tmp_path / "o.git", tmp_path / "s"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+    _g(seed, "remote", "add", "origin", str(origin))
+    c1 = _commit(seed, "worker/src/a.json", "1", "c1 src")
+    c2 = _commit(seed, "worker/.last_deploy_commit", c1 + "\n", "c2 marker=c1")
+    _commit(seed, "worker/src/real_origin_change.json", "r", "c3 REAL origin undeployed change")
+    _g(seed, "push", "-q", "origin", "main")
+    local = tmp_path / "local"
+    subprocess.run(["git", "clone", "-q", str(origin), str(local)], check=True)
+    _g(local, "checkout", "-q", "-B", "main", c2)
+    _commit(local, "worker/src/phantom1.json", "p", "L1 LOCAL-ONLY phantom src change")
+    _commit(local, "worker/src/phantom2.json", "p", "L2 LOCAL-ONLY phantom src change 2")
+    return local
+
+
+def _listed_shas(out):
+    return [l.strip().split()[0] for l in out.splitlines() if re.match(r"^\s{4}[0-9a-f]{7} ", l)]
+
+
+def _is_ancestor(cwd, sha, tip):
+    return subprocess.run(["git", "merge-base", "--is-ancestor", sha, tip], cwd=cwd).returncode == 0
+
+
+def test_undeployed_list_contains_only_commits_on_the_ref(tmp_path):
+    """Every sha in the Undeployed-commits list must be an ancestor of the ref tip (the
+    range operand must resolve against the ref, not the local line). Ancestor invariant,
+    NOT 'every listed commit touches a path in Files changed' -- that one false-fails on a
+    legit add-then-delete or change-then-revert (net diff empty, both commits undeployed)."""
+    local = _diverged_with_local_src(tmp_path)
+    out = wdsc.check(local, fetch=False)
+    assert out.startswith("ADVISORY"), out
+    tip = _g(local, "rev-parse", "origin/main")
+    listed = _listed_shas(out)
+    assert listed, f"fixture must produce a non-empty undeployed list: {out}"
+    off_ref = [s for s in listed if not _is_ancestor(local, s, tip)]
+    assert not off_ref, f"advisory names {len(off_ref)} commit(s) not on the ref: {off_ref}\n{out}"
+
+
+def test_fixture_really_has_local_only_src_commits(tmp_path):
+    """Positive control: the test above must not pass vacuously on a fixture with no
+    local-only worker/src commits to leak."""
+    local = _diverged_with_local_src(tmp_path)
+    tip = _g(local, "rev-parse", "origin/main")
+    head_src = _g(local, "log", "--format=%h", "-2", "HEAD", "--", "worker/src").splitlines()
+    assert len(head_src) == 2, head_src
+    off_ref = [s for s in head_src if not _is_ancestor(local, s, tip)]
+    assert len(off_ref) == 2, f"fixture must carry 2 local-only src commits, got {off_ref}"

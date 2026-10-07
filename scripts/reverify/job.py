@@ -192,7 +192,7 @@ def _gate_commit(mode, py, push):
     # unattended job (AuditLab 2026-10-02): an alert asks AssetLab to run deploy_worker.py.
     for f in DATA_FILES:
         shutil.copyfile(os.path.join(JOB_DIR, f), os.path.join(JOB_DIR, WORKER_COPIES[f]))
-    for gate in ([py, "-m", "pytest", "scripts/reverify", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
+    for gate in ([py, "-m", "pytest", "scripts/reverify", "scripts", "-q"], [py, "generate.py"], [py, "scripts/preship_gate.py"]):
         g = sh(*gate, check=False)
         if g.returncode != 0:
             # head carries the FAIL/violation lines; tail carries the traceback for crashes -- keep both
