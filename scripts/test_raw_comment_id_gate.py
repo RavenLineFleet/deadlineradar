@@ -59,3 +59,16 @@ def test_real_docs_tree_is_clean():
     files = list(docs.rglob("*.html"))
     assert files
     assert gate.check_no_internal_ids_in_shipped_comments(files) == []
+
+
+def test_lb7_roster_and_boundary():
+    # roster gap: names the live fleet has that the gate never listed
+    for name in ("ActorLab", "DRLocalBot", "GameLab", "KelliSites", "RavenTrading", "DeskCrew"):
+        assert gate._PROSE_INTERNAL_NAME_RE.search(f"per {name} eval the fee is $100"), name
+    # boundary gap: snake_case adjacency must match, as in drbot's filter
+    for s in ("_HomeLab", "HomeLab_x", "my-HomeLab", "HomeLab", "HomeLab_P0_sweep"):
+        assert gate._PROSE_INTERNAL_NAME_RE.search(s), s
+    # controls: alnum-adjacent and ordinary text must NOT match
+    for s in ("XHomeLab", "AssetLabs", "homelab", "Halloween", "Moose & Raven LLC",
+              "the Certified Public Accountant license fee is $85"):
+        assert not gate._PROSE_INTERNAL_NAME_RE.search(s), s

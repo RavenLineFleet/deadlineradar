@@ -240,10 +240,20 @@ _PROSE_TRACKER_REF_RE = re.compile(r"\b(?:roadmap|ticket|backlog|issue|epic|stor
 # the OTHER leak shapes (snake_case, finding-IDs, tracker refs, dated
 # changelog syntax). Listed alphabetically so a future addition is a
 # one-line diff, not a hunt for where the list "really" lives.
+# LB-7 (SecurityLab + AuditLab, 2026-10-06): two matcher gaps closed here.
+# (1) Roster: the live fleet had 6 agent names in neither this list nor
+# drbot's (ActorLab, DRLocalBot, GameLab, KelliSites, RavenTrading, DeskCrew
+# added; "Halloween" is deliberately NOT added -- an ordinary English word,
+# same rationale as Raven/Contender above). (2) Boundary: `\b` treats `_` as
+# a word character, so `_HomeLab` / `HomeLab_x` (the snake_case register fleet
+# tooling generates) passed this gate while drbot's filter caught them; the
+# lookarounds below match drbot's `[A-Za-z0-9]` boundary rule. DRLocalBot is
+# listed whole because no boundary sits between "DR" and "LocalBot".
 _PROSE_INTERNAL_NAME_RE = re.compile(
-    r"\b(?:AssetLab|AuditLab|BettingBot|BotLab|DiffLab|FleetDeck|HANDOFF|"
-    r"HomeLab|LedgerLab|Orchestrator|PortfolioMeta|ScoutLab|SecurityLab|"
-    r"ShopLab|StockLab|ValueLab|firmchat|GrowthLab|LocalBot|FleetChat|StockWatch)\b"
+    r"(?<![A-Za-z0-9])(?:ActorLab|AssetLab|AuditLab|BettingBot|BotLab|DeskCrew|"
+    r"DiffLab|DRLocalBot|FleetDeck|GameLab|HANDOFF|HomeLab|KelliSites|LedgerLab|"
+    r"Orchestrator|PortfolioMeta|RavenTrading|ScoutLab|SecurityLab|ShopLab|"
+    r"StockLab|ValueLab|firmchat|GrowthLab|LocalBot|FleetChat|StockWatch)(?![A-Za-z0-9])"
 )
 
 # GATE-1 hardening (AuditLab, COPY-3 2026-08-14 residual report, implemented
