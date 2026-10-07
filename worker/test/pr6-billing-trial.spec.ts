@@ -176,14 +176,11 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
     }
   });
 
-  // BILL-22/23 (HomeLab, 2026-10-03): the live pricing page shipped a
-  // working Monthly toggle before any live-mode Stripe monthly Price ids
-  // existed -- a real visitor could pick it and hit a checkout error.
-  // MONTHLY_BILLING_ENABLED (tiers.ts) now gates the route itself, below
-  // the UI-side gate (generate.py), so a stale cached page or a direct
-  // API call still gets a clean, friendly rejection rather than reaching
-  // Stripe at all.
-  it("BILL-22/23: interval 'monthly' is rejected with a friendly message while MONTHLY_BILLING_ENABLED is false -- no Stripe call", async () => {
+  // Monthly billing enabled (Devin decision 2026-10-07; MONTHLY_BILLING_ENABLED
+  // true in tiers.ts + generate.py). Replaces the BILL-22/23 flag-off tests:
+  // the route now sends the MONTHLY Price id and tags the session monthly,
+  // and the annual path is untouched.
+  it("interval 'monthly' checks out on the MONTHLY price id with billing_interval=monthly metadata (annual id never sent)", async () => {
     const { cookie } = await createFirmWithSession("Interval Firm B", `interval-b-${Date.now()}@example.com`);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ id: "cs_test_2", url: "https://checkout.stripe.com/pay/cs_test_2" }), { status: 200 })
@@ -195,18 +192,22 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
           headers: { "content-type": "application/json", Cookie: cookie },
           body: JSON.stringify({ tier: "firm_starter", interval: "monthly" }),
         }),
-        // Fully configured on purpose -- proves the gate fires on the flag
-        // itself, not as a side effect of a missing price id (that's the
-        // separate, still-covered 503 path below).
         { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_annual_x", STRIPE_PRICE_FIRM_STARTER_MONTHLY: "price_monthly_x" }
       );
-      expect(resp.status).toBe(400);
-      const body = (await resp.json()) as { error: string };
-      expect(body.error).toMatch(/coming soon/i);
-      expect(fetchSpy).not.toHaveBeenCalled(); // never reaches Stripe
+      expect(resp.status).toBe(200);
+      const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const sentBody = (calledInit.body as string) ?? "";
+      expect(sentBody).toContain("price_monthly_x");
+      expect(sentBody).not.toContain("price_annual_x");
+      expect(sentBody).toContain("metadata%5Bbilling_interval%5D=monthly");
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  it("MONTHLY_BILLING_ENABLED is true in the Worker (tiers.ts) -- pins the flag so a revert is a loud test failure", async () => {
+    const { MONTHLY_BILLING_ENABLED } = await import("../src/tiers");
+    expect(MONTHLY_BILLING_ENABLED).toBe(true);
   });
 
   it("unit: stripePriceIdForTier still resolves the MONTHLY price id correctly -- the underlying logic the HTTP gate above sits in front of", async () => {
@@ -232,17 +233,35 @@ describe("PR6 -- POST /firm/billing/checkout: interval + per-seat add-on", () =>
     expect(resp.status).toBe(400);
   });
 
-  it("monthly checkout is rejected by the BILL-22/23 gate before the missing-price-id 503 path is ever reached (annual still works)", async () => {
+  it("monthly checkout with NO monthly price id configured fails closed with 503 (never silently falls back to the annual price); annual still works", async () => {
     const { cookie } = await createFirmWithSession("Interval Firm D", `interval-d-${Date.now()}@example.com`);
-    const resp = await workerFetch(
-      new Request(`${BASE}/firm/billing/checkout`, {
-        method: "POST",
-        headers: { "content-type": "application/json", Cookie: cookie },
-        body: JSON.stringify({ tier: "firm_starter", interval: "monthly" }),
-      }),
-      { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_annual_x" } // no _MONTHLY var set
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "cs_test_4", url: "https://checkout.stripe.com/pay/cs_test_4" }), { status: 200 })
     );
-    expect(resp.status).toBe(400); // the flag gate, not the 503 a missing price id alone would cause once flipped on
+    try {
+      const envOnlyAnnual = { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_annual_x" }; // no _MONTHLY var set
+      const monthly = await workerFetch(
+        new Request(`${BASE}/firm/billing/checkout`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tier: "firm_starter", interval: "monthly" }),
+        }),
+        envOnlyAnnual
+      );
+      expect(monthly.status).toBe(503);
+      expect(fetchSpy).not.toHaveBeenCalled(); // never reaches Stripe
+      const annual = await workerFetch(
+        new Request(`${BASE}/firm/billing/checkout`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tier: "firm_starter", interval: "annual" }),
+        }),
+        envOnlyAnnual
+      );
+      expect(annual.status).toBe(200);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("a roster above firm_scale's 35-seat cap can check out on firm_scale WITH the per-seat add-on as a second line item", async () => {

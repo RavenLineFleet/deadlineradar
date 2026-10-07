@@ -1026,6 +1026,44 @@ describe("POST /stripe/webhook -- invoice.created referral code mint + print", (
     }
   });
 
+  it("monthly billing: a MONTHLY firm keeps the same code across invoices while it has uses left (still printed on the invoice); annual rotation above is unchanged", async () => {
+    const firm = await store.createFirm(env.DB, { name: "Monthly Stable Code Firm", adminEmail: `monthstable-${Date.now()}@example.com` });
+    await env.DB.prepare("UPDATE firms SET stripe_subscription_id = ?1, billing_interval = 'monthly' WHERE id = ?2").bind("sub_monthstable", firm.id).run();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    try {
+      const t = Math.floor(Date.now() / 1000);
+      const first = await invoiceCreatedPayload(`evt_monthstable_1_${firm.id}`, "in_monthstable_1", "sub_monthstable");
+      await postWebhook(first, await signPayload(SECRET, t, first), STRIPE_ENV);
+      const firstCode = (await store.getFirmById(env.DB, firm.id))?.referral_code;
+      expect(firstCode).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
+
+      const second = await invoiceCreatedPayload(`evt_monthstable_2_${firm.id}`, "in_monthstable_2", "sub_monthstable");
+      await postWebhook(second, await signPayload(SECRET, t, second), STRIPE_ENV);
+      expect((await store.getFirmById(env.DB, firm.id))?.referral_code).toBe(firstCode);
+      const printed = fetchSpy.mock.calls.find((c) => (c[0] as string).includes("/v1/invoices/in_monthstable_2"));
+      expect(printed).toBeTruthy();
+      expect(decodeURIComponent((printed![1] as RequestInit).body as string)).toContain(`ref=${firstCode}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("monthly billing: a MONTHLY firm whose code is exhausted (10 uses) rotates to a fresh code", async () => {
+    const firm = await store.createFirm(env.DB, { name: "Monthly Exhausted Code Firm", adminEmail: `monthexh-${Date.now()}@example.com` });
+    await env.DB.prepare("UPDATE firms SET stripe_subscription_id = ?1, billing_interval = 'monthly', referral_code = 'EXHAUSTD', referral_code_uses = 10 WHERE id = ?2").bind("sub_monthexh", firm.id).run();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    try {
+      const t = Math.floor(Date.now() / 1000);
+      const p = await invoiceCreatedPayload(`evt_monthexh_${firm.id}`, "in_monthexh_1", "sub_monthexh");
+      await postWebhook(p, await signPayload(SECRET, t, p), STRIPE_ENV);
+      const after = await store.getFirmById(env.DB, firm.id);
+      expect(after?.referral_code).not.toBe("EXHAUSTD");
+      expect(after?.referral_code_uses).toBe(0);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("an unresolvable subscription id no-ops cleanly and still 200s", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
     try {

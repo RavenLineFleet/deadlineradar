@@ -92,7 +92,7 @@ export const EXPECTED_PRICE_USAGE_TYPE = "licensed";
 // + dashboard upgrade panel) -- flip all three together once Devin's
 // live-mode keys, the real test-mode loop, and a clean
 // check_stripe_price_reconciliation.py run are done.
-export const MONTHLY_BILLING_ENABLED = false;
+export const MONTHLY_BILLING_ENABLED = true;
 
 export const FIRM_TIERS: FirmTierDef[] = [
   { planTier: "firm_starter", label: "Essentials", priceUsd: 199, monthlyPriceUsd: 20, seatCap: 5 },

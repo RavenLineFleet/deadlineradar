@@ -4345,7 +4345,13 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         try {
           const firm = await store.findFirmByStripeSubscriptionId(env.DB, subscriptionId);
           if (firm && !firm.demo_locked) {
-            const code = await store.mintReferralCode(env.DB, firm.id);
+            // Monthly billing (2026-10-07): a MONTHLY firm gets an invoice every
+            // month, so rotating on every invoice would kill its shared link
+            // within ~30 days. Reuse the current code while it still has uses
+            // left; rotate (fresh 10-use cap) only once exhausted. Annual
+            // firms rotate on every invoice exactly as before.
+            const reuseCode = firm.billing_interval === "monthly" && !!firm.referral_code && firm.referral_code_uses < 10;
+            const code = reuseCode ? (firm.referral_code as string) : await store.mintReferralCode(env.DB, firm.id);
             const link = `${staticSiteAbsoluteBaseUrl(env)}/for-firms/?ref=${encodeURIComponent(code)}`;
             // AuditLab REF-1 (2026-08-09, fixed 2026-08-13): same gate-
             // asymmetry fix as the checkout-time mint above -- see that

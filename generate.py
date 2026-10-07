@@ -2621,6 +2621,7 @@ PAGE_CSS = """
   /* PR6 (2026-10-02): the annual/monthly toggle above the tier buttons --
      same --accent/--on-accent pairing as .dr-paywall-tier-btn above, just
      a plain two-way switch rather than a call-to-action button. */
+  .price-alt { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted, inherit); }
   .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
   .dr-interval-btn {
     flex: 1 1 auto; background: var(--row-alt); color: var(--fg);
@@ -8462,8 +8463,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   <p class="mock-caption">Screenshot of our own shared live demo account &mdash; the same one
   you land on if you click "Live Demo" above. <a href="for-firms/" style="font-weight:600;">See the full product tour &rarr;</a></p>
   <p class="how-it-works"><strong>Roster, calendar, CPE tracking, and individual Practice Privilege
-  Check are free, up to 3 staff</strong>, no card required, no time limit. Firm plans from $199/year
-  (up to 5 staff) to $549/year (up to 35 staff) add the multistate map and the firm-level registration
+  Check are free, up to 3 staff</strong>, no card required, no time limit. Firm plans from $199/year or $20/month
+  (up to 5 staff) to $549/year or $55/month (up to 35 staff) add the multistate map and the firm-level registration
   check &mdash; every paid tier has the identical feature set, gated only by staff count.
   <a href="for-firms/" style="font-weight:600;">See the firm overview
   &rarr;</a> &middot; <a href="pricing/">Full pricing (incl. individual) &rarr;</a></p>
@@ -8551,7 +8552,7 @@ paid firm plan for the multistate map and the firm-level registration check.</p>
 
 <h2>4. Paid firm plans and billing</h2>
 <p>Paid firm plans (Essentials, Growth, Professional, and Enterprise, priced by staff-count capacity &mdash; every tier has
-the identical feature set) are billed annually in advance through Stripe. We never see or store your card
+the identical feature set) are billed in advance through Stripe, either annually or monthly (your choice at checkout). We never see or store your card
 number; Stripe processes payment directly. By subscribing to a paid plan, you authorize us to charge your
 payment method on file for each renewal period until you cancel. A solo CPA tracking only their own
 license gets the multistate map and firm-level registration check included on the free tier too, at no
@@ -8731,7 +8732,7 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
 # live-mode keys, the real Stripe test-mode loop, and a clean price
 # reconciliation run are all done -- see worker/src/tiers.ts's matching
 # MONTHLY_BILLING_ENABLED for the server-side half of this gate.
-MONTHLY_BILLING_ENABLED = False
+MONTHLY_BILLING_ENABLED = True
 
 # BILL-25 (AuditLab, MEDIUM, LIVE, 2026-10-03): the toggle/buttons/checkout
 # were gated by `399b42031`, but the per-seat add-on's monthly rate was
@@ -8797,6 +8798,8 @@ def _pricing_tier_card_html(t: dict, lang: str = "en") -> str:
     <h2>{t['label']}</h2>
     <p class="price price-annual">${t['annual_usd']}<span>/year{savings_clause}</span></p>
     <p class="price price-monthly" hidden>${t['monthly_usd']}<span>/month</span></p>
+    <p class="price-alt price-annual">or ${t['monthly_usd']}/month</p>
+    <p class="price-alt price-monthly" hidden>or ${t['annual_usd']}/year</p>
     <p class="detail">{_t("pricing.staff_up_to", lang, n=t['seat_cap'])}</p>
     {_paid_tier_includes_html(lang)}
     <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="{t['tier']}">Get {t['label']}</button>
@@ -10457,19 +10460,19 @@ them is how many staff it covers, nothing is held back on a cheaper plan.</p>
   </a>
   <a class="dr-segment-card" href="/pricing/#essentials">
     <div class="dr-segment-name">Small firm, up to 5 staff</div>
-    <div class="dr-segment-detail">Essentials &mdash; $199/year.</div>
+    <div class="dr-segment-detail">Essentials &mdash; $199/year or $20/month.</div>
   </a>
   <a class="dr-segment-card" href="/pricing/#growth">
     <div class="dr-segment-name">Growing firm, up to 10 staff</div>
-    <div class="dr-segment-detail">Growth &mdash; $299/year.</div>
+    <div class="dr-segment-detail">Growth &mdash; $299/year or $29/month.</div>
   </a>
   <a class="dr-segment-card" href="/pricing/#professional">
     <div class="dr-segment-name">Established firm, up to 20 staff</div>
-    <div class="dr-segment-detail">Professional &mdash; $399/year.</div>
+    <div class="dr-segment-detail">Professional &mdash; $399/year or $39/month.</div>
   </a>
   <a class="dr-segment-card" href="/pricing/#enterprise">
     <div class="dr-segment-name">Larger firm, up to 35 staff</div>
-    <div class="dr-segment-detail">Enterprise &mdash; $549/year.</div>
+    <div class="dr-segment-detail">Enterprise &mdash; $549/year or $55/month.</div>
   </a>
   <a class="dr-segment-card" href="mailto:{esc(CONTACT_EMAIL)}">
     <div class="dr-segment-name">More than 35 staff?</div>
@@ -10557,7 +10560,7 @@ to create an account yet? <a href="#firm-lead">Leave your email instead</a> and 
     return page_shell(
         f"For Firms — {SITE_NAME}",
         "CPA firm license tracking: roster, calendar, CPE hours, Practice Privilege Check free "
-        "forever — paid plans add the firm-registration check, from $199/year.",
+        "forever — paid plans add the firm-registration check, from $199/year or $20/month.",
         body,
         home_href="../",
         canonical_path="/for-firms/",
@@ -12697,7 +12700,7 @@ var drBillingInterval = 'annual';
 // monthly toggle -- see generate.py's MONTHLY_BILLING_ENABLED (the
 // pricing-page half) and worker/src/tiers.ts's matching constant (the
 // server-side half) for the rest of this gate. Flip all three together.
-var DR_MONTHLY_BILLING_ENABLED = false;
+var DR_MONTHLY_BILLING_ENABLED = true;
 
 // the SAME four tiers/prices as worker/src/tiers.ts's
 // FIRM_TIERS -- duplicated here deliberately, same "two places, same

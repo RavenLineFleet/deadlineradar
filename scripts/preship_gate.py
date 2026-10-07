@@ -4855,11 +4855,20 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # that passes having verified only 2 of 6 surfaces is worse than an
     # honest gap -- it actively certifies a still-wrong price as checked.
     bounds_pat = re.compile(
-        r"\$(\d+)/year\s*\((?:up to\s+)?(\d+)\s+staff\)\s*to\s*\$(\d+)/year\s*\((?:up to\s+)?(\d+)\s+staff\)"
+        r"\$(\d+)/year(?: or \$(\d+)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)\s*to\s*\$(\d+)/year(?: or \$(\d+)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)"
     )
     bounds_matches = list(bounds_pat.finditer(py_text))
     for m in bounds_matches:
-        lo_price, lo_cap, hi_price, hi_cap = (int(g) for g in m.groups())
+        lo_price, lo_mo, lo_cap, hi_price, hi_mo, hi_cap = (int(g) if g is not None else None for g in m.groups())
+        # Monthly billing (2026-10-07): when the prose also states the monthly
+        # price it must match the tier's monthlyPriceUsd (annual-only prose is
+        # still accepted so a page can legitimately omit it).
+        if (lo_mo is not None and lo_mo != lowest_tier["monthlyPriceUsd"]) or \
+           (hi_mo is not None and hi_mo != highest_tier["monthlyPriceUsd"]):
+            errors.append(
+                f"[SYNC] generate.py bounds prose states monthly prices ${lo_mo}/${hi_mo}/month, but worker/src/tiers.ts's "
+                f"FIRM_TIERS lowest/highest monthlyPriceUsd are ${lowest_tier['monthlyPriceUsd']}/${highest_tier['monthlyPriceUsd']}."
+            )
         if (lo_price, lo_cap) != (lowest_tier["priceUsd"], lowest_tier["seatCap"]) or \
            (hi_price, hi_cap) != (highest_tier["priceUsd"], highest_tier["seatCap"]):
             errors.append(
@@ -4869,8 +4878,8 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 f"${highest_tier['priceUsd']}/year ({highest_tier['seatCap']} staff)."
             )
 
-    segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year\.</div>')
-    for label, price_str in segment_pat.findall(py_text):
+    segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year(?: or \$(\d+)/month)?\.</div>')
+    for label, price_str, monthly_str in segment_pat.findall(py_text):
         tier = by_label.get(label)
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s /for-firms/ segment cards show a "{label}" detail line with no matching label in worker/src/tiers.ts\'s FIRM_TIERS')
@@ -4880,6 +4889,11 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${price_str}/year, but '
                 f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']}/year for it."
             )
+        if monthly_str and int(monthly_str) != tier["monthlyPriceUsd"]:
+            errors.append(
+                f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${monthly_str}/month, but '
+                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['monthlyPriceUsd']}/month for it."
+            )
 
     # BILL-16 (AuditLab, 2026-08-29): the segment card's OWN "up to N staff"
     # line (dr-segment-name, e.g. "Small firm, up to 5 staff") sits right
@@ -4888,7 +4902,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # mutation (a "5" changed to "6" here passed clean) before adding this.
     segment_seatcap_pat = re.compile(
         r'<div class="dr-segment-name">[^<]*?up to (\d+) staff</div>\s*'
-        r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year\.</div>'
+        r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year(?: or \$\d+/month)?\.</div>'
     )
     for seat_cap_str, label, price_str in segment_seatcap_pat.findall(py_text):
         tier = by_label.get(label)
