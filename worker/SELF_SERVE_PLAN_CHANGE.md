@@ -56,11 +56,15 @@ Each step that touches live Stripe/Worker config is its own plan-first with pre/
 1. `python scripts/create_stripe_tier_products.py --mode live --apply`   (objects only, no charges)
 2. `python scripts/configure_stripe_portal.py --mode live --apply`       (config only) -> `.secrets/portal_configs_live.json`
 3. Live reconciliation with the V2 ids mapped onto the canonical names (`check_stripe_price_reconciliation.py`).
-   **It must also report zero `coupon_missing`**: the per-tier referral coupons (`STRIPE_COUPON_REFERRAL` prefix +
-   1..10) must exist in live mode, else every rewarded firm's re-apply fails (a permanent error: tier still mirrors,
-   reward is lost, alert fires).
+   **Referral coupons need POSITIVE evidence, not a zero count (SecurityLab round 2).** `export
+   STRIPE_COUPON_REFERRAL=<live prefix>` is part of this step. The run must print BOTH
+   `Referral coupon check -- 10/10 coupon(s) fetched under prefix '<prefix>'` and
+   `PASS -- all 10 referral coupons exist ...`. A `REFERRAL COUPONS: ... skipped` line (var not exported) means
+   STOP, not pass: the script exits 0 having fetched nothing. The per-tier coupons must exist in live mode, else every
+   rewarded firm's re-apply fails permanently (tier still mirrors, reward is lost, alert fires, firm pays undiscounted).
+   Same rule for every step below: a proof is the positive readback line, never an exit code alone.
 4. `wrangler secret put` x8 `STRIPE_PRICE_FIRM_*[_MONTHLY]` (V2 ids), x1 `STRIPE_PORTAL_CONFIGS`.
-5. Deploy the Worker with `SELF_SERVE_PLAN_CHANGE` still OFF (handler present, no-ops; site literals still off).
+5. Deploy the Worker with `SELF_SERVE_PLAN_CHANGE` still OFF (handler present, no-ops; site literals still off). Proof: `/api/health` read twice a few seconds apart shows the new version id.
 6. **Subscribe `customer.subscription.updated` on the live webhook endpoint (AuditLab BILL-35 -- a hard gate).**
    `POST /v1/webhook_endpoints/<id>` additive on `enabled_events` (keep the existing four), pre/post readback,
    no secret printed; rollback = POST the prior four back. The sync has exactly ONE entry point (this webhook): if
