@@ -2362,6 +2362,12 @@ def check_runtime_hidden_display_override(html_files: list[Path], docs_dir: Path
     Sites that cannot be statically bound (function parameters, loop variables,
     runtime-created elements) are not checked; the count is printed by
     print_runtime_hidden_unbound_advisory, never hidden.
+    Known, stated narrowings (AuditLab HIDDEN-3 review, 0 sites each in the tree today): (1) only
+    bare `.cls` / `#id` display rules are seen -- a descendant/compound rule such as
+    `.wrap .box { display: flex }` is not flagged; (2) dotted-chain targets (`o.el.hidden = ...`,
+    `this.panel.hidden = ...`) match nothing and are not counted as unbound. Overrides must be the
+    exact `.cls[hidden]` / `#id[hidden]` form: scoped ones (`.wrap .box[hidden]`, `.box[hidden]:hover`)
+    do not count.
     Vacuity guard: if no site binds at all, the scan is broken and the check fails."""
     css_path = docs_dir / "styles.css"
     style_text = css_path.read_text(encoding="utf-8") if css_path.is_file() else ""
@@ -2381,7 +2387,7 @@ def check_runtime_hidden_display_override(html_files: list[Path], docs_dir: Path
             for branch in (b.strip() for b in sel.split(",")):
                 if branch == simple and val != "none":
                     visible = True
-                if f"{simple}[hidden]" in branch and val == "none":
+                if branch == f"{simple}[hidden]" and val == "none":  # HIDDEN-3: exact, like the visible side
                     override = True
         return visible, override
 

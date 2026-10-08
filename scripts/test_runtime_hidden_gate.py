@@ -47,6 +47,12 @@ def test_id_selector_rule_is_checked_too(tmp_path):
     assert _run(tmp_path, PAGE, "#tog { display: block; }\n#tog[hidden] { display: none; }\n") == []
 
 
+def test_scoped_override_does_not_clear_a_global_display_rule(tmp_path):
+    # HIDDEN-3: only the bare .box[hidden] override is a real fix.
+    for scoped in (".wrap .box[hidden]", ".other.box[hidden]", ".box[hidden]:hover"):
+        assert len(_run(tmp_path, PAGE, CSS_BUG + scoped + " { display: none; }\n")) == 1, scoped
+
+
 def test_vacuity_guards(tmp_path):
     assert "missing or empty" in _run(tmp_path, PAGE, "")[0]
     assert "measuring nothing" in _run(tmp_path, "<html><script>x.hidden=true</script></html>", CSS_FIXED)[0]
