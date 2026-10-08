@@ -40,9 +40,9 @@ sys.path.insert(0, HERE)
 import preship_gate as gate  # noqa: E402
 
 TODAY = datetime.datetime.now(datetime.timezone.utc).date()
-# stale_on = date + 31d. Comfortably past the 14-day imminent window either way.
+# stale_on = date + 30d (guard trips 12:00 UTC, STALE-46). Comfortably past the 14-day imminent window either way.
 FAR_DATE = (TODAY + datetime.timedelta(days=60)).isoformat()
-# stale_on = date + 31d = today + 11d -- inside the 14-day imminent window.
+# stale_on = date + 30d = today + 10d -- inside the 14-day imminent window.
 IMMINENT_DATE = (TODAY - datetime.timedelta(days=20)).isoformat()
 
 
@@ -139,17 +139,17 @@ def test_imminent_fails_even_when_not_grown_by_this_change(tmp_path):
 
 
 def test_over_cap_not_imminent_boundary_at_exactly_15_days_passes(tmp_path):
-    # stale_on = verified_date + 31d. Want days_until_stale == 15 (just
-    # outside the <=14 imminent window) -> verified_date = today - 16.
-    boundary_date = (TODAY - datetime.timedelta(days=16)).isoformat()
+    # stale_on = verified_date + 30d (STALE-46). Want days_until_stale == 15 (just
+    # outside the <=14 imminent window) -> verified_date = today - 15.
+    boundary_date = (TODAY - datetime.timedelta(days=15)).isoformat()
     repo = _git_repo_at(tmp_path, _records(11, boundary_date), committed_baseline={boundary_date: 11})
     _set_working_tree(repo, _records(11, boundary_date))
     assert gate.check_cpa_deadlines_verification_date_concentration(repo) == []
 
 
 def test_over_cap_imminent_boundary_at_exactly_14_days_fails(tmp_path):
-    # days_until_stale == 14 (right at the cap) -> verified_date = today - 17.
-    boundary_date = (TODAY - datetime.timedelta(days=17)).isoformat()
+    # days_until_stale == 14 (right at the cap) -> verified_date = today - 16.
+    boundary_date = (TODAY - datetime.timedelta(days=16)).isoformat()
     repo = _git_repo_at(tmp_path, _records(11, boundary_date), committed_baseline={boundary_date: 11})
     _set_working_tree(repo, _records(11, boundary_date))
     errors = gate.check_cpa_deadlines_verification_date_concentration(repo)

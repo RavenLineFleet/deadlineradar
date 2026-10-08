@@ -2603,7 +2603,7 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
 # every build gate simultaneously (the remediation itself can't be shipped
 # until it's done). This is the exact trap AuditLab filed about twice
 # before (2026-09-19, 09-25): clearing a cohort in one batch rebuilds the
-# same wall 31 days later. A preship check is the only version of "remember
+# same wall ~31 days later. A preship check is the only version of "remember
 # to stagger" that survives a busy remediation night.
 #
 # Orchestrator STOP (23:03 MDT, 2026-10-02), the morning of the first
@@ -2614,18 +2614,18 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
 # than the problem it prevents. Ratcheted instead: a hard failure only
 # when (a) THIS change made some date's cohort grow past the cap (never
 # regress further), or (b) a cohort already over cap is close enough to
-# its own 31-day cliff that there's no longer enough lead time to safely
+# its own staleness cliff (verified + 30d12h UTC) that there's no longer enough lead time to safely
 # stagger it before it actually pauses signups/sends. An over-cap cohort
 # that is neither growing nor imminent is a loud advisory, not a block --
 # the lead time IS the remediation plan, and the gate must not consume it.
 CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE = 10
-# How close to its own 31-day staleness cliff an over-cap cohort may get
+# How close to its own staleness cliff (verified + 30d12h UTC) an over-cap cohort may get
 # before "stagger it" is no longer a credible plan and the gate hard-fails.
 # HomeLab's tranche plan spreads ~8 cpa_deadlines records/day, so clearing
 # even a large cohort takes days, not hours -- 14 days of lead time is
 # comfortably more than that, with margin for a missed day.
 CPA_DEADLINES_COHORT_IMMINENT_DAYS = 14
-CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- a record is stale at +31
+CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- the Worker guard trips at verified + 30d12h UTC (STALE-46), i.e. 12:00 UTC on the calendar date +30
 
 
 def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> tuple[dict[str, int], int]:
@@ -2859,11 +2859,11 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
                 continue
         # (b) imminent: already at its own recorded ceiling (flat -- a
         # stalled remediation, the real backstop this exists for) and
-        # close enough to its own 31-day staleness cliff that there's no
+        # close enough to its own staleness cliff (verified + 30d12h UTC) that there's no
         # longer enough lead time to safely stagger it before it actually
         # pauses signups/sends.
         try:
-            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS)  # STALE-46: guard trips at 12:00 UTC on this date
         except ValueError:
             continue  # malformed date -- the staleness advisory's own job, not this one's
         days_until_stale = (stale_on - today).days
@@ -2903,7 +2903,7 @@ def print_cpa_deadlines_cohort_concentration_advisory(repo_root: Path) -> None:
     today = datetime.now(timezone.utc).date()
     for verified_date, count in sorted(over_cap.items()):
         try:
-            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS)  # STALE-46: guard trips at 12:00 UTC on this date
             days_until_stale = (stale_on - today).days
             countdown = f"goes stale in {days_until_stale}d ({stale_on.isoformat()}) -- pauses signups and all outbound sends that day"
         except ValueError:
@@ -3724,6 +3724,71 @@ def check_stale_thresholds_unified(html_files, repo_root: Path | None = None) ->
                     f"trip on a different day than the page's own seal/caveat. Keep both at the "
                     f"same value."
                 )
+    return errors
+
+
+_STALE46_TS_AGE_EXPR = re.compile(
+    r"Math\.round\(\(realToday\.getTime\(\) - (asOf|verified)\.getTime\(\)\) / 86_400_000\)"
+)
+_STALE46_TS_COMPARE = re.compile(r"\bageDays\s*>\s*STALENESS_THRESHOLD_DAYS\b")
+
+
+def check_stale_boundary_parity(repo_root: Path) -> list[str]:
+    """AuditLab STALE-46: STALE-12 above pins only the integer threshold (30 == 30). Two
+    implementations can share that constant and still trip a day apart -- the Worker guard
+    rounds an INSTANT (Math.round, trips at verified + 30d12h UTC) while the Python
+    pre-expiry lane used to floor CALENDAR dates (verified + 31). This pins the boundary:
+    the shipped TS age expression must keep the exact shape measured here, and
+    cpa_deadlines_staleness_check.stale_instant() must flip at the same instant that
+    expression crosses the threshold (evaluated in node at the instant -1ms / exact)."""
+    errors = []
+    ts_path = repo_root / "worker" / "src" / "deadline.ts"
+    if not ts_path.exists():
+        return [f"[STALE-46] {ts_path} not found -- boundary parity is measuring nothing and must be repaired."]
+    ts = ts_path.read_text(encoding="utf-8")
+    exprs = _STALE46_TS_AGE_EXPR.findall(ts)
+    if len(exprs) < 2 or not _STALE46_TS_COMPARE.search(ts):
+        return [
+            "[STALE-46] worker/src/deadline.ts no longer has the age expression "
+            "Math.round((realToday.getTime() - asOf|verified.getTime()) / 86_400_000) in both "
+            "ageDaysFromAsOf and worstRecordAgeDays (and `ageDays > STALENESS_THRESHOLD_DAYS`). "
+            "This gate models that exact boundary; if the Worker's rounding changed, change "
+            "cpa_deadlines_staleness_check.stale_instant()/runtime_age_days() and this pin together."
+        ]
+    node = shutil.which("node")
+    if not node:
+        return ["[STALE-46] node not found on PATH -- the Worker boundary cannot be measured; install node or this gate is blind."]
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import cpa_deadlines_staleness_check as cdsc
+    except Exception as e:
+        return [f"[STALE-46] cpa_deadlines_staleness_check.py could not be imported ({type(e).__name__}: {e})."]
+    threshold = cdsc.STALENESS_THRESHOLD_DAYS
+    samples = [date(2026, 2, 28), date(2026, 9, 21), date(2026, 10, 25), date(2027, 3, 14)]
+    probes = []
+    for v in samples:
+        edge_ms = int(cdsc.stale_instant(v).timestamp() * 1000)
+        probes.append([v.isoformat(), edge_ms - 1, edge_ms])
+    js = (
+        "const T=%d;const out=[];"
+        "for(const [v,before,at] of %s){const verified=new Date(v+'T00:00:00Z');"
+        "const age=(n)=>Math.round((new Date(n).getTime()-verified.getTime())/86_400_000);"
+        "out.push([v,age(before)>T,age(at)>T]);}"
+        "console.log(JSON.stringify(out));"
+    ) % (threshold, json.dumps(probes))
+    try:
+        proc = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+        results = json.loads(proc.stdout)
+    except Exception as e:
+        return [f"[STALE-46] node boundary probe failed ({type(e).__name__}: {e}); parity unmeasured."]
+    for v, stale_before, stale_at in results:
+        if stale_before or not stale_at:
+            errors.append(
+                f"[STALE-46] record verified {v}: the Worker guard expression says stale-1ms={stale_before}, "
+                f"stale-at-edge={stale_at}, but cpa_deadlines_staleness_check.stale_instant() claims the flip "
+                f"is at that instant (expected False then True). The Python lane and the runtime guard trip "
+                f"at different instants -- the warning would flip after (or before) the pause."
+            )
     return errors
 
 
@@ -8466,6 +8531,7 @@ def main():
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_clock_kind_consistency(repo_root)
     all_errors += check_stale_thresholds_unified(html_files, repo_root)
+    all_errors += check_stale_boundary_parity(repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
     all_errors += check_hedge_language_enforced(repo_root)
