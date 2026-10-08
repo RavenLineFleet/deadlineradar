@@ -86,6 +86,19 @@ def _run_with_all_prices(monkeypatch: pytest.MonkeyPatch, price_for_env: dict) -
     return exit_code, buf.getvalue()
 
 
+def _run_with_all_prices_except(monkeypatch: pytest.MonkeyPatch, unset_env: str) -> tuple[int, str]:
+    """Same stub seam as _run_with_all_prices, but one env var is left unset."""
+    real_setenv = monkeypatch.setenv
+
+    def setenv_skipping(name, value, prepend=None):
+        if name != unset_env:
+            real_setenv(name, value, prepend)
+
+    monkeypatch.delenv(unset_env, raising=False)
+    monkeypatch.setattr(monkeypatch, "setenv", setenv_skipping)
+    return _run_with_all_prices(monkeypatch, {})
+
+
 def test_baseline_all_ten_correct_is_clean(monkeypatch: pytest.MonkeyPatch) -> None:
     exit_code, output = _run_with_all_prices(monkeypatch, {})
     assert exit_code == 0
@@ -147,3 +160,30 @@ def test_bill23b_metered_usage_type_on_per_seat_addon_fails(monkeypatch: pytest.
     exit_code, output = _run_with_all_prices(monkeypatch, {per_seat_env: price})
     assert exit_code == 1
     assert "recurring.usage_type='metered'" in output
+
+
+def test_block1_unset_monthly_price_is_a_mismatch_while_monthly_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SecurityLab BLOCK-1 (2026-10-07): with MONTHLY_BILLING_ENABLED the site
+    offers Monthly, so an unset *_MONTHLY id must FAIL the gate, not be skipped."""
+    monkeypatch.setattr(recon, "monthly_billing_enabled", lambda: True)
+    exit_code, output = _run_with_all_prices_except(monkeypatch, "STRIPE_PRICE_FIRM_GROWTH_MONTHLY")
+    assert exit_code == 1
+    assert "MISMATCH" in output and "STRIPE_PRICE_FIRM_GROWTH_MONTHLY" in output
+    assert "unset while MONTHLY_BILLING_ENABLED" in output
+
+
+def test_block1_unset_monthly_price_is_skipped_when_monthly_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(recon, "monthly_billing_enabled", lambda: False)
+    exit_code, output = _run_with_all_prices_except(monkeypatch, "STRIPE_PRICE_FIRM_GROWTH_MONTHLY")
+    assert exit_code == 0
+    assert "NOT CONFIGURED" in output
+
+
+def test_block1_unset_annual_price_stays_skipped_while_monthly_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(recon, "monthly_billing_enabled", lambda: True)
+    exit_code, _output = _run_with_all_prices_except(monkeypatch, "STRIPE_PRICE_FIRM_GROWTH")
+    assert exit_code == 0
+
+
+def test_monthly_billing_enabled_reads_the_real_tiers_ts_flag() -> None:
+    assert recon.monthly_billing_enabled() is True

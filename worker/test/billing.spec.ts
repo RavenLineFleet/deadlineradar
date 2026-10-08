@@ -261,8 +261,9 @@ describe("POST /firm/billing/checkout", () => {
         { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_x" }
       );
       expect(resp.status).toBe(400);
-      const body = (await resp.json()) as { error: string };
+      const body = (await resp.json()) as { error: string; code?: string };
       expect(body.error).toMatch(/already have an active subscription/i);
+      expect(body.code).toBe("already_subscribed");
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();

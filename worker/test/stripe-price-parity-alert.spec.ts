@@ -52,6 +52,20 @@ const PR6_ENV = {
   STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY: "price_addon_monthly",
 };
 
+// Correct responses for the 6 PR6 prices, for tests whose subject is the 4
+// annual prices. With MONTHLY_BILLING_ENABLED an UNSET monthly id is itself
+// a mismatch (SecurityLab BLOCK-1, 2026-10-07), so those tests must now
+// configure the monthly/per-seat ids and serve them correctly.
+function pr6OkResponse(url: string): Response | null {
+  if (url === STRIPE_PRICE_URL("price_starter_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2000, interval: "month" }));
+  if (url === STRIPE_PRICE_URL("price_growth_monthly")) return Response.json(stripePriceResponse({ unit_amount: 2900, interval: "month" }));
+  if (url === STRIPE_PRICE_URL("price_standard_monthly")) return Response.json(stripePriceResponse({ unit_amount: 3900, interval: "month" }));
+  if (url === STRIPE_PRICE_URL("price_scale_monthly")) return Response.json(stripePriceResponse({ unit_amount: 5500, interval: "month" }));
+  if (url === STRIPE_PRICE_URL("price_addon_annual")) return Response.json(stripePriceResponse({ unit_amount: 1500, interval: "year" }));
+  if (url === STRIPE_PRICE_URL("price_addon_monthly")) return Response.json(stripePriceResponse({ unit_amount: 150, interval: "month" }));
+  return null;
+}
+
 describe("claimStripePriceParityAlertForMonth / unclaim -- (month, mismatch signature)-keyed dedup", () => {
   it("first claim for a (month, signature) succeeds, a second claim of the SAME pair fails", async () => {
     const month = "2099-01";
@@ -110,36 +124,74 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     }
   });
 
-  it("a tier with no configured price env var is silently skipped -- not a mismatch", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      throw new Error("must not fetch a price for an unconfigured tier");
+  it("an unset ANNUAL price env var is silently skipped -- not a mismatch (monthly + per-seat configured and correct)", async () => {
+    const urls: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      urls.push(url);
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`must not fetch a price for an unconfigured annual tier: ${url}`);
     });
     try {
       await freshRun({
         SEND_APPROVED_PASSES: "stripePriceParityAlert",
+        ...PR6_ENV,
         STRIPE_PRICE_FIRM_STARTER: undefined,
         STRIPE_PRICE_FIRM_GROWTH: undefined,
         STRIPE_PRICE_FIRM_STANDARD: undefined,
         STRIPE_PRICE_FIRM_SCALE: undefined,
       });
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(urls).toHaveLength(6); // only the 6 PR6 prices fetched, no alert POST
     } finally {
       fetchSpy.mockRestore();
     }
   });
 
-  it("all 4 prices match tiers.ts exactly -- no send", async () => {
+  // SecurityLab BLOCK-1 (2026-10-07): MONTHLY_BILLING_ENABLED makes the
+  // site offer Monthly unconditionally, so an UNSET monthly id (checkout
+  // would 503 at purchase time) must alert, not be skipped.
+  it("BLOCK-1 interlock: a monthly price env var unset while MONTHLY_BILLING_ENABLED alerts naming it", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      if (url === RESEND_URL) {
+        captured.push(String((JSON.parse(String(init?.body)) as { text?: string }).text ?? ""));
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV, STRIPE_PRICE_FIRM_GROWTH_MONTHLY: undefined });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_FIRM_GROWTH_MONTHLY");
+      expect(captured[0]).toContain("unset while MONTHLY_BILLING_ENABLED");
+      expect(captured[0]).not.toContain("STRIPE_PRICE_FIRM_STARTER_MONTHLY"); // only the unset one
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("all 10 prices match tiers.ts exactly -- no send", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;
       if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
       if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
       if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
       if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
-      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
-      expect(fetchSpy).toHaveBeenCalledTimes(4); // 4 Stripe GETs, 0 SendGrid POST
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(fetchSpy).toHaveBeenCalledTimes(10); // 10 Stripe GETs, 0 SendGrid POST
     } finally {
       fetchSpy.mockRestore();
     }
@@ -158,10 +210,12 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
         captured.push({ subject: body.subject, text: body.text ?? "" });
         return new Response(null, { status: 202 });
       }
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
       throw new Error(`unexpected fetch: ${url}`);
     });
     try {
-      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert" });
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
       expect(captured).toHaveLength(1);
       expect(captured[0]?.subject).toContain("1 Stripe price");
       expect(captured[0]?.text).toContain("STRIPE_PRICE_FIRM_STARTER");

@@ -63,6 +63,7 @@ import {
   EXPECTED_PRICE_INTERVAL_COUNT,
   EXPECTED_PRICE_USAGE_TYPE,
   FIRM_TIERS,
+  MONTHLY_BILLING_ENABLED,
   PER_SEAT_ADDON_ANNUAL_USD,
   PER_SEAT_ADDON_MONTHLY_USD,
   seatCapForFirmTier,
@@ -2727,7 +2728,15 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   const mismatches: { envVar: string; label: string; expectedUsd: number; expectedInterval: "year" | "month"; problems: string[] }[] = [];
   for (const check of checks) {
     const { envVar, label, priceId, expectedUsd, expectedInterval } = check;
-    if (!priceId) continue; // not configured in this environment -- not a mismatch
+    if (!priceId) {
+      // SecurityLab BLOCK-1 (2026-10-07): with MONTHLY_BILLING_ENABLED the
+      // UI offers Monthly unconditionally, so an unset monthly price id is
+      // a 503 at purchase time, not "not configured in this environment".
+      if (MONTHLY_BILLING_ENABLED && envVar.endsWith("_MONTHLY")) {
+        mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while MONTHLY_BILLING_ENABLED -- the site offers monthly but checkout would 503`] });
+      }
+      continue; // otherwise not configured in this environment -- not a mismatch
+    }
     let price;
     try {
       price = await fetchStripePrice(env.STRIPE_SECRET_KEY, priceId);

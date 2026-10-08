@@ -341,8 +341,16 @@
         }
         return res.json().catch(function() { return null; }).then(function(data) {
           if (!res.ok) {
+            var alreadySubscribed = Boolean(data && data.code === 'already_subscribed');
+            if (alreadySubscribed && toggleEl) {
+              // A firm that already has a subscription cannot switch billing
+              // period self-serve -- stop offering the choice.
+              toggleEl.hidden = true;
+            }
             if (errEl) {
-              errEl.textContent = (data && data.error) ? data.error : 'Something went wrong, please try again.';
+              errEl.textContent = alreadySubscribed
+                ? 'You already have an active subscription. To switch billing period (monthly or annual) or plan, contact support.'
+                : ((data && data.error) ? data.error : 'Something went wrong, please try again.');
               errEl.hidden = false;
             }
             btn.disabled = false;

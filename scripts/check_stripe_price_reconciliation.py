@@ -160,12 +160,26 @@ def _basic_auth(secret_key: str) -> str:
     return base64.b64encode(f"{secret_key}:".encode("utf-8")).decode("ascii")
 
 
+def monthly_billing_enabled() -> bool:
+    """Reads worker/src/tiers.ts's MONTHLY_BILLING_ENABLED (SecurityLab BLOCK-1,
+    2026-10-07): while true the site offers Monthly, so an unset *_MONTHLY price
+    id is a MISMATCH (checkout would 503), not a skippable 'not configured'."""
+    import re
+    from pathlib import Path
+    ts = Path(__file__).resolve().parent.parent / "worker" / "src" / "tiers.ts"
+    m = re.search(r"export const MONTHLY_BILLING_ENABLED\s*=\s*(true|false)", ts.read_text(encoding="utf-8"))
+    if not m:
+        raise SystemExit("REFUSING: could not find MONTHLY_BILLING_ENABLED in worker/src/tiers.ts")
+    return m.group(1) == "true"
+
+
 def main() -> int:
     secret_key = os.environ.get("STRIPE_SECRET_KEY")
     if not secret_key:
         print("REFUSING: STRIPE_SECRET_KEY not set. Export it (test or live) and re-run.", file=sys.stderr)
         return 1
 
+    monthly_on = monthly_billing_enabled()
     mismatches = []
     missing_env = []
     api_errors = []
@@ -174,7 +188,11 @@ def main() -> int:
     for env_name, expected in EXPECTED_TIERS.items():
         price_id = os.environ.get(env_name)
         if not price_id:
-            missing_env.append(env_name)
+            if monthly_on and env_name.endswith("_MONTHLY"):
+                mismatches.append((env_name, expected["label"], "<unset>", [
+                    "env var unset while MONTHLY_BILLING_ENABLED -- the site offers monthly but checkout would 503"]))
+            else:
+                missing_env.append(env_name)
             continue
         try:
             price = fetch_price(secret_key, price_id)

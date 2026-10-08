@@ -3469,8 +3469,16 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
         }}
         return res.json().catch(function() {{ return null; }}).then(function(data) {{
           if (!res.ok) {{
+            var alreadySubscribed = Boolean(data && data.code === 'already_subscribed');
+            if (alreadySubscribed && toggleEl) {{
+              // A firm that already has a subscription cannot switch billing
+              // period self-serve -- stop offering the choice.
+              toggleEl.hidden = true;
+            }}
             if (errEl) {{
-              errEl.textContent = (data && data.error) ? data.error : 'Something went wrong, please try again.';
+              errEl.textContent = alreadySubscribed
+                ? 'You already have an active subscription. To switch billing period (monthly or annual) or plan, contact support.'
+                : ((data && data.error) ? data.error : 'Something went wrong, please try again.');
               errEl.hidden = false;
             }}
             btn.disabled = false;
@@ -14633,7 +14641,7 @@ function drRenderBillingPanel() {
         var priceUsd = isMonthly ? t.monthlyUsd : t.annualUsd;
         var priceLabel = '$' + priceUsd + '/' + (isMonthly ? 'month' : 'year');
         var seatLabel = (t.tier === topTier.tier && seatCount > t.seatCap)
-          ? ('up to 35 staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
+          ? ('up to 35 staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS.toFixed(2) : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
           : ('up to ' + t.seatCap + ' staff');
         // BILL-26 (SecurityLab, confirmed by orchestrator, 2026-10-03):
         // same reasoning as the static pricing page's own savings badge --

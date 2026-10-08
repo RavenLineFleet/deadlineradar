@@ -3619,6 +3619,7 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   if (firm.stripe_subscription_id) {
     return jsonResponse(400, {
       error: "You already have an active subscription. To change plans, contact support.",
+      code: "already_subscribed",
     });
   }
 
