@@ -2623,8 +2623,6 @@ PAGE_CSS = """
      a plain two-way switch rather than a call-to-action button. */
   .price-alt { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted, inherit); }
   .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
-  /* display:flex above outranks the UA [hidden] rule, so toggleEl.hidden = true
-     (pricing page, after an already_subscribed refusal) silently did nothing. */
   .dr-billing-interval-toggle[hidden] { display: none; }
   .dr-interval-btn {
     flex: 1 1 auto; background: var(--row-alt); color: var(--fg);

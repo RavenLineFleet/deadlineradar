@@ -26,8 +26,9 @@ Usage:
     python scripts/cpa_deadlines_staleness_check.py [repo_root]
 """
 import json
+import math
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 # Same bar every sibling staleness script in this directory uses (and the
@@ -37,13 +38,35 @@ from pathlib import Path
 # for the SAME board-page-plus-statute verification standard.
 STALENESS_THRESHOLD_DAYS = 30
 
+# AuditLab STALE-46 (2026-10-07): the Worker guard (worker/src/deadline.ts
+# ageDaysFromAsOf / worstRecordAgeDays) computes Math.round(instant diff in days) > 30,
+# i.e. it trips at verified 00:00 UTC + 30d12h, not at a calendar-date +31. generate.py's
+# badge/seal use the same age >= 30.5 instant (STALE-14). This lane used to floor on
+# calendar dates (trips a day later), so the warning flipped after the runtime pause.
+# These helpers are the one Python statement of that boundary; preship_gate's
+# check_stale_boundary_parity pins them against the shipped TS expression.
+STALE_ROUND_HALF_DAYS = 0.5
+
+
+def stale_instant(verified: date) -> datetime:
+    """First UTC instant at which the Worker guard refuses a record verified on `verified`."""
+    midnight = datetime(verified.year, verified.month, verified.day, tzinfo=timezone.utc)
+    return midnight + timedelta(days=STALENESS_THRESHOLD_DAYS, hours=24 * STALE_ROUND_HALF_DAYS)
+
+
+def runtime_age_days(verified: date, now: datetime) -> int:
+    """The Worker's age: Math.round((now - verified 00:00 UTC) / 86_400_000)."""
+    midnight = datetime(verified.year, verified.month, verified.day, tzinfo=timezone.utc)
+    return math.floor((now - midnight).total_seconds() / 86_400 + 0.5)
+
 
 def main() -> None:
     repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
     data_path = repo_root / "data" / "cpa_deadlines.json"
     data = json.loads(data_path.read_text(encoding="utf-8"))
 
-    today = date.today()
+    now = datetime.now(timezone.utc)
+    today = now.date()
     fresh, stale, unparseable, missing = [], [], [], []
     for r in data["records"]:
         lv = r.get("last_verified")
@@ -55,7 +78,7 @@ def main() -> None:
         except ValueError:
             unparseable.append(r)
             continue
-        age_days = (today - verified).days
+        age_days = runtime_age_days(verified, now)  # same rounding as the Worker guard (STALE-46)
         (stale if age_days > STALENESS_THRESHOLD_DAYS else fresh).append((r, age_days))
 
     print(f"CPA-deadlines per-citation staleness check -- {today.isoformat()} (threshold {STALENESS_THRESHOLD_DAYS}d)")

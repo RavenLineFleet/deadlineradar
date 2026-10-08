@@ -1350,7 +1350,6 @@
   
   .price-alt { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted, inherit); }
   .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
-  
   .dr-billing-interval-toggle[hidden] { display: none; }
   .dr-interval-btn {
     flex: 1 1 auto; background: var(--row-alt); color: var(--fg);

@@ -2302,6 +2302,129 @@ def check_hidden_display_override(html_files: list[Path], docs_dir: Path) -> lis
     return errors
 
 
+_RT_SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S)
+_RT_HIDDEN_ASSIGN_RE = re.compile(r"(?<![\w$.])([A-Za-z_$][\w$]*)\.hidden\s*=(?!=)")
+_RT_GET_BY_ID_RE = re.compile(r"""document\.getElementById\(\s*["']([^"']+)["']\s*\)""")
+_RT_QUERY_RE = re.compile(r"""document\.querySelector\(\s*["']([^"']+)["']\s*\)""")
+
+
+def _runtime_hidden_targets(html_text: str) -> tuple[list[tuple[str, str, list[str], str | None]], int]:
+    """HIDDEN-2 helper: bind every `X.hidden =` site in the page's inline scripts to
+    the NEAREST PRECEDING `var|let|const X = document.getElementById(..)|querySelector(..)`
+    (the binding rule that defeats reused `errEl`/`el`/`panel` names across scopes), then
+    to the classes/id of the element it names. Returns (resolved, unresolved_count) where
+    each resolved item is (var, how-it-was-found, classes, id-or-None)."""
+    resolved: list[tuple[str, str, list[str], str | None]] = []
+    unresolved = 0
+    for script in _RT_SCRIPT_RE.findall(html_text):
+        for site in _RT_HIDDEN_ASSIGN_RE.finditer(script):
+            var = site.group(1)
+            decl = None
+            for decl in re.finditer(r"\b(?:var|let|const)\s+" + re.escape(var) + r"\s*=\s*([^;\n]*)", script[:site.start()]):
+                pass  # keep the last (nearest preceding) declaration
+            if decl is None:
+                unresolved += 1
+                continue
+            rhs = decl.group(1)
+            m_id = _RT_GET_BY_ID_RE.search(rhs)
+            m_q = _RT_QUERY_RE.search(rhs)
+            if m_id:
+                el_id = m_id.group(1)
+                tag = re.search(r'<[a-zA-Z][^>]*\bid="' + re.escape(el_id) + r'"[^>]*>', html_text)
+                if not tag:
+                    unresolved += 1  # element created at runtime, not in the shipped DOM
+                    continue
+                cm = _HIDDEN_CLASS_ATTR_RE.search(tag.group(0))
+                resolved.append((var, f"#{el_id}", cm.group(1).split() if cm else [], el_id))
+            elif m_q:
+                last = re.split(r"[\s>+~]+", m_q.group(1).strip())[-1]
+                classes = re.findall(r"\.([\w-]+)", last)
+                idm = re.search(r"#([\w-]+)", last)
+                if not classes and not idm:
+                    unresolved += 1
+                    continue
+                resolved.append((var, m_q.group(1), classes, idm.group(1) if idm else None))
+            else:
+                unresolved += 1  # parameter, loop variable, .closest(), ... -- not statically bindable
+    return resolved, unresolved
+
+
+def check_runtime_hidden_display_override(html_files: list[Path], docs_dir: Path) -> list[str]:
+    """AuditLab HIDDEN-2 (MEDIUM, 2026-10-08): check_hidden_display_override
+    (HIDDEN-1) only sees elements that SHIP with `hidden`. The billing interval
+    toggle ships visible and is hidden at runtime (`toggleEl.hidden = true`), so a
+    `display:flex` class rule silently beat the UA [hidden] rule in production -- the
+    4th time that bug class reached prod and the first the gate could not see.
+    This is the follow-on HIDDEN-1's docstring promised: for every `X.hidden =` site
+    in the shipped inline scripts, bind X to its element (nearest preceding
+    declaration) and require that no class/id of that element carries an
+    unconditional non-none `display` rule without a `[hidden]{display:none}` override.
+    Sites that cannot be statically bound (function parameters, loop variables,
+    runtime-created elements) are not checked; the count is printed by
+    print_runtime_hidden_unbound_advisory, never hidden.
+    Known, stated narrowings (AuditLab HIDDEN-3 review, 0 sites each in the tree today): (1) only
+    bare `.cls` / `#id` display rules are seen -- a descendant/compound rule such as
+    `.wrap .box { display: flex }` is not flagged; (2) dotted-chain targets (`o.el.hidden = ...`,
+    `this.panel.hidden = ...`) match nothing and are not counted as unbound. Overrides must be the
+    exact `.cls[hidden]` / `#id[hidden]` form: scoped ones (`.wrap .box[hidden]`, `.box[hidden]:hover`)
+    do not count.
+    Vacuity guard: if no site binds at all, the scan is broken and the check fails."""
+    css_path = docs_dir / "styles.css"
+    style_text = css_path.read_text(encoding="utf-8") if css_path.is_file() else ""
+    css_rules = _CSS_RULE_RE.findall(style_text) if style_text.strip() else []
+    if not css_rules:
+        return ["[HIDDEN-2] docs/styles.css is missing or empty -- no CSS rules to test runtime-hidden "
+                "overrides against; this would otherwise report a vacuous pass."]
+
+    def _display_of(simple: str) -> tuple[bool, bool]:
+        """(has unconditional non-none display rule, has [hidden]{display:none} override)."""
+        visible = override = False
+        for sel, decl in css_rules:
+            m = _CSS_DISPLAY_RE.search(decl)
+            if not m:
+                continue
+            val = m.group(1).strip().lower()
+            for branch in (b.strip() for b in sel.split(",")):
+                if branch == simple and val != "none":
+                    visible = True
+                if branch == f"{simple}[hidden]" and val == "none":  # HIDDEN-3: exact, like the visible side
+                    override = True
+        return visible, override
+
+    errors: list[str] = []
+    total_resolved = 0
+    for f in html_files:
+        resolved, _unresolved = _runtime_hidden_targets(f.read_text(encoding="utf-8"))
+        total_resolved += len(resolved)
+        for var, how, classes, el_id in resolved:
+            names = [f".{c}" for c in classes] + ([f"#{el_id}"] if el_id else [])
+            for simple in names:
+                visible, override = _display_of(simple)
+                if visible and not override:
+                    errors.append(
+                        f"[HIDDEN-2][{f}] `{var}.hidden = ...` targets {how} whose {simple} rule "
+                        f"sets a non-none `display` with no `{simple}[hidden] {{ display: none; }}` "
+                        f"override -- the rule ties the UA [hidden] rule on specificity and wins by "
+                        f"source order, so the element stays visible after JS hides it. Add the override."
+                    )
+    if total_resolved == 0:
+        errors.append("[HIDDEN-2] no `X.hidden =` site bound to an element on any page -- the scan is "
+                      "measuring nothing (script extraction or binding regex broke).")
+    return sorted(set(errors))
+
+
+def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
+    """HIDDEN-2: say how many `X.hidden =` sites the static binder could NOT resolve, so the
+    check's coverage is stated rather than implied."""
+    bound = unbound = 0
+    for f in html_files:
+        r, u = _runtime_hidden_targets(f.read_text(encoding="utf-8"))
+        bound += len(r)
+        unbound += u
+    print(f"\n--- runtime-hidden display-override coverage (HIDDEN-2) ---\n  {bound} `.hidden =` site(s) bound and checked; "
+          f"{unbound} not statically bindable (parameters/loop vars/runtime-created) and unchecked.")
+
+
 def check_cpe_hours_currency(repo_root: Path) -> list[str]:
     """AuditLab BADGE-1 (MEDIUM, 2026-08-09): roadmap #47 upgraded the public
     CPE badge from a bare "Verified" to a dated "Verified 2026-07-15" on 50
@@ -2603,7 +2726,7 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
 # every build gate simultaneously (the remediation itself can't be shipped
 # until it's done). This is the exact trap AuditLab filed about twice
 # before (2026-09-19, 09-25): clearing a cohort in one batch rebuilds the
-# same wall 31 days later. A preship check is the only version of "remember
+# same wall ~31 days later. A preship check is the only version of "remember
 # to stagger" that survives a busy remediation night.
 #
 # Orchestrator STOP (23:03 MDT, 2026-10-02), the morning of the first
@@ -2614,18 +2737,18 @@ def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
 # than the problem it prevents. Ratcheted instead: a hard failure only
 # when (a) THIS change made some date's cohort grow past the cap (never
 # regress further), or (b) a cohort already over cap is close enough to
-# its own 31-day cliff that there's no longer enough lead time to safely
+# its own staleness cliff (verified + 30d12h UTC) that there's no longer enough lead time to safely
 # stagger it before it actually pauses signups/sends. An over-cap cohort
 # that is neither growing nor imminent is a loud advisory, not a block --
 # the lead time IS the remediation plan, and the gate must not consume it.
 CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE = 10
-# How close to its own 31-day staleness cliff an over-cap cohort may get
+# How close to its own staleness cliff (verified + 30d12h UTC) an over-cap cohort may get
 # before "stagger it" is no longer a credible plan and the gate hard-fails.
 # HomeLab's tranche plan spreads ~8 cpa_deadlines records/day, so clearing
 # even a large cohort takes days, not hours -- 14 days of lead time is
 # comfortably more than that, with margin for a missed day.
 CPA_DEADLINES_COHORT_IMMINENT_DAYS = 14
-CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- a record is stale at +31
+CPA_DEADLINES_STALENESS_THRESHOLD_DAYS = 30  # mirrors cpa_deadlines_staleness_check.py's own threshold -- the Worker guard trips at verified + 30d12h UTC (STALE-46), i.e. 12:00 UTC on the calendar date +30
 
 
 def _cpa_deadlines_verification_date_counts(cpa_data: dict) -> tuple[dict[str, int], int]:
@@ -2859,11 +2982,11 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
                 continue
         # (b) imminent: already at its own recorded ceiling (flat -- a
         # stalled remediation, the real backstop this exists for) and
-        # close enough to its own 31-day staleness cliff that there's no
+        # close enough to its own staleness cliff (verified + 30d12h UTC) that there's no
         # longer enough lead time to safely stagger it before it actually
         # pauses signups/sends.
         try:
-            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS)  # STALE-46: guard trips at 12:00 UTC on this date
         except ValueError:
             continue  # malformed date -- the staleness advisory's own job, not this one's
         days_until_stale = (stale_on - today).days
@@ -2903,7 +3026,7 @@ def print_cpa_deadlines_cohort_concentration_advisory(repo_root: Path) -> None:
     today = datetime.now(timezone.utc).date()
     for verified_date, count in sorted(over_cap.items()):
         try:
-            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS + 1)
+            stale_on = date.fromisoformat(verified_date) + timedelta(days=CPA_DEADLINES_STALENESS_THRESHOLD_DAYS)  # STALE-46: guard trips at 12:00 UTC on this date
             days_until_stale = (stale_on - today).days
             countdown = f"goes stale in {days_until_stale}d ({stale_on.isoformat()}) -- pauses signups and all outbound sends that day"
         except ValueError:
@@ -3724,6 +3847,108 @@ def check_stale_thresholds_unified(html_files, repo_root: Path | None = None) ->
                     f"trip on a different day than the page's own seal/caveat. Keep both at the "
                     f"same value."
                 )
+    return errors
+
+
+_STALE46_TS_AGE_EXPR = re.compile(
+    r"Math\.round\(\(realToday\.getTime\(\) - (asOf|verified)\.getTime\(\)\) / 86_400_000\)"
+)
+_STALE46_TS_COMPARE = re.compile(r"\bageDays\s*>\s*STALENESS_THRESHOLD_DAYS\b")
+
+
+def check_stale_boundary_parity(repo_root: Path) -> list[str]:
+    """AuditLab STALE-46: STALE-12 above pins only the integer threshold (30 == 30). Two
+    implementations can share that constant and still trip a day apart -- the Worker guard
+    rounds an INSTANT (Math.round, trips at verified + 30d12h UTC) while the Python
+    pre-expiry lane used to floor CALENDAR dates (verified + 31). This pins the boundary:
+    the shipped TS age expression must keep the exact shape measured here, and
+    cpa_deadlines_staleness_check.stale_instant() must flip at the same instant that
+    expression crosses the threshold (evaluated in node at the instant -1ms / exact)."""
+    errors = []
+    ts_path = repo_root / "worker" / "src" / "deadline.ts"
+    if not ts_path.exists():
+        return [f"[STALE-46] {ts_path} not found -- boundary parity is measuring nothing and must be repaired."]
+    ts = ts_path.read_text(encoding="utf-8")
+    exprs = _STALE46_TS_AGE_EXPR.findall(ts)
+    if len(exprs) < 2 or not _STALE46_TS_COMPARE.search(ts):
+        return [
+            "[STALE-46] worker/src/deadline.ts no longer has the age expression "
+            "Math.round((realToday.getTime() - asOf|verified.getTime()) / 86_400_000) in both "
+            "ageDaysFromAsOf and worstRecordAgeDays (and `ageDays > STALENESS_THRESHOLD_DAYS`). "
+            "This gate models that exact boundary; if the Worker's rounding changed, change "
+            "cpa_deadlines_staleness_check.stale_instant()/runtime_age_days() and this pin together."
+        ]
+    node = shutil.which("node")
+    if not node:
+        return ["[STALE-46] node not found on PATH -- the Worker boundary cannot be measured; install node or this gate is blind."]
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import cpa_deadlines_staleness_check as cdsc
+    except Exception as e:
+        return [f"[STALE-46] cpa_deadlines_staleness_check.py could not be imported ({type(e).__name__}: {e})."]
+    # STALE-47: the threshold comes from the Worker's own constant, not cdsc's -- sharing cdsc's
+    # made a Python-only threshold change invisible to both sides of this comparison.
+    t_match = re.search(r"export const STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", ts)
+    if not t_match:
+        return ["[STALE-47] could not find 'export const STALENESS_THRESHOLD_DAYS = N' in worker/src/deadline.ts; the boundary is unmeasured."]
+    threshold = int(t_match.group(1))
+    # STALE-48: the other hand-kept copies of the same number, each unpinned until now.
+    if CPA_DEADLINES_STALENESS_THRESHOLD_DAYS != threshold:
+        errors.append(
+            f"[STALE-48] preship_gate.CPA_DEADLINES_STALENESS_THRESHOLD_DAYS ({CPA_DEADLINES_STALENESS_THRESHOLD_DAYS}) != "
+            f"worker/src/deadline.ts STALENESS_THRESHOLD_DAYS ({threshold}) -- the STALE27-IMMINENT countdown and "
+            f"advisory would report the wrong number of days left before the Worker pauses signups and sends."
+        )
+    gen_path = repo_root / "generate.py"
+    gen_match = re.search(r"^STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", gen_path.read_text(encoding="utf-8") if gen_path.exists() else "", re.M)
+    if not gen_match:
+        errors.append("[STALE-48] could not find module-level STALENESS_THRESHOLD_DAYS in generate.py; that copy is unpinned.")
+    elif int(gen_match.group(1)) != threshold:
+        errors.append(
+            f"[STALE-48] generate.py STALENESS_THRESHOLD_DAYS ({gen_match.group(1)}) != worker/src/deadline.ts "
+            f"STALENESS_THRESHOLD_DAYS ({threshold}) -- the build-refusal guard and the reminders scheduler "
+            f"(which imports it) would trip on a different day than the Worker."
+        )
+    if cdsc.STALENESS_THRESHOLD_DAYS != threshold:
+        errors.append(
+            f"[STALE-47] cpa_deadlines_staleness_check.STALENESS_THRESHOLD_DAYS ({cdsc.STALENESS_THRESHOLD_DAYS}) != "
+            f"worker/src/deadline.ts STALENESS_THRESHOLD_DAYS ({threshold}) -- the Python lane would warn on a different day than the Worker pauses."
+        )
+    samples = [date(2026, 2, 28), date(2026, 9, 21), date(2026, 10, 25), date(2027, 3, 14)]
+    probes = []
+    for v in samples:
+        edge_ms = int(cdsc.stale_instant(v).timestamp() * 1000)
+        probes.append([v.isoformat(), edge_ms - 1, edge_ms])
+    js = (
+        "const T=%d;const out=[];"
+        "for(const [v,before,at] of %s){const verified=new Date(v+'T00:00:00Z');"
+        "const age=(n)=>Math.round((new Date(n).getTime()-verified.getTime())/86_400_000);"
+        "out.push([v,age(before)>T,age(at)>T]);}"
+        "console.log(JSON.stringify(out));"
+    ) % (threshold, json.dumps(probes))
+    try:
+        proc = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+        results = json.loads(proc.stdout)
+    except Exception as e:
+        return [f"[STALE-46] node boundary probe failed ({type(e).__name__}: {e}); parity unmeasured."]
+    for v, stale_before, stale_at in results:
+        # STALE-47: also classify with runtime_age_days(), the function the report actually uses
+        vd = date.fromisoformat(v)
+        edge_dt = cdsc.stale_instant(vd)
+        py_before = cdsc.runtime_age_days(vd, edge_dt - timedelta(milliseconds=1)) > threshold
+        py_at = cdsc.runtime_age_days(vd, edge_dt) > threshold
+        if (py_before, py_at) != (stale_before, stale_at):
+            errors.append(
+                f"[STALE-47] record verified {v}: cpa_deadlines_staleness_check.runtime_age_days() classifies "
+                f"({py_before}, {py_at}) at edge-1ms/edge but the Worker expression says ({stale_before}, {stale_at})."
+            )
+        if stale_before or not stale_at:
+            errors.append(
+                f"[STALE-46] record verified {v}: the Worker guard expression says stale-1ms={stale_before}, "
+                f"stale-at-edge={stale_at}, but cpa_deadlines_staleness_check.stale_instant() claims the flip "
+                f"is at that instant (expected False then True). The Python lane and the runtime guard trip "
+                f"at different instants -- the warning would flip after (or before) the pause."
+            )
     return errors
 
 
@@ -8416,6 +8641,7 @@ def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
         (lambda: print_es_translation_review_advisory(repo_root), "print_es_translation_review_advisory"),
         (lambda: print_seo_length_drift_advisory(html_files, repo_root), "print_seo_length_drift_advisory"),
         (lambda: print_double_hyphen_backlog_advisory(html_files, docs_dir), "print_double_hyphen_backlog_advisory"),
+        (lambda: print_runtime_hidden_unbound_advisory(html_files), "print_runtime_hidden_unbound_advisory"),
     )
     for fn, name in advisories:
         try:
@@ -8489,6 +8715,7 @@ def main():
     all_errors += check_self_rolling_dates_rendered_correctly(repo_root, data_path)
     all_errors += check_birth_month_table_currency(html_files)
     all_errors += check_hidden_display_override(html_files, docs_dir)
+    all_errors += check_runtime_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
@@ -8497,6 +8724,7 @@ def main():
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_clock_kind_consistency(repo_root)
     all_errors += check_stale_thresholds_unified(html_files, repo_root)
+    all_errors += check_stale_boundary_parity(repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
     all_errors += check_hedge_language_enforced(repo_root)
