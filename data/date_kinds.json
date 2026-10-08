@@ -1,0 +1,245 @@
+{
+ "_meta": {
+  "purpose": "Classifies what each record's next_deadline_computed date IS (DATA-14 prevention, 2026-10-08). Label 'Next renewal date' is only valid for license_expiry or renewal_due. evidence is a verbatim quote from that record's citation or cycle_description; scripts/preship_gate.py enforces it. Sidecar (not in cpa_deadlines.json) so the Worker's mirrored data copy is untouched.",
+  "kinds": {
+   "license_expiry": "the date the license/permit expires",
+   "renewal_due": "the codified date renewal must be filed by (license lapses/expires at or after it)",
+   "filing_deadline_after_expiry": "a fee/statement deadline AFTER the license already expired (e.g. Alabama)",
+   "cpe_or_statement_deadline": "a CPE or compliance-statement date, not the license date"
+  }
+ },
+ "records": {
+  "ak-firm": {
+   "kind": "license_expiry",
+   "evidence": "expire on December 31 of odd-numbered years"
+  },
+  "ak-individual": {
+   "kind": "license_expiry",
+   "evidence": "expire on December 31 of odd-numbered years"
+  },
+  "al-all": {
+   "kind": "filing_deadline_after_expiry",
+   "evidence": "no later than December 31 following expiration of the permit"
+  },
+  "ar-firm": {
+   "kind": "license_expiry",
+   "evidence": "firm registrations expire December 31 of each year"
+  },
+  "ar-individual": {
+   "kind": "license_expiry",
+   "evidence": "licenses expire December 31 of each year"
+  },
+  "co-firm": {
+   "kind": "license_expiry",
+   "evidence": "expiring August 31 board-wide"
+  },
+  "co-individual": {
+   "kind": "license_expiry",
+   "evidence": "All Certified Public Accountant (CPA) Certificates expire on November 30 of odd-numbered years"
+  },
+  "ct-firm": {
+   "kind": "license_expiry",
+   "evidence": "All firm registrations expire annually on December 31st"
+  },
+  "ct-individual": {
+   "kind": "license_expiry",
+   "evidence": "expiring on December 31st of each year"
+  },
+  "dc-all": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 of every even-numbered year"
+  },
+  "de-all": {
+   "kind": "license_expiry",
+   "evidence": "expire June 30 of odd-numbered years"
+  },
+  "fl-firm": {
+   "kind": "license_expiry",
+   "evidence": "Firm licenses expire December 31 of odd-numbered years"
+  },
+  "ga-firm": {
+   "kind": "license_expiry",
+   "evidence": "Firm licenses expire June 30 of even-numbered years"
+  },
+  "ga-individual": {
+   "kind": "license_expiry",
+   "evidence": "Individual CPA license expires December 31 of odd-numbered years"
+  },
+  "hi-all": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 of every odd-numbered year"
+  },
+  "ia-firm": {
+   "kind": "renewal_due",
+   "evidence": "by the June 30 deadline each year"
+  },
+  "ia-individual": {
+   "kind": "license_expiry",
+   "evidence": "expires June 30 each year"
+  },
+  "id-firm": {
+   "kind": "renewal_due",
+   "evidence": "file an annual firm registration no later than September 30"
+  },
+  "il-firm": {
+   "kind": "license_expiry",
+   "evidence": "Firm licenses expire November 30, on a 3-year cycle"
+  },
+  "il-individual": {
+   "kind": "license_expiry",
+   "evidence": "Individual CPA license expires September 30, every 3 years"
+  },
+  "in-firm": {
+   "kind": "license_expiry",
+   "evidence": "Firm permits expire June 30 of every third year"
+  },
+  "in-individual": {
+   "kind": "license_expiry",
+   "evidence": "licenses expire June 30 of every third year"
+  },
+  "ks-firm": {
+   "kind": "renewal_due",
+   "evidence": "must be renewed by December 31 of each year"
+  },
+  "ky-firm": {
+   "kind": "renewal_due",
+   "evidence": "shall be renewed on or before August 1 every two (2) years"
+  },
+  "la-firm": {
+   "kind": "license_expiry",
+   "evidence": "Same annual, December 31 calendar cycle as individual licenses"
+  },
+  "la-individual": {
+   "kind": "license_expiry",
+   "evidence": "expires December 31 every year"
+  },
+  "md-firm": {
+   "kind": "license_expiry",
+   "evidence": "a fixed 2-year term expiring on the first December 31 that comes after the permit's effective date"
+  },
+  "me-all": {
+   "kind": "renewal_due",
+   "evidence": "renew annually on September 30"
+  },
+  "mn-firm": {
+   "kind": "renewal_due",
+   "evidence": "same December 31 fixed date as individual licenses"
+  },
+  "mn-individual": {
+   "kind": "license_expiry",
+   "evidence": "All licenses and permits expire on December 31 each year"
+  },
+  "mo-firm": {
+   "kind": "license_expiry",
+   "evidence": "expiring October 31, renewed annually"
+  },
+  "mo-individual": {
+   "kind": "license_expiry",
+   "evidence": "expiring September 30, renewed biennially"
+  },
+  "ms-firm": {
+   "kind": "renewal_due",
+   "evidence": "register on or before January 1 each year"
+  },
+  "ms-individual": {
+   "kind": "renewal_due",
+   "evidence": "on or before January 1 each year"
+  },
+  "mt-all": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 of each year"
+  },
+  "nc-all": {
+   "kind": "renewal_due",
+   "evidence": "must renew their certificates annually by the first day of July"
+  },
+  "nd-firm": {
+   "kind": "renewal_due",
+   "evidence": "is due for renewal June 30 each year"
+  },
+  "nd-individual": {
+   "kind": "renewal_due",
+   "evidence": "is due for renewal June 30 each year"
+  },
+  "ne-firm": {
+   "kind": "license_expiry",
+   "evidence": "firm permits expire June 30 of every year"
+  },
+  "nv-firm": {
+   "kind": "renewal_due",
+   "evidence": "due January 31 each year"
+  },
+  "nv-individual": {
+   "kind": "license_expiry",
+   "evidence": "The permit to practice expires December 31 of each year"
+  },
+  "ok-firm": {
+   "kind": "license_expiry",
+   "evidence": "firm registrations 'expire on June 30 of each year'"
+  },
+  "or-firm": {
+   "kind": "renewal_due",
+   "evidence": "renew the firm registration on or before December 31 of each odd-numbered year"
+  },
+  "pa-individual": {
+   "kind": "license_expiry",
+   "evidence": "CPA license expires December 31 of odd-numbered years"
+  },
+  "sc-firm": {
+   "kind": "renewal_due",
+   "evidence": "The deadline for firm registration renewal is February 1 at 11:59 pm"
+  },
+  "sc-individual": {
+   "kind": "renewal_due",
+   "evidence": "the deadline for CPA license renewal is February 1 at 11:59pm"
+  },
+  "sd-all": {
+   "kind": "renewal_due",
+   "evidence": "renew ANNUALLY with a filing deadline of August 1"
+  },
+  "us-virgin-islands-all": {
+   "kind": "license_expiry",
+   "evidence": "permits expire June 30"
+  },
+  "ut-all": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 of every even-numbered year"
+  },
+  "va-firm": {
+   "kind": "renewal_due",
+   "evidence": "same fixed June 30 calendar date as individual licenses"
+  },
+  "va-individual": {
+   "kind": "renewal_due",
+   "evidence": "must renew by June 30 each year"
+  },
+  "vt-individual": {
+   "kind": "renewal_due",
+   "evidence": "renew every two years on July 31 of odd-numbered years"
+  },
+  "wi-firm": {
+   "kind": "renewal_due",
+   "evidence": "December 15 of each odd-numbered year, biennial"
+  },
+  "wi-individual": {
+   "kind": "renewal_due",
+   "evidence": "Individual CPA licenses renew December 15 of each odd-numbered year"
+  },
+  "wv-firm": {
+   "kind": "license_expiry",
+   "evidence": "expire each year on June 30"
+  },
+  "wv-individual": {
+   "kind": "license_expiry",
+   "evidence": "expires each year on June 30"
+  },
+  "wy-firm": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 of each year"
+  },
+  "wy-individual": {
+   "kind": "license_expiry",
+   "evidence": "expire December 31 each year"
+  }
+ }
+}

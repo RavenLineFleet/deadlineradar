@@ -4967,6 +4967,98 @@ def check_self_serve_plan_change_flag_consistency(repo_root: Path) -> list[str]:
     ]
 
 
+def check_date_kinds(repo_root: Path) -> list[str]:
+    """DATA-14 prevention (Devin, 2026-10-08: "that can never happen again").
+    /alabama/ labelled December 31 "Next renewal date" when the permit expires
+    September 30 and December 31 is only the post-expiry filing deadline.
+    data/date_kinds.json says what each record's displayed date IS, with a
+    verbatim evidence quote. Hard-fails when:
+      - a record with next_deadline_computed has no entry, or the sidecar names a
+        record that has none;
+      - the kind is not a known kind;
+      - evidence is not a verbatim substring of the record's citation or
+        cycle_description (an unquotable classification is a guess);
+      - the kind is license_expiry / renewal_due / filing_deadline_after_expiry and
+        the evidence does not name the month of next_deadline_computed (this is
+        the check that catches the Alabama shape: evidence about September cannot
+        back a December date);
+      - a record whose kind is not license_expiry / renewal_due is RENDERED with
+        the "Next renewal date" label in docs/<state>/index.html.
+    What it cannot prove: that the kind classification is TRUE. That is the
+    human + AuditLab review at classification time."""
+    import json as _json
+    errors: list[str] = []
+    kinds_path = repo_root / "data" / "date_kinds.json"
+    if not kinds_path.exists():
+        return ["[DATEKIND] data/date_kinds.json is missing"]
+    side = _json.loads(kinds_path.read_text(encoding="utf-8")).get("records", {})
+    d = _json.loads((repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))
+    recs = d if isinstance(d, list) else d.get("records", [])
+    known = {"license_expiry", "renewal_due", "filing_deadline_after_expiry", "cpe_or_statement_deadline", "cohort_or_other"}
+    month_names = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
+    dated = {r["id"]: r for r in recs if r.get("next_deadline_computed")}
+    for rid in sorted(set(dated) - set(side)):
+        errors.append(f"[DATEKIND][{rid}] has a computed date but no entry in data/date_kinds.json")
+    for rid in sorted(set(side) - set(dated)):
+        errors.append(f"[DATEKIND][{rid}] is in data/date_kinds.json but has no computed date (stale entry)")
+    for rid, r in dated.items():
+        e = side.get(rid)
+        if not e:
+            continue
+        kind, ev = e.get("kind"), e.get("evidence") or ""
+        if kind not in known:
+            errors.append(f"[DATEKIND][{rid}] unknown kind {kind!r}")
+            continue
+        hay = (r.get("citation") or "") + chr(10) + (r.get("cycle_description") or "")
+        if not ev or ev not in hay:
+            errors.append(f"[DATEKIND][{rid}] evidence is not a verbatim quote from the record's citation/cycle_description: {ev!r}")
+            continue
+        if kind in ("license_expiry", "renewal_due", "filing_deadline_after_expiry"):
+            m = int(r["next_deadline_computed"].split("-")[1])
+            name = month_names[m - 1]
+            if not re.search("(?:^|[^a-z])(?:" + name + "|" + name[:3] + ")(?:[^a-z]|$)", ev, re.IGNORECASE):
+                errors.append(
+                    f"[DATEKIND][{rid}] kind {kind} but its evidence never names {name.title()} "
+                    f"(computed {r['next_deadline_computed']}): {ev!r}"
+                )
+        if kind in ("license_expiry", "renewal_due"):
+            # The record's own text says the computed month's date FOLLOWS an
+            # expiration (Alabama: "December 31 following expiration of the
+            # permit"). Such a date is a post-expiry filing deadline, never the
+            # expiry/renewal date, whatever the evidence quote says.
+            m_idx = int(r["next_deadline_computed"].split("-")[1]) - 1
+            mname = month_names[m_idx]
+            follow = re.search(
+                "(?:" + mname + "|" + mname[:3] + ")[a-z]*[.]? +[0-9]{1,2}[a-z]* +(?:following|after) +(?:the +)?(?:expir|lapse)",
+                hay,
+                re.IGNORECASE,
+            )
+            if follow:
+                errors.append(
+                    f"[DATEKIND][{rid}] classified {kind} but its own text says that date comes AFTER expiration: "
+                    f"{follow.group(0)!r} -- it is a filing deadline, not the renewal/expiry date"
+                )
+        if kind not in ("license_expiry", "renewal_due"):
+            page = repo_root / "docs" / r["state_slug"] / "index.html"
+            if page.exists():
+                html_text = page.read_text(encoding="utf-8")
+                label = r["license_type_label"]
+                import html as _html
+                i = html_text.find(_html.escape(label, quote=True))
+                if i == -1:
+                    i = html_text.find(label)
+                if i == -1:
+                    errors.append(f"[DATEKIND][{rid}] cannot find its rendered sheet in docs/{r['state_slug']}/index.html")
+                else:
+                    m2 = re.search(r'<div class="k">([^<]*)</div>', html_text[i:i + 1500])
+                    if not m2 or m2.group(1).strip() == "Next renewal date":
+                        errors.append(
+                            f"[DATEKIND][{rid}] kind is {kind} but docs/{r['state_slug']}/index.html still labels it "
+                            f"{(m2.group(1) if m2 else '(no label found)')!r}"
+                        )
+    return errors
+
+
 def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     """AuditLab PRICE-1 (2026-08-09, closed 2026-08-13): worker/src/tiers.ts's
     FIRM_TIERS is the source of truth for what a firm is actually charged and
@@ -8743,6 +8835,7 @@ def main():
     all_errors += check_pricing_matches_tiers(repo_root)
     all_errors += check_monthly_billing_flag_consistency(repo_root)
     all_errors += check_self_serve_plan_change_flag_consistency(repo_root)
+    all_errors += check_date_kinds(repo_root)
     all_errors += check_json_copies_identical(repo_root)
     all_errors += check_citation_manifest_coverage(repo_root)
     all_errors += check_terms_version_sync(repo_root)

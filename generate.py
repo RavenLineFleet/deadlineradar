@@ -94,6 +94,7 @@ pathlib.Path.write_text = _write_text_lf
 
 ROOT = pathlib.Path(__file__).resolve().parent
 DATA_PATH = ROOT / "data" / "cpa_deadlines.json"
+DATE_KINDS_PATH = ROOT / "data" / "date_kinds.json"
 # Separate dataset (2026-07-15): CPE HOUR requirements, distinct from the renewal
 # DATE data above -- same 2-source verification standard, never merged with
 # cpa_deadlines.json. See data/cpe_hours.json's own _meta block for status.
@@ -6117,11 +6118,39 @@ _DATE_SEMANTICS = {
 }
 
 
+# What each record's displayed date IS (data/date_kinds.json, DATA-14 prevention
+# 2026-10-08). "Next renewal date" is only a true label for these kinds; every
+# other kind needs a _DATE_SEMANTICS entry. A record with a computed date and no
+# classification fails the BUILD, never silently renders as "Next renewal date".
+_RENEWAL_LABEL_KINDS = {"license_expiry", "renewal_due"}
+_DATE_KINDS_CACHE: dict | None = None
+
+
+def _date_kind(r: dict) -> str:
+    global _DATE_KINDS_CACHE
+    if _DATE_KINDS_CACHE is None:
+        _DATE_KINDS_CACHE = json.loads(DATE_KINDS_PATH.read_text(encoding="utf-8"))["records"]
+    entry = _DATE_KINDS_CACHE.get(r.get("id"))
+    if not entry:
+        raise RuntimeError(
+            f"record {r.get('id')!r} has a computed date but no entry in data/date_kinds.json -- "
+            f"classify it (license_expiry / renewal_due / filing_deadline_after_expiry / ...) before building"
+        )
+    return entry["kind"]
+
+
 def _date_label(r: dict) -> str:
-    return _DATE_SEMANTICS.get(r.get("id"), {}).get("label", "Next renewal date")
+    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+        return "Next renewal date"
+    ov = _DATE_SEMANTICS.get(r.get("id"))
+    if not ov:
+        raise RuntimeError(f"record {r.get('id')!r} date_kind is {_date_kind(r)!r}: add a _DATE_SEMANTICS label for it")
+    return ov["label"]
 
 
 def _date_note_prefix(r: dict) -> str:
+    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+        return ""
     note = _DATE_SEMANTICS.get(r.get("id"), {}).get("note")
     return f"{note} " if note else ""
 
