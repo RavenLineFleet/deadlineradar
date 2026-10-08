@@ -88,11 +88,23 @@ def test_verbatim_evidence_naming_the_wrong_month_fails(tree):
     assert any("ga-firm" in e and "June" in e for e in errs), errs
 
 
-def test_colorado_firm_cohort_date_as_plain_expiry_fails(tree):
-    # POST-8: co-firm's date is true only for part of the population (cohort-dependent). Calling it a
-    # plain expiry/renewal date must fail: its evidence is about the cohort, not the August date.
-    _edit_kinds(tree, lambda r: r["co-firm"].update(kind="license_expiry"))
-    assert any("co-firm" in e and "August" in e for e in gate.check_date_kinds(tree))
+def test_colorado_firm_claimed_uniform_fails(tree):
+    # POST-8 (the second published error): co-firm IS an expiry (kind is right) but its YEAR depends on the
+    # firm's cohort. Classifying it population=uniform - the way the first version of this gate effectively
+    # did - must go RED because the record's own text carries the caveat.
+    _edit_kinds(tree, lambda r: r["co-firm"].update(population="uniform"))
+    errs = gate.check_date_kinds(tree)
+    assert any("co-firm" in e and "population is uniform but the record's own text says otherwise" in e for e in errs), errs
+
+
+def test_non_uniform_record_needs_verbatim_population_evidence(tree):
+    _edit_kinds(tree, lambda r: r["co-firm"].update(population_evidence="the board publishes the anchor years"))
+    assert any("co-firm" in e and "population_evidence" in e for e in gate.check_date_kinds(tree))
+
+
+def test_unknown_population_fails(tree):
+    _edit_kinds(tree, lambda r: r["fl-firm"].update(population="mostly_uniform"))
+    assert any("fl-firm" in e and "population must be one of" in e for e in gate.check_date_kinds(tree))
 
 
 def test_colorado_page_relabelled_back_to_next_renewal_date_fails(tree):

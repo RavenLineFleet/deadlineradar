@@ -5006,7 +5006,11 @@ def check_date_kinds(repo_root: Path) -> list[str]:
     side = _json.loads(kinds_path.read_text(encoding="utf-8")).get("records", {})
     d = _json.loads((repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))
     recs = d if isinstance(d, list) else d.get("records", [])
-    known = {"license_expiry", "renewal_due", "filing_deadline_after_expiry", "cpe_or_statement_deadline", "cohort_or_other"}
+    known = {"license_expiry", "renewal_due", "filing_deadline_after_expiry", "cpe_or_statement_deadline"}
+    populations = {"uniform", "cohort_dependent", "per_licensee"}
+    # Un-negated tells that the date is NOT the same for every licensee (Colorado firms: "does not publish
+    # which specific years anchor the cycle"). A record whose text carries one cannot be population uniform.
+    caveat_tells = re.compile("does not publish which|what determines the cohort|depends on when|each firm" + chr(39) + "s own last-renewed|anchor year (?:is )?not", re.IGNORECASE)
     month_names = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
     dated = {r["id"]: r for r in recs if r.get("next_deadline_computed")}
     for rid in sorted(set(dated) - set(side)):
@@ -5025,6 +5029,23 @@ def check_date_kinds(repo_root: Path) -> list[str]:
         if not ev or ev not in hay:
             errors.append(f"[DATEKIND][{rid}] evidence is not a verbatim quote from the record's citation/cycle_description: {ev!r}")
             continue
+        pop = e.get("population")
+        if pop not in populations:
+            errors.append(f"[DATEKIND][{rid}] population must be one of {sorted(populations)}, got {pop!r}")
+            continue
+        if pop != "uniform":
+            pev = e.get("population_evidence") or ""
+            if not pev or pev not in hay:
+                errors.append(f"[DATEKIND][{rid}] population {pop} needs a population_evidence that is a verbatim quote: {pev!r}")
+            if not isinstance(e.get("anchor_published"), bool):
+                errors.append(f"[DATEKIND][{rid}] population {pop} needs anchor_published true/false")
+        else:
+            tell = caveat_tells.search(hay)
+            if tell:
+                errors.append(
+                    f"[DATEKIND][{rid}] population is uniform but the record's own text says otherwise: {tell.group(0)!r} "
+                    f"-- classify cohort_dependent/per_licensee with population_evidence (Colorado firms shape)"
+                )
         if kind in ("license_expiry", "renewal_due", "filing_deadline_after_expiry"):
             m = int(r["next_deadline_computed"].split("-")[1])
             name = month_names[m - 1]
@@ -5050,7 +5071,7 @@ def check_date_kinds(repo_root: Path) -> list[str]:
                     f"[DATEKIND][{rid}] classified {kind} but its own text says that date comes AFTER expiration: "
                     f"{follow.group(0)!r} -- it is a filing deadline, not the renewal/expiry date"
                 )
-        if kind not in ("license_expiry", "renewal_due"):
+        if kind not in ("license_expiry", "renewal_due") or pop != "uniform":
             page = repo_root / "docs" / r["state_slug"] / "index.html"
             if page.exists():
                 html_text = page.read_text(encoding="utf-8")
@@ -5065,7 +5086,7 @@ def check_date_kinds(repo_root: Path) -> list[str]:
                     m2 = re.search(r'<div class="k">([^<]*)</div>', html_text[i:i + 1500])
                     if not m2 or m2.group(1).strip() == "Next renewal date":
                         errors.append(
-                            f"[DATEKIND][{rid}] kind is {kind} but docs/{r['state_slug']}/index.html still labels it "
+                            f"[DATEKIND][{rid}] kind {kind} / population {pop} is not a plain uniform renewal date but docs/{r['state_slug']}/index.html still labels it "
                             f"{(m2.group(1) if m2 else '(no label found)')!r}"
                         )
     return errors

@@ -6135,7 +6135,7 @@ _RENEWAL_LABEL_KINDS = {"license_expiry", "renewal_due"}
 _DATE_KINDS_CACHE: dict | None = None
 
 
-def _date_kind(r: dict) -> str:
+def _date_entry(r: dict) -> dict:
     global _DATE_KINDS_CACHE
     if _DATE_KINDS_CACHE is None:
         _DATE_KINDS_CACHE = json.loads(DATE_KINDS_PATH.read_text(encoding="utf-8"))["records"]
@@ -6143,30 +6143,43 @@ def _date_kind(r: dict) -> str:
     if not entry:
         raise RuntimeError(
             f"record {r.get('id')!r} has a computed date but no entry in data/date_kinds.json -- "
-            f"classify it (license_expiry / renewal_due / filing_deadline_after_expiry / ...) before building"
+            f"classify it (kind + population) before building"
         )
-    return entry["kind"]
+    return entry
+
+
+def _date_kind(r: dict) -> str:
+    return _date_entry(r)["kind"]
+
+
+def _is_plain_renewal_date(r: dict) -> bool:
+    """True only when the displayed date IS the renewal/expiry date AND it applies to every licensee of
+    the record (kind in license_expiry/renewal_due, population uniform). Anything else needs a
+    _DATE_SEMANTICS override: Alabama (wrong KIND) and Colorado firms (wrong POPULATION) are the two
+    published errors of 2026-10-08."""
+    e = _date_entry(r)
+    return e["kind"] in _RENEWAL_LABEL_KINDS and e.get("population", "uniform") == "uniform"
 
 
 def _date_label(r: dict) -> str:
-    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+    if _is_plain_renewal_date(r):
         return "Next renewal date"
     ov = _DATE_SEMANTICS.get(r.get("id"))
     if not ov:
-        raise RuntimeError(f"record {r.get('id')!r} date_kind is {_date_kind(r)!r}: add a _DATE_SEMANTICS label for it")
+        raise RuntimeError(f"record {r.get('id')!r} is not a plain uniform renewal date ({_date_entry(r)!r}): add a _DATE_SEMANTICS label for it")
     return ov["label"]
 
 
 def _date_value(r: dict, d: date) -> str:
     """The displayed date value: the computed date, unless the record's date is only true for part of
-    the population (cohort_or_other) and _DATE_SEMANTICS supplies a year-free value."""
-    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+    the population and _DATE_SEMANTICS supplies a year-free value."""
+    if _is_plain_renewal_date(r):
         return fmt_date(d)
     return _DATE_SEMANTICS.get(r.get("id"), {}).get("value") or fmt_date(d)
 
 
 def _date_note_prefix(r: dict) -> str:
-    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+    if _is_plain_renewal_date(r):
         return ""
     note = _DATE_SEMANTICS.get(r.get("id"), {}).get("note")
     return f"{note} " if note else ""

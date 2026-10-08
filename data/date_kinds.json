@@ -1,245 +1,310 @@
 {
  "_meta": {
-  "purpose": "Classifies what each record's next_deadline_computed date IS (DATA-14 prevention, 2026-10-08). Label 'Next renewal date' is only valid for license_expiry or renewal_due. evidence is a verbatim quote from that record's citation or cycle_description; scripts/preship_gate.py enforces it. Sidecar (not in cpa_deadlines.json) so the Worker's mirrored data copy is untouched.",
+  "purpose": "Classifies what each record's next_deadline_computed date IS (DATA-14 prevention, 2026-10-08). Label 'Next renewal date' is only valid for license_expiry or renewal_due. evidence is a verbatim quote from that record's citation or cycle_description; scripts/preship_gate.py enforces it. Sidecar (not in cpa_deadlines.json) so the Worker's mirrored data copy is untouched. population (uniform | cohort_dependent | per_licensee) is an independent axis from kind: Colorado firm registration IS an expiry (kind) yet its year differs by cohort (population). Label 'Next renewal date' requires kind in license_expiry/renewal_due AND population uniform. A non-uniform record needs population_evidence (verbatim) and anchor_published.",
   "kinds": {
    "license_expiry": "the date the license/permit expires",
    "renewal_due": "the codified date renewal must be filed by (license lapses/expires at or after it)",
    "filing_deadline_after_expiry": "a fee/statement deadline AFTER the license already expired (e.g. Alabama)",
    "cpe_or_statement_deadline": "a CPE or compliance-statement date, not the license date"
+  },
+  "populations": {
+   "uniform": "the one date applies to every licensee of the record",
+   "cohort_dependent": "which date applies depends on the licensee's own cohort/last-renewed date",
+   "per_licensee": "each licensee has their own date (birth month, license number, issue anniversary)"
   }
  },
  "records": {
   "ak-firm": {
    "kind": "license_expiry",
-   "evidence": "expire on December 31 of odd-numbered years"
+   "evidence": "expire on December 31 of odd-numbered years",
+   "population": "uniform"
   },
   "ak-individual": {
    "kind": "license_expiry",
-   "evidence": "expire on December 31 of odd-numbered years"
+   "evidence": "expire on December 31 of odd-numbered years",
+   "population": "uniform"
   },
   "al-all": {
    "kind": "filing_deadline_after_expiry",
-   "evidence": "no later than December 31 following expiration of the permit"
+   "evidence": "no later than December 31 following expiration of the permit",
+   "population": "uniform"
   },
   "ar-firm": {
    "kind": "license_expiry",
-   "evidence": "firm registrations expire December 31 of each year"
+   "evidence": "firm registrations expire December 31 of each year",
+   "population": "uniform"
   },
   "ar-individual": {
    "kind": "license_expiry",
-   "evidence": "licenses expire December 31 of each year"
+   "evidence": "licenses expire December 31 of each year",
+   "population": "uniform"
   },
   "co-firm": {
-   "kind": "cohort_or_other",
-   "evidence": "what determines the cohort is each firm's own last-renewed date, not its issue/registration year"
+   "kind": "license_expiry",
+   "evidence": "expiring August 31 board-wide",
+   "population": "cohort_dependent",
+   "anchor_published": false,
+   "population_evidence": "does not publish which specific years anchor the cycle"
   },
   "co-individual": {
    "kind": "license_expiry",
-   "evidence": "All Certified Public Accountant (CPA) Certificates expire on November 30 of odd-numbered years"
+   "evidence": "All Certified Public Accountant (CPA) Certificates expire on November 30 of odd-numbered years",
+   "population": "uniform"
   },
   "ct-firm": {
    "kind": "license_expiry",
-   "evidence": "All firm registrations expire annually on December 31st"
+   "evidence": "All firm registrations expire annually on December 31st",
+   "population": "uniform"
   },
   "ct-individual": {
    "kind": "license_expiry",
-   "evidence": "expiring on December 31st of each year"
+   "evidence": "expiring on December 31st of each year",
+   "population": "uniform"
   },
   "dc-all": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 of every even-numbered year"
+   "evidence": "expire December 31 of every even-numbered year",
+   "population": "uniform"
   },
   "de-all": {
    "kind": "license_expiry",
-   "evidence": "expire June 30 of odd-numbered years"
+   "evidence": "expire June 30 of odd-numbered years",
+   "population": "uniform"
   },
   "fl-firm": {
    "kind": "license_expiry",
-   "evidence": "Firm licenses expire December 31 of odd-numbered years"
+   "evidence": "Firm licenses expire December 31 of odd-numbered years",
+   "population": "uniform"
   },
   "ga-firm": {
    "kind": "license_expiry",
-   "evidence": "Firm licenses expire June 30 of even-numbered years"
+   "evidence": "Firm licenses expire June 30 of even-numbered years",
+   "population": "uniform"
   },
   "ga-individual": {
    "kind": "license_expiry",
-   "evidence": "Individual CPA license expires December 31 of odd-numbered years"
+   "evidence": "Individual CPA license expires December 31 of odd-numbered years",
+   "population": "uniform"
   },
   "hi-all": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 of every odd-numbered year"
+   "evidence": "expire December 31 of every odd-numbered year",
+   "population": "uniform"
   },
   "ia-firm": {
    "kind": "renewal_due",
-   "evidence": "by the June 30 deadline each year"
+   "evidence": "by the June 30 deadline each year",
+   "population": "uniform"
   },
   "ia-individual": {
    "kind": "license_expiry",
-   "evidence": "expires June 30 each year"
+   "evidence": "expires June 30 each year",
+   "population": "uniform"
   },
   "id-firm": {
    "kind": "renewal_due",
-   "evidence": "file an annual firm registration no later than September 30"
+   "evidence": "file an annual firm registration no later than September 30",
+   "population": "uniform"
   },
   "il-firm": {
    "kind": "license_expiry",
-   "evidence": "Firm licenses expire November 30, on a 3-year cycle"
+   "evidence": "Firm licenses expire November 30, on a 3-year cycle",
+   "population": "uniform"
   },
   "il-individual": {
    "kind": "license_expiry",
-   "evidence": "Individual CPA license expires September 30, every 3 years"
+   "evidence": "Individual CPA license expires September 30, every 3 years",
+   "population": "uniform"
   },
   "in-firm": {
    "kind": "license_expiry",
-   "evidence": "Firm permits expire June 30 of every third year"
+   "evidence": "Firm permits expire June 30 of every third year",
+   "population": "uniform"
   },
   "in-individual": {
    "kind": "license_expiry",
-   "evidence": "licenses expire June 30 of every third year"
+   "evidence": "licenses expire June 30 of every third year",
+   "population": "uniform"
   },
   "ks-firm": {
    "kind": "renewal_due",
-   "evidence": "must be renewed by December 31 of each year"
+   "evidence": "must be renewed by December 31 of each year",
+   "population": "uniform"
   },
   "ky-firm": {
    "kind": "renewal_due",
-   "evidence": "shall be renewed on or before August 1 every two (2) years"
+   "evidence": "shall be renewed on or before August 1 every two (2) years",
+   "population": "uniform"
   },
   "la-firm": {
    "kind": "license_expiry",
-   "evidence": "Same annual, December 31 calendar cycle as individual licenses"
+   "evidence": "Same annual, December 31 calendar cycle as individual licenses",
+   "population": "uniform"
   },
   "la-individual": {
    "kind": "license_expiry",
-   "evidence": "expires December 31 every year"
+   "evidence": "expires December 31 every year",
+   "population": "uniform"
   },
   "md-firm": {
    "kind": "license_expiry",
-   "evidence": "a fixed 2-year term expiring on the first December 31 that comes after the permit's effective date"
+   "evidence": "a fixed 2-year term expiring on the first December 31 that comes after the permit's effective date",
+   "population": "uniform"
   },
   "me-all": {
    "kind": "renewal_due",
-   "evidence": "renew annually on September 30"
+   "evidence": "renew annually on September 30",
+   "population": "uniform"
   },
   "mn-firm": {
    "kind": "renewal_due",
-   "evidence": "same December 31 fixed date as individual licenses"
+   "evidence": "same December 31 fixed date as individual licenses",
+   "population": "uniform"
   },
   "mn-individual": {
    "kind": "license_expiry",
-   "evidence": "All licenses and permits expire on December 31 each year"
+   "evidence": "All licenses and permits expire on December 31 each year",
+   "population": "uniform"
   },
   "mo-firm": {
    "kind": "license_expiry",
-   "evidence": "expiring October 31, renewed annually"
+   "evidence": "expiring October 31, renewed annually",
+   "population": "uniform"
   },
   "mo-individual": {
    "kind": "license_expiry",
-   "evidence": "expiring September 30, renewed biennially"
+   "evidence": "expiring September 30, renewed biennially",
+   "population": "uniform"
   },
   "ms-firm": {
    "kind": "renewal_due",
-   "evidence": "register on or before January 1 each year"
+   "evidence": "register on or before January 1 each year",
+   "population": "uniform"
   },
   "ms-individual": {
    "kind": "renewal_due",
-   "evidence": "on or before January 1 each year"
+   "evidence": "on or before January 1 each year",
+   "population": "uniform"
   },
   "mt-all": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 of each year"
+   "evidence": "expire December 31 of each year",
+   "population": "uniform"
   },
   "nc-all": {
    "kind": "renewal_due",
-   "evidence": "must renew their certificates annually by the first day of July"
+   "evidence": "must renew their certificates annually by the first day of July",
+   "population": "uniform"
   },
   "nd-firm": {
    "kind": "renewal_due",
-   "evidence": "is due for renewal June 30 each year"
+   "evidence": "is due for renewal June 30 each year",
+   "population": "uniform"
   },
   "nd-individual": {
    "kind": "renewal_due",
-   "evidence": "is due for renewal June 30 each year"
+   "evidence": "is due for renewal June 30 each year",
+   "population": "uniform"
   },
   "ne-firm": {
    "kind": "license_expiry",
-   "evidence": "firm permits expire June 30 of every year"
+   "evidence": "firm permits expire June 30 of every year",
+   "population": "uniform"
   },
   "nv-firm": {
    "kind": "renewal_due",
-   "evidence": "due January 31 each year"
+   "evidence": "due January 31 each year",
+   "population": "uniform"
   },
   "nv-individual": {
    "kind": "license_expiry",
-   "evidence": "The permit to practice expires December 31 of each year"
+   "evidence": "The permit to practice expires December 31 of each year",
+   "population": "uniform"
   },
   "ok-firm": {
    "kind": "license_expiry",
-   "evidence": "firm registrations 'expire on June 30 of each year'"
+   "evidence": "firm registrations 'expire on June 30 of each year'",
+   "population": "uniform"
   },
   "or-firm": {
    "kind": "renewal_due",
-   "evidence": "renew the firm registration on or before December 31 of each odd-numbered year"
+   "evidence": "renew the firm registration on or before December 31 of each odd-numbered year",
+   "population": "uniform"
   },
   "pa-individual": {
    "kind": "license_expiry",
-   "evidence": "CPA license expires December 31 of odd-numbered years"
+   "evidence": "CPA license expires December 31 of odd-numbered years",
+   "population": "uniform"
   },
   "sc-firm": {
    "kind": "renewal_due",
-   "evidence": "The deadline for firm registration renewal is February 1 at 11:59 pm"
+   "evidence": "The deadline for firm registration renewal is February 1 at 11:59 pm",
+   "population": "uniform"
   },
   "sc-individual": {
    "kind": "renewal_due",
-   "evidence": "the deadline for CPA license renewal is February 1 at 11:59pm"
+   "evidence": "the deadline for CPA license renewal is February 1 at 11:59pm",
+   "population": "uniform"
   },
   "sd-all": {
    "kind": "renewal_due",
-   "evidence": "renew ANNUALLY with a filing deadline of August 1"
+   "evidence": "renew ANNUALLY with a filing deadline of August 1",
+   "population": "uniform"
   },
   "us-virgin-islands-all": {
    "kind": "license_expiry",
-   "evidence": "permits expire June 30"
+   "evidence": "permits expire June 30",
+   "population": "uniform"
   },
   "ut-all": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 of every even-numbered year"
+   "evidence": "expire December 31 of every even-numbered year",
+   "population": "uniform"
   },
   "va-firm": {
    "kind": "renewal_due",
-   "evidence": "same fixed June 30 calendar date as individual licenses"
+   "evidence": "same fixed June 30 calendar date as individual licenses",
+   "population": "uniform"
   },
   "va-individual": {
    "kind": "renewal_due",
-   "evidence": "must renew by June 30 each year"
+   "evidence": "must renew by June 30 each year",
+   "population": "uniform"
   },
   "vt-individual": {
    "kind": "renewal_due",
-   "evidence": "renew every two years on July 31 of odd-numbered years"
+   "evidence": "renew every two years on July 31 of odd-numbered years",
+   "population": "uniform"
   },
   "wi-firm": {
    "kind": "renewal_due",
-   "evidence": "December 15 of each odd-numbered year, biennial"
+   "evidence": "December 15 of each odd-numbered year, biennial",
+   "population": "uniform"
   },
   "wi-individual": {
    "kind": "renewal_due",
-   "evidence": "Individual CPA licenses renew December 15 of each odd-numbered year"
+   "evidence": "Individual CPA licenses renew December 15 of each odd-numbered year",
+   "population": "uniform"
   },
   "wv-firm": {
    "kind": "license_expiry",
-   "evidence": "expire each year on June 30"
+   "evidence": "expire each year on June 30",
+   "population": "uniform"
   },
   "wv-individual": {
    "kind": "license_expiry",
-   "evidence": "expires each year on June 30"
+   "evidence": "expires each year on June 30",
+   "population": "uniform"
   },
   "wy-firm": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 of each year"
+   "evidence": "expire December 31 of each year",
+   "population": "uniform"
   },
   "wy-individual": {
    "kind": "license_expiry",
-   "evidence": "expire December 31 each year"
+   "evidence": "expire December 31 each year",
+   "population": "uniform"
   }
  }
 }
