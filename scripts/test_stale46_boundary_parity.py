@@ -66,3 +66,17 @@ def test_gate_fails_if_worker_rounding_changes(tmp_path):
 def test_missing_deadline_ts_fails_closed(tmp_path):
     errors = gate.check_stale_boundary_parity(tmp_path)
     assert len(errors) == 1 and "STALE-46" in errors[0]
+
+
+def test_python_only_threshold_change_is_caught_by_the_gate_itself(monkeypatch):
+    # STALE-47 MUT-1: cdsc threshold 30 -> 45 while deadline.ts stays 30
+    monkeypatch.setattr(cdsc, "STALENESS_THRESHOLD_DAYS", 45)
+    errors = gate.check_stale_boundary_parity(REPO)
+    assert any("STALE-47" in e for e in errors)
+
+
+def test_runtime_age_days_classification_is_probed_by_the_gate(monkeypatch):
+    # STALE-47 MUT-2: age classifier reverts to a calendar floor, stale_instant untouched
+    monkeypatch.setattr(cdsc, "runtime_age_days", lambda v, now: (now.date() - v).days)
+    errors = gate.check_stale_boundary_parity(REPO)
+    assert any("STALE-47" in e for e in errors)

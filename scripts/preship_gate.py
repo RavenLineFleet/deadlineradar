@@ -3763,7 +3763,17 @@ def check_stale_boundary_parity(repo_root: Path) -> list[str]:
         import cpa_deadlines_staleness_check as cdsc
     except Exception as e:
         return [f"[STALE-46] cpa_deadlines_staleness_check.py could not be imported ({type(e).__name__}: {e})."]
-    threshold = cdsc.STALENESS_THRESHOLD_DAYS
+    # STALE-47: the threshold comes from the Worker's own constant, not cdsc's -- sharing cdsc's
+    # made a Python-only threshold change invisible to both sides of this comparison.
+    t_match = re.search(r"export const STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", ts)
+    if not t_match:
+        return ["[STALE-46] could not find 'export const STALENESS_THRESHOLD_DAYS = N' in worker/src/deadline.ts; the boundary is unmeasured."]
+    threshold = int(t_match.group(1))
+    if cdsc.STALENESS_THRESHOLD_DAYS != threshold:
+        errors.append(
+            f"[STALE-47] cpa_deadlines_staleness_check.STALENESS_THRESHOLD_DAYS ({cdsc.STALENESS_THRESHOLD_DAYS}) != "
+            f"worker/src/deadline.ts STALENESS_THRESHOLD_DAYS ({threshold}) -- the Python lane would warn on a different day than the Worker pauses."
+        )
     samples = [date(2026, 2, 28), date(2026, 9, 21), date(2026, 10, 25), date(2027, 3, 14)]
     probes = []
     for v in samples:
@@ -3782,6 +3792,16 @@ def check_stale_boundary_parity(repo_root: Path) -> list[str]:
     except Exception as e:
         return [f"[STALE-46] node boundary probe failed ({type(e).__name__}: {e}); parity unmeasured."]
     for v, stale_before, stale_at in results:
+        # STALE-47: also classify with runtime_age_days(), the function the report actually uses
+        vd = date.fromisoformat(v)
+        edge_dt = cdsc.stale_instant(vd)
+        py_before = cdsc.runtime_age_days(vd, edge_dt - timedelta(milliseconds=1)) > threshold
+        py_at = cdsc.runtime_age_days(vd, edge_dt) > threshold
+        if (py_before, py_at) != (stale_before, stale_at):
+            errors.append(
+                f"[STALE-47] record verified {v}: cpa_deadlines_staleness_check.runtime_age_days() classifies "
+                f"({py_before}, {py_at}) at edge-1ms/edge but the Worker expression says ({stale_before}, {stale_at})."
+            )
         if stale_before or not stale_at:
             errors.append(
                 f"[STALE-46] record verified {v}: the Worker guard expression says stale-1ms={stale_before}, "
