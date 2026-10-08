@@ -31,6 +31,12 @@ Ships DARK. Nothing below runs until the enable sequence at the bottom.
    multi-item subscriptions): they can still cancel / update payment / see invoices.
 5. A paid firm whose current tier is not in its roster-selected configuration (over-cap) may see no
    "Update subscription" in the portal; cancel/payment still work. Not exercised (rare).
+6. The add-on (no-switching configuration) is read from the subscription's items, not inferred from roster size;
+   an unfetchable/unrecognised subscription also gets the no-switching configuration.
+7. A failed referral-coupon re-apply throws (webhook non-2xx -> Stripe retries) BEFORE the tier write, so the retry
+   still sees the switch and re-applies. Bare discount ids in `previous_attributes` cannot be tied to a coupon;
+   only object-form discounts are checked against the referral prefix (residual: a dashboard courtesy coupon
+   dropped by a switch would be replaced by the referral coupon when the firm has recorded rewards).
 
 ## Consent gates (new send triggers -- held OFF, per the no-new-send-triggers policy)
 `SEND_APPROVED_PASSES` names: `billingSyncAlert` (internal), `planChangeOverCapNotice` (partner email).
@@ -38,13 +44,25 @@ Ships DARK. Nothing below runs until the enable sequence at the bottom.
 and put the FULL list back (see AuditLab BILL-32) before adding either name.
 
 ## Enable sequence (after SecurityLab + AuditLab PASS)
+Each step that touches live Stripe/Worker config is its own plan-first with pre/post readback.
 1. `python scripts/create_stripe_tier_products.py --mode live --apply`   (objects only, no charges)
 2. `python scripts/configure_stripe_portal.py --mode live --apply`       (config only) -> `.secrets/portal_configs_live.json`
 3. Live reconciliation with the V2 ids mapped onto the canonical names (`check_stripe_price_reconciliation.py`).
 4. `wrangler secret put` x8 `STRIPE_PRICE_FIRM_*[_MONTHLY]` (V2 ids), x1 `STRIPE_PORTAL_CONFIGS`.
-5. Deploy Worker, set `SELF_SERVE_PLAN_CHANGE=on` (secret), flip BOTH generate.py literals, rebuild + deploy site.
-6. Add the Stripe webhook endpoint event `customer.subscription.updated` (dashboard -> webhook -> events). **Without this the sync never fires.**
-7. Verify with Devin's own test subscription: portal switch -> `/api/firm/licenses` shows new tier.
+5. Deploy the Worker with `SELF_SERVE_PLAN_CHANGE` still OFF (handler present, no-ops; site literals still off).
+6. **Subscribe `customer.subscription.updated` on the live webhook endpoint (AuditLab BILL-35 -- a hard gate).**
+   `POST /v1/webhook_endpoints/<id>` additive on `enabled_events` (keep the existing four), pre/post readback,
+   no secret printed; rollback = POST the prior four back. The sync has exactly ONE entry point (this webhook): if
+   the event is not delivered the dashboard silently keeps the old plan while Stripe bills the new one.
+   Do this BEFORE step 8; never after.
+7. **Add `billingSyncAlert` and `planChangeOverCapNotice` to `SEND_APPROVED_PASSES`** (SecurityLab HIGH-1). Without them
+   every safeguard in this design -- the unknown-state alert, the failed-coupon-re-apply alert, the downgrade-race
+   partner email -- is console.log only. `SEND_APPROVED_PASSES` is write-only: read the current list from the
+   deploy record and put the FULL list back (BILL-32) with the two names appended. Both are send triggers:
+   needs Devin's explicit consent per the no-new-send-triggers policy before this step.
+8. Set `SELF_SERVE_PLAN_CHANGE=on` (secret), flip BOTH generate.py literals, rebuild + deploy site.
+9. Verify with Devin's own test subscription: portal switch -> `/api/firm/licenses` shows new tier; and confirm a
+   `customer.subscription.updated` row lands in `stripe_webhook_events` (proves delivery, not just the handler).
 
 Rollback: unset `SELF_SERVE_PLAN_CHANGE` (route 404s, sync no-ops); flip the generate.py literals back.
 

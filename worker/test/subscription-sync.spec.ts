@@ -208,8 +208,10 @@ describe("POST /firm/billing/portal", () => {
     expect(r.status).toBe(401);
   });
   it("200 + portal_url for a subscribed partner; sends the customer and the roster-selected configuration", async () => {
-    const calls = installFetch({});
-    const { firmId, cookie } = await makeFirm({ tier: "firm_growth" });
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+    subs[sub] = { items: [{ price: "price_gr_a", quantity: 1 }] };
     await addRoster(firmId, 7); // > starter cap 5 -> growth config
     const r = await postPortal(cookie);
     expect(r.status).toBe(200);
@@ -220,11 +222,51 @@ describe("POST /firm/billing/portal", () => {
     expect(calls.portalPosts[0]!.get("return_url")).toMatch(/\/firm-dashboard\/#account$/);
   });
   it("a firm whose tier is below its roster is never offered the smaller tiers (config follows the LIVE roster, not plan_tier)", async () => {
-    const calls = installFetch({});
-    const { firmId, cookie } = await makeFirm({ tier: "firm_scale" });
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_scale" });
+    subs[sub] = { items: [{ price: "price_sc_a", quantity: 1 }] };
     await addRoster(firmId, 12);
     await postPortal(cookie);
     expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_standard1");
+  });
+  // SecurityLab MEDIUM-2: add-on presence comes from the subscription's items, not roster size.
+  it("over-cap firm with NO add-on is offered the bigger tiers (the primary upgrade path), not the no-switching config", async () => {
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_starter" });
+    subs[sub] = { items: [{ price: "price_st_a", quantity: 1 }] };
+    await addRoster(firmId, 12); // starter cap 5, no add-on on the subscription
+    expect((await postPortal(cookie)).status).toBe(200);
+    expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_standard1");
+  });
+  it("firm_scale + add-on whose roster shrank back under the cap still gets the no-switching config", async () => {
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_scale" });
+    subs[sub] = { items: [{ price: "price_sc_a", quantity: 1 }, { price: "price_ad_a", quantity: 4 }] };
+    await addRoster(firmId, 10);
+    expect((await postPortal(cookie)).status).toBe(200);
+    expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_none1");
+  });
+  it("a subscription Stripe doesn't have, or whose shape isn't recognised, gets the no-switching config", async () => {
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const a = await makeFirm({ tier: "firm_growth" }); // subs[a.sub] undefined -> 404
+    await addRoster(a.firmId, 7);
+    await postPortal(a.cookie);
+    const b = await makeFirm({ tier: "firm_growth" });
+    subs[b.sub] = { items: [{ price: "price_mystery", quantity: 1 }] };
+    await addRoster(b.firmId, 7);
+    await postPortal(b.cookie);
+    expect(calls.portalPosts.map((p) => p.get("configuration"))).toEqual(["bpc_none1", "bpc_none1"]);
+  });
+  it("502 when the subscription lookup itself fails (no portal session minted)", async () => {
+    const calls = installFetch({});
+    const { cookie } = await makeFirm();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ error: { message: "boom" } }), { status: 500 }));
+    expect((await postPortal(cookie)).status).toBe(502);
+    expect(calls.portalPosts).toHaveLength(0);
   });
   it("origin check: 400 on a foreign Origin, no Stripe call", async () => {
     const calls = installFetch({});
@@ -317,6 +359,14 @@ describe("customer.subscription.updated -> firm row", () => {
     const firm = await store.getFirmById(env.DB, firmId);
     expect(firm?.plan_tier).toBe("firm_growth");
     expect(firm?.billing_interval).toBe("annual");
+  });
+  it("LOW-2: a portal cancel on an unrecognised subscription shape still mirrors cancel_at_period_end, tier untouched", async () => {
+    const { firmId, sub } = await makeFirm({ tier: "firm_growth", interval: "annual" });
+    installFetch({ [sub]: { cancel_at_period_end: true, period_end: 1_900_000_000, items: [{ price: "price_mystery", quantity: 1 }] } });
+    expect((await postUpdated(sub, `evt_${sub}_lc`)).status).toBe(200);
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.cancel_at_period_end).toBe(1);
+    expect(firm?.plan_tier).toBe("firm_growth");
   });
   it("unknown quantity (tier price x3): untouched", async () => {
     const { firmId, sub } = await makeFirm({ tier: "firm_growth" });

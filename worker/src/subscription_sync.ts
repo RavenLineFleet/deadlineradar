@@ -47,6 +47,22 @@ import { buildBillingSyncAlertEmail, buildPlanChangeOverCapEmail } from "./email
 const INTERNAL_NOTIFY_EMAIL = "support@deadline-radar.com";
 const SYNCED_STATUSES = new Set(["active", "trialing", "past_due"]);
 
+/** The dropped discounts must not be a non-referral coupon (SecurityLab LOW-1):
+ * a dashboard-applied courtesy coupon vanishing in a switch must not be
+ * "replaced" by a referral-tier coupon. When Stripe sends the discount objects
+ * the coupon id is checked against the referral prefix; when it sends bare
+ * discount ids (the default) the coupon is not knowable from the event, and
+ * referral is the only coupon source in code, so it is accepted. */
+function droppedDiscountsAreReferralCoupons(prev: unknown[], referralPrefix: string): boolean {
+  return prev.every((d) => {
+    if (d && typeof d === "object") {
+      const coupon = (d as { coupon?: { id?: unknown } }).coupon;
+      if (coupon && typeof coupon.id === "string") return coupon.id.startsWith(referralPrefix);
+    }
+    return true;
+  });
+}
+
 async function alertUnsynced(env: Env, eventId: string, firmId: string, subscriptionId: string, problem: string): Promise<void> {
   console.log(`[subscription-sync] NOT applied for firm ${firmId} sub ${subscriptionId}: ${problem}`);
   if (!requireSendApproval(env, "billingSyncAlert") || !env.RESEND_API_KEY) return;
@@ -89,6 +105,20 @@ export async function applySubscriptionUpdatedEvent(
     return;
   }
 
+  // cancel_at_period_end / current_period_end are display state that does not
+  // depend on the tier, so they are mirrored BEFORE the derive gate: a portal
+  // cancel (or resume) on a subscription whose shape is not recognised must
+  // still show on the dashboard (portal cancel and resume both land here).
+  if (
+    snapshot.currentPeriodEnd &&
+    (Boolean(firm.cancel_at_period_end) !== snapshot.cancelAtPeriodEnd || firm.current_period_end !== snapshot.currentPeriodEnd)
+  ) {
+    await store.updateFirmCancellation(env.DB, firm.id, {
+      cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
+      currentPeriodEnd: snapshot.currentPeriodEnd,
+    });
+  }
+
   const derived = deriveSubscriptionState(env, snapshot.items);
   if (!derived.ok) {
     await alertUnsynced(env, eventId, firm.id, subscriptionId, derived.reason);
@@ -106,8 +136,11 @@ export async function applySubscriptionUpdatedEvent(
   // refetched subscription has none -- a renewal consuming the coupon never
   // changes `items`, so the two cases cannot be confused. Re-apply the tier
   // coupon the referrer's reward count implies (replace semantics, so a
-  // redelivery is harmless). Best-effort: a failure alerts, never blocks the
-  // tier mirror below.
+  // redelivery is harmless). NOT best-effort: a failed re-apply alerts and
+  // THROWS before the tier write, so the webhook goes non-2xx and Stripe retries it
+  // (tier row still stale => tierChanged still true => this branch runs again).
+  // Swallowing the error would let the retry-proof tier write land and the
+  // reward be lost for good (SecurityLab MEDIUM-1, 2026-10-07).
   const prevDiscounts = previousAttributes?.discounts;
   if (
     tierChanged &&
@@ -116,7 +149,8 @@ export async function applySubscriptionUpdatedEvent(
     previousAttributes !== null &&
     "items" in previousAttributes &&
     snapshot.discountCount === 0 &&
-    env.STRIPE_COUPON_REFERRAL
+    env.STRIPE_COUPON_REFERRAL &&
+    droppedDiscountsAreReferralCoupons(prevDiscounts, env.STRIPE_COUPON_REFERRAL)
   ) {
     try {
       const rewarded = await store.countRewardedReferrals(env.DB, firm.id);
@@ -126,7 +160,8 @@ export async function applySubscriptionUpdatedEvent(
         await alertUnsynced(env, eventId, firm.id, subscriptionId, "plan switch removed a discount but the firm has no recorded referral reward to re-apply");
       }
     } catch (err) {
-      await alertUnsynced(env, eventId, firm.id, subscriptionId, `could not re-apply the referral reward after a plan switch: ${String(err)}`);
+      await alertUnsynced(env, eventId, firm.id, subscriptionId, `could not re-apply the referral reward after a plan switch (event will be retried): ${String(err)}`);
+      throw err;
     }
   }
   if (tierChanged) {
@@ -135,17 +170,6 @@ export async function applySubscriptionUpdatedEvent(
       stripeCustomerId: firm.stripe_customer_id ?? snapshot.customerId ?? "",
       stripeSubscriptionId: subscriptionId,
       billingInterval: derived.interval,
-    });
-  }
-  // cancel_at_period_end / current_period_end are display state; mirror them
-  // whenever Stripe's differ (portal cancel and portal resume both land here).
-  if (
-    snapshot.currentPeriodEnd &&
-    (Boolean(firm.cancel_at_period_end) !== snapshot.cancelAtPeriodEnd || firm.current_period_end !== snapshot.currentPeriodEnd)
-  ) {
-    await store.updateFirmCancellation(env.DB, firm.id, {
-      cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
-      currentPeriodEnd: snapshot.currentPeriodEnd,
     });
   }
   if (!tierChanged) return;

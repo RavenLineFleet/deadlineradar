@@ -287,6 +287,7 @@ import {
   FIRM_TIERS,
   MONTHLY_BILLING_ENABLED,
   firmTierByPlanTier,
+  deriveSubscriptionState,
   firmTierForSeatCount,
   portalConfigurationIdForRoster,
   referralTierCouponId,
@@ -297,6 +298,7 @@ import {
 } from "./tiers";
 import {
   createBillingPortalSession,
+  fetchStripeSubscription,
   createCheckoutSession,
   updateSubscriptionCancelAtPeriodEnd,
   getLatestInvoiceForSubscription,
@@ -3756,15 +3758,22 @@ async function handleFirmBillingPortal(request: Request, env: Env): Promise<Resp
   }
 
   const rosterCount = await store.countFirmLicenses(env.DB, session.firmId);
-  // A subscription carrying the per-seat add-on is two items; the portal
-  // cannot switch plans on those, so it gets the no-switching configuration.
-  const hasAddon = rosterCount > (firmTierByPlanTier(session.firm.plan_tier)?.seatCap ?? Number.MAX_SAFE_INTEGER);
-  const configurationId = portalConfigurationIdForRoster(env, rosterCount, hasAddon);
-  if (!configurationId) {
-    return jsonResponse(503, { error: "Billing management isn't available right now. Please try again later." });
-  }
-
   try {
+    // A subscription carrying the per-seat add-on is two items; the portal
+    // cannot switch plans on those, so it gets the no-switching configuration.
+    // The add-on is read from the subscription's own items (the same
+    // deriveSubscriptionState() the sync uses), NOT inferred from roster size:
+    // an over-cap firm with no add-on must still be offered the bigger tier,
+    // and an add-on firm whose roster shrank must still get no switching.
+    // A subscription Stripe no longer has, or one whose shape is not
+    // recognised exactly, also gets the no-switching configuration.
+    const snapshot = await fetchStripeSubscription(env.STRIPE_SECRET_KEY, session.firm.stripe_subscription_id);
+    const derived = snapshot ? deriveSubscriptionState(env, snapshot.items) : null;
+    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0;
+    const configurationId = portalConfigurationIdForRoster(env, rosterCount, noSwitching);
+    if (!configurationId) {
+      return jsonResponse(503, { error: "Billing management isn't available right now. Please try again later." });
+    }
     const portal = await createBillingPortalSession(env.STRIPE_SECRET_KEY, {
       customerId: session.firm.stripe_customer_id,
       configurationId,

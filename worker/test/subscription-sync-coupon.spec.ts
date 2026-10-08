@@ -153,13 +153,35 @@ describe("referral reward survives a portal plan switch", () => {
     await postUpdated(sub, `evt_${sub}_7`, {}, PREV_SWITCH);
     expect(posts).toHaveLength(0);
   });
-  it("a failing re-apply never blocks the tier mirror (still 200, tier updated)", async () => {
+  it("MEDIUM-1: a failing re-apply THROWS (non-2xx -> Stripe retries) and leaves the tier row stale so the retry re-applies", async () => {
     const { firmId, sub } = await makeFirm();
     await referrerWithRewards(firmId, 1);
     const posts = installFetch(sub, { price: "price_sd_a", discounts: 0, couponFails: true });
     const r = await postUpdated(sub, `evt_${sub}_8`, O, PREV_SWITCH);
-    expect(r.status).toBe(200);
+    expect(r.status).toBe(400); // the dispatcher maps any throw to a deliberate non-2xx, which Stripe retries
     expect(posts).toHaveLength(1);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
+    // Stripe retries the same event; the transient error is gone this time.
+    vi.restoreAllMocks();
+    const retryPosts = installFetch(sub, { price: "price_sd_a", discounts: 0 });
+    expect((await postUpdated(sub, `evt_${sub}_8`, O, PREV_SWITCH)).status).toBe(200);
+    expect(retryPosts).toHaveLength(1);
+    expect(retryPosts[0]!.body.get("discounts[0][coupon]")).toBe("cpn_ref_t1");
     expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_standard");
+  });
+  it("LOW-1: a dropped NON-referral coupon (object-form discount) is not replaced by a referral coupon", async () => {
+    const { firmId, sub } = await makeFirm();
+    await referrerWithRewards(firmId, 2);
+    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0 });
+    await postUpdated(sub, `evt_${sub}_9`, O, { discounts: [{ id: "di_x", coupon: { id: "courtesy_20" } }], items: { data: [] } });
+    expect(posts).toHaveLength(0);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_standard");
+  });
+  it("LOW-1: an object-form referral-prefix discount IS re-applied", async () => {
+    const { firmId, sub } = await makeFirm();
+    await referrerWithRewards(firmId, 2);
+    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0 });
+    await postUpdated(sub, `evt_${sub}_10`, O, { discounts: [{ id: "di_x", coupon: { id: "cpn_ref_t2" } }], items: { data: [] } });
+    expect(posts).toHaveLength(1);
   });
 });
