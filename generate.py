@@ -6085,6 +6085,32 @@ def _cite_chip_html(record: dict, max_chars: int | None = None) -> str:
     )
 
 
+# DATA-14 (AuditLab, 2026-10-08): for most records next_deadline_computed IS the
+# date the licence/permit is due, and "Next renewal date" is the right label.
+# Alabama is different: permits expire each September 30 and December 31 is the
+# deadline to file the renewal fee + CPE statement AFTER expiration. Per-record
+# override of the label, an extra line stating what the date is, and the
+# meta-description sentence. Keyed by record id; any record not listed is unchanged.
+# Lives here (not in cpa_deadlines.json) so the Worker's mirrored data copy is
+# untouched and no Worker deploy is needed.
+_DATE_SEMANTICS = {
+    "al-all": {
+        "label": "Renewal fee + CPE statement due",
+        "note": "Permits expire each September 30; this is the filing deadline that follows.",
+        "meta": "{state} CPA permits expire each September 30; the renewal fee and CPE statement are due {date}. See the renewal cycle details and the official state board source to confirm it.",
+    },
+}
+
+
+def _date_label(r: dict) -> str:
+    return _DATE_SEMANTICS.get(r.get("id"), {}).get("label", "Next renewal date")
+
+
+def _date_note_prefix(r: dict) -> str:
+    note = _DATE_SEMANTICS.get(r.get("id"), {}).get("note")
+    return f"{note} " if note else ""
+
+
 def render_simple_deadline_records(records: list[dict]) -> str:
     """Wave 1 / plain fixed_calendar records with a single computed date each.
     Rendered as the approved concept's .sheet/.frow fact sheet (2026-07-17 CPA-trust
@@ -6107,8 +6133,8 @@ def render_simple_deadline_records(records: list[dict]) -> str:
   </div>
   <div class="rowlist">
     <div class="frow">
-      <div class="k">Next renewal date</div>
-      <div class="v">{esc(fmt_date(d))}<small>{esc(r['cycle_description'])}</small></div>
+      <div class="k">{esc(_date_label(r))}</div>
+      <div class="v">{esc(fmt_date(d))}<small>{esc(_date_note_prefix(r) + r['cycle_description'])}</small></div>
       <div class="{_side_class(r)}">
         {_cite_chip_html(r)}
         {verified_line}
@@ -7271,6 +7297,10 @@ def build_state_page(
                     f"{state_name} CPA license renewal is due {primary_date_str}. See the renewal "
                     f"cycle details and the official state board source to confirm it."
                 )
+                for _r in records:
+                    _ov = _DATE_SEMANTICS.get(_r.get("id"))
+                    if _ov and _r.get("next_deadline_computed") == primary_date_iso:
+                        meta_description = _ov["meta"].format(state=state_name, date=primary_date_str)
             else:
                 meta_description = (
                     f"{state_name} CPA license renewal deadline for {title_year}: when it's due, "
@@ -8269,7 +8299,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <span class="hfc-stamp" title="Verified {esc(r['last_verified'])}" data-verified="{esc(r['last_verified'])}">{_VERIFIED_ICON_SVG}Checked {esc(_short_verified(r['last_verified']))}</span>
   </div>
   <div class="hfc-date-block">
-    <div class="hfc-date-label">Next renewal date</div>
+    <div class="hfc-date-label">{esc(_date_label(r))}</div>
     <div class="hfc-date">{esc(fmt_date(d))}</div>
   </div>
   <div class="hfc-footer">
