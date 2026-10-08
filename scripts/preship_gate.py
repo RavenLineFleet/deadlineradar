@@ -3767,8 +3767,25 @@ def check_stale_boundary_parity(repo_root: Path) -> list[str]:
     # made a Python-only threshold change invisible to both sides of this comparison.
     t_match = re.search(r"export const STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", ts)
     if not t_match:
-        return ["[STALE-46] could not find 'export const STALENESS_THRESHOLD_DAYS = N' in worker/src/deadline.ts; the boundary is unmeasured."]
+        return ["[STALE-47] could not find 'export const STALENESS_THRESHOLD_DAYS = N' in worker/src/deadline.ts; the boundary is unmeasured."]
     threshold = int(t_match.group(1))
+    # STALE-48: the other hand-kept copies of the same number, each unpinned until now.
+    if CPA_DEADLINES_STALENESS_THRESHOLD_DAYS != threshold:
+        errors.append(
+            f"[STALE-48] preship_gate.CPA_DEADLINES_STALENESS_THRESHOLD_DAYS ({CPA_DEADLINES_STALENESS_THRESHOLD_DAYS}) != "
+            f"worker/src/deadline.ts STALENESS_THRESHOLD_DAYS ({threshold}) -- the STALE27-IMMINENT countdown and "
+            f"advisory would report the wrong number of days left before the Worker pauses signups and sends."
+        )
+    gen_path = repo_root / "generate.py"
+    gen_match = re.search(r"^STALENESS_THRESHOLD_DAYS\s*=\s*(\d+)", gen_path.read_text(encoding="utf-8") if gen_path.exists() else "", re.M)
+    if not gen_match:
+        errors.append("[STALE-48] could not find module-level STALENESS_THRESHOLD_DAYS in generate.py; that copy is unpinned.")
+    elif int(gen_match.group(1)) != threshold:
+        errors.append(
+            f"[STALE-48] generate.py STALENESS_THRESHOLD_DAYS ({gen_match.group(1)}) != worker/src/deadline.ts "
+            f"STALENESS_THRESHOLD_DAYS ({threshold}) -- the build-refusal guard and the reminders scheduler "
+            f"(which imports it) would trip on a different day than the Worker."
+        )
     if cdsc.STALENESS_THRESHOLD_DAYS != threshold:
         errors.append(
             f"[STALE-47] cpa_deadlines_staleness_check.STALENESS_THRESHOLD_DAYS ({cdsc.STALENESS_THRESHOLD_DAYS}) != "

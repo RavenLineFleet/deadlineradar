@@ -80,3 +80,21 @@ def test_runtime_age_days_classification_is_probed_by_the_gate(monkeypatch):
     monkeypatch.setattr(cdsc, "runtime_age_days", lambda v, now: (now.date() - v).days)
     errors = gate.check_stale_boundary_parity(REPO)
     assert any("STALE-47" in e for e in errors)
+
+
+def test_gate_internal_threshold_mirror_drift_is_caught(monkeypatch):
+    # STALE-48 M1: preship_gate's own hand-kept mirror drifts from deadline.ts
+    monkeypatch.setattr(gate, "CPA_DEADLINES_STALENESS_THRESHOLD_DAYS", 20)
+    assert any("STALE-48" in e for e in gate.check_stale_boundary_parity(REPO))
+
+
+def test_generate_py_threshold_drift_is_caught(tmp_path):
+    # STALE-48 M2: generate.py's STALENESS_THRESHOLD_DAYS drifts from deadline.ts
+    (tmp_path / "worker" / "src").mkdir(parents=True)
+    shutil.copy(REPO / "worker" / "src" / "deadline.ts", tmp_path / "worker" / "src" / "deadline.ts")
+    shutil.copytree(REPO / "scripts", tmp_path / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+    src = (REPO / "generate.py").read_text(encoding="utf-8")
+    assert "\nSTALENESS_THRESHOLD_DAYS = 30" in src
+    (tmp_path / "generate.py").write_text(src.replace("\nSTALENESS_THRESHOLD_DAYS = 30", "\nSTALENESS_THRESHOLD_DAYS = 45", 1), encoding="utf-8")
+    errors = gate.check_stale_boundary_parity(tmp_path)
+    assert any("STALE-48" in e and "generate.py" in e for e in errors)
