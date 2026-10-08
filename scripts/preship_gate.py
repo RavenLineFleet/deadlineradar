@@ -2302,6 +2302,123 @@ def check_hidden_display_override(html_files: list[Path], docs_dir: Path) -> lis
     return errors
 
 
+_RT_SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S)
+_RT_HIDDEN_ASSIGN_RE = re.compile(r"(?<![\w$.])([A-Za-z_$][\w$]*)\.hidden\s*=(?!=)")
+_RT_GET_BY_ID_RE = re.compile(r"""document\.getElementById\(\s*["']([^"']+)["']\s*\)""")
+_RT_QUERY_RE = re.compile(r"""document\.querySelector\(\s*["']([^"']+)["']\s*\)""")
+
+
+def _runtime_hidden_targets(html_text: str) -> tuple[list[tuple[str, str, list[str], str | None]], int]:
+    """HIDDEN-2 helper: bind every `X.hidden =` site in the page's inline scripts to
+    the NEAREST PRECEDING `var|let|const X = document.getElementById(..)|querySelector(..)`
+    (the binding rule that defeats reused `errEl`/`el`/`panel` names across scopes), then
+    to the classes/id of the element it names. Returns (resolved, unresolved_count) where
+    each resolved item is (var, how-it-was-found, classes, id-or-None)."""
+    resolved: list[tuple[str, str, list[str], str | None]] = []
+    unresolved = 0
+    for script in _RT_SCRIPT_RE.findall(html_text):
+        for site in _RT_HIDDEN_ASSIGN_RE.finditer(script):
+            var = site.group(1)
+            decl = None
+            for decl in re.finditer(r"\b(?:var|let|const)\s+" + re.escape(var) + r"\s*=\s*([^;\n]*)", script[:site.start()]):
+                pass  # keep the last (nearest preceding) declaration
+            if decl is None:
+                unresolved += 1
+                continue
+            rhs = decl.group(1)
+            m_id = _RT_GET_BY_ID_RE.search(rhs)
+            m_q = _RT_QUERY_RE.search(rhs)
+            if m_id:
+                el_id = m_id.group(1)
+                tag = re.search(r'<[a-zA-Z][^>]*\bid="' + re.escape(el_id) + r'"[^>]*>', html_text)
+                if not tag:
+                    unresolved += 1  # element created at runtime, not in the shipped DOM
+                    continue
+                cm = _HIDDEN_CLASS_ATTR_RE.search(tag.group(0))
+                resolved.append((var, f"#{el_id}", cm.group(1).split() if cm else [], el_id))
+            elif m_q:
+                last = re.split(r"[\s>+~]+", m_q.group(1).strip())[-1]
+                classes = re.findall(r"\.([\w-]+)", last)
+                idm = re.search(r"#([\w-]+)", last)
+                if not classes and not idm:
+                    unresolved += 1
+                    continue
+                resolved.append((var, m_q.group(1), classes, idm.group(1) if idm else None))
+            else:
+                unresolved += 1  # parameter, loop variable, .closest(), ... -- not statically bindable
+    return resolved, unresolved
+
+
+def check_runtime_hidden_display_override(html_files: list[Path], docs_dir: Path) -> list[str]:
+    """AuditLab HIDDEN-2 (MEDIUM, 2026-10-08): check_hidden_display_override
+    (HIDDEN-1) only sees elements that SHIP with `hidden`. The billing interval
+    toggle ships visible and is hidden at runtime (`toggleEl.hidden = true`), so a
+    `display:flex` class rule silently beat the UA [hidden] rule in production -- the
+    4th time that bug class reached prod and the first the gate could not see.
+    This is the follow-on HIDDEN-1's docstring promised: for every `X.hidden =` site
+    in the shipped inline scripts, bind X to its element (nearest preceding
+    declaration) and require that no class/id of that element carries an
+    unconditional non-none `display` rule without a `[hidden]{display:none}` override.
+    Sites that cannot be statically bound (function parameters, loop variables,
+    runtime-created elements) are not checked; the count is printed by
+    print_runtime_hidden_unbound_advisory, never hidden.
+    Vacuity guard: if no site binds at all, the scan is broken and the check fails."""
+    css_path = docs_dir / "styles.css"
+    style_text = css_path.read_text(encoding="utf-8") if css_path.is_file() else ""
+    css_rules = _CSS_RULE_RE.findall(style_text) if style_text.strip() else []
+    if not css_rules:
+        return ["[HIDDEN-2] docs/styles.css is missing or empty -- no CSS rules to test runtime-hidden "
+                "overrides against; this would otherwise report a vacuous pass."]
+
+    def _display_of(simple: str) -> tuple[bool, bool]:
+        """(has unconditional non-none display rule, has [hidden]{display:none} override)."""
+        visible = override = False
+        for sel, decl in css_rules:
+            m = _CSS_DISPLAY_RE.search(decl)
+            if not m:
+                continue
+            val = m.group(1).strip().lower()
+            for branch in (b.strip() for b in sel.split(",")):
+                if branch == simple and val != "none":
+                    visible = True
+                if f"{simple}[hidden]" in branch and val == "none":
+                    override = True
+        return visible, override
+
+    errors: list[str] = []
+    total_resolved = 0
+    for f in html_files:
+        resolved, _unresolved = _runtime_hidden_targets(f.read_text(encoding="utf-8"))
+        total_resolved += len(resolved)
+        for var, how, classes, el_id in resolved:
+            names = [f".{c}" for c in classes] + ([f"#{el_id}"] if el_id else [])
+            for simple in names:
+                visible, override = _display_of(simple)
+                if visible and not override:
+                    errors.append(
+                        f"[HIDDEN-2][{f}] `{var}.hidden = ...` targets {how} whose {simple} rule "
+                        f"sets a non-none `display` with no `{simple}[hidden] {{ display: none; }}` "
+                        f"override -- the rule ties the UA [hidden] rule on specificity and wins by "
+                        f"source order, so the element stays visible after JS hides it. Add the override."
+                    )
+    if total_resolved == 0:
+        errors.append("[HIDDEN-2] no `X.hidden =` site bound to an element on any page -- the scan is "
+                      "measuring nothing (script extraction or binding regex broke).")
+    return sorted(set(errors))
+
+
+def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
+    """HIDDEN-2: say how many `X.hidden =` sites the static binder could NOT resolve, so the
+    check's coverage is stated rather than implied."""
+    bound = unbound = 0
+    for f in html_files:
+        r, u = _runtime_hidden_targets(f.read_text(encoding="utf-8"))
+        bound += len(r)
+        unbound += u
+    print(f"\n--- runtime-hidden display-override coverage (HIDDEN-2) ---\n  {bound} `.hidden =` site(s) bound and checked; "
+          f"{unbound} not statically bindable (parameters/loop vars/runtime-created) and unchecked.")
+
+
 def check_cpe_hours_currency(repo_root: Path) -> list[str]:
     """AuditLab BADGE-1 (MEDIUM, 2026-08-09): roadmap #47 upgraded the public
     CPE badge from a bare "Verified" to a dated "Verified 2026-07-15" on 50
@@ -8487,6 +8604,7 @@ def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
         (lambda: print_es_translation_review_advisory(repo_root), "print_es_translation_review_advisory"),
         (lambda: print_seo_length_drift_advisory(html_files, repo_root), "print_seo_length_drift_advisory"),
         (lambda: print_double_hyphen_backlog_advisory(html_files, docs_dir), "print_double_hyphen_backlog_advisory"),
+        (lambda: print_runtime_hidden_unbound_advisory(html_files), "print_runtime_hidden_unbound_advisory"),
     )
     for fn, name in advisories:
         try:
@@ -8560,6 +8678,7 @@ def main():
     all_errors += check_self_rolling_dates_rendered_correctly(repo_root, data_path)
     all_errors += check_birth_month_table_currency(html_files)
     all_errors += check_hidden_display_override(html_files, docs_dir)
+    all_errors += check_runtime_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
