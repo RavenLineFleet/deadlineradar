@@ -24991,6 +24991,10 @@ Board bumps you to the following cycle rather than making you renew almost immed
 <a href="../../colorado/">Confirm your own next Colorado CPA renewal deadline here</a>.</p>
 
 <h2>Firms run on a separate, longer cycle: August 31, every three years</h2>
+<p><em><strong>Correction:</strong> this section originally gave August 31, 2029 as the next
+firm-registration deadline for every Colorado firm. That was wrong for firms whose cohort came due
+August 31, 2026. Which August 31 applies depends on when the firm last renewed.</em></p>
+
 <p>Public accounting firm registrations are a different clock entirely. They expire August 31, once
 every three years &mdash; the same calendar date for every registered firm, not each firm's own
 anniversary of registering &mdash; but <strong>which year applies depends on when your firm last
