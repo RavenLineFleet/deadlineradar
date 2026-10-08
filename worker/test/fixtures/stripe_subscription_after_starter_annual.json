@@ -1,0 +1,17 @@
+{
+  "id": "sub_FIXTURE",
+  "status": "active",
+  "customer": "cus_FIXTURE",
+  "cancel_at_period_end": false,
+  "items": {
+    "data": [
+      {
+        "price": {
+          "id": "price_1UO8TuK1LrGq5KQIA6sHmX6i"
+        },
+        "quantity": 1,
+        "current_period_end": 1822967973
+      }
+    ]
+  }
+}

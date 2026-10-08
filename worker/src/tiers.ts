@@ -201,3 +201,110 @@ export function stripePriceIdForTier(env: Env, planTier: string, interval: "annu
 export function stripePriceIdForPerSeatAddon(env: Env, interval: "annual" | "monthly"): string | null {
   return interval === "monthly" ? env.STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY ?? null : env.STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL ?? null;
 }
+
+/** Self-serve plan/interval change via the Stripe Customer Portal
+ * (Devin, 2026-10-07, "customers must change monthly<->annual and plan
+ * up/down without contacting support"). An Env switch (SELF_SERVE_PLAN_CHANGE
+ * === "on"), not a build constant, so the Worker code can ship dark and be
+ * enabled with one `wrangler secret put` once SecurityLab + AuditLab PASS and
+ * the portal configurations (scripts/configure_stripe_portal.py) exist in
+ * live mode. generate.py's DR_SELF_SERVE_PLAN_CHANGE_ENABLED is the matching
+ * UI-side half -- flip both together. Unset (the shipped state): POST
+ * /firm/billing/portal 404s, the customer.subscription.updated branch is a
+ * no-op that never calls Stripe, and the already_subscribed refusal keeps
+ * saying "contact support". */
+export function selfServePlanChangeEnabled(env: Env): boolean {
+  return env.SELF_SERVE_PLAN_CHANGE === "on";
+}
+
+export type SubscriptionItemLike = { priceId: string | null; quantity: number | null };
+
+export type DerivedSubscriptionState =
+  | { ok: true; planTier: string; interval: "annual" | "monthly"; addonQuantity: number }
+  | { ok: false; reason: string };
+
+/**
+ * Maps a live Stripe subscription's items back to (tier, interval) via the
+ * 10 STRIPE_PRICE_* bindings -- the reverse of stripePriceIdForTier() /
+ * stripePriceIdForPerSeatAddon(). Pure, no I/O. NEVER guesses: anything it
+ * does not recognise exactly (unknown price, a tier price with quantity != 1,
+ * two tier prices, mixed intervals, an add-on on a tier other than
+ * firm_scale, an add-on with no/invalid quantity) is `ok: false` with a
+ * reason, and the caller leaves the firm's stored state untouched and alerts.
+ * The add-on is accepted here because checkout legitimately creates it
+ * (tier + add-on as a 2-item subscription); its quantity is returned but is
+ * not persisted anywhere (no column holds extra seats today).
+ */
+export function deriveSubscriptionState(env: Env, items: SubscriptionItemLike[]): DerivedSubscriptionState {
+  if (items.length === 0) return { ok: false, reason: "subscription has no items" };
+  let tier: { planTier: string; interval: "annual" | "monthly" } | null = null;
+  let addon: { interval: "annual" | "monthly"; quantity: number } | null = null;
+  for (const item of items) {
+    const priceId = item.priceId;
+    if (!priceId) return { ok: false, reason: "item with no price id" };
+    let matchedTier: { planTier: string; interval: "annual" | "monthly" } | null = null;
+    for (const t of FIRM_TIERS) {
+      for (const interval of ["annual", "monthly"] as const) {
+        if (stripePriceIdForTier(env, t.planTier, interval) === priceId) matchedTier = { planTier: t.planTier, interval };
+      }
+    }
+    if (matchedTier) {
+      if (tier) return { ok: false, reason: "more than one firm-tier price on the subscription" };
+      if (item.quantity !== 1) return { ok: false, reason: `firm-tier price with quantity ${item.quantity ?? "null"} (expected 1)` };
+      tier = matchedTier;
+      continue;
+    }
+    const addonInterval = (["annual", "monthly"] as const).find((i) => stripePriceIdForPerSeatAddon(env, i) === priceId);
+    if (addonInterval) {
+      if (addon) return { ok: false, reason: "more than one per-seat add-on price on the subscription" };
+      if (!Number.isInteger(item.quantity) || (item.quantity as number) < 1) {
+        return { ok: false, reason: `per-seat add-on with invalid quantity ${item.quantity ?? "null"}` };
+      }
+      addon = { interval: addonInterval, quantity: item.quantity as number };
+      continue;
+    }
+    return { ok: false, reason: `unrecognised price id ${priceId}` };
+  }
+  if (!tier) return { ok: false, reason: "no firm-tier price on the subscription" };
+  if (addon && addon.interval !== tier.interval) return { ok: false, reason: "add-on and firm-tier prices are on different intervals" };
+  if (addon && tier.planTier !== "firm_scale") return { ok: false, reason: "per-seat add-on on a tier other than firm_scale" };
+  return { ok: true, planTier: tier.planTier, interval: tier.interval, addonQuantity: addon?.quantity ?? 0 };
+}
+
+/** Which Customer Portal Configuration (bpc_...) a firm's portal session
+ * must use. One configuration per "smallest tier the firm may switch to":
+ * the portal's plan list is per-configuration, not per-customer, so the only
+ * way to stop a downgrade below the live roster BEFORE it happens (a paid
+ * firm over its tier cap is not roster-paused -- reconcileRosterPauseState()
+ * only acts on unpaid firms) is to hand each firm the configuration whose
+ * allowed prices are exactly the tiers that still cover its roster. `none`
+ * (roster beyond the top tier's cap, or a firm_scale + add-on subscription,
+ * which the portal cannot switch anyway) is a configuration with cancel /
+ * payment-method / invoices but NO plan switching.
+ * STRIPE_PORTAL_CONFIGS is a JSON object {"firm_starter":"bpc_..",
+ * "firm_growth":..,"firm_standard":..,"firm_scale":..,"none":..}; returns
+ * null if unset/unparseable/missing the needed key (caller 503s). */
+export function portalConfigurationIdForRoster(env: Env, rosterCount: number, hasAddon: boolean): string | null {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(env.STRIPE_PORTAL_CONFIGS ?? "");
+  } catch {
+    return null;
+  }
+  if (!map || typeof map !== "object") return null;
+  const smallest = hasAddon ? null : firmTierForSeatCount(rosterCount);
+  const key = smallest ? smallest.planTier : "none";
+  const id = map[key];
+  return typeof id === "string" && /^bpc_[A-Za-z0-9]+$/.test(id) ? id : null;
+}
+
+/** Roadmap #31 compounding tiers (2026-08-11, Devin's spec): "10% off each
+ * time [a referral converts], up to 10 times, which is 100% off." Tier N
+ * (1-10) maps to the Nth successful referral -> N*10% off, capped at tier
+ * 10 (100%). See env.ts's own STRIPE_COUPON_REFERRAL docstring for why this
+ * is a prefix, not a single id, and MAX_REFERRAL_TIER for the cap. (Moved
+ * here from index.ts 2026-10-07.) */
+export const MAX_REFERRAL_TIER = 10;
+export function referralTierCouponId(prefix: string, tier: number): string {
+  return `${prefix}${Math.max(1, Math.min(tier, MAX_REFERRAL_TIER))}`;
+}

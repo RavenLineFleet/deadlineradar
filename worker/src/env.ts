@@ -351,6 +351,16 @@ export interface Env {
   STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL?: string;
   STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY?: string;
   /**
+   * Self-serve plan change (2026-10-07): JSON map of Stripe Customer Portal
+   * Configuration ids, one per "smallest tier the firm may switch to" plus
+   * `none` -- see tiers.ts portalConfigurationIdForRoster(). Created by
+   * scripts/configure_stripe_portal.py; ids are not secrets.
+   */
+  STRIPE_PORTAL_CONFIGS?: string;
+  /** Self-serve plan change master switch -- exactly "on" enables it; see
+   * tiers.ts selfServePlanChangeEnabled(). */
+  SELF_SERVE_PLAN_CHANGE?: string;
+  /**
    * Roadmap #31 (2026-08-09, referral program; compounding tiers added
    * 2026-08-11, Devin's own spec: "10% off each time [a referral converts],
    * up to 10 times, which is 100% off"). A Stripe Coupon id PREFIX, not a

@@ -846,6 +846,9 @@ export const RATE_LIMIT_FIRM_PASSWORD_SET: RateLimit = { max: 10, windowSeconds:
 /** Cancel/resume are authenticated + rate-limited the same as password set
  * -- no legitimate admin needs more than a handful of toggles a day. */
 export const RATE_LIMIT_FIRM_BILLING_CANCEL: RateLimit = { max: 10, windowSeconds: 3600 };
+// Self-serve plan change (2026-10-07): minting a Stripe portal link is a Stripe API call
+// per click; same ceiling as cancel.
+export const RATE_LIMIT_FIRM_BILLING_PORTAL: RateLimit = { max: 10, windowSeconds: 3600 };
 
 /** Task #3 (2026-08-06): a firm only ever legitimately deletes its own
  * account once. Tighter than the toggles above on purpose -- this is

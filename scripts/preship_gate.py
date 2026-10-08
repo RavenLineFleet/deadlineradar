@@ -4712,6 +4712,36 @@ def check_monthly_billing_flag_consistency(repo_root: Path) -> list[str]:
     ]
 
 
+def check_self_serve_plan_change_flag_consistency(repo_root: Path) -> list[str]:
+    """Self-serve plan change (2026-10-07): the UI half of the gate is two
+    literals in generate.py -- the Python bool that picks the pricing page's
+    already_subscribed copy and the `var DR_SELF_SERVE_PLAN_CHANGE_ENABLED`
+    JS literal that shows the dashboard's "Manage billing" button. Flipping one
+    and not the other ships a pricing page that points customers at a button
+    that is not there (or a button on a page that still says "contact
+    support"). The Worker half is the SELF_SERVE_PLAN_CHANGE Env secret, which
+    is not visible to this gate -- the deploy runbook flips it last."""
+    py_text = (repo_root / "generate.py").read_text(encoding="utf-8")
+    py_match = re.search(r"^SELF_SERVE_PLAN_CHANGE_ENABLED\s*=\s*(True|False)\s*$", py_text, re.MULTILINE)
+    js_match = re.search(r"var DR_SELF_SERVE_PLAN_CHANGE_ENABLED\s*=\s*(true|false);", py_text)
+    missing = []
+    if not py_match:
+        missing.append("generate.py's SELF_SERVE_PLAN_CHANGE_ENABLED (Python bool)")
+    if not js_match:
+        missing.append("generate.py's embedded `var DR_SELF_SERVE_PLAN_CHANGE_ENABLED` (JS literal)")
+    if missing:
+        return [f"[SYNC] Could not find: {'; '.join(missing)} -- literal shape may have changed; update check_self_serve_plan_change_flag_consistency()"]
+    py_value = py_match.group(1) == "True"
+    js_value = js_match.group(1) == "true"
+    if py_value == js_value:
+        return []
+    return [
+        f"[SYNC] generate.py's SELF_SERVE_PLAN_CHANGE_ENABLED={py_value} (pricing-page copy) and "
+        f"DR_SELF_SERVE_PLAN_CHANGE_ENABLED={js_value} (dashboard Manage billing button) disagree -- "
+        f"flip them together."
+    ]
+
+
 def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     """AuditLab PRICE-1 (2026-08-09, closed 2026-08-13): worker/src/tiers.ts's
     FIRM_TIERS is the source of truth for what a firm is actually charged and
@@ -5909,6 +5939,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         "handleNewsletterSubscribe": "roadmap #124 compliance-news newsletter -- public /newsletter/subscribe form, own newsletter_subscribers table with no firm_id/demo_locked column at all (migration 0066), same category as handleSubscribe above (anonymous signup, no firm session exists)",
         "runComplianceNewsletterPass": "roadmap #124 -- targets ONLY store.listConfirmedNewsletterSubscribers(), a table with no firm association at all (migration 0066), same category as runDripCoursePass above; demo_locked is a firm-scoped property and structurally cannot apply",
         "runMobilityStalenessAlertPass": "AuditLab STALE-10 -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as sendSignupNotification/notifyOperatorOfStaleData above; also structurally not firm-scoped at all (reads mobility_rules.json/firm_mobility_rules.json directly, fires from scheduled(), not any firm's own session)",
+        "alertUnsynced": "self-serve plan change (2026-10-07) -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address only (same category as sendSignupNotification above), consent-gated behind requireSendApproval('billingSyncAlert'); a billing-sync problem on ANY firm is an operator concern, the firm itself is never emailed by this function (the customer-facing over-cap notice is sent from applySubscriptionUpdatedEvent, which has its own live demo_locked/is_test_tenant guard)",
         "runAssistantLatencyAlertPass": "AuditLab (2026-08-31 latency-monitoring directive) -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address, same category as runMobilityStalenessAlertPass immediately above; also structurally not firm-scoped (reads assistant_chat_latency_log directly, fires from scheduled(), not any firm's own session)",
         "sendBackupCodeRedeemedNotice": "AuditLab 2FA-4's backup-code-redeemed notice (currently held behind BACKUP_CODE_REDEEMED_EMAIL_ENABLED=false besides; extracted from handleFirm2faVerify() into its own function by 2FA-6, for direct testability -- this allowlist entry follows that rename) -- structurally unreachable for a demo_locked firm regardless: handleFirm2faEnroll() 400s the WHOLE enrollment request for a demo_locked firm before totp_secret_encrypted is ever set, and handleFirm2faVerify()'s own early guard (member.totp_secret_encrypted required) means a demo firm's member can never reach the call site that invokes this function at all, same front-door-gated category as issueAndSendFirmMemberInviteEmail above",
         "handleAssistantTicket": "2026-09-01 assistant support-ticket walkthrough -- sends to the hardcoded INTERNAL_NOTIFY_EMAIL operator address only (same category as sendSignupNotification above); the visitor-supplied address is the reply-to, never the recipient, and it is public/no-session by design like handleSubscribe. The one demo_locked interaction (a demo-firm session's placeholder member email being used as that reply-to) is closed inside optionalVisitorEmail(), which resolves a demo_locked firm's session to null so the visitor is asked for a real address",
@@ -8483,6 +8514,7 @@ def main():
     all_errors += check_sms_cron_hour_matches_wrangler(repo_root)
     all_errors += check_pricing_matches_tiers(repo_root)
     all_errors += check_monthly_billing_flag_consistency(repo_root)
+    all_errors += check_self_serve_plan_change_flag_consistency(repo_root)
     all_errors += check_json_copies_identical(repo_root)
     all_errors += check_citation_manifest_coverage(repo_root)
     all_errors += check_terms_version_sync(repo_root)

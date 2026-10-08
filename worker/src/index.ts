@@ -70,6 +70,7 @@ import {
   RATE_LIMIT_FIRM_2FA_ENROLL,
   RATE_LIMIT_FIRM_2FA_DISABLE,
   RATE_LIMIT_FIRM_BILLING_CANCEL,
+  RATE_LIMIT_FIRM_BILLING_PORTAL,
   RATE_LIMIT_FIRM_ACCOUNT_DELETE,
   DELETION_SURVEY_REASONS,
   MAX_DELETION_SURVEY_DETAIL_LEN,
@@ -287,11 +288,15 @@ import {
   MONTHLY_BILLING_ENABLED,
   firmTierByPlanTier,
   firmTierForSeatCount,
+  portalConfigurationIdForRoster,
+  referralTierCouponId,
   seatCapForFirmTier,
+  selfServePlanChangeEnabled,
   stripePriceIdForPerSeatAddon,
   stripePriceIdForTier,
 } from "./tiers";
 import {
+  createBillingPortalSession,
   createCheckoutSession,
   updateSubscriptionCancelAtPeriodEnd,
   getLatestInvoiceForSubscription,
@@ -305,6 +310,7 @@ import {
   StripeApiError,
   type StripeWebhookEvent,
 } from "./stripe";
+import { applySubscriptionUpdatedEvent } from "./subscription_sync";
 import { buildIcs, type IcsEvent } from "./ics";
 import { handleTrackedLink } from "./tracked_links";
 
@@ -3504,15 +3510,9 @@ function valueLineDenialResponse(firm: store.FirmRow): Response | null {
 // calls the same way it hand-writes SendGrid/Turnstile.
 // ---------------------------------------------------------------------------
 
-/** Roadmap #31 compounding tiers (2026-08-11, Devin's spec): "10% off each
- * time [a referral converts], up to 10 times, which is 100% off." Tier N
- * (1-10) maps to the Nth successful referral -> N*10% off, capped at tier
- * 10 (100%). See env.ts's own STRIPE_COUPON_REFERRAL docstring for why this
- * is a prefix, not a single id, and MAX_REFERRAL_TIER for the cap. */
-const MAX_REFERRAL_TIER = 10;
-function referralTierCouponId(prefix: string, tier: number): string {
-  return `${prefix}${Math.max(1, Math.min(tier, MAX_REFERRAL_TIER))}`;
-}
+// referralTierCouponId() / MAX_REFERRAL_TIER moved to tiers.ts (2026-10-07) so
+// subscription_sync.ts can re-apply a referrer's reward after a portal switch
+// without importing index.ts.
 
 /**
  * POST /firm/billing/checkout -- creates a Stripe Checkout Session for the
@@ -3618,7 +3618,9 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   // cancel-at-period-end that hasn't reached its period end yet.
   if (firm.stripe_subscription_id) {
     return jsonResponse(400, {
-      error: "You already have an active subscription. To change plans, contact support.",
+      error: selfServePlanChangeEnabled(env)
+        ? "You already have an active subscription. Use Manage billing in your dashboard to change plan or billing period."
+        : "You already have an active subscription. To change plans, contact support.",
       code: "already_subscribed",
     });
   }
@@ -3707,6 +3709,71 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   } catch (err) {
     if (err instanceof StripeApiError) {
       return jsonResponse(502, { error: "Couldn't start checkout. Please try again." });
+    }
+    throw err;
+  }
+}
+
+/**
+ * POST /firm/billing/portal -- self-serve plan / billing-period change
+ * (Devin, 2026-10-07). Returns a short-lived Stripe Customer Portal URL for
+ * the signed-in partner's own Stripe customer; plan switching, monthly<->
+ * annual switching, proration, cancel, payment-method update and invoices
+ * all happen on Stripe's hosted page, and the result is mirrored back by
+ * the customer.subscription.updated webhook (subscription_sync.ts).
+ *
+ * Partner-only, origin-checked, rate-limited, demo-locked: same gate stack
+ * as handleFirmBillingCancellationToggle(). Requires BOTH a stored
+ * subscription id and customer id -- a firm with neither has nothing to
+ * manage and must use checkout. The portal Configuration is chosen from the
+ * firm's LIVE roster count (never client-supplied) so the plan list only
+ * contains tiers that still cover it -- see portalConfigurationIdForRoster().
+ * 404 while SELF_SERVE_PLAN_CHANGE is not "on" (the route does not
+ * exist to a caller until the flag is flipped).
+ */
+async function handleFirmBillingPortal(request: Request, env: Env): Promise<Response> {
+  if (!selfServePlanChangeEnabled(env)) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+  const session = await requireFirmRole(request, env, "partner");
+  if (session instanceof Response) return session;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+  if (!env.STRIPE_SECRET_KEY) {
+    return jsonResponse(503, { error: "Billing isn't set up yet. Get in touch and we'll sort it out." });
+  }
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_billing_portal", RATE_LIMIT_FIRM_BILLING_PORTAL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+  if (session.firm.demo_locked) {
+    return jsonResponse(403, { error: "This is a shared demo account. Billing changes aren't available for this account." });
+  }
+  if (!session.firm.stripe_subscription_id || !session.firm.stripe_customer_id) {
+    return jsonResponse(400, { error: "No active subscription to manage." });
+  }
+
+  const rosterCount = await store.countFirmLicenses(env.DB, session.firmId);
+  // A subscription carrying the per-seat add-on is two items; the portal
+  // cannot switch plans on those, so it gets the no-switching configuration.
+  const hasAddon = rosterCount > (firmTierByPlanTier(session.firm.plan_tier)?.seatCap ?? Number.MAX_SAFE_INTEGER);
+  const configurationId = portalConfigurationIdForRoster(env, rosterCount, hasAddon);
+  if (!configurationId) {
+    return jsonResponse(503, { error: "Billing management isn't available right now. Please try again later." });
+  }
+
+  try {
+    const portal = await createBillingPortalSession(env.STRIPE_SECRET_KEY, {
+      customerId: session.firm.stripe_customer_id,
+      configurationId,
+      returnUrl: `${staticSiteAbsoluteBaseUrl(env)}/firm-dashboard/#account`,
+    });
+    return jsonResponse(200, { portal_url: portal.url });
+  } catch (err) {
+    if (err instanceof StripeApiError) {
+      return jsonResponse(502, { error: "Couldn't open billing management. Please try again." });
     }
     throw err;
   }
@@ -4305,6 +4372,25 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         }
         await store.markWebhookEventProcessed(env.DB, event.id);
       }
+    }
+    return jsonResponse(200, { received: true });
+  }
+
+  if (event.type === "customer.subscription.updated") {
+    // Self-serve plan change (2026-10-07): see subscription_sync.ts. Not
+    // gated on recordWebhookEventIfNew -- the sync refetches Stripe's state
+    // and is idempotent, so a redelivery (or Stripe's retry after a 500)
+    // must re-run it rather than be dropped as "already seen".
+    const subscriptionId = typeof object.id === "string" ? object.id : null;
+    if (subscriptionId) {
+      const prev = (event.data as { previous_attributes?: unknown }).previous_attributes;
+      await applySubscriptionUpdatedEvent(
+        env,
+        event.id,
+        subscriptionId,
+        `${staticSiteAbsoluteBaseUrl(env)}/firm-dashboard/#account`,
+        prev && typeof prev === "object" ? (prev as Record<string, unknown>) : null
+      );
     }
     return jsonResponse(200, { received: true });
   }
@@ -10555,6 +10641,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/firm/licenses/active-picks") {
         try {
           return await handleFirmRosterActivePicks(request, env);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (url.pathname === "/firm/billing/portal") {
+        try {
+          return await handleFirmBillingPortal(request, env);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }

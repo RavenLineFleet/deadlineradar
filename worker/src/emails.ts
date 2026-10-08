@@ -3171,3 +3171,51 @@ export function buildNewsletterDigestEmail(items: NewsletterDigestItem[], unsubs
 
   return { subject, textBody, htmlBody, headers: listUnsubHeaders(unsubscribeUrl) };
 }
+
+/**
+ * Self-serve plan change (2026-10-07). Internal-only (INTERNAL_NOTIFY_EMAIL)
+ * alert: the customer.subscription.updated sync found a subscription state it
+ * will not guess at, or could not complete. The firm's stored tier/interval
+ * are left exactly as they were.
+ */
+export function buildBillingSyncAlertEmail(details: { firmId: string; subscriptionId: string; problem: string }): BuiltEmail {
+  const subject = "Deadline-Radar: a subscription change could not be synced to the firm record";
+  const textBody =
+    `A Stripe customer.subscription.updated event was NOT applied.\n\n` +
+    `  firm: ${details.firmId}\n  subscription: ${details.subscriptionId}\n  problem: ${details.problem}\n\n` +
+    `The firm's plan_tier / billing_interval were left unchanged. Check the subscription in the Stripe ` +
+    `dashboard against the firm's stored tier and correct whichever side is wrong.`;
+  const htmlBody =
+    `<p>A Stripe <code>customer.subscription.updated</code> event was <strong>not</strong> applied.</p>` +
+    `<ul><li>firm: <code>${esc(details.firmId)}</code></li><li>subscription: <code>${esc(details.subscriptionId)}</code></li>` +
+    `<li>problem: ${esc(details.problem)}</li></ul>` +
+    `<p>The firm's plan_tier / billing_interval were left unchanged. Check the subscription in the Stripe dashboard ` +
+    `against the firm's stored tier and correct whichever side is wrong.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
+ * Self-serve plan change (2026-10-07). Sent to the firm's own partner when a
+ * plan switch completed in the Stripe portal leaves the live roster above the
+ * new tier's cap (the portal configuration normally prevents this by only
+ * offering tiers that still cover the roster, so this is the rare race: staff
+ * were added after the portal session was created). Transactional, once per
+ * webhook event.
+ */
+export function buildPlanChangeOverCapEmail(details: { firmName: string; newTierLabel: string; newSeatCap: number; rosterCount: number; dashboardUrl: string }): BuiltEmail {
+  const safeFirmName = details.firmName.replace(/[\r\n]+/g, " ");
+  const subject = `Your Deadline-Radar plan change: ${details.rosterCount} staff on a ${details.newSeatCap}-seat plan`;
+  const textBody =
+    `Hi ${safeFirmName},\n\n` +
+    `Your plan is now ${details.newTierLabel} (up to ${details.newSeatCap} staff), but your roster currently has ` +
+    `${details.rosterCount}. Nobody has been removed or paused, and your reminders keep running. You will not be able ` +
+    `to add more staff until you either move to a larger plan or remove staff down to ${details.newSeatCap}.\n\n` +
+    `Manage your plan: ${details.dashboardUrl}\n`;
+  const htmlBody =
+    `<p>Hi ${esc(safeFirmName)},</p>` +
+    `<p>Your plan is now <strong>${esc(details.newTierLabel)}</strong> (up to ${details.newSeatCap} staff), but your roster ` +
+    `currently has ${details.rosterCount}. Nobody has been removed or paused, and your reminders keep running. You will ` +
+    `not be able to add more staff until you either move to a larger plan or remove staff down to ${details.newSeatCap}.</p>` +
+    `<p><a href="${esc(details.dashboardUrl)}">Manage your plan</a></p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}

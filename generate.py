@@ -2623,6 +2623,9 @@ PAGE_CSS = """
      a plain two-way switch rather than a call-to-action button. */
   .price-alt { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted, inherit); }
   .dr-billing-interval-toggle { display: flex; gap: 0.4rem; margin: 0.7rem 0; }
+  /* display:flex above outranks the UA [hidden] rule, so toggleEl.hidden = true
+     (pricing page, after an already_subscribed refusal) silently did nothing. */
+  .dr-billing-interval-toggle[hidden] { display: none; }
   .dr-interval-btn {
     flex: 1 1 auto; background: var(--row-alt); color: var(--fg);
     border: 1px solid var(--border); border-radius: 7px; font-weight: 600;
@@ -3418,6 +3421,21 @@ _NAV_TOGGLE_JS_HTML = """<script>
 # that one is dashboard-only, reachable only by an ALREADY-authenticated
 # session whose cookie merely expired mid-use, so sign-IN is the correct
 # landing there, not signup.
+# Self-serve plan / billing-period change via the Stripe Customer Portal
+# (Devin, 2026-10-07). UI half of the gate -- the Worker half is the
+# SELF_SERVE_PLAN_CHANGE Env switch (worker/src/tiers.ts
+# selfServePlanChangeEnabled(); must be "on" before the route exists). Ships
+# False: flip this, the `var DR_SELF_SERVE_PLAN_CHANGE_ENABLED` literal in the
+# dashboard script, and the Worker secret together, only after SecurityLab +
+# AuditLab PASS and the live portal configurations exist
+# (scripts/configure_stripe_portal.py). preship_gate.py pins Python == JS.
+SELF_SERVE_PLAN_CHANGE_ENABLED = False
+_ALREADY_SUBSCRIBED_PRICING_MSG = (
+    "You already have an active subscription. Open Manage billing in your dashboard (Account tab) to switch plan or billing period."
+    if SELF_SERVE_PLAN_CHANGE_ENABLED
+    else "You already have an active subscription. To switch billing period (monthly or annual) or plan, contact support."
+)
+
 _PRICING_CHECKOUT_JS_HTML = f"""<script>
 (function() {{
   // which cadence the toggle above the cards currently
@@ -3477,7 +3495,7 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
             }}
             if (errEl) {{
               errEl.textContent = alreadySubscribed
-                ? 'You already have an active subscription. To switch billing period (monthly or annual) or plan, contact support.'
+                ? '{_ALREADY_SUBSCRIBED_PRICING_MSG}'
                 : ((data && data.error) ? data.error : 'Something went wrong, please try again.');
               errEl.hidden = false;
             }}
@@ -12711,6 +12729,10 @@ var drBillingInterval = 'annual';
 // server-side half) for the rest of this gate. Flip all three together.
 var DR_MONTHLY_BILLING_ENABLED = true;
 
+// Self-serve plan change: shows "Manage billing" (Stripe Customer Portal) on a
+// subscribed firm's Account panel. See generate.py's SELF_SERVE_PLAN_CHANGE_ENABLED.
+var DR_SELF_SERVE_PLAN_CHANGE_ENABLED = false;
+
 // the SAME four tiers/prices as worker/src/tiers.ts's
 // FIRM_TIERS -- duplicated here deliberately, same "two places, same
 // numbers, no shared import across the Python/TS boundary" precedent the
@@ -14678,6 +14700,15 @@ function drRenderBillingPanel() {
       cancelBtn.addEventListener('click', function() { drToggleCancellation(true, cancelBtn); });
     }
   }
+  if (DR_SELF_SERVE_PLAN_CHANGE_ENABLED && !drBilling.demoLocked) {
+    var manageBtn = document.createElement('button');
+    manageBtn.type = 'button';
+    manageBtn.id = 'dr-billing-manage-btn';
+    manageBtn.className = 'dr-btn-secondary';
+    manageBtn.textContent = 'Manage billing';
+    manageBtn.addEventListener('click', function() { drOpenBillingPortal(manageBtn); });
+    body.appendChild(manageBtn);
+  }
 }
 
 // Referral v2 (2026-08-09). link is server-built (staticSiteAbsoluteBaseUrl()
@@ -14729,6 +14760,32 @@ function drRenderReferralPanel(link, usesRemaining, rewardCount) {
       }
     });
   }
+}
+
+// Self-serve plan change: asks the Worker for a one-time Stripe Customer Portal
+// URL (plan, billing period, payment method, invoices, cancel) and navigates
+// there. The Worker picks the portal configuration from the live roster.
+function drOpenBillingPortal(btn) {
+  if (btn) btn.disabled = true;
+  var errEl = document.getElementById('dr-billing-error');
+  if (errEl) errEl.hidden = true;
+  fetch('/api/firm/billing/portal', {
+    method: 'POST',
+    credentials: 'include',
+  }).then(function(res) {
+    if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
+    return drReadJsonSafe(res).then(function(data) {
+      if (!res.ok || !data || !data.portal_url) {
+        if (errEl) { errEl.textContent = (data && data.error) || 'Something went wrong, please try again.'; errEl.hidden = false; }
+        if (btn) btn.disabled = false;
+        return;
+      }
+      window.location.href = data.portal_url;
+    });
+  }).catch(function() {
+    if (errEl) { errEl.textContent = 'Something went wrong, please try again.'; errEl.hidden = false; }
+    if (btn) btn.disabled = false;
+  });
 }
 
 function drToggleCancellation(cancel, btn) {

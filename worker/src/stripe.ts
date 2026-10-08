@@ -151,6 +151,88 @@ export async function fetchStripePrice(secretKey: string, priceId: string): Prom
   };
 }
 
+export interface StripeBillingPortalSession {
+  url: string;
+}
+
+/**
+ * POST /v1/billing_portal/sessions -- a short-lived URL into Stripe's hosted
+ * Customer Portal for ONE customer, using one of our pre-built portal
+ * Configurations (see tiers.ts portalConfigurationIdForRoster()). Plan /
+ * interval switching, proration, cancel, payment-method and invoice history
+ * all live on Stripe's side; this Worker only mints the link and (via the
+ * customer.subscription.updated webhook) mirrors the result.
+ */
+export async function createBillingPortalSession(
+  secretKey: string,
+  params: { customerId: string; configurationId: string; returnUrl: string }
+): Promise<StripeBillingPortalSession> {
+  const body = new URLSearchParams();
+  body.set("customer", params.customerId);
+  body.set("configuration", params.configurationId);
+  body.set("return_url", params.returnUrl);
+  const res = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  const json = (await res.json()) as { url?: string; error?: { message?: string } };
+  if (!res.ok || !json.url) {
+    throw new StripeApiError(json.error?.message ?? "Stripe billing portal session creation failed.", res.status);
+  }
+  return { url: json.url };
+}
+
+export interface StripeSubscriptionSnapshot {
+  id: string;
+  status: string;
+  customerId: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** ISO string of the (first) item's current_period_end, or null if absent. */
+  currentPeriodEnd: string | null;
+  items: Array<{ priceId: string | null; quantity: number | null }>;
+  /** How many discounts are currently attached (a referral reward coupon
+   * lives here until the invoice that consumes it). */
+  discountCount: number;
+}
+
+/**
+ * GET /v1/subscriptions/{id} -- the AUTHORITATIVE current state, used by the
+ * customer.subscription.updated webhook instead of trusting the event
+ * payload: Stripe does not guarantee event ordering, so two quick portal
+ * changes can arrive out of order, and a refetch makes "apply whatever
+ * Stripe says right now" order-independent. Returns null on a 404.
+ */
+export async function fetchStripeSubscription(secretKey: string, subscriptionId: string): Promise<StripeSubscriptionSnapshot | null> {
+  const res = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}` },
+  });
+  if (res.status === 404) return null;
+  const json = (await res.json()) as {
+    id?: string;
+    status?: string;
+    customer?: string | { id?: string };
+    cancel_at_period_end?: boolean;
+    discounts?: unknown[];
+    discount?: unknown;
+    items?: { data?: Array<{ price?: { id?: string }; quantity?: number; current_period_end?: number }> };
+    error?: { message?: string };
+  };
+  if (!res.ok || !json.id || !json.status || !json.items?.data) {
+    throw new StripeApiError(json.error?.message ?? "Stripe subscription fetch failed.", res.status);
+  }
+  const firstEnd = json.items.data[0]?.current_period_end;
+  return {
+    id: json.id,
+    status: json.status,
+    customerId: typeof json.customer === "string" ? json.customer : json.customer?.id ?? null,
+    cancelAtPeriodEnd: Boolean(json.cancel_at_period_end),
+    currentPeriodEnd: typeof firstEnd === "number" ? new Date(firstEnd * 1000).toISOString() : null,
+    items: json.items.data.map((i) => ({ priceId: i.price?.id ?? null, quantity: typeof i.quantity === "number" ? i.quantity : null })),
+    discountCount: Array.isArray(json.discounts) ? json.discounts.length : json.discount ? 1 : 0,
+  };
+}
+
 export interface StripeSubscriptionCancellation {
   /** Stripe's own current_period_end (Unix seconds) as an ISO string --
    * display-only, see the migration's own comment for why this never
