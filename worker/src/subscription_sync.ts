@@ -18,7 +18,9 @@
  *  - NEVER GUESSES: any subscription shape deriveSubscriptionState() does
  *    not recognise exactly leaves plan_tier / billing_interval untouched and
  *    raises an internal alert instead.
- *  - A Stripe/D1 failure throws (-> 500 -> Stripe retries the event).
+ *  - A transient Stripe/D1 failure throws (-> non-2xx -> Stripe retries the
+ *    event); a permanent Stripe 4xx on the referral re-apply alerts and the
+ *    tier is mirrored anyway (MED-B).
  *
  * Roster vs tier cap: the portal configuration handed to each firm
  * (tiers.ts portalConfigurationIdForRoster()) only offers tiers that still

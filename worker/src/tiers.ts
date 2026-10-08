@@ -245,7 +245,13 @@ export function deriveSubscriptionState(env: Env, items: SubscriptionItemLike[])
     let matchedTier: { planTier: string; interval: "annual" | "monthly" } | null = null;
     for (const t of FIRM_TIERS) {
       for (const interval of ["annual", "monthly"] as const) {
-        if (stripePriceIdForTier(env, t.planTier, interval) === priceId) matchedTier = { planTier: t.planTier, interval };
+        if (stripePriceIdForTier(env, t.planTier, interval) === priceId) {
+          // Fail closed (AuditLab BILL-38): two STRIPE_PRICE_FIRM_* bindings
+          // holding the same id (a bad `wrangler secret put`) must never let
+          // the last match win and silently mirror the wrong tier.
+          if (matchedTier) return { ok: false, reason: `price id ${priceId} is bound to more than one firm tier/interval (misconfigured STRIPE_PRICE_FIRM_* secrets)` };
+          matchedTier = { planTier: t.planTier, interval };
+        }
       }
     }
     if (matchedTier) {

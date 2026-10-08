@@ -175,6 +175,14 @@ describe("deriveSubscriptionState -- the 10-price reverse map, never guessing", 
   ])("rejects %s", (_name, items) => {
     expect(deriveSubscriptionState(e, items as never).ok).toBe(false);
   });
+  it("BILL-38: two firm-tier bindings holding the same price id fail closed (no last-match-wins)", () => {
+    const dup = { ...(e as object), STRIPE_PRICE_FIRM_SCALE: "price_st_a" } as never; // starter annual id pasted into scale too
+    const r = deriveSubscriptionState(dup, [{ priceId: "price_st_a", quantity: 1 }]);
+    expect(r.ok).toBe(false);
+    // control: the correctly-bound env still derives the right tier
+    const good = deriveSubscriptionState(e, [{ priceId: "price_st_a", quantity: 1 }]);
+    expect(good.ok && good.planTier).toBe("firm_starter");
+  });
   it("an UNSET price binding never matches a null/undefined price id", () => {
     const bare = { ...env } as never; // no STRIPE_PRICE_* bound
     expect(deriveSubscriptionState(bare, [{ priceId: "price_st_a", quantity: 1 }]).ok).toBe(false);
