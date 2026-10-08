@@ -1,6 +1,6 @@
 {
  "_meta": {
-  "purpose": "Classifies what each record's next_deadline_computed date IS (DATA-14 prevention, 2026-10-08). Label 'Next renewal date' is only valid for license_expiry or renewal_due. evidence is a verbatim quote from that record's citation or cycle_description; scripts/preship_gate.py enforces it. Sidecar (not in cpa_deadlines.json) so the Worker's mirrored data copy is untouched. population (uniform | cohort_dependent | per_licensee) is an independent axis from kind: Colorado firm registration IS an expiry (kind) yet its year differs by cohort (population). Label 'Next renewal date' requires kind in license_expiry/renewal_due AND population uniform. A non-uniform record needs population_evidence (verbatim) and anchor_published.",
+  "purpose": "Classifies what each record's next_deadline_computed date IS (DATA-14 prevention, 2026-10-08). Label 'Next renewal date' is only valid for license_expiry or renewal_due. evidence is a verbatim quote from that record's citation or cycle_description; scripts/preship_gate.py enforces it. Sidecar (not in cpa_deadlines.json) so the Worker's mirrored data copy is untouched. population (uniform | cohort_dependent | per_licensee) is an independent axis from kind: Colorado firm registration IS an expiry (kind) yet its year differs by cohort (population). Label 'Next renewal date' requires kind in license_expiry/renewal_due AND population uniform. A non-uniform record needs population_evidence (verbatim) and anchor_published. evidence_field (optional, default citation+cycle_description) names another field of the record the evidence is quoted from, e.g. verification_history for the statute text a record was verified against (mn-firm).",
   "kinds": {
    "license_expiry": "the date the license/permit expires",
    "renewal_due": "the codified date renewal must be filed by (license lapses/expires at or after it)",
@@ -157,9 +157,10 @@
    "population": "uniform"
   },
   "mn-firm": {
-   "kind": "renewal_due",
-   "evidence": "same December 31 fixed date as individual licenses",
-   "population": "uniform"
+   "kind": "license_expiry",
+   "evidence": "must expire on December 31 following issuance or renewal",
+   "population": "uniform",
+   "evidence_field": "verification_history"
   },
   "mn-individual": {
    "kind": "license_expiry",

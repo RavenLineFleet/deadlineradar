@@ -5026,8 +5026,16 @@ def check_date_kinds(repo_root: Path) -> list[str]:
             errors.append(f"[DATEKIND][{rid}] unknown kind {kind!r}")
             continue
         hay = (r.get("citation") or "") + chr(10) + (r.get("cycle_description") or "")
-        if not ev or ev not in hay:
-            errors.append(f"[DATEKIND][{rid}] evidence is not a verbatim quote from the record's citation/cycle_description: {ev!r}")
+        ev_field = e.get("evidence_field")
+        ev_hay = hay
+        if ev_field:
+            # Evidence may be quoted from another field of the SAME record (mn-firm: the statute text in verification_history).
+            if ev_field != "verification_history":
+                errors.append(f"[DATEKIND][{rid}] evidence_field {ev_field!r} not allowed (only verification_history)")
+                continue
+            ev_hay = r.get(ev_field) or ""
+        if not ev or ev not in ev_hay:
+            errors.append(f"[DATEKIND][{rid}] evidence is not a verbatim quote from the record's {ev_field or 'citation/cycle_description'}: {ev!r}")
             continue
         pop = e.get("population")
         if pop not in populations:

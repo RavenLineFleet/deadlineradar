@@ -112,3 +112,13 @@ def test_colorado_page_relabelled_back_to_next_renewal_date_fails(tree):
     t = page.read_text(encoding="utf-8").replace("Renewal date (depends on your firm&#x27;s cohort)", "Next renewal date")
     page.write_text(t, encoding="utf-8")
     assert any("co-firm" in e and "still labels it" in e for e in gate.check_date_kinds(tree))
+
+
+def test_evidence_field_verification_history_is_checked_verbatim(tree):
+    _edit_kinds(tree, lambda r: r["mn-firm"].update(evidence="must expire on June 30 following issuance"))
+    assert any("mn-firm" in e and "verification_history" in e for e in gate.check_date_kinds(tree))
+
+
+def test_evidence_field_other_than_verification_history_is_refused(tree):
+    _edit_kinds(tree, lambda r: r["mn-firm"].update(evidence_field="data_gap_note"))
+    assert any("mn-firm" in e and "not allowed" in e for e in gate.check_date_kinds(tree))
