@@ -8726,12 +8726,13 @@ def _pricing_feature_table_rows_html(lang: str = "en") -> str:
 
 
 # BILL-22/23 (HomeLab, 2026-10-03): PR6's monthly toggle shipped with the
-# worker's own monthly billing code, but no live-mode Stripe monthly Price
-# ids exist yet -- a real visitor could pick Monthly here and hit a
-# checkout error after already filling in signup. Flag off until Devin's
-# live-mode keys, the real Stripe test-mode loop, and a clean price
-# reconciliation run are all done -- see worker/src/tiers.ts's matching
-# MONTHLY_BILLING_ENABLED for the server-side half of this gate.
+# worker's own monthly billing code. 2026-10-07: ENABLED on the
+# monthly-billing branch -- live-mode monthly + per-seat Prices exist and
+# check_stripe_price_reconciliation.py ran clean against live mode (10/10
+# prices, 10/10 coupons duration=once). Merge/deploy only after
+# SecurityLab + AuditLab PASS and the Worker price secrets are bound; if
+# a re-run of the reconciliation ever fails, flip this and tiers.ts's
+# MONTHLY_BILLING_ENABLED back together.
 MONTHLY_BILLING_ENABLED = True
 
 # BILL-25 (AuditLab, MEDIUM, LIVE, 2026-10-03): the toggle/buttons/checkout

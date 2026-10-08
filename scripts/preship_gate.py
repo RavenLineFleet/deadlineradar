@@ -4932,6 +4932,24 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                     f"({highest_tier['seatCap']} staff)."
                 )
 
+    # AuditLab (2026-10-07, LOW): the customer-facing per-seat prose is the
+    # one price literal the constants check above never reaches -- i18n.py's
+    # "$N/seat/year" and generate.py's _PER_SEAT_MONTHLY_CLAUSE
+    # "$N/seat/month" are hardcoded strings, not built from tiers.ts.
+    if per_seat_annual_match and per_seat_monthly_match:
+        prose_annual = [float(m) for m in re.findall(r"\$(\d+(?:\.\d+)?)/seat/year", i18n_text)] if i18n_path.exists() else []
+        prose_monthly = [float(m) for m in re.findall(r"\$(\d+(?:\.\d+)?)/seat/month", py_text)]
+        if not prose_annual:
+            errors.append("[SYNC] Could not find the '$N/seat/year' per-seat prose in i18n.py -- markup shape may have changed; update check_pricing_matches_tiers()")
+        if not prose_monthly:
+            errors.append("[SYNC] Could not find the '$N/seat/month' per-seat prose in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
+        for v in prose_annual:
+            if v != float(ts_per_seat_annual):
+                errors.append(f"[SYNC] i18n.py says ${v:g}/seat/year but worker/src/tiers.ts's PER_SEAT_ADDON_ANNUAL_USD is ${ts_per_seat_annual} -- the customer-facing add-on price would disagree with checkout.")
+        for v in prose_monthly:
+            if v != ts_per_seat_monthly:
+                errors.append(f"[SYNC] generate.py says ${v:g}/seat/month but worker/src/tiers.ts's PER_SEAT_ADDON_MONTHLY_USD is ${ts_per_seat_monthly:g} -- the customer-facing add-on price would disagree with checkout.")
+
     if not bounds_matches:
         errors.append(
             "[SYNC] Could not find the homepage/for-firms 'bounds' pricing prose in generate.py -- "

@@ -84,14 +84,17 @@ export const PER_SEAT_ADDON_MONTHLY_USD = 1.5;
 export const EXPECTED_PRICE_INTERVAL_COUNT = 1;
 export const EXPECTED_PRICE_USAGE_TYPE = "licensed";
 
-// BILL-22/23 (HomeLab, 2026-10-03): no live-mode Stripe monthly Price ids
-// exist yet -- handleFirmBillingCheckout (index.ts) rejects interval:
-// "monthly" with a friendly message while this is false, before even
-// looking up a price id. generate.py's MONTHLY_BILLING_ENABLED/
+// BILL-22/23 (HomeLab, 2026-10-03): handleFirmBillingCheckout (index.ts)
+// rejects interval: "monthly" with a friendly message while this is false,
+// before even looking up a price id. generate.py's MONTHLY_BILLING_ENABLED/
 // DR_MONTHLY_BILLING_ENABLED are the matching UI-side half (pricing page
-// + dashboard upgrade panel) -- flip all three together once Devin's
-// live-mode keys, the real test-mode loop, and a clean
-// check_stripe_price_reconciliation.py run are done.
+// + dashboard upgrade panel). 2026-10-07: ENABLED on the monthly-billing
+// branch -- live-mode monthly + per-seat Prices exist and a live-mode
+// check_stripe_price_reconciliation.py run was clean (10/10 prices, 10/10
+// coupons duration=once). Do not merge/deploy before SecurityLab +
+// AuditLab PASS and the STRIPE_PRICE_*_MONTHLY / PER_SEAT_ADDON_* Worker
+// secrets are bound. If a re-run of that script ever fails, flip all
+// three flags back together.
 export const MONTHLY_BILLING_ENABLED = true;
 
 export const FIRM_TIERS: FirmTierDef[] = [
