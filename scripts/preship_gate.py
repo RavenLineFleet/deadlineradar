@@ -2130,6 +2130,18 @@ def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path
         # became a second self-rolling record. Apply the same html.escape()
         # the real renderer uses before regex-escaping, so the anchor
         # matches what's actually on the page.
+        # DATA-14/POST-8 (2026-10-08): a cohort-dependent record (co-firm) deliberately renders NO year
+        # (a single year asserted for every firm was false for part of the population) - its row shows the
+        # year-free _DATE_SEMANTICS "value" instead. The staleness this check guards (a past year left on the
+        # page) cannot occur for a row with no year, so verify the year-free value is what is rendered.
+        override_value = generate_module._DATE_SEMANTICS.get(record_id, {}).get("value")
+        if override_value:
+            if '<div class="v">' + html.escape(override_value, quote=True) + "<small>" not in page_html:
+                errors.append(
+                    f"[C][DATE-5][{state_slug}/{record_id}] expected the year-free value {override_value!r} in "
+                    f"docs/{state_slug}/index.html but did not find it -- rebuild, or the markup shape changed"
+                )
+            continue
         anchor = re.escape(html.escape(cycle_desc[:40], quote=True))
         m = re.search(r'<div class="v">([A-Za-z]+ \d{1,2}, \d{4})<small>' + anchor, page_html)
         if not m:

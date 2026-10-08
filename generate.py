@@ -6115,6 +6115,15 @@ _DATE_SEMANTICS = {
         "note": "Permits expire each September 30; this is the filing deadline that follows.",
         "meta": "{state} CPA permits expire each September 30; the renewal fee and CPE statement are due {date}. See the renewal cycle details and the official state board source to confirm it.",
     },
+    # Colorado firm registrations: the board-wide date is August 31 every three years, but WHICH year
+    # applies depends on each firm's own last-renewed date (the state register had firms due 2026-08-31
+    # and firms already set for 2029-08-31), so a single year asserted for every firm is false for part
+    # of the population (AuditLab POST-8). Wording matches the AuditLab-approved Colorado email.
+    "co-firm": {
+        "label": "Renewal date (depends on your firm's cohort)",
+        "value": "August 31, every three years",
+        "note": "Which August 31 applies depends on when your firm last renewed; the Board does not publish which years anchor the cycle.",
+    },
 }
 
 
@@ -6148,6 +6157,14 @@ def _date_label(r: dict) -> str:
     return ov["label"]
 
 
+def _date_value(r: dict, d: date) -> str:
+    """The displayed date value: the computed date, unless the record's date is only true for part of
+    the population (cohort_or_other) and _DATE_SEMANTICS supplies a year-free value."""
+    if _date_kind(r) in _RENEWAL_LABEL_KINDS:
+        return fmt_date(d)
+    return _DATE_SEMANTICS.get(r.get("id"), {}).get("value") or fmt_date(d)
+
+
 def _date_note_prefix(r: dict) -> str:
     if _date_kind(r) in _RENEWAL_LABEL_KINDS:
         return ""
@@ -6178,7 +6195,7 @@ def render_simple_deadline_records(records: list[dict]) -> str:
   <div class="rowlist">
     <div class="frow">
       <div class="k">{esc(_date_label(r))}</div>
-      <div class="v">{esc(fmt_date(d))}<small>{esc(_date_note_prefix(r) + r['cycle_description'])}</small></div>
+      <div class="v">{esc(_date_value(r, d))}<small>{esc(_date_note_prefix(r) + r['cycle_description'])}</small></div>
       <div class="{_side_class(r)}">
         {_cite_chip_html(r)}
         {verified_line}
@@ -7343,7 +7360,7 @@ def build_state_page(
                 )
                 for _r in records:
                     _ov = _DATE_SEMANTICS.get(_r.get("id"))
-                    if _ov and _r.get("next_deadline_computed") == primary_date_iso:
+                    if _ov and "meta" in _ov and _r.get("next_deadline_computed") == primary_date_iso:
                         meta_description = _ov["meta"].format(state=state_name, date=primary_date_str)
             else:
                 meta_description = (
@@ -8344,7 +8361,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   </div>
   <div class="hfc-date-block">
     <div class="hfc-date-label">{esc(_date_label(r))}</div>
-    <div class="hfc-date">{esc(fmt_date(d))}</div>
+    <div class="hfc-date">{esc(_date_value(r, d))}</div>
   </div>
   <div class="hfc-footer">
     {_cite_chip_html(r, max_chars=48)}
@@ -22470,8 +22487,8 @@ renewal. Here's exactly when {esc(state_name)}'s firm-level filing is due.</p>
 <div class="callout">
   {_verified_badge_html(record)}
   <div class="label">{esc(record['license_type_label'])}</div>
-  <div class="date">{esc(fmt_date(date.fromisoformat(record['next_deadline_computed'])))}</div>
-  <p class="rule">{esc(record['cycle_description'])}</p>
+  <div class="date">{esc(_date_value(record, date.fromisoformat(record['next_deadline_computed'])))}</div>
+  <p class="rule">{esc(_date_note_prefix(record) + record['cycle_description'])}</p>
   {_source_cite_html(record)}
 </div>
 {trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record))}
@@ -24962,14 +24979,14 @@ Board bumps you to the following cycle rather than making you renew almost immed
 
 <h2>Firms run on a separate, longer cycle: August 31, every three years</h2>
 <p>Public accounting firm registrations are a different clock entirely. They expire August 31, once
-every three years, board-wide &mdash; a fixed date shared by every registered firm, not each firm's
-own anniversary of registering. The cycle runs 2023 &rarr; 2026 &rarr; 2029, so with the August 31,
-2026 deadline now behind us, the next firm-registration deadline for every Colorado firm is
-<strong>August 31, 2029</strong>. One detail worth knowing if you're ever reconciling a firm's record:
-what places a firm in a given three-year cohort is the date it most recently renewed, not the year it
-first registered &mdash; a firm registered in 1985 and one registered last year can sit in the same
-cohort. <a href="../../colorado-cpa-firm-renewal/">The firm-registration page has the full sourcing
-for that</a>.</p>
+every three years &mdash; the same calendar date for every registered firm, not each firm's own
+anniversary of registering &mdash; but <strong>which year applies depends on when your firm last
+renewed</strong>. The Board does not publish which years anchor the cycle, and the state's own
+open-data register showed some firms due August 31, 2026 while others were already set for
+August 31, 2029. What places a firm in a given three-year cohort is the date it most recently
+renewed, not the year it first registered &mdash; a firm registered in 1985 and one registered last
+year can sit in the same cohort. <a href="../../colorado-cpa-firm-renewal/">The firm-registration
+page has the full sourcing for that</a>.</p>
 
 <h2>CPE: 80 hours per two-year period, accrued by the quarter</h2>
 <p>Colorado's CPE reporting period runs from January 1 of an even-numbered year through December 31 of

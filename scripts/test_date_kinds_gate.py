@@ -24,7 +24,8 @@ def tree(tmp_path):
     (tmp_path / "data").mkdir()
     for f in ("cpa_deadlines.json", "date_kinds.json"):
         shutil.copy(os.path.join(ROOT, "data", f), tmp_path / "data" / f)
-    shutil.copytree(os.path.join(ROOT, "docs", "alabama"), tmp_path / "docs" / "alabama")
+    for slug in ("alabama", "colorado"):
+        shutil.copytree(os.path.join(ROOT, "docs", slug), tmp_path / "docs" / slug)
     return tmp_path
 
 
@@ -85,3 +86,17 @@ def test_verbatim_evidence_naming_the_wrong_month_fails(tree):
     _edit_kinds(tree, lambda r: r["ga-firm"].update(kind="renewal_due", evidence="requires renewal before September 30"))
     errs = gate.check_date_kinds(tree)
     assert any("ga-firm" in e and "June" in e for e in errs), errs
+
+
+def test_colorado_firm_cohort_date_as_plain_expiry_fails(tree):
+    # POST-8: co-firm's date is true only for part of the population (cohort-dependent). Calling it a
+    # plain expiry/renewal date must fail: its evidence is about the cohort, not the August date.
+    _edit_kinds(tree, lambda r: r["co-firm"].update(kind="license_expiry"))
+    assert any("co-firm" in e and "August" in e for e in gate.check_date_kinds(tree))
+
+
+def test_colorado_page_relabelled_back_to_next_renewal_date_fails(tree):
+    page = tree / "docs" / "colorado" / "index.html"
+    t = page.read_text(encoding="utf-8").replace("Renewal date (depends on your firm&#x27;s cohort)", "Next renewal date")
+    page.write_text(t, encoding="utf-8")
+    assert any("co-firm" in e and "still labels it" in e for e in gate.check_date_kinds(tree))

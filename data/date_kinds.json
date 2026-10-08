@@ -30,8 +30,8 @@
    "evidence": "licenses expire December 31 of each year"
   },
   "co-firm": {
-   "kind": "license_expiry",
-   "evidence": "expiring August 31 board-wide"
+   "kind": "cohort_or_other",
+   "evidence": "what determines the cohort is each firm's own last-renewed date, not its issue/registration year"
   },
   "co-individual": {
    "kind": "license_expiry",
