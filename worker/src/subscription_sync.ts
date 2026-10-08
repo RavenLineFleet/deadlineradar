@@ -32,7 +32,7 @@
  */
 import type { Env } from "./env";
 import * as store from "./store";
-import { applyCouponToSubscription, fetchStripeSubscription } from "./stripe";
+import { StripeApiError, applyCouponToSubscription, fetchStripeSubscription } from "./stripe";
 import {
   selfServePlanChangeEnabled,
   deriveSubscriptionState,
@@ -56,11 +56,20 @@ const SYNCED_STATUSES = new Set(["active", "trialing", "past_due"]);
 function droppedDiscountsAreReferralCoupons(prev: unknown[], referralPrefix: string): boolean {
   return prev.every((d) => {
     if (d && typeof d === "object") {
-      const coupon = (d as { coupon?: { id?: unknown } }).coupon;
+      const coupon = (d as { coupon?: { id?: unknown } | string }).coupon;
+      if (typeof coupon === "string") return coupon.startsWith(referralPrefix);
       if (coupon && typeof coupon.id === "string") return coupon.id.startsWith(referralPrefix);
     }
     return true;
   });
+}
+
+/** Worth retrying: a network failure, Stripe 5xx, or 429. Anything else
+ * (a 4xx such as a coupon object that does not exist in live mode) will fail
+ * identically on every retry. */
+function isTransientStripeError(err: unknown): boolean {
+  if (err instanceof StripeApiError) return err.status === 429 || err.status >= 500;
+  return true;
 }
 
 async function alertUnsynced(env: Env, eventId: string, firmId: string, subscriptionId: string, problem: string): Promise<void> {
@@ -136,11 +145,14 @@ export async function applySubscriptionUpdatedEvent(
   // refetched subscription has none -- a renewal consuming the coupon never
   // changes `items`, so the two cases cannot be confused. Re-apply the tier
   // coupon the referrer's reward count implies (replace semantics, so a
-  // redelivery is harmless). NOT best-effort: a failed re-apply alerts and
-  // THROWS before the tier write, so the webhook goes non-2xx and Stripe retries it
-  // (tier row still stale => tierChanged still true => this branch runs again).
-  // Swallowing the error would let the retry-proof tier write land and the
-  // reward be lost for good (SecurityLab MEDIUM-1, 2026-10-07).
+  // redelivery is harmless). A TRANSIENT failure (network, 5xx, 429) alerts and
+  // THROWS before the tier write, so the webhook goes non-2xx and Stripe retries
+  // it (tier row still stale => tierChanged still true => this branch runs
+  // again); swallowing it would let the tier write land and the reward be lost
+  // for good (SecurityLab MEDIUM-1). A PERMANENT failure (4xx, e.g. the per-tier
+  // coupon object does not exist) alerts and CONTINUES: retrying cannot succeed,
+  // and the money-correct tier mirror must never be blocked by the courtesy
+  // reward (SecurityLab MEDIUM-B) -- the alert is the recovery signal.
   const prevDiscounts = previousAttributes?.discounts;
   if (
     tierChanged &&
@@ -160,8 +172,15 @@ export async function applySubscriptionUpdatedEvent(
         await alertUnsynced(env, eventId, firm.id, subscriptionId, "plan switch removed a discount but the firm has no recorded referral reward to re-apply");
       }
     } catch (err) {
-      await alertUnsynced(env, eventId, firm.id, subscriptionId, `could not re-apply the referral reward after a plan switch (event will be retried): ${String(err)}`);
-      throw err;
+      const transient = isTransientStripeError(err);
+      await alertUnsynced(
+        env,
+        eventId,
+        firm.id,
+        subscriptionId,
+        `could not re-apply the referral reward after a plan switch (${transient ? "transient, event will be retried" : "permanent, tier mirrored without it"}): ${String(err)}`
+      );
+      if (transient) throw err;
     }
   }
   if (tierChanged) {

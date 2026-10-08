@@ -53,6 +53,7 @@ interface Stub {
   price: string;
   discounts: number;
   couponFails?: boolean;
+  couponStatus?: number;
 }
 function installFetch(sub: string, stub: Stub): Array<{ sub: string; body: URLSearchParams }> {
   const couponPosts: Array<{ sub: string; body: URLSearchParams }> = [];
@@ -61,7 +62,7 @@ function installFetch(sub: string, stub: Stub): Array<{ sub: string; body: URLSe
     if (!url.includes(`/v1/subscriptions/${sub}`)) throw new Error(`unexpected fetch ${url}`);
     if (init?.method === "POST") {
       couponPosts.push({ sub, body: new URLSearchParams(String(init.body)) });
-      if (stub.couponFails) return new Response(JSON.stringify({ error: { message: "coupon boom" } }), { status: 400 });
+      if (stub.couponFails) return new Response(JSON.stringify({ error: { message: "coupon boom" } }), { status: stub.couponStatus ?? 400 });
       return new Response(JSON.stringify({ id: sub }), { status: 200 });
     }
     return new Response(
@@ -79,6 +80,10 @@ function installFetch(sub: string, stub: Stub): Array<{ sub: string; body: URLSe
   return couponPosts;
 }
 afterEach(() => vi.restoreAllMocks());
+function installFetchAgain(sub: string): Array<{ sub: string; body: URLSearchParams }> {
+  vi.restoreAllMocks();
+  return installFetch(sub, { price: "price_sd_a", discounts: 0 });
+}
 
 async function makeFirm(): Promise<{ firmId: string; sub: string }> {
   const firm = await store.createFirm(env.DB, { name: "Coupon Firm", adminEmail: `cp-${crypto.randomUUID()}@example.com` });
@@ -153,10 +158,10 @@ describe("referral reward survives a portal plan switch", () => {
     await postUpdated(sub, `evt_${sub}_7`, {}, PREV_SWITCH);
     expect(posts).toHaveLength(0);
   });
-  it("MEDIUM-1: a failing re-apply THROWS (non-2xx -> Stripe retries) and leaves the tier row stale so the retry re-applies", async () => {
+  it("MEDIUM-1: a TRANSIENT re-apply failure (Stripe 500) goes non-2xx and leaves the tier row stale so the retry re-applies", async () => {
     const { firmId, sub } = await makeFirm();
     await referrerWithRewards(firmId, 1);
-    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0, couponFails: true });
+    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0, couponFails: true, couponStatus: 500 });
     const r = await postUpdated(sub, `evt_${sub}_8`, O, PREV_SWITCH);
     expect(r.status).toBe(400); // the dispatcher maps any throw to a deliberate non-2xx, which Stripe retries
     expect(posts).toHaveLength(1);
@@ -168,6 +173,39 @@ describe("referral reward survives a portal plan switch", () => {
     expect(retryPosts).toHaveLength(1);
     expect(retryPosts[0]!.body.get("discounts[0][coupon]")).toBe("cpn_ref_t1");
     expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_standard");
+  });
+  it("MEDIUM-B: a PERMANENT re-apply failure (Stripe 400, e.g. coupon object missing) still mirrors the tier and answers 200 -- on EVERY delivery", async () => {
+    const { firmId, sub } = await makeFirm();
+    await referrerWithRewards(firmId, 1);
+    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0, couponFails: true, couponStatus: 400 });
+    expect((await postUpdated(sub, `evt_${sub}_8p`, O, PREV_SWITCH)).status).toBe(200);
+    expect(posts).toHaveLength(1);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_standard");
+  });
+  it("MEDIUM-B: a network failure on the re-apply is treated as transient (non-2xx, tier untouched)", async () => {
+    const { firmId, sub } = await makeFirm();
+    await referrerWithRewards(firmId, 1);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") throw new TypeError("network down");
+      return new Response(
+        JSON.stringify({ id: sub, status: "active", customer: "cus_c1", cancel_at_period_end: false, discounts: [], items: { data: [{ price: { id: "price_sd_a" }, quantity: 1, current_period_end: 1_900_000_000 }] } }),
+        { status: 200 }
+      );
+    });
+    expect((await postUpdated(sub, `evt_${sub}_8n`, O, PREV_SWITCH)).status).toBe(400);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
+  });
+  it("LOW-1: a bare-string non-referral coupon is not replaced; a bare-string referral coupon is", async () => {
+    const { firmId, sub } = await makeFirm();
+    await referrerWithRewards(firmId, 2);
+    const posts = installFetch(sub, { price: "price_sd_a", discounts: 0 });
+    await postUpdated(sub, `evt_${sub}_11`, O, { discounts: [{ id: "di_x", coupon: "courtesy_20" }], items: { data: [] } });
+    expect(posts).toHaveLength(0);
+    const b = await makeFirm(); // fresh firm: the first one's tier is already mirrored
+    await referrerWithRewards(b.firmId, 2);
+    const postsB = installFetchAgain(b.sub);
+    await postUpdated(b.sub, `evt_${b.sub}_12`, O, { discounts: [{ id: "di_y", coupon: "cpn_ref_t2" }], items: { data: [] } });
+    expect(postsB).toHaveLength(1);
   });
   it("LOW-1: a dropped NON-referral coupon (object-form discount) is not replaced by a referral coupon", async () => {
     const { firmId, sub } = await makeFirm();

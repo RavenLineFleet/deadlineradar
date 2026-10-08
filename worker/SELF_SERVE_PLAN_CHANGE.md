@@ -33,21 +33,32 @@ Ships DARK. Nothing below runs until the enable sequence at the bottom.
    "Update subscription" in the portal; cancel/payment still work. Not exercised (rare).
 6. The add-on (no-switching configuration) is read from the subscription's items, not inferred from roster size;
    an unfetchable/unrecognised subscription also gets the no-switching configuration.
-7. A failed referral-coupon re-apply throws (webhook non-2xx -> Stripe retries) BEFORE the tier write, so the retry
-   still sees the switch and re-applies. Bare discount ids in `previous_attributes` cannot be tied to a coupon;
+7. A TRANSIENT referral-coupon re-apply failure (network, 5xx, 429) throws (webhook non-2xx -> Stripe retries)
+   BEFORE the tier write, so the retry still sees the switch and re-applies. A PERMANENT one (other 4xx, e.g. the
+   coupon object is missing) alerts and the tier is mirrored anyway (SecurityLab MEDIUM-B): the money-correct tier
+   write is never blocked by the courtesy reward. Bare discount ids in `previous_attributes` cannot be tied to a coupon;
    only object-form discounts are checked against the referral prefix (residual: a dashboard courtesy coupon
    dropped by a switch would be replaced by the referral coupon when the firm has recorded rewards).
 
 ## Consent gates (new send triggers -- held OFF, per the no-new-send-triggers policy)
 `SEND_APPROVED_PASSES` names: `billingSyncAlert` (internal), `planChangeOverCapNotice` (partner email).
-`SEND_APPROVED_PASSES` is a single write-only comma list -- read the current value from the deploy record
+`SEND_APPROVED_PASSES` is a single write-only comma list -- use the value captured in step 0 (there is no deploy record)
 and put the FULL list back (see AuditLab BILL-32) before adding either name.
 
 ## Enable sequence (after SecurityLab + AuditLab PASS)
 Each step that touches live Stripe/Worker config is its own plan-first with pre/post readback.
+0. **Capture the live `SEND_APPROVED_PASSES` value (SEC-33; do not assume it).** There is no deploy record, `.dev.vars`
+   or `wrangler.toml` entry holding it. Devin reads the current value live (Cloudflare dashboard -> Worker ->
+   Settings -> Variables and Secrets) and the exact string is saved to `.secrets/send_approved_passes_before.txt`
+   BEFORE step 7. If it cannot be read (write-only secret), STOP: do not re-put any list, because omitting a name
+   silently disables that pass (`gatedDatasetStalenessAlert` is one; runtime staleness wall 2026-10-21T12:00Z).
+   Escalate instead.
 1. `python scripts/create_stripe_tier_products.py --mode live --apply`   (objects only, no charges)
 2. `python scripts/configure_stripe_portal.py --mode live --apply`       (config only) -> `.secrets/portal_configs_live.json`
 3. Live reconciliation with the V2 ids mapped onto the canonical names (`check_stripe_price_reconciliation.py`).
+   **It must also report zero `coupon_missing`**: the per-tier referral coupons (`STRIPE_COUPON_REFERRAL` prefix +
+   1..10) must exist in live mode, else every rewarded firm's re-apply fails (a permanent error: tier still mirrors,
+   reward is lost, alert fires).
 4. `wrangler secret put` x8 `STRIPE_PRICE_FIRM_*[_MONTHLY]` (V2 ids), x1 `STRIPE_PORTAL_CONFIGS`.
 5. Deploy the Worker with `SELF_SERVE_PLAN_CHANGE` still OFF (handler present, no-ops; site literals still off).
 6. **Subscribe `customer.subscription.updated` on the live webhook endpoint (AuditLab BILL-35 -- a hard gate).**
@@ -57,12 +68,15 @@ Each step that touches live Stripe/Worker config is its own plan-first with pre/
    Do this BEFORE step 8; never after.
 7. **Add `billingSyncAlert` and `planChangeOverCapNotice` to `SEND_APPROVED_PASSES`** (SecurityLab HIGH-1). Without them
    every safeguard in this design -- the unknown-state alert, the failed-coupon-re-apply alert, the downgrade-race
-   partner email -- is console.log only. `SEND_APPROVED_PASSES` is write-only: read the current list from the
-   deploy record and put the FULL list back (BILL-32) with the two names appended. Both are send triggers:
+   partner email -- is console.log only. `SEND_APPROVED_PASSES` is write-only: use the list captured in step 0 (no deploy record
+   exists) and put the FULL list back (BILL-32) with the two names appended. Both are send triggers:
    needs Devin's explicit consent per the no-new-send-triggers policy before this step.
 8. Set `SELF_SERVE_PLAN_CHANGE=on` (secret), flip BOTH generate.py literals, rebuild + deploy site.
 9. Verify with Devin's own test subscription: portal switch -> `/api/firm/licenses` shows new tier; and confirm a
-   `customer.subscription.updated` row lands in `stripe_webhook_events` (proves delivery, not just the handler).
+   `customer.subscription.updated` row (event_type exactly that) lands in `stripe_webhook_events` (AuditLab BILL-36:
+   the webhook branch now records every delivered event for observability only -- it never gates the sync on that
+   row, so Stripe's retry re-runs it). That row proves DELIVERY; the tier change proves the SYNC. Keep steps 6->8
+   tight: events delivered while the flag is off are acknowledged but not mirrored.
 
 Rollback: unset `SELF_SERVE_PLAN_CHANGE` (route 404s, sync no-ops); flip the generate.py literals back.
 

@@ -360,6 +360,19 @@ describe("customer.subscription.updated -> firm row", () => {
     expect(firm?.plan_tier).toBe("firm_growth");
     expect(firm?.billing_interval).toBe("annual");
   });
+  it("BILL-36: every delivered event leaves a bare-type ledger row (step-9 proof), without gating the sync -- a redelivery still re-runs it", async () => {
+    const { firmId, sub } = await makeFirm({ tier: "firm_starter" });
+    const subs: Record<string, SubStub | undefined> = { [sub]: { items: [{ price: "price_gr_a", quantity: 1 }] } };
+    installFetch(subs);
+    const evt = `evt_${sub}_led`;
+    await postUpdated(sub, evt);
+    const row = await env.DB.prepare("SELECT event_type FROM stripe_webhook_events WHERE id = ?1").bind(evt).first<{ event_type: string }>();
+    expect(row?.event_type).toBe("customer.subscription.updated");
+    // Same event id redelivered with Stripe now saying something else: the sync must still run (not deduped as "already seen").
+    subs[sub] = { items: [{ price: "price_sd_a", quantity: 1 }] };
+    await postUpdated(sub, evt);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_standard");
+  });
   it("LOW-2: a portal cancel on an unrecognised subscription shape still mirrors cancel_at_period_end, tier untouched", async () => {
     const { firmId, sub } = await makeFirm({ tier: "firm_growth", interval: "annual" });
     installFetch({ [sub]: { cancel_at_period_end: true, period_end: 1_900_000_000, items: [{ price: "price_mystery", quantity: 1 }] } });

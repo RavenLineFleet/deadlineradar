@@ -4390,6 +4390,12 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     // gated on recordWebhookEventIfNew -- the sync refetches Stripe's state
     // and is idempotent, so a redelivery (or Stripe's retry after a 500)
     // must re-run it rather than be dropped as "already seen".
+    // Observability only (AuditLab BILL-36): record that the event was
+    // DELIVERED so enable-sequence step 9 has a ledger row to check. The
+    // boolean is deliberately ignored -- never branch on isNew here, or a
+    // retry after a failed sync would be skipped. A ledger failure must not
+    // fail the webhook.
+    await store.recordWebhookEventIfNew(env.DB, event.id, event.type, null).catch(() => false);
     const subscriptionId = typeof object.id === "string" ? object.id : null;
     if (subscriptionId) {
       const prev = (event.data as { previous_attributes?: unknown }).previous_attributes;
