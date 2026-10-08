@@ -3260,6 +3260,10 @@ _RETIRED_CLAIMS: list[tuple[str, str, str]] = [
      "no such cutoff in the current A.A.C. R4-1-345(B) text"),
     ("az-firm", "5:00pm",
      "no such cutoff in the current A.A.C. R4-1-345(B) text"),
+    ("co-firm", "next up, 2029",
+     "POST-10: a single firm year asserted for every Colorado firm is false for part -- the"
+     " cohort a firm is in depends on when it last renewed. Do NOT shorten to a bare '2029':"
+     " the correction note and cohort-evidence sentence legitimately contain it"),
 ]
 _RETIRED_SKIP_FIELDS = {"verification_history", "verification_note", "status_evidence"}
 
