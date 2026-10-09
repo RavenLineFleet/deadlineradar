@@ -229,6 +229,8 @@ import {
   runGatedDatasetStalenessAlertPass,
   runRosterPauseReconciliationPass,
   runTrialEndingAlertPass,
+  KNOWN_SEND_PASSES,
+  approvedKnownPasses,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -13533,6 +13535,26 @@ export default {
       await store.recordCronHeartbeat(env.DB);
     } catch (err) {
       console.log(`[cron-heartbeat] error: ${String(err)}`);
+    }
+
+    // Send-approval presence diagnostic (SecurityLab 2026-10-09): SEND_APPROVED_PASSES
+    // is write-only and nothing reads it back. Report which KNOWN passes are
+    // approved -- the intersection with a fixed list, never the raw secret and
+    // never an unrecognised token -- once per UTC day: a console line (wrangler
+    // tail) and one ledger row (`SELECT event_type FROM stripe_webhook_events
+    // WHERE id LIKE 'send_approval_presence:%'`). Read-only, sends nothing.
+    try {
+      const approvedNow = approvedKnownPasses(env);
+      console.log(`[send-approval] approved known passes: ${approvedNow.length ? approvedNow.join(",") : "(none)"}`);
+      const bits = KNOWN_SEND_PASSES.map((n) => `${n}=${approvedNow.includes(n) ? 1 : 0}`).join(",");
+      await store.recordWebhookEventIfNew(
+        env.DB,
+        `send_approval_presence:${new Date().toISOString().slice(0, 10)}`,
+        `send_approval_presence:${bits}`,
+        null
+      );
+    } catch (err) {
+      console.log(`[send-approval] diagnostic error: ${String(err)}`);
     }
 
     // STANDING CONSENT-GATE DIRECTIVE (Devin, 2026-08-21): "NOTHING is sent

@@ -6586,6 +6586,29 @@ def check_demo_locked_mutation_coverage(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_send_pass_names_listed(repo_root: Path) -> list[str]:
+    """scheduler.ts KNOWN_SEND_PASSES must list every pass name any
+    requireSendApproval(env, "<name>") call in worker/src asks about, and
+    nothing else. The cron's presence diagnostic reports the intersection of the
+    write-only SEND_APPROVED_PASSES with that list, so a pass missing from it
+    would be invisible to the one tool that can say whether it is approved."""
+    src_dir = repo_root / "worker" / "src"
+    scheduler = (src_dir / "scheduler.ts").read_text(encoding="utf-8")
+    m = re.search(r"KNOWN_SEND_PASSES\s*=\s*\[([\s\S]*?)\]\s*as const", scheduler)
+    if not m:
+        return ["[SENDPASS] scheduler.ts KNOWN_SEND_PASSES not found"]
+    listed = set(re.findall(r'"(\w+)"', m.group(1)))
+    used: set[str] = set()
+    for f in src_dir.glob("*.ts"):
+        used |= set(re.findall(r'requireSendApproval\(\s*env\s*,\s*"(\w+)"\s*\)', f.read_text(encoding="utf-8")))
+    errors = []
+    if used - listed:
+        errors.append(f"[SENDPASS] requireSendApproval pass name(s) missing from KNOWN_SEND_PASSES: {', '.join(sorted(used - listed))}")
+    if listed - used:
+        errors.append(f"[SENDPASS] KNOWN_SEND_PASSES lists name(s) no requireSendApproval call uses: {', '.join(sorted(listed - used))}")
+    return errors
+
+
 def check_retention_coverage(repo_root: Path) -> list[str]:
     """AuditLab RETAIN-1 (MEDIUM, 2026-08-07): store.hardDeleteExpiredFirms()'s
     table list is hand-maintained with nothing enforcing it -- 5 firm-scoped
@@ -8939,6 +8962,7 @@ def main():
     all_errors += check_reminder_threshold_authorities_sync(repo_root)
     all_errors += check_document_size_limit_sync(repo_root)
     all_errors += check_retention_coverage(repo_root)
+    all_errors += check_send_pass_names_listed(repo_root)
     all_errors += check_retained_table_fk_released(repo_root)
     all_errors += check_snoozed_until_cleared_on_cycle_bump(repo_root)
     all_errors += check_sitemap_completeness(html_files, docs_dir)

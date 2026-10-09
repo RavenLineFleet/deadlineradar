@@ -222,6 +222,34 @@ export function requireSendApproval(env: Env, passName: string): boolean {
 }
 
 /**
+ * Every pass name any requireSendApproval(env, "...") call in worker/src asks
+ * about. scripts/preship_gate.py (check_send_pass_names_listed) fails the build
+ * if a call site's literal is missing from this list, so it cannot rot.
+ *
+ * Exists so the write-only SEND_APPROVED_PASSES secret can be checked for
+ * PRESENCE without ever being read back (SecurityLab 2026-10-09 13:38): the
+ * diagnostic reports the INTERSECTION of the live value with this fixed list,
+ * never the raw string and never an unrecognised token, so its output is
+ * bounded to one bit per known pass and can't print a value nobody expected.
+ */
+export const KNOWN_SEND_PASSES = [
+  "assistantErrorBurstAlert",
+  "assistantLatencyAlert",
+  "billingSyncAlert",
+  "gatedDatasetStalenessAlert",
+  "mobilityStalenessAlert",
+  "planChangeOverCapNotice",
+  "rosterPauseReconciliation",
+  "stripePriceParityAlert",
+  "trialEndingAlert",
+] as const;
+
+/** The known passes currently approved (names only). */
+export function approvedKnownPasses(env: Env): string[] {
+  return KNOWN_SEND_PASSES.filter((name) => requireSendApproval(env, name));
+}
+
+/**
  * scheduler.py `next_due_threshold()` -- the single nearest (most urgent)
  * threshold that's newly due, and NEVER a less-urgent tier than one already
  * sent (so a scheduler gap can't deliver reminders out of order).
