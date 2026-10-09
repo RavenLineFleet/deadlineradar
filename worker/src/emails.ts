@@ -2603,7 +2603,7 @@ export function buildTrialEndingNoticeEmail(details: { firmName: string; daysRem
     `If the Free plan is all you need, you don't have to do anything. Paid plans start at $199 a year or $20 a month: ` +
     `${details.pricingUrl}\n\n` +
     `Your dashboard: ${details.dashboardUrl}\n\n` +
-    `-- Deadline-Radar`;
+    `Deadline-Radar`;
   const htmlBody =
     `<p>Hi ${esc(safeFirmName || "there")},</p>` +
     `<p>Your 14-day trial of the Deadline-Radar paid features ends in <strong>${days}</strong>.</p>` +

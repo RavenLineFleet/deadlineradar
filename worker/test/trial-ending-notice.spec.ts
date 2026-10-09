@@ -161,6 +161,9 @@ describe("buildTrialEndingNoticeEmail -- the draft text", () => {
     for (const must of ["14-day trial", "up to 3 staff", "no time limit", "Document storage", "Slack and Teams alerts", "daily firm-wide digest", "coverage overview", "$199 a year or $20 a month"]) {
       expect(built.textBody, must).toContain(must);
     }
+    // copy rule: no double hyphen standing in for an em dash (Orchestrator ruling 14:26), signature included
+    for (const body of [built.textBody, built.htmlBody]) expect(body).not.toMatch(/(?<!-)--(?!-)/);
+    expect(built.textBody.trimEnd().endsWith("\nDeadline-Radar")).toBe(true);
     // nothing about deletion/retention/pausing/discounts, none of which this notice is entitled to promise
     for (const mustNot of ["delete", "paused", "discount", "refund", "cancel", "guarantee"]) {
       expect(built.textBody.toLowerCase(), mustNot).not.toContain(mustNot);
