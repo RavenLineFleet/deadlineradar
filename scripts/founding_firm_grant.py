@@ -84,8 +84,28 @@ def exe(name: str) -> str:
     return found
 
 
-def d1(sql: str, local: bool) -> list[dict]:
-    # SQL goes through a real .sql file (`--file`), never an inline `--command`
+def d1(sql: str, local: bool, read: bool = False) -> list[dict]:
+    # READS (SELECT only) use `--command`, because `wrangler d1 execute --remote
+    # --file` returns a one-row execution SUMMARY instead of the query's rows
+    # (measured against production D1, 2026-10-09; --local behaves differently,
+    # which is how this slipped through local testing). Read SQL is built only
+    # from the regex-validated firm id and our own timestamps, never operator
+    # free text, and is refused here if it carries a character cmd.exe treats
+    # specially.
+    if read:
+        if re.search(r'["%&|<>^`\\\r\n]', sql):
+            raise SystemExit("internal error: read SQL carries a shell-special character")
+        cmd = [exe("npx"), "wrangler", "d1", "execute", "deadlineradar", "--json", "--command", sql]
+        cmd.append("--local" if local else "--remote")
+        proc = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if proc.returncode != 0:
+            raise SystemExit(f"wrangler failed ({proc.returncode}):\n{proc.stderr or proc.stdout}")
+        start = proc.stdout.find("[")
+        try:
+            return json.loads(proc.stdout[start:])
+        except (ValueError, json.JSONDecodeError):
+            raise SystemExit(f"could not parse wrangler output:\n{proc.stdout}")
+    # WRITES: SQL goes through a real .sql file (`--file`), never an inline `--command`
     # string. On Windows `npx` is npx.CMD and CreateProcess routes it through
     # cmd.exe regardless of shell=False, so any operator text on the command
     # line is re-parsed by cmd.exe (SecurityLab MEDIUM-3: `&` ran a command,
@@ -109,7 +129,7 @@ def d1(sql: str, local: bool) -> list[dict]:
 
 
 def rows(sql: str, local: bool) -> list[dict]:
-    out = d1(sql, local)
+    out = d1(sql, local, read=True)
     return out[0].get("results", []) if out else []
 
 
@@ -134,7 +154,7 @@ def cmd_status(args) -> None:
     print(f"{MAX_SLOTS - len(grants)} of {MAX_SLOTS} slots left")
     problems = rows(
         "SELECT id, received_at, event_type, firm_id FROM stripe_webhook_events "
-        "WHERE event_type LIKE 'founding_trial:%' ORDER BY received_at",
+        "WHERE substr(event_type, 1, 15) = 'founding_trial:' ORDER BY received_at",
         args.local,
     )
     for pr in problems:
