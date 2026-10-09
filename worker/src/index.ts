@@ -13541,8 +13541,13 @@ export default {
     // is write-only and nothing reads it back. Report which KNOWN passes are
     // approved -- the intersection with a fixed list, never the raw secret and
     // never an unrecognised token -- once per UTC day: a console line (wrangler
-    // tail) and one ledger row (`SELECT event_type FROM stripe_webhook_events
-    // WHERE id LIKE 'send_approval_presence:%'`). Read-only, sends nothing.
+    // tail) and one ledger row. Read it with `SELECT id, event_type, received_at
+    // FROM stripe_webhook_events WHERE id LIKE 'send_approval_presence:%' ORDER BY
+    // received_at DESC LIMIT 3`. The id carries the UTC date and the write is
+    // first-write-wins per day (recordWebhookEventIfNew does not update), so a
+    // row from before a SEND_APPROVED_PASSES change shows STALE bits until the
+    // next 18:00 UTC tick: compare received_at to the time of the change before
+    // concluding anything (SecurityLab 13:53, AuditLab FFT-12). Read-only, sends nothing.
     try {
       const approvedNow = approvedKnownPasses(env);
       console.log(`[send-approval] approved known passes: ${approvedNow.length ? approvedNow.join(",") : "(none)"}`);
