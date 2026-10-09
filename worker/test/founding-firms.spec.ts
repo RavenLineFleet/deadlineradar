@@ -323,6 +323,10 @@ describe("checkout.session.completed for a founding trial", () => {
     expect(firm?.plan_tier).toBe("firm_growth");
     expect(firm?.stripe_subscription_id).toBe("sub_lost");
     expect((await store.getFoundingFirmGrant(env.DB, firmId))?.trial_started_at).toBeNull(); // stamp really was lost
+    const ledger = await env.DB.prepare("SELECT event_type FROM stripe_webhook_events WHERE event_type LIKE 'founding_trial:%' AND firm_id = ?1")
+      .bind(firmId)
+      .all<{ event_type: string }>();
+    expect(ledger.results.map((r) => r.event_type)).toEqual(["founding_trial:stamp_failed"]);
     // Day 365 passes: Stripe cancels, firm drops to free, then tries to buy.
     await env.DB.prepare("UPDATE firms SET plan_tier = 'free', stripe_subscription_id = NULL WHERE id = ?1").bind(firmId).run();
     vi.restoreAllMocks();
@@ -345,6 +349,11 @@ describe("checkout.session.completed for a founding trial", () => {
     const deletes = calls.filter((c) => c.method === "DELETE");
     expect(deletes).toHaveLength(1);
     expect(deletes[0]!.url).toBe("https://api.stripe.com/v1/subscriptions/sub_second");
+    // durable record exists without any email pass being approved (SEND_APPROVED_PASSES is unset in tests)
+    const ledger = await env.DB.prepare("SELECT event_type, firm_id FROM stripe_webhook_events WHERE event_type LIKE 'founding_trial:%' AND firm_id = ?1")
+      .bind(firmId)
+      .all<{ event_type: string; firm_id: string }>();
+    expect(ledger.results.map((r) => r.event_type)).toEqual(["founding_trial:rejected"]);
   });
 
   it("AuditLab FFT-1: grant REVOKED (and the slot re-granted to another firm) while a session was open -> the late completion gets NO free year, its subscription is cancelled, the other firm's grant is untouched", async () => {

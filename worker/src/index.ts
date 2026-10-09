@@ -4376,6 +4376,11 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
             } catch (err) {
               cancelNote = `CANCEL FAILED (${String(err)}) -- cancel it by hand in Stripe`;
             }
+            // Durable record that does NOT depend on the email pass being
+            // approved (SecurityLab 13:25: alertUnsynced is gated by
+            // SEND_APPROVED_PASSES "billingSyncAlert", which may be absent live).
+            // Read back by scripts/founding_firm_grant.py status.
+            await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding`, "founding_trial:rejected", firmId).catch(() => false);
             try {
               await alertUnsynced(
                 env,
@@ -4398,6 +4403,7 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
           billingInterval,
         });
         if (foundingStampError) {
+          await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding`, "founding_trial:stamp_failed", firmId).catch(() => false);
           try {
             await alertUnsynced(env, event.id, firmId, subscriptionId, foundingStampError);
           } catch (err) {

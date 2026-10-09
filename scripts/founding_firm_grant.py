@@ -131,6 +131,15 @@ def cmd_status(args) -> None:
         state = "trial started " + g["trial_started_at"] if g["trial_started_at"] else "granted, not started"
         print(f"slot {g['slot']}: firm {g['firm_id']}  {state}  (verified_by {g['verified_by']}, {g['granted_at']})")
     print(f"{MAX_SLOTS - len(grants)} of {MAX_SLOTS} slots left")
+    problems = rows(
+        "SELECT received_at, event_type, firm_id FROM stripe_webhook_events "
+        "WHERE event_type LIKE 'founding_trial:%' ORDER BY received_at",
+        args.local,
+    )
+    for pr in problems:
+        print(f"PROBLEM {pr['received_at']}: {pr['event_type']} firm {pr['firm_id']}  (a trial subscription was cancelled or its stamp failed: check Stripe)")
+    if not problems:
+        print("no founding-trial webhook problems recorded")
 
 
 def explain_refusal(firm_id: str, local: bool) -> str:
