@@ -39,7 +39,7 @@ HEADLINE = ["CPA license renewal deadlines,", "verified and kept current."]
 # Mirrors the site's own phrasing (generate.py, "a board page, plus the
 # codified rule itself where we could confirm it"). Never "every state".
 TAGLINE = [
-    "Sourced to the state board's own records, plus the codified",
+    "Sourced to the state board's own page, plus the codified",
     "rule wherever we could confirm it \u2014 not a guess, never a placeholder.",
 ]
 
