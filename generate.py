@@ -4825,7 +4825,7 @@ _TABLE_SCROLL_HINT_JS = """<script>
 #   page in the first place.
 # Every storage/network call is wrapped in try/catch: a tracking beacon
 # must never be able to break a real page load or a real signup.
-_ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,li,bs,ma,x,blog,rd"
+_ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,em-b2,li,bs,ma,x,blog,rd"
 _ATTRIBUTION_JS = f"""<script>
 (function () {{
   // AuditLab ATTR-3 (2026-10-02): a plain {{}} object's inherited

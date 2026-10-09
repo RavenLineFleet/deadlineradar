@@ -1061,7 +1061,7 @@ export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3
 // are deliberately not computed from one shared source (no runtime coupling
 // between the static site build and the Worker), so keep them in sync by hand.
 export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
-  "em-w1", "li", "bs", "ma", "x", "blog", "rd",
+  "em-w1", "em-b2", "li", "bs", "ma", "x", "blog", "rd",
 ]);
 
 // POST /api/attr -- a page-load beacon, not a per-visitor action: a real

@@ -86,6 +86,19 @@ describe("POST /attr", () => {
     expect(after2?.hit_count).toBe(startCount + 2);
   });
 
+  // AuditLab ATTR-7 (HIGH, 2026-10-09): the B2 outreach emails carry ?src=em-b2,
+  // which was in neither allow-list, so no beacon/row was ever recorded for 20
+  // sent emails. Every tag an outreach template can carry must be accepted here.
+  it("ATTR-7: accepts the em-b2 outreach tag (batch 2 emails) and counts it", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const before = await attrRow(today, "em-b2");
+    const startCount = before?.hit_count ?? 0;
+    const resp = await postAttr("em-b2", "203.0.113.44");
+    expect(resp.status).toBe(204);
+    const after = await attrRow(today, "em-b2");
+    expect(after?.hit_count).toBe(startCount + 1);
+  });
+
   it("keeps separate counters per src on the same day", async () => {
     const ip = "203.0.113.43";
     const today = new Date().toISOString().slice(0, 10);
