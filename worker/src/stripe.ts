@@ -42,6 +42,12 @@ interface StripeCheckoutSessionParams {
    * Price id. Absent for every checkout at or under a tier's own seat cap,
    * unchanged from today. */
   extraLineItem?: { priceId: string; quantity: number };
+  /** Founding Firms (2026-10-09). When set, the subscription starts as a
+   * Stripe trial of this many days with NO card collected, and Stripe CANCELS
+   * it at trial end if no payment method is on file (measured in test mode:
+   * no invoice, no charge, no past_due). Never combined with couponId by the
+   * caller -- Stripe's discounts array is replaced wholesale, not merged. */
+  noCardTrialDays?: number;
 }
 
 export interface StripeCheckoutSession {
@@ -79,6 +85,11 @@ export async function createCheckoutSession(
   }
   if (params.couponId) {
     body.set("discounts[0][coupon]", params.couponId);
+  }
+  if (params.noCardTrialDays !== undefined) {
+    body.set("subscription_data[trial_period_days]", String(params.noCardTrialDays));
+    body.set("subscription_data[trial_settings][end_behavior][missing_payment_method]", "cancel");
+    body.set("payment_method_collection", "if_required");
   }
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {

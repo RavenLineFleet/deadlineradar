@@ -6615,7 +6615,11 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     # stripe_webhook_events: migration 0018's own comment -- a raw Stripe
     #   idempotency/audit log; erasing it could let a late-redelivered
     #   webhook for this firm_id be reprocessed as new.
-    deliberately_excluded = {"firms", "subscribers", "stripe_webhook_events"}
+    # founding_firm_grants: migration 0090 -- the "exactly 5, ever" cap. A
+    #   slot must stay consumed after its firm is deleted, so purging it with
+    #   the firm would hand the slot back. Holds only an opaque firm_id, a
+    #   timestamp and an operator note that carries no personal data.
+    deliberately_excluded = {"firms", "subscribers", "stripe_webhook_events", "founding_firm_grants"}
 
     # GATE-7 (AuditLab, 2026-08-21, LOW, self-directed): the original
     # `\n\);` closer only matched a CREATE TABLE whose closing paren is the

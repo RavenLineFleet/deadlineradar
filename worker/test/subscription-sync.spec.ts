@@ -257,6 +257,23 @@ describe("POST /firm/billing/portal", () => {
     expect((await postPortal(cookie)).status).toBe(200);
     expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_none1");
   });
+  // Founding Firms (2026-10-09): portal behaviour on a trial subscription is unmeasured, so a granted firm gets no plan switching.
+  it("Founding Firms: a granted firm gets the no-switching config on a plain Growth sub; the same firm without a grant gets the Growth config", async () => {
+    const subs: Record<string, SubStub | undefined> = {};
+    const calls = installFetch(subs);
+    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+    subs[sub] = { status: "trialing", items: [{ price: "price_gr_a", quantity: 1 }] };
+    await addRoster(firmId, 7);
+    expect((await postPortal(cookie)).status).toBe(200);
+    expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_growth1"); // control: no grant
+    await env.DB.prepare(
+      "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note) VALUES (1, ?1, ?2, 'devin', 'test')"
+    )
+      .bind(firmId, new Date().toISOString())
+      .run();
+    expect((await postPortal(cookie)).status).toBe(200);
+    expect(calls.portalPosts[1]!.get("configuration")).toBe("bpc_none1");
+  });
   it("a subscription Stripe doesn't have, or whose shape isn't recognised, gets the no-switching config", async () => {
     const subs: Record<string, SubStub | undefined> = {};
     const calls = installFetch(subs);

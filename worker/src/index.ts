@@ -285,6 +285,8 @@ import {
 } from "./assistant";
 import {
   FIRM_TIERS,
+  FOUNDING_FIRM_PLAN_TIER,
+  FOUNDING_FIRM_TRIAL_DAYS,
   MONTHLY_BILLING_ENABLED,
   firmTierByPlanTier,
   deriveSubscriptionState,
@@ -3627,11 +3629,31 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
     });
   }
 
+  // Founding Firms (Devin, 2026-10-09): an operator-granted, not-yet-started
+  // slot turns this checkout into a 365-day Stripe trial with no card, which
+  // Stripe cancels at day 365 if no card is on file. Growth only, annual price
+  // (the price a firm that adds a card early would convert onto), and NO
+  // referral coupon: Stripe replaces the whole discounts array, so a coupon
+  // here would be a second, silent way to change what the firm is charged.
+  // The slot is read from D1 here and re-verified against D1 at the webhook;
+  // nothing the client sends decides eligibility.
+  const foundingGrant = await store.getFoundingFirmGrant(env.DB, firm.id);
+  const foundingTrial = foundingGrant !== null && foundingGrant.trial_started_at === null;
+  if (foundingTrial && tierDef.planTier !== FOUNDING_FIRM_PLAN_TIER) {
+    return jsonResponse(400, { error: "Your Founding Firm plan is Growth. Choose Growth to start it." });
+  }
+  const checkoutInterval: "annual" | "monthly" = foundingTrial ? "annual" : interval;
+
   // The firm's LIVE roster count at click-time -- never trusted from the
   // request -- so a client can never buy a cheaper tier than its real
   // headcount qualifies for. There is no staff-count value captured at
   // signup to compare against instead; this is the actual source of truth.
   const seatCount = await store.countFirmLicenses(env.DB, session.firmId);
+  if (foundingTrial && seatCount > tierDef.seatCap) {
+    return jsonResponse(400, {
+      error: `The Founding Firm plan covers up to ${tierDef.seatCap} staff and your roster has ${seatCount}. Remove staff to fit, or get in touch.`,
+    });
+  }
   const minimumTier = firmTierForSeatCount(seatCount);
   // PR6 per-seat add-on (2026-10-02, Devin approved 2026-10-02 12:01 MDT):
   // above the top tier's seat cap, checkout is no longer a flat refusal --
@@ -3659,7 +3681,7 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
     });
   }
 
-  const priceId = stripePriceIdForTier(env, tierDef.planTier, interval);
+  const priceId = stripePriceIdForTier(env, tierDef.planTier, checkoutInterval);
   if (!priceId) {
     return jsonResponse(503, { error: "That plan isn't available for checkout yet." });
   }
@@ -3701,11 +3723,17 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
       priceId,
       successUrl: `${dashboardBase}#account?checkout=success`,
       cancelUrl: `${dashboardBase}#account?checkout=cancelled`,
-      metadata: { firm_id: firm.id, target_plan_tier: tierDef.planTier, billing_interval: interval },
+      metadata: {
+        firm_id: firm.id,
+        target_plan_tier: tierDef.planTier,
+        billing_interval: checkoutInterval,
+        ...(foundingTrial ? { founding_firm_slot: String(foundingGrant.slot) } : {}),
+      },
       customerId: firm.stripe_customer_id ?? undefined,
       customerEmail: firm.stripe_customer_id ? undefined : firm.admin_email,
-      couponId: referralCouponId,
+      couponId: foundingTrial ? undefined : referralCouponId,
       extraLineItem: perSeatAddonPriceId ? { priceId: perSeatAddonPriceId, quantity: extraSeats } : undefined,
+      noCardTrialDays: foundingTrial ? FOUNDING_FIRM_TRIAL_DAYS : undefined,
     });
     return jsonResponse(200, { checkout_url: checkoutSession.url });
   } catch (err) {
@@ -3769,7 +3797,11 @@ async function handleFirmBillingPortal(request: Request, env: Env): Promise<Resp
     // recognised exactly, also gets the no-switching configuration.
     const snapshot = await fetchStripeSubscription(env.STRIPE_SECRET_KEY, session.firm.stripe_subscription_id);
     const derived = snapshot ? deriveSubscriptionState(env, snapshot.items) : null;
-    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0;
+    // Founding Firms: a granted firm is never offered plan switching either
+    // (portal behaviour on a trial subscription is unmeasured, so the choice
+    // is removed rather than guessed at).
+    const foundingGrant = await store.getFoundingFirmGrant(env.DB, session.firmId);
+    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0 || foundingGrant !== null;
     const configurationId = portalConfigurationIdForRoster(env, rosterCount, noSwitching);
     if (!configurationId) {
       return jsonResponse(503, { error: "Billing management isn't available right now. Please try again later." });
@@ -4288,6 +4320,18 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     if (firmId && targetPlanTier && customerId && subscriptionId) {
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
       if (isNew) {
+        // Founding Firms: stamp the grant BEFORE the tier write, not best-effort
+        // after it. A missed stamp would leave the slot reusable, i.e. a second
+        // free year after cancel; a throw here surfaces as a non-2xx. The slot
+        // number comes from session metadata but is only ever a lookup key --
+        // the UPDATE is scoped to this firm AND slot AND "not yet started".
+        const foundingSlotRaw = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
+        if (foundingSlotRaw && /^[1-5]$/.test(foundingSlotRaw)) {
+          const stamped = await store.claimFoundingFirmTrialStart(env.DB, firmId, Number(foundingSlotRaw), subscriptionId);
+          if (!stamped) {
+            console.log(`[founding-firm] trial-start NOT stamped for firm ${firmId} slot ${foundingSlotRaw} sub ${subscriptionId}: no matching unstarted grant`);
+          }
+        }
         await store.updateFirmBilling(env.DB, firmId, {
           planTier: targetPlanTier,
           stripeCustomerId: customerId,

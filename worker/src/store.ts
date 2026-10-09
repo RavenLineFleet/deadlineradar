@@ -2488,6 +2488,9 @@ export async function recordFirmDeletionRefund(db: D1Database, firmId: string, r
  * DELIBERATELY left alone -- it's a raw idempotency/audit log of Stripe
  * events, not the firm's own data, and erasing it could let a
  * late-redelivered webhook for this firm_id be reprocessed as if new.
+ * founding_firm_grants (migration 0090) is left alone for the same reason in
+ * reverse: it is the "exactly 5, ever" cap, and deleting a firm's row would
+ * hand its slot back.
  *
  * Returns the ids actually deleted, so the caller can log a real count
  * instead of a silent no-op either way.
@@ -3651,6 +3654,51 @@ export async function updateFirmBilling(
     )
     .bind(fields.planTier, fields.stripeCustomerId, fields.stripeSubscriptionId, firmId)
     .run();
+}
+
+// ---------------------------------------------------------------------------
+// Founding Firms (migration 0090, Devin 2026-10-09). Rows are written only by
+// the operator script; the Worker reads at checkout and stamps once at
+// checkout.session.completed.
+// ---------------------------------------------------------------------------
+
+export interface FoundingFirmGrantRow {
+  slot: number;
+  firm_id: string;
+  granted_at: string;
+  verified_by: string;
+  evidence_note: string;
+  trial_started_at: string | null;
+  stripe_subscription_id: string | null;
+}
+
+export async function getFoundingFirmGrant(db: D1Database, firmId: string): Promise<FoundingFirmGrantRow | null> {
+  const row = await db
+    .prepare(`SELECT * FROM founding_firm_grants WHERE firm_id = ?1 LIMIT 1`)
+    .bind(firmId)
+    .first<FoundingFirmGrantRow>();
+  return row ?? null;
+}
+
+/**
+ * Stamps the grant as used, exactly once: true only for the call that moved
+ * trial_started_at from NULL. Scoped by BOTH firm_id and slot so a metadata
+ * value alone (never trusted) cannot claim someone else's grant.
+ */
+export async function claimFoundingFirmTrialStart(
+  db: D1Database,
+  firmId: string,
+  slot: number,
+  stripeSubscriptionId: string
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE founding_firm_grants SET trial_started_at = ?1, stripe_subscription_id = ?2
+       WHERE firm_id = ?3 AND slot = ?4 AND trial_started_at IS NULL`
+    )
+    .bind(nowIso(), stripeSubscriptionId, firmId, slot)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
 }
 
 /** Self-serve cancel/resume (migration 0021) -- display/UI state only, see

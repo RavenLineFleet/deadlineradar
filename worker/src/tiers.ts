@@ -146,6 +146,12 @@ export function firmTierForSeatCount(seatCount: number): FirmTierDef | null {
   return FIRM_TIERS.find((t) => seatCount <= t.seatCap) ?? null;
 }
 
+/** Founding Firms (Devin, 2026-10-09): the one plan a founding firm's free
+ * year can be on, and its length. Trial access is a Stripe trial with no card
+ * that Stripe cancels at day 365 (see handleFirmBillingCheckout). */
+export const FOUNDING_FIRM_PLAN_TIER = "firm_growth";
+export const FOUNDING_FIRM_TRIAL_DAYS = 365;
+
 export function firmTierByPlanTier(planTier: string): FirmTierDef | null {
   return FIRM_TIERS.find((t) => t.planTier === planTier) ?? null;
 }
