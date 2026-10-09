@@ -6599,8 +6599,11 @@ def check_send_pass_names_listed(repo_root: Path) -> list[str]:
         return ["[SENDPASS] scheduler.ts KNOWN_SEND_PASSES not found"]
     listed = set(re.findall(r'"(\w+)"', m.group(1)))
     used: set[str] = set()
-    for f in src_dir.glob("*.ts"):
-        used |= set(re.findall(r'requireSendApproval\(\s*env\s*,\s*"(\w+)"\s*\)', f.read_text(encoding="utf-8")))
+    # rglob + any identifier/member as the first argument (SecurityLab 13:53): a
+    # future worker/src/passes/foo.ts, or a helper taking `e: Env`, must not be
+    # invisible to this guard.
+    for f in src_dir.rglob("*.ts"):
+        used |= set(re.findall(r'requireSendApproval\(\s*[\w.]+\s*,\s*"(\w+)"\s*\)', f.read_text(encoding="utf-8")))
     errors = []
     if used - listed:
         errors.append(f"[SENDPASS] requireSendApproval pass name(s) missing from KNOWN_SEND_PASSES: {', '.join(sorted(used - listed))}")
