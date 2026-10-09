@@ -662,16 +662,12 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.meta_description': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
-        # already under the 160-char budget, but THIS translation ran to
-        # 209 and needs a shorter rewrite, not just a trim of the EN one.
-        # Marked unreviewed rather than asserting my own un-vetted Spanish
-        # as approved -- falls back to the (correctly short) English text
-        # until AuditLab reviews a real replacement, same posture as any
-        # other pending translation gap on this site.
-        "text": 'Calculadora gratuita de fechas límite de renovación de licencia de CPA — elija su estado, obtenga su fecha de renovación exacta, con cita del estatuto, la norma o la página de la junta. No se requiere registro.',
+        # SRC-16 (AuditLab 2026-10-09): replaces the 210-char draft with a
+        # 157-char rewrite that keeps the three-category citation clause.
+        # Reviewed: AuditLab PASS (Candidate A).
+        "text": 'Calculadora gratuita de renovación de CPA — elija su estado y obtenga su fecha exacta, con cita del estatuto, la norma o la página de la junta. Sin registro.',
         "en_hash": 'b62bd9da04a4a3ec',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.overview_link_text': {
         "text": 'resumen para firmas',
@@ -704,15 +700,13 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.title': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string is
-        # under budget, but this translation runs well past it once the
-        # site-name suffix is added. Marked unreviewed rather than asserting
-        # my own un-vetted Spanish as approved -- falls back to the
-        # (correctly short) English text until AuditLab reviews a real
-        # replacement, same posture as calc.meta_description above.
+        # SRC-17 (AuditLab 2026-10-09): byte-identical to the already-approved
+        # calc.h1; flipped reviewed so the /es/ page is not Spanish body under
+        # an English <title>. ES title overruns the 60-char SERP budget
+        # (accepted by AuditLab, separate copy task).
         "text": 'Calculadora de fechas límite de renovación de licencia de CPA',
         "en_hash": 'b1c1ab4dab8f32f5',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.tracking_bold': {
         "text": '¿Está siguiendo al personal de toda una firma, no solo su propia licencia?',
