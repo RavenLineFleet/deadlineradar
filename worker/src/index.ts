@@ -231,6 +231,7 @@ import {
   runTrialEndingAlertPass,
   KNOWN_SEND_PASSES,
   approvedKnownPasses,
+  runTrialEndingNoticePass,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -14082,6 +14083,20 @@ export default {
           await runTrialEndingAlertPass(env);
         } catch (err) {
           console.log(`[trial-ending-alert-cron] error: ${String(err)}`);
+        }
+      })()
+    );
+
+    // TRIAL-3 (Devin OK 2026-10-09, option (a)): the same "before day 14"
+    // warning for firms AT OR UNDER the free cap, which the pass above skips on
+    // purpose. DARK: requireSendApproval(env, "trialEndingNotice") is not in any
+    // approved list until Devin consents to the exact email text.
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await runTrialEndingNoticePass(env);
+        } catch (err) {
+          console.log(`[trial-ending-notice-cron] error: ${String(err)}`);
         }
       })()
     );

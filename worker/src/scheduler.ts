@@ -58,6 +58,7 @@ import {
   buildStripePriceParityAlertEmail,
   buildGatedDatasetStalenessAlertEmail,
   buildTrialEndingSoonEmail,
+  buildTrialEndingNoticeEmail,
   buildRosterPausedEmail,
 } from "./emails";
 import {
@@ -98,7 +99,7 @@ import { sendToSlack } from "./slack";
 import { sendToTeams } from "./teams";
 import { sendSms, isWithinSmsQuietHours } from "./sms";
 import { decryptSecretAesGcm } from "./totp";
-import { hasValueLineAccess } from "./entitlements";
+import { checkPaidFeatureAccess, hasValueLineAccess } from "./entitlements";
 import cpaDataForDripCourse from "./cpa_deadlines.json";
 import regChangeEventsData from "./reg_change_events.json";
 import mobilityRulesDataForStaleness from "./mobility_rules.json";
@@ -2899,6 +2900,70 @@ export interface TrialEndingAlertSummary {
   pausedChecked: number;
   pausedSent: number;
   errors: { firm_id: string; error: string }[];
+}
+
+export interface TrialEndingNoticeSummary {
+  checked: number;
+  sent: number;
+  errors: { firm_id: string; error: string }[];
+}
+
+export interface RunTrialEndingNoticeOptions {
+  now?: Date;
+  send?: ReminderSendFn;
+}
+
+/**
+ * TRIAL-3 (Devin OK on option (a), 2026-10-09): warn a firm BEFORE its 14-day
+ * trial ends even when its roster is at or under the free cap -- the group
+ * runTrialEndingAlertPass() skips on purpose (that pass is about over-cap
+ * rosters being paused). The two passes are disjoint on rosterCount vs freeCap
+ * and share ONE once-per-trial marker (claimTrialEndingSoonNotice), so a firm
+ * can never receive both. Built DARK: gated by requireSendApproval(
+ * "trialEndingNotice"), a name that is not in any SEND_APPROVED_PASSES value;
+ * the exact email text needs Devin's consent before it is added (standing
+ * no-new-send-triggers policy).
+ */
+export async function runTrialEndingNoticePass(env: Env, opts: RunTrialEndingNoticeOptions = {}): Promise<TrialEndingNoticeSummary> {
+  const now = opts.now ?? new Date();
+  const summary: TrialEndingNoticeSummary = { checked: 0, sent: 0, errors: [] };
+  if (!requireSendApproval(env, "trialEndingNotice")) return summary;
+
+  const send: ReminderSendFn =
+    opts.send ??
+    ((to, built) => {
+      if (!env.RESEND_API_KEY) return Promise.resolve(false);
+      return sendEmail(env.RESEND_API_KEY, to, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+    });
+  const staticBase = staticSiteAbsoluteBaseUrl(env);
+  const dashboardUrl = `${staticBase}/firm-dashboard/#account`;
+  const pricingUrl = `${staticBase}/pricing/`;
+
+  const windowEnd = new Date(now.getTime() + TRIAL_ENDING_SOON_WARNING_DAYS * 86_400_000);
+  const endingSoon = await store.listFirmsForTrialEndingSoonNotice(env.DB, now.toISOString(), windowEnd.toISOString());
+  for (const firm of endingSoon) {
+    // Filtered at the SQL layer too; checked again here (DEMO-EMAIL gate wants a live guard in the sending function's own body).
+    if (firm.demo_locked || firm.is_test_tenant) continue;
+    // A firm that already pays has no trial to warn about (same truthiness the dashboard banner uses).
+    if (checkPaidFeatureAccess(firm).allowed) continue;
+    summary.checked += 1;
+    try {
+      const rosterCount = await store.countFirmLicenses(env.DB, firm.id);
+      const freeCap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
+      if (rosterCount > freeCap) continue; // over cap: runTrialEndingAlertPass() owns that email
+      const trialEndsAtMs = Date.parse(firm.trial_ends_at ?? "");
+      const daysRemaining = Math.max(1, Math.ceil((trialEndsAtMs - now.getTime()) / 86_400_000));
+      const claimed = await store.claimTrialEndingSoonNotice(env.DB, firm.id);
+      if (!claimed) continue;
+      const built = buildTrialEndingNoticeEmail({ firmName: firm.name, daysRemaining, pricingUrl, dashboardUrl });
+      const ok = await send(firm.admin_email, built);
+      if (ok) summary.sent += 1;
+      else summary.errors.push({ firm_id: firm.id, error: "send returned false" });
+    } catch (err) {
+      summary.errors.push({ firm_id: firm.id, error: String(err) });
+    }
+  }
+  return summary;
 }
 
 export interface RunTrialEndingAlertOptions {
