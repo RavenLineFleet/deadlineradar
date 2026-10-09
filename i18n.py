@@ -384,7 +384,7 @@ EN: dict[str, str] = {
     "calc.title": "CPA License Renewal Deadline Calculator",
     "calc.meta_description": (
         "Free CPA license renewal deadline calculator — pick your state, get your exact renewal "
-        "date, sourced to your state board's own rule. No signup required."
+        "date, cited to the statute, rule or board page. No signup required."
     ),
     # /pricing/ -- build_pricing_page(). Shared with /for-firms/: the FAQ
     # (_FIRM_FAQ) and the feature-table row labels.
@@ -669,8 +669,8 @@ ES: dict[str, dict] = {
         # as approved -- falls back to the (correctly short) English text
         # until AuditLab reviews a real replacement, same posture as any
         # other pending translation gap on this site.
-        "text": 'Calculadora gratuita de fechas límite de renovación de licencia de CPA — elija su estado, obtenga su fecha de renovación exacta, con fuente en la propia norma de la junta de su estado. No se requiere registro.',
-        "en_hash": 'cf4bc65387a13047',
+        "text": 'Calculadora gratuita de fechas límite de renovación de licencia de CPA — elija su estado, obtenga su fecha de renovación exacta, con cita del estatuto, la norma o la página de la junta. No se requiere registro.',
+        "en_hash": 'b62bd9da04a4a3ec',
         "reviewed": False,
     },
     'calc.overview_link_text': {
