@@ -178,6 +178,36 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     }
   });
 
+  // AuditLab OVER-2 (2026-10-09): the annual per-seat add-on id does not end
+  // in _MONTHLY, so the BLOCK-1 rule never covered it; /pricing/ advertises it
+  // unconditionally, so unset must alert.
+  it("OVER-2: STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL unset alerts naming it; the others stay quiet", async () => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      if (url === RESEND_URL) {
+        captured.push(String((JSON.parse(String(init?.body)) as { text?: string }).text ?? ""));
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV, STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL: undefined });
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toContain("STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL");
+      expect(captured[0]).toContain("per-seat rate");
+      expect(captured[0]).not.toContain("STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("all 10 prices match tiers.ts exactly -- no send", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : (input as Request).url;

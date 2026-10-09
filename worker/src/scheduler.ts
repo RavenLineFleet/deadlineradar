@@ -2734,6 +2734,13 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
       // a 503 at purchase time, not "not configured in this environment".
       if (MONTHLY_BILLING_ENABLED && envVar.endsWith("_MONTHLY")) {
         mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while MONTHLY_BILLING_ENABLED -- the site offers monthly but checkout would 503`] });
+      } else if (envVar === "STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL") {
+        // AuditLab OVER-2 (MEDIUM, 2026-10-09): /pricing/ advertises the
+        // annual per-seat rate unconditionally, and an unset id makes
+        // checkout 503 for any roster above the top tier's seat cap. The
+        // `_MONTHLY` suffix test above never matched this name, so an unset
+        // annual add-on could sit silent forever.
+        mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while /pricing/ advertises the per-seat rate -- checkout for a roster above the top tier's seat cap would 503`] });
       }
       continue; // otherwise not configured in this environment -- not a mismatch
     }
