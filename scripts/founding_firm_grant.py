@@ -133,12 +133,13 @@ def cmd_status(args) -> None:
         print(f"slot {g['slot']}: firm {g['firm_id']}  {state}  (verified_by {g['verified_by']}, {g['granted_at']})")
     print(f"{MAX_SLOTS - len(grants)} of {MAX_SLOTS} slots left")
     problems = rows(
-        "SELECT received_at, event_type, firm_id FROM stripe_webhook_events "
+        "SELECT id, received_at, event_type, firm_id FROM stripe_webhook_events "
         "WHERE event_type LIKE 'founding_trial:%' ORDER BY received_at",
         args.local,
     )
     for pr in problems:
-        print(f"PROBLEM {pr['received_at']}: {pr['event_type']} firm {pr['firm_id']}  (a trial subscription was cancelled or its stamp failed: check Stripe)")
+        sub = pr["id"].rsplit(":", 1)[-1]
+        print(f"PROBLEM {pr['received_at']}: {pr['event_type']} firm {pr['firm_id']} subscription {sub}  (check it in Stripe: cancelled by the webhook, or cancel by hand if the alert says CANCEL FAILED)")
     if not problems:
         print("no founding-trial webhook problems recorded")
 

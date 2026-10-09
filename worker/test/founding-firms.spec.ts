@@ -378,6 +378,23 @@ describe("checkout.session.completed for a founding trial", () => {
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM founding_firm_grants").first<{ n: number }>())?.n).toBe(1);
   });
 
+  it("AuditLab FFT-10: the durable rejection row names the subscription, including when the Stripe cancel itself FAILS (webhook still 200, tier untouched)", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm(); // no grant at all
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_i: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "DELETE" ? new Response(JSON.stringify({ error: { message: "boom" } }), { status: 500 }) : new Response("{}", { status: 200 })
+    );
+    const r = await completed(firmId, "sub_cancel_fails", { target_plan_tier: "firm_growth", founding_firm_slot: "3" });
+    expect(r.status).toBe(200);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("free");
+    const rows = await env.DB.prepare("SELECT id, event_type FROM stripe_webhook_events WHERE firm_id = ?1 AND event_type LIKE 'founding_trial:%'")
+      .bind(firmId)
+      .all<{ id: string; event_type: string }>();
+    expect(rows.results).toHaveLength(1);
+    expect(rows.results[0]!.event_type).toBe("founding_trial:rejected");
+    expect(rows.results[0]!.id.endsWith(":founding:sub_cancel_fails")).toBe(true);
+  });
+
   it("AuditLab FFT-1b: revoke + re-grant the SAME firm on a different slot -> the old session still lands on the NEW live grant (keyed on the firm, not the stale slot)", async () => {
     await clearGrants();
     const a = await makeFirm();

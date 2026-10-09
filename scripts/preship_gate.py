@@ -6623,8 +6623,15 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     # `UPDATE <table> SET` statement for each (SecurityLab 13:17: "retained"
     # must not be a synonym for "nobody looked"), so a retained table cannot be
     # added here without a scrub that releases its firm linkage.
-    scrubbed_retained = {"stripe_webhook_events", "founding_firm_grants"}
-    deliberately_excluded = {"firms", "subscribers"} | scrubbed_retained
+    # Each entry names the columns hardDeleteExpiredFirms() must release (set to
+    # NULL or ''), not just the table: a scrub that keeps an UPDATE but forgets
+    # one linkage field (the round-2 evidence_note bug) must go red (AuditLab
+    # FFT-9 / SecurityLab M5).
+    scrubbed_retained = {
+        "stripe_webhook_events": ("firm_id",),
+        "founding_firm_grants": ("firm_id", "stripe_subscription_id", "evidence_note"),
+    }
+    deliberately_excluded = {"firms", "subscribers"} | set(scrubbed_retained)
 
     # GATE-7 (AuditLab, 2026-08-21, LOW, self-directed): the original
     # `\n\);` closer only matched a CREATE TABLE whose closing paren is the
@@ -6684,9 +6691,19 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
 
     hd = re.search(r"export async function hardDeleteExpiredFirms[\s\S]*?\n}\n", store_src)
     hard_delete_body = hd.group(0) if hd else ""
+    def _unreleased(table: str, columns: tuple[str, ...]) -> list[str]:
+        # SET clause bounded by the template-literal backtick so it cannot run
+        # into the next statement; multi-column SETs are fine (do NOT require
+        # the column to sit directly before WHERE).
+        m_set = re.search(rf"UPDATE\s+{table}\s+SET([^`]*)", hard_delete_body)
+        if not m_set:
+            return list(columns)
+        return [c for c in columns if not re.search(rf"(?<![A-Za-z0-9_]){c}\s*=\s*(NULL|'')", m_set.group(1))]
+
     unscrubbed = sorted(
-        t for t in scrubbed_retained
-        if t in in_migrations and not re.search(rf"UPDATE\s+{t}\s+SET", hard_delete_body)
+        f"{t} ({', '.join(missing_cols)})"
+        for t, cols in scrubbed_retained.items()
+        if t in in_migrations and (missing_cols := _unreleased(t, cols))
     )
 
     # Anchors: tables whose rows are known to be purged (or, for
@@ -6723,8 +6740,8 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
         )
     if unscrubbed:
         errors.append(
-            "[RETAIN] retained table(s) with no `UPDATE <table> SET` scrub inside hardDeleteExpiredFirms() -- "
-            f"a deleted firm's linkage survives in them: {', '.join(unscrubbed)}"
+            "[RETAIN] retained table(s) whose hardDeleteExpiredFirms() scrub does not release every linkage column "
+            f"(missing columns in parentheses) -- a deleted firm's linkage survives in them: {', '.join(unscrubbed)}"
         )
     if stale:
         errors.append(

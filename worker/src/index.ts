@@ -4384,7 +4384,7 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
             // approved (SecurityLab 13:25: alertUnsynced is gated by
             // SEND_APPROVED_PASSES "billingSyncAlert", which may be absent live).
             // Read back by scripts/founding_firm_grant.py status.
-            await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding`, "founding_trial:rejected", firmId).catch(() => false);
+            await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding:${subscriptionId}`, "founding_trial:rejected", firmId).catch(() => false);
             try {
               await alertUnsynced(
                 env,
@@ -4407,7 +4407,7 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
           billingInterval,
         });
         if (foundingStampError) {
-          await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding`, "founding_trial:stamp_failed", firmId).catch(() => false);
+          await store.recordWebhookEventIfNew(env.DB, `${event.id}:founding:${subscriptionId}`, "founding_trial:stamp_failed", firmId).catch(() => false);
           try {
             await alertUnsynced(env, event.id, firmId, subscriptionId, foundingStampError);
           } catch (err) {
