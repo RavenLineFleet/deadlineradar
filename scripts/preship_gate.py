@@ -6692,13 +6692,22 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     hd = re.search(r"export async function hardDeleteExpiredFirms[\s\S]*?\n}\n", store_src)
     hard_delete_body = hd.group(0) if hd else ""
     def _unreleased(table: str, columns: tuple[str, ...]) -> list[str]:
-        # SET clause bounded by the template-literal backtick so it cannot run
-        # into the next statement; multi-column SETs are fine (do NOT require
-        # the column to sit directly before WHERE).
-        m_set = re.search(rf"UPDATE\s+{table}\s+SET([^`]*)", hard_delete_body)
-        if not m_set:
+        # EVERY `UPDATE <table> SET ...` in the function counts (AuditLab FFT-11:
+        # a second, earlier UPDATE on the same table must not hide the scrub),
+        # each bounded at WHERE or the closing template-literal backtick so a
+        # `WHERE col = NULL` can never satisfy a SET requirement (SecurityLab
+        # 13:58). Multi-column SETs are fine; NULL is matched case-insensitively.
+        set_clauses = [
+            m.group(1)
+            for m in re.finditer(rf"UPDATE\s+{table}\s+SET([\s\S]*?)(?:\bWHERE\b|`)", hard_delete_body)
+        ]
+        if not set_clauses:
             return list(columns)
-        return [c for c in columns if not re.search(rf"(?<![A-Za-z0-9_]){c}\s*=\s*(NULL|'')", m_set.group(1))]
+        return [
+            c
+            for c in columns
+            if not any(re.search(rf"(?<![A-Za-z0-9_]){c}\s*=\s*(NULL|'')", sc, re.IGNORECASE) for sc in set_clauses)
+        ]
 
     unscrubbed = sorted(
         f"{t} ({', '.join(missing_cols)})"
