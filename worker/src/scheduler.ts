@@ -244,6 +244,7 @@ export const KNOWN_SEND_PASSES = [
   "rosterPauseReconciliation",
   "stripePriceParityAlert",
   "trialEndingAlert",
+  "trialEndingNotice",
 ] as const;
 
 /** The known passes currently approved (names only). */
