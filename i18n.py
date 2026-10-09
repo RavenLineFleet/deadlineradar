@@ -454,6 +454,12 @@ EN: dict[str, str] = {
         "is itself a paid-tier feature, so a genuinely one-person account gets the Map and the "
         "firm-level registration check free too."
     ),
+    "pricing.footnote_trial": (
+        "New firm accounts get the paid features free for 14 days from signup, with no card "
+        "required (referral rewards start when you subscribe). After day 14 the account is on the "
+        "Free column unless you subscribe. If the roster is above 3 staff, you choose which 3 stay "
+        "active; the rest are paused, never deleted, and restored instantly if you subscribe."
+    ),
     "pricing.h2_plans": "Plans",
     "pricing.plans_intro": (
         "If you don't already have a firm account, the buttons below start free signup first; if "

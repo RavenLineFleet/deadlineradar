@@ -8990,6 +8990,7 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 </table>
 </div>
 <p class="field-hint">{_t("pricing.footnote_solo", lang)}</p>
+<p class="field-hint" id="dr-pricing-trial-note">{_t("pricing.footnote_trial", lang)}</p>
 
 <h2>{_t("pricing.h2_plans", lang)}</h2>
 <p class="field-hint">{_t("pricing.plans_intro", lang)}</p>
@@ -10563,7 +10564,8 @@ sourced dates staying visibly distinct is the whole reason to trust this site.</
 
 <h2>Pricing</h2>
 <p>Roster, Calendar, CPE Hours, and individual Practice Privilege Check are <strong>free for any firm,
-up to 3 staff</strong>, no card required, no time limit. Paid tiers add the Map and the firm-level
+up to 3 staff</strong>, no card required, no time limit. New accounts also try the paid features free
+for their first 14 days. Paid tiers add the Map and the firm-level
 registration check &mdash; every paid tier gets the identical feature set; the only difference between
 them is how many staff it covers, nothing is held back on a cheaper plan.</p>
 <p class="field-hint">Which one is you?</p>
@@ -10798,7 +10800,7 @@ def build_firm_login_page() -> str:
 
 <div class="dr-auth-view" id="dr-view-signup">
   <h2 class="dr-auth-heading">Create your firm account</h2>
-  <p class="subhead">Free, no time limit, no card required.</p>
+  <p class="subhead">Free, no time limit, no card required. New accounts also try the paid features free for 14 days.</p>
   <!-- ValueLab pre-outreach walkthrough (2026-08-24, finding #7): a visitor
        arriving via "Get Essentials" (?tier=firm_starter) saw this exact
        generic subhead with nothing acknowledging their choice registered --
@@ -14490,8 +14492,8 @@ function drRenderTrialBanner() {
   var textEl = document.getElementById('dr-trial-banner-text');
   if (textEl) {
     var base = daysLeft === 1
-      ? 'Your 14-day trial of every paid feature ends tomorrow.'
-      : 'Your 14-day trial of every paid feature ends in ' + daysLeft + ' days.';
+      ? 'Your 14-day trial of the paid features ends tomorrow.'
+      : 'Your 14-day trial of the paid features ends in ' + daysLeft + ' days.';
     var seatCount = drLicenses.length;
     var pickWarning = seatCount > DR_FREE_STAFF_CAP
       ? (' Your roster (' + seatCount + ' staff) is above the free tier’s ' + DR_FREE_STAFF_CAP + '-staff limit -- ' +
