@@ -25653,10 +25653,19 @@ def build_sitemap(
     <loc>{SITE_BASE_URL}/blog/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>"""]
+    # AuditLab CRAWL-9 (2026-10-09): a post's lastmod is the same date its own page
+    # declares as dateModified (content_modified, else the guide review date), never the
+    # build-wide as_of -- that one does not advance with the daily reverify and predated
+    # the Georgia post's own existence by 7 days. as_of_date itself is NOT touched: it
+    # feeds the 30-day staleness guard.
+    _guide_reviews = json.loads(GUIDE_REVIEWS_PATH.read_text(encoding="utf-8"))["guides"]
     for article in BLOG_ARTICLES:
+        _blog_lastmod = max(
+            article.get("content_modified") or _guide_reviews[article["slug"]]["last_reviewed"], article["published"]
+        )  # never earlier than the post existed (Georgia: reviewed 10-06, published 10-09)
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/blog/{esc(article['slug'])}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_blog_lastmod}</lastmod>
   </url>""")
     for p in FIRM_LANDING_PAGES:
         urls.append(f"""  <url>
