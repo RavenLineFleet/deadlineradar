@@ -179,6 +179,25 @@ describe("buildTrialEndingNoticeEmail -- the draft text", () => {
       }
     }
   });
+  it("AuditLab 16:20 gap: subject, greeting, body, dashboard line and sign-off for N=2 equal the reviewed full text, character for character", () => {
+    // The literal below IS the reviewed text (AssetLab/claims/drafts/trial_notice_email_full.txt).
+    const full = buildTrialEndingNoticeEmail({ firmName: "Acme CPA", daysRemaining: 2, pricingUrl: "https://deadline-radar.com/pricing/", dashboardUrl: "https://deadline-radar.com/firm-dashboard/#account" });
+    const expected = [
+      "Hi Acme CPA,",
+      "",
+      "Your 14-day trial of the Deadline-Radar paid features ends in 2 days.",
+      "",
+      "After that your account is on the Free plan. Your roster of up to 3 staff, calendar, CPE-hour tracking and email renewal reminders stay free, with no time limit. Document storage, Slack and Teams alerts, the daily firm-wide digest and the coverage overview are paid features, so they are only available on a paid plan.",
+      "",
+      "If the Free plan is all you need, you don't have to do anything. Paid plans start at $199 a year or $20 a month: https://deadline-radar.com/pricing/",
+      "",
+      "Your dashboard: https://deadline-radar.com/firm-dashboard/#account",
+      "",
+      "Deadline-Radar",
+    ].join("\n");
+    expect(full.subject).toBe("Your Deadline-Radar 14-day trial ends in 2 days");
+    expect(full.textBody).toBe(expected);
+  });
   it("singular day, and firm names are neutralised (header injection in text, markup in HTML)", () => {
     expect(buildTrialEndingNoticeEmail({ firmName: "A", daysRemaining: 1, pricingUrl: "p", dashboardUrl: "d" }).subject).toBe("Your Deadline-Radar 14-day trial ends in 1 day");
     const evil = buildTrialEndingNoticeEmail({ firmName: "Evil\r\nBcc: x@y.z <script>alert(1)</script>", daysRemaining: 2, pricingUrl: "p", dashboardUrl: "d" });
