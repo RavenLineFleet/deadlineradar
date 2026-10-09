@@ -54,8 +54,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 WORKER_DIR = Path(__file__).resolve().parent.parent / "worker"
 FIRM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
-# Belt and braces on top of --file: plain prose only (no quotes, %, &, |, <, >, ^, backtick, backslash, newline).
-EVIDENCE_RE = re.compile(r"^[A-Za-z0-9 .,:/()'_#+=-]{20,500}$")
+# Belt and braces on top of --file: plain prose and URLs only. Admits ? ; < > (board-lookup query strings,
+# ordinary prose); still refuses " % & | ^ backtick backslash and newlines, and '@' is refused separately.
+EVIDENCE_RE = re.compile(r"^[A-Za-z0-9 .,:;/()'_#+=?<>-]{20,500}$")
 VERIFIED_BY = ("devin", "orchestrator")
 MAX_SLOTS = 5
 GROWTH_SEAT_CAP = 10  # worker/src/tiers.ts firm_growth; the trial is Growth-only
@@ -147,7 +148,7 @@ def explain_refusal(firm_id: str, local: bool) -> str:
     if existing:
         return f"firm already holds slot {existing[0]['slot']}"
     firm = rows(
-        "SELECT status, demo_locked, is_test_tenant, plan_tier, stripe_subscription_id, stripe_customer_id FROM firms "
+        "SELECT status, demo_locked, is_test_tenant, plan_tier, stripe_subscription_id, stripe_customer_id, referred_by_firm_id, referral_discount_pending FROM firms "
         f"WHERE id = {sql_str(firm_id)}",
         local,
     )
@@ -160,6 +161,8 @@ def explain_refusal(firm_id: str, local: bool) -> str:
         return "firm is a demo or test tenant"
     if f["plan_tier"] != "free" or f["stripe_subscription_id"] or f["stripe_customer_id"]:
         return f"firm is or was a Stripe customer (plan {f['plan_tier']!r}); a founding firm must never have been one"
+    if f["referred_by_firm_id"] or f["referral_discount_pending"]:
+        return "firm arrived through a referral: its referral rewards cannot resolve on a $0 trial, so it cannot hold a grant"
     roster = rows("SELECT " + ROSTER_COUNT_SQL.replace("f.id", sql_str(firm_id)) + " AS n", local)[0]["n"]
     if roster > GROWTH_SEAT_CAP:
         return f"roster has {roster} staff; the trial is Growth-only (cap {GROWTH_SEAT_CAP}), so this firm could not use it"
@@ -179,7 +182,7 @@ def cmd_grant(args) -> None:
     if "@" in note:
         raise SystemExit("--evidence must not contain an email address or other personal data")
     if not EVIDENCE_RE.match(note):
-        raise SystemExit("--evidence may only use letters, digits, spaces and . , : / ( ) ' _ # + = - (20-500 chars)")
+        raise SystemExit("--evidence may only use letters, digits, spaces and . , : ; / ( ) ' _ # + = ? < > - (20-500 chars)")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     sql = (
         "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note) "
@@ -189,6 +192,7 @@ def cmd_grant(args) -> None:
         "AND f.status = 'active' AND f.demo_locked = 0 AND f.is_test_tenant = 0 "
         "AND f.plan_tier = 'free' AND f.stripe_subscription_id IS NULL AND f.stripe_customer_id IS NULL "
         f"AND {ROSTER_COUNT_SQL} <= {GROWTH_SEAT_CAP} "
+        "AND f.referred_by_firm_id IS NULL AND f.referral_discount_pending = 0 "
         "AND NOT EXISTS (SELECT 1 FROM founding_firm_grants g WHERE g.firm_id = f.id)"
     )
     print("SQL:\n" + sql + "\n")

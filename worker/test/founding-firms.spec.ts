@@ -405,7 +405,7 @@ describe("checkout.session.completed for a founding trial", () => {
     expect((await store.getFoundingFirmGrant(env.DB, victim.firmId))?.trial_started_at).toBeNull();
   });
 
-  it("SecurityLab MEDIUM-4: a REFERRED founding firm resolves no referral on the $0 session (no coupon call, no referral_reward_applied_at); eligibility is kept for its first paid checkout", async () => {
+  it("SecurityLab MEDIUM-4: a REFERRED founding firm resolves no referral on the $0 session (no coupon call, nothing marked spent): defence in depth, because the grant script refuses referred firms", async () => {
     await clearGrants();
     const referrer = await makeFirm();
     const { firmId } = await makeFirm();

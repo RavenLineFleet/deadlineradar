@@ -4222,14 +4222,18 @@ async function applyReferralRewardIfEligible(env: Env, referredFirmId: string, c
   // forever" gap this function's own docstring describes fixing. Widen this
   // check to accept "no_payment_required" too if that ever changes.
   //
-  // DECIDED 2026-10-09 (SecurityLab MEDIUM-4): the Founding Firms checkout IS
-  // the first fully-free session, and the early return below is deliberately
-  // KEPT for it -- widening would pay a referrer a compounding discount for a
-  // $0 signup. Nothing is lost or left claimable-forever: this function sets
-  // referral_reward_applied_at only when it claims, so a referred founding firm
-  // stays eligible on both sides and the referral resolves on its first real
-  // PAID checkout (the founding checkout also never spends the referee's own
-  // 10%: it sends no coupon). Pinned by founding-firms.spec.ts.
+  // DECIDED 2026-10-09 (SecurityLab MEDIUM-4, AuditLab direction correction):
+  // the Founding Firms checkout IS the first fully-free session. The early
+  // return below is deliberately KEPT for it: widening would pay a referrer a
+  // compounding discount for a $0 signup AND mark the referee's own unspent
+  // 10% as spent. What the early return costs a REFERRED founding firm is
+  // measured: the referrer is never rewarded, and the referee's 10% becomes
+  // unreachable (it can only be applied at checkout-session creation, and the
+  // firm now has a subscription). So that case is closed off at the source
+  // instead: scripts/founding_firm_grant.py refuses to grant a firm with
+  // referred_by_firm_id / referral_discount_pending set. This branch is the
+  // defence in depth if one gets through (no reward, nothing spent, flagged by
+  // founding-firms.spec.ts).
   if (checkoutSessionObject.payment_status !== "paid") return;
 
   const firm = await store.getFirmById(env.DB, referredFirmId);
