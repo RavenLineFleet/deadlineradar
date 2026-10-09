@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { classifyClick, TRACKED_LINK_CODES } from "../src/tracked_links";
+import { classifyClick, EXTERNAL_LINK_SRC_VALUES, EXTERNAL_TRACKED_LINK_DESTINATIONS, TRACKED_LINK_CODES } from "../src/tracked_links";
 
 type ClickRow = {
   id: number;
@@ -38,6 +38,38 @@ describe("GET /r/:code -- tracked outreach short links", () => {
       expect(location.searchParams.get("src")).toBe(code);
       expect(await countClicks(code)).toBe(before + 1);
     }
+  });
+
+  it("external codes (survey) 302 to their exact allowlisted URL, no ?src=, and log one row", async () => {
+    for (const [code, destination] of EXTERNAL_TRACKED_LINK_DESTINATIONS) {
+      expect(TRACKED_LINK_CODES.has(code)).toBe(false);
+      const before = await countClicks(code);
+      const resp = await SELF.fetch(`https://deadline-radar.com/r/${code}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
+        redirect: "manual",
+      });
+      expect(resp.status).toBe(302);
+      expect(resp.headers.get("Location")).toBe(destination);
+      expect(destination.startsWith("https://docs.google.com/forms/d/e/")).toBe(true);
+      expect(await countClicks(code)).toBe(before + 1);
+    }
+    expect(EXTERNAL_TRACKED_LINK_DESTINATIONS.has("survey")).toBe(true);
+  });
+
+  it("/r/survey?src=<allowed> logs under 'survey:<src>' and still 302s to the bare form URL; unknown src logs bare 'survey'", async () => {
+    const form = EXTERNAL_TRACKED_LINK_DESTINATIONS.get("survey")!;
+    for (const src of EXTERNAL_LINK_SRC_VALUES) {
+      const before = await countClicks(`survey:${src}`);
+      const resp = await SELF.fetch(`https://deadline-radar.com/r/survey?src=${src}`, { redirect: "manual" });
+      expect(resp.status).toBe(302);
+      expect(resp.headers.get("Location")).toBe(form);
+      expect(await countClicks(`survey:${src}`)).toBe(before + 1);
+    }
+    const bareBefore = await countClicks("survey");
+    const resp = await SELF.fetch("https://deadline-radar.com/r/survey?src=%27%3Bdrop%20table", { redirect: "manual" });
+    expect(resp.headers.get("Location")).toBe(form);
+    expect(await countClicks("survey")).toBe(bareBefore + 1);
+    expect((await latestClick()).code).toBe("survey");
   });
 
   it("an unknown code 302s to / and logs NO row", async () => {

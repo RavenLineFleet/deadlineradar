@@ -35,6 +35,27 @@ export const TRACKED_LINK_CODES: ReadonlyMap<string, string> = new Map([
   ["nl", "/"], // Deadline-Radar Brief (Beehiiv newsletter)
 ]);
 
+// code -> ABSOLUTE external destination, for the rare tracked link that leaves
+// the site (Orchestrator 2026-10-09, Devin OK: the research survey form).
+// Same hard-coded-allowlist security posture as above (a Map, never derived
+// from the request, so it cannot become an open redirect). The click is
+// logged exactly like any other code; no ?src= is appended because the
+// destination is a third-party URL and the logged `code` already carries it.
+export const EXTERNAL_TRACKED_LINK_DESTINATIONS: ReadonlyMap<string, string> = new Map([
+  [
+    "survey",
+    "https://docs.google.com/forms/d/e/1FAIpQLSeIEXC5hQeUfCx-nAXr58mx_8GaeTxSTsu8LRtQiH0bFQjq-Q/viewform",
+  ],
+]);
+
+// Per-channel attribution for external codes (GrowthLab 2026-10-09: the
+// survey is linked from LinkedIn/Bluesky/Mastodon/X posts and two email
+// batches, and the destination -- a Google Form -- will not carry a ?src=).
+// A request's ?src= is logged as `<code>:<src>` ONLY when it is in this
+// hard-coded set; anything else logs under the bare code, so the code column
+// can never hold attacker-chosen text. No schema change: `code` is plain TEXT.
+export const EXTERNAL_LINK_SRC_VALUES: ReadonlySet<string> = new Set(["li", "bs", "bsky", "ma", "mast", "x", "em-b2", "em-w1"]);
+
 // Mail-security gateways the directive names (Microsoft Safe Links/O365
 // ATP, Proofpoint URL Defense, Mimecast, Barracuda) now mostly fetch links
 // with a spoofed ordinary-browser User-Agent rather than an identifiable
@@ -183,10 +204,16 @@ async function secondsSinceFirstSeenTodayForCode(db: D1Database, code: string, n
 export async function handleTrackedLink(url: URL, request: Request, env: Env): Promise<Response> {
   const code = url.pathname.slice("/r/".length);
 
-  if (!TRACKED_LINK_CODES.has(code)) {
+  const externalDestination = EXTERNAL_TRACKED_LINK_DESTINATIONS.get(code);
+  if (!TRACKED_LINK_CODES.has(code) && externalDestination === undefined) {
     return new Response(null, { status: 302, headers: { Location: "https://deadline-radar.com/" } });
   }
-  const destination = TRACKED_LINK_CODES.get(code)!;
+  const destination = TRACKED_LINK_CODES.get(code) ?? "/";
+  const srcParam = url.searchParams.get("src");
+  const loggedCode =
+    externalDestination !== undefined && srcParam !== null && EXTERNAL_LINK_SRC_VALUES.has(srcParam)
+      ? `${code}:${srcParam}`
+      : code;
 
   try {
     const cf = request.cf;
@@ -195,7 +222,7 @@ export async function handleTrackedLink(url: URL, request: Request, env: Env): P
     const asn = typeof cf?.asn === "number" ? cf.asn : null;
     const now = new Date();
 
-    const secondsSinceFirstSeenToday = await secondsSinceFirstSeenTodayForCode(env.DB, code, now);
+    const secondsSinceFirstSeenToday = await secondsSinceFirstSeenTodayForCode(env.DB, loggedCode, now);
     const { uaClass, isHuman } = classifyClick({
       userAgent: request.headers.get("User-Agent"),
       method: request.method,
@@ -206,12 +233,15 @@ export async function handleTrackedLink(url: URL, request: Request, env: Env): P
     await env.DB.prepare(
       "INSERT INTO link_clicks (code, clicked_at, country, colo, asn, ua_class, is_human) VALUES (?, ?, ?, ?, ?, ?, ?)"
     )
-      .bind(code, now.toISOString(), country, colo, asn, uaClass, isHuman ? 1 : 0)
+      .bind(loggedCode, now.toISOString(), country, colo, asn, uaClass, isHuman ? 1 : 0)
       .run();
   } catch {
     // swallow -- see function comment above
   }
 
+  if (externalDestination !== undefined) {
+    return new Response(null, { status: 302, headers: { Location: externalDestination } });
+  }
   const destUrl = new URL(destination, "https://deadline-radar.com/");
   destUrl.searchParams.set("src", code);
   return new Response(null, { status: 302, headers: { Location: destUrl.toString() } });
