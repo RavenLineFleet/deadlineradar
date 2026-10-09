@@ -2490,7 +2490,8 @@ export async function recordFirmDeletionRefund(db: D1Database, firmId: string, r
  * late-redelivered webhook for this firm_id be reprocessed as if new.
  * founding_firm_grants (migration 0090) is left alone for the same reason in
  * reverse: it is the "exactly 5, ever" cap, and deleting a firm's row would
- * hand its slot back.
+ * hand its slot back. Like stripe_webhook_events it is scrubbed, not purged:
+ * firm_id and stripe_subscription_id are set NULL (RETAIN-4 shape).
  *
  * Returns the ids actually deleted, so the caller can log a real count
  * instead of a silent no-op either way.
@@ -2685,6 +2686,14 @@ export async function hardDeleteExpiredFirms(
       // WHERE clause's match is gone along with the row it would have
       // matched.
       await db.prepare(`UPDATE stripe_webhook_events SET firm_id = NULL WHERE firm_id = ?1`).bind(firmId).run();
+      // Founding Firms (migration 0090, SecurityLab MEDIUM-2): the grant row
+      // is retained (the slot stays consumed: "exactly 5, ever") but released
+      // from the deleted firm and from its Stripe subscription, so what
+      // survives is only "slot N was used".
+      await db
+        .prepare(`UPDATE founding_firm_grants SET firm_id = NULL, stripe_subscription_id = NULL WHERE firm_id = ?1`)
+        .bind(firmId)
+        .run();
       // RETAIN-5 (AuditLab/SecurityLab, HIGH, 2026-10-02): same shape as
       // RETAIN-4 above, a different retained row -- migration 0058's
       // `firms.referred_by_firm_id` is an enforced FK into firms(id) with
@@ -3664,7 +3673,7 @@ export async function updateFirmBilling(
 
 export interface FoundingFirmGrantRow {
   slot: number;
-  firm_id: string;
+  firm_id: string | null; // NULL once the firm is hard-deleted
   granted_at: string;
   verified_by: string;
   evidence_note: string;

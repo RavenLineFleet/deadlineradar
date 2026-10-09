@@ -74,7 +74,7 @@ function isTransientStripeError(err: unknown): boolean {
   return true;
 }
 
-async function alertUnsynced(env: Env, eventId: string, firmId: string, subscriptionId: string, problem: string): Promise<void> {
+export async function alertUnsynced(env: Env, eventId: string, firmId: string, subscriptionId: string, problem: string): Promise<void> {
   console.log(`[subscription-sync] NOT applied for firm ${firmId} sub ${subscriptionId}: ${problem}`);
   if (!requireSendApproval(env, "billingSyncAlert") || !env.RESEND_API_KEY) return;
   const claimed = await store.recordWebhookEventIfNew(env.DB, `${eventId}:alert`, "customer.subscription.updated:alert", firmId);

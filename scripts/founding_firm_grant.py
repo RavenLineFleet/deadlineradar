@@ -14,7 +14,8 @@ not a duplicate of an existing firm or grant, not a bot or a friend. Denied or
 unclear = no row = no trial. Record WHAT you checked in --evidence (e.g.
 "board lookup <url>; 6 staff listed on firm site"); no licence numbers, no
 personal data, no email addresses (the script refuses an evidence note that
-contains '@').
+contains '@' or any character outside plain prose; SQL is passed to wrangler
+as a temp .sql file, never on the command line).
 
 ## Usage (dry-run is the default; nothing is written without --apply)
     python scripts/founding_firm_grant.py status
@@ -25,7 +26,8 @@ Add --local to run against the local D1 emulation instead of production.
 
 `grant` takes the lowest unused slot in ONE atomic INSERT ... SELECT whose WHERE
 clause also requires: the firm exists, is active, is not demo_locked or a test
-tenant, is on the free plan with no Stripe subscription, and has no grant yet.
+tenant, is on the free plan and has NEVER been a Stripe customer (checkout withholds the
+trial from any firm with a stripe_customer_id), and has no grant yet.
 Zero rows inserted = refused; the script then re-reads and says why.
 
 `revoke` only removes a grant whose trial has NOT started. A started trial has a
@@ -39,8 +41,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +54,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 WORKER_DIR = Path(__file__).resolve().parent.parent / "worker"
 FIRM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
+# Belt and braces on top of --file: plain prose only (no quotes, %, &, |, <, >, ^, backtick, backslash, newline).
+EVIDENCE_RE = re.compile(r"^[A-Za-z0-9 .,:/()'_#+=-]{20,500}$")
 VERIFIED_BY = ("devin", "orchestrator")
 MAX_SLOTS = 5
 
@@ -64,10 +70,28 @@ def sql_str(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def exe(name: str) -> str:
+    found = shutil.which(name)
+    if found is None:
+        raise SystemExit(f"Could not find '{name}' on PATH. Is Node installed?")
+    return found
+
+
 def d1(sql: str, local: bool) -> list[dict]:
-    cmd = ["npx", "wrangler", "d1", "execute", "deadlineradar", "--json", "--command", sql]
-    cmd.append("--local" if local else "--remote")
-    proc = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", shell=(sys.platform == "win32"))
+    # SQL goes through a real .sql file (`--file`), never an inline `--command`
+    # string. On Windows `npx` is npx.CMD and CreateProcess routes it through
+    # cmd.exe regardless of shell=False, so any operator text on the command
+    # line is re-parsed by cmd.exe (SecurityLab MEDIUM-3: `&` ran a command,
+    # `%VAR%` expanded silently). Same pattern as scripts/manage_blocklist.py.
+    with tempfile.NamedTemporaryFile("w", suffix=".sql", delete=False, encoding="utf-8") as f:
+        f.write(sql)
+        sql_path = Path(f.name)
+    try:
+        cmd = [exe("npx"), "wrangler", "d1", "execute", "deadlineradar", "--json", "--file", str(sql_path)]
+        cmd.append("--local" if local else "--remote")
+        proc = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    finally:
+        sql_path.unlink(missing_ok=True)
     if proc.returncode != 0:
         raise SystemExit(f"wrangler failed ({proc.returncode}):\n{proc.stderr or proc.stdout}")
     start = proc.stdout.find("[")
@@ -108,7 +132,7 @@ def explain_refusal(firm_id: str, local: bool) -> str:
     if existing:
         return f"firm already holds slot {existing[0]['slot']}"
     firm = rows(
-        "SELECT status, demo_locked, is_test_tenant, plan_tier, stripe_subscription_id FROM firms "
+        "SELECT status, demo_locked, is_test_tenant, plan_tier, stripe_subscription_id, stripe_customer_id FROM firms "
         f"WHERE id = {sql_str(firm_id)}",
         local,
     )
@@ -119,8 +143,8 @@ def explain_refusal(firm_id: str, local: bool) -> str:
         return f"firm status is {f['status']!r}, not 'active'"
     if f["demo_locked"] or f["is_test_tenant"]:
         return "firm is a demo or test tenant"
-    if f["plan_tier"] != "free" or f["stripe_subscription_id"]:
-        return f"firm is already on a paid plan ({f['plan_tier']!r}) or has a Stripe subscription"
+    if f["plan_tier"] != "free" or f["stripe_subscription_id"] or f["stripe_customer_id"]:
+        return f"firm is or was a Stripe customer (plan {f['plan_tier']!r}); a founding firm must never have been one"
     used = rows("SELECT COUNT(*) AS n FROM founding_firm_grants", local)[0]["n"]
     if used >= MAX_SLOTS:
         return "all 5 founding slots are taken"
@@ -136,6 +160,8 @@ def cmd_grant(args) -> None:
         raise SystemExit("--evidence must say what was checked (at least 20 characters)")
     if "@" in note:
         raise SystemExit("--evidence must not contain an email address or other personal data")
+    if not EVIDENCE_RE.match(note):
+        raise SystemExit("--evidence may only use letters, digits, spaces and . , : / ( ) ' _ # + = - (20-500 chars)")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     sql = (
         "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note) "
@@ -143,7 +169,7 @@ def cmd_grant(args) -> None:
         f"FROM ({LOWEST_FREE_SLOT}) s, firms f "
         f"WHERE f.id = {sql_str(args.firm_id)} AND s.slot IS NOT NULL "
         "AND f.status = 'active' AND f.demo_locked = 0 AND f.is_test_tenant = 0 "
-        "AND f.plan_tier = 'free' AND f.stripe_subscription_id IS NULL "
+        "AND f.plan_tier = 'free' AND f.stripe_subscription_id IS NULL AND f.stripe_customer_id IS NULL "
         "AND NOT EXISTS (SELECT 1 FROM founding_firm_grants g WHERE g.firm_id = f.id)"
     )
     print("SQL:\n" + sql + "\n")

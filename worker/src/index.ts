@@ -314,7 +314,7 @@ import {
   StripeApiError,
   type StripeWebhookEvent,
 } from "./stripe";
-import { applySubscriptionUpdatedEvent } from "./subscription_sync";
+import { alertUnsynced, applySubscriptionUpdatedEvent } from "./subscription_sync";
 import { buildIcs, type IcsEvent } from "./ics";
 import { handleTrackedLink } from "./tracked_links";
 
@@ -3638,7 +3638,11 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   // The slot is read from D1 here and re-verified against D1 at the webhook;
   // nothing the client sends decides eligibility.
   const foundingGrant = await store.getFoundingFirmGrant(env.DB, firm.id);
-  const foundingTrial = foundingGrant !== null && foundingGrant.trial_started_at === null;
+  // Also requires NO stripe_customer_id: the webhook stamps the grant
+  // best-effort (its retry cannot fire, SecurityLab HIGH-1), so "this firm
+  // has never been a Stripe customer" is the backstop that makes a lost stamp
+  // unable to hand out a second free year.
+  const foundingTrial = foundingGrant !== null && foundingGrant.trial_started_at === null && !firm.stripe_customer_id;
   if (foundingTrial && tierDef.planTier !== FOUNDING_FIRM_PLAN_TIER) {
     return jsonResponse(400, { error: "Your Founding Firm plan is Growth. Choose Growth to start it." });
   }
@@ -4320,24 +4324,41 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     if (firmId && targetPlanTier && customerId && subscriptionId) {
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
       if (isNew) {
-        // Founding Firms: stamp the grant BEFORE the tier write, not best-effort
-        // after it. A missed stamp would leave the slot reusable, i.e. a second
-        // free year after cancel; a throw here surfaces as a non-2xx. The slot
-        // number comes from session metadata but is only ever a lookup key --
-        // the UPDATE is scoped to this firm AND slot AND "not yet started".
-        const foundingSlotRaw = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
-        if (foundingSlotRaw && /^[1-5]$/.test(foundingSlotRaw)) {
-          const stamped = await store.claimFoundingFirmTrialStart(env.DB, firmId, Number(foundingSlotRaw), subscriptionId);
-          if (!stamped) {
-            console.log(`[founding-firm] trial-start NOT stamped for firm ${firmId} slot ${foundingSlotRaw} sub ${subscriptionId}: no matching unstarted grant`);
-          }
-        }
         await store.updateFirmBilling(env.DB, firmId, {
           planTier: targetPlanTier,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           billingInterval,
         });
+        // Founding Firms: stamp the grant right after the tier write, and make
+        // it NON-throwing. The retry a throw would rely on cannot fire:
+        // recordWebhookEventIfNew() has already inserted this event id, so a
+        // redelivery hits the PK, returns false and skips this whole block
+        // (SecurityLab HIGH-1, pre-existing ledger design). The second-free-year
+        // risk of a lost stamp is closed independently: checkout only offers
+        // the trial to a firm with NO stripe_customer_id, and updateFirmBilling
+        // above just wrote one. The slot number comes from session metadata but
+        // is only a lookup key -- the UPDATE is scoped to this firm AND slot AND
+        // "not yet started". A failed or non-matching stamp alerts the operator
+        // (the existing billingSyncAlert email), because it can mean a second
+        // trial subscription our DB has no pointer to.
+        const foundingSlotRaw = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
+        if (foundingSlotRaw && /^[1-5]$/.test(foundingSlotRaw)) {
+          let foundingProblem: string | null = null;
+          try {
+            const stamped = await store.claimFoundingFirmTrialStart(env.DB, firmId, Number(foundingSlotRaw), subscriptionId);
+            if (!stamped) foundingProblem = `founding trial subscription not recorded on slot ${foundingSlotRaw}: no matching unstarted grant (duplicate session?)`;
+          } catch (err) {
+            foundingProblem = `founding trial stamp failed for slot ${foundingSlotRaw}: ${String(err)}`;
+          }
+          if (foundingProblem) {
+            try {
+              await alertUnsynced(env, event.id, firmId, subscriptionId, foundingProblem);
+            } catch (err) {
+              console.log(`[founding-firm] ${foundingProblem}; alert also failed: ${String(err)}`);
+            }
+          }
+        }
         // PR6-B (migration 0086, 2026-10-02): "restored instantly on
         // upgrade" -- the firm is paid now, so reconcileRosterPauseState()
         // unpauses everyone (checkPaidFeatureAccess().allowed short-

@@ -125,6 +125,39 @@ describe("founding_firm_grants table: the cap is structural", () => {
     expect(deleted).toContain(firmId);
     expect(await store.getFirmById(env.DB, firmId)).toBeNull();
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM founding_firm_grants").first<{ n: number }>())?.n).toBe(1);
+    // the slot is still consumed: it cannot be granted again
+    const next = await makeFirm();
+    await expect(grant(next.firmId, 1)).rejects.toThrow();
+  });
+  it("SecurityLab MEDIUM-2: hard delete releases firm_id AND stripe_subscription_id from the retained row", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm();
+    await grant(firmId, 2);
+    await env.DB.prepare("UPDATE founding_firm_grants SET trial_started_at = ?1, stripe_subscription_id = 'sub_pii' WHERE slot = 2")
+      .bind(new Date().toISOString())
+      .run();
+    await env.DB.prepare("UPDATE firms SET status = ?1, deletion_requested_at = ?2 WHERE id = ?3")
+      .bind(store.FIRM_STATUS_DELETED, new Date(Date.now() - 31 * 86_400_000).toISOString(), firmId)
+      .run();
+    expect(await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date())).toContain(firmId);
+    const row = await env.DB.prepare("SELECT * FROM founding_firm_grants WHERE slot = 2").first<Record<string, unknown>>();
+    expect(row).not.toBeNull();
+    expect(row?.firm_id).toBeNull();
+    expect(row?.stripe_subscription_id).toBeNull();
+    expect(row?.trial_started_at).not.toBeNull(); // history of use is kept
+  });
+  it("CONTROL: another firm's grant row is untouched by a different firm's hard delete", async () => {
+    await clearGrants();
+    const keep = await makeFirm();
+    await grant(keep.firmId, 1);
+    await env.DB.prepare("UPDATE founding_firm_grants SET stripe_subscription_id = 'sub_keep' WHERE slot = 1").run();
+    const gone = await makeFirm();
+    await env.DB.prepare("UPDATE firms SET status = ?1, deletion_requested_at = ?2 WHERE id = ?3")
+      .bind(store.FIRM_STATUS_DELETED, new Date(Date.now() - 31 * 86_400_000).toISOString(), gone.firmId)
+      .run();
+    await store.hardDeleteExpiredFirms(env.DB, env.DOCUMENTS, new Date());
+    const row = await store.getFoundingFirmGrant(env.DB, keep.firmId);
+    expect(row?.stripe_subscription_id).toBe("sub_keep");
   });
 });
 
@@ -208,6 +241,17 @@ describe("POST /firm/billing/checkout with a founding grant", () => {
     expect(bodies[0]!.get("metadata[founding_firm_slot]")).toBeNull();
   });
 
+  it("HIGH-1 backstop: an unstarted grant on a firm that already has a stripe_customer_id gets NO trial (a lost stamp cannot give a second free year)", async () => {
+    await clearGrants();
+    const { firmId, cookie } = await makeFirm();
+    await env.DB.prepare("UPDATE firms SET stripe_customer_id = 'cus_prior' WHERE id = ?1").bind(firmId).run();
+    await grant(firmId, 1);
+    const { bodies } = mockStripe();
+    expect((await checkout(cookie, { tier: "firm_growth" })).status).toBe(200);
+    expect(trialKeys(bodies[0]!)).toEqual([]);
+    expect(bodies[0]!.get("metadata[founding_firm_slot]")).toBeNull();
+  });
+
   it("another firm's grant never leaks: an un-granted firm gets no trial while a granted firm exists", async () => {
     await clearGrants();
     const granted = await makeFirm();
@@ -238,6 +282,27 @@ describe("checkout.session.completed for a founding trial", () => {
       (c) => String(c[0]).includes("api.stripe.com") && String((c[1] as RequestInit | undefined)?.body ?? "").includes("coupon")
     );
     expect(couponCalls).toEqual([]);
+  });
+
+  it("HIGH-1: a stamp that THROWS does not fail the webhook or lose the tier; the unstamped grant cannot be reused (customer id is set)", async () => {
+    await clearGrants();
+    const { firmId, cookie } = await makeFirm();
+    await grant(firmId, 1);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
+    const spy = vi.spyOn(store, "claimFoundingFirmTrialStart").mockRejectedValue(new Error("D1 transient"));
+    const r = await completed(firmId, "sub_lost", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
+    spy.mockRestore();
+    expect(r.status).toBe(200);
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("firm_growth");
+    expect(firm?.stripe_subscription_id).toBe("sub_lost");
+    expect((await store.getFoundingFirmGrant(env.DB, firmId))?.trial_started_at).toBeNull(); // stamp really was lost
+    // Day 365 passes: Stripe cancels, firm drops to free, then tries to buy.
+    await env.DB.prepare("UPDATE firms SET plan_tier = 'free', stripe_subscription_id = NULL WHERE id = ?1").bind(firmId).run();
+    vi.restoreAllMocks();
+    const { bodies } = mockStripe();
+    expect((await checkout(cookie, { tier: "firm_growth" })).status).toBe(200);
+    expect(trialKeys(bodies[0]!)).toEqual([]);
   });
 
   it("a second completed session for the same grant does not restamp (first subscription id wins)", async () => {
