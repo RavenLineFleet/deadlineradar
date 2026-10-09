@@ -475,7 +475,7 @@ EN: dict[str, str] = {
     # checkout above 35 staff -- Enterprise's own button now handles it,
     # priced off the live roster count. Factual correction, not new
     # persuasive copy (GrowthLab still owns terms/FAQ prose for PR6).
-    "pricing.card_more_detail": "Pick Enterprise above — it includes the first 35 seats, plus $15/seat/year{monthly_clause} for the rest, billed automatically. Questions? {contact_link}.",
+    "pricing.card_more_detail": "Pick Enterprise above — it includes the first 35 seats, plus $15/seat/year{monthly_clause} for each seat above 35 when you first subscribe. Seats added after that are not billed automatically yet. Questions? {contact_link}.",
     "pricing.contact_us_link_text": "Contact us",
     "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
     "pricing.includes_admin_digest": "Daily firm-wide digest",
