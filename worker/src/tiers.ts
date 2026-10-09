@@ -310,6 +310,24 @@ export function portalConfigurationIdForRoster(env: Env, rosterCount: number, ha
   return typeof id === "string" && /^bpc_[A-Za-z0-9]+$/.test(id) ? id : null;
 }
 
+/** Founding Firms (AuditLab FFT-6): the portal configuration for a firm on a
+ * LIVE founding trial -- no plan switching AND no payment-method update, because
+ * adding a card during the free year converts it into a $299 charge on day 365.
+ * STRIPE_PORTAL_CONFIGS carries it under "founding_trial". Fail closed: null
+ * when unset/malformed, and the caller refuses the portal rather than falling
+ * back to a configuration that lets a card be added. */
+export function portalConfigurationIdForFoundingTrial(env: Env): string | null {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(env.STRIPE_PORTAL_CONFIGS ?? "");
+  } catch {
+    return null;
+  }
+  if (!map || typeof map !== "object") return null;
+  const id = map["founding_trial"];
+  return typeof id === "string" && /^bpc_[A-Za-z0-9]+$/.test(id) ? id : null;
+}
+
 /** Roadmap #31 compounding tiers (2026-08-11, Devin's spec): "10% off each
  * time [a referral converts], up to 10 times, which is 100% off." Tier N
  * (1-10) maps to the Nth successful referral -> N*10% off, capped at tier

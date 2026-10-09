@@ -53,6 +53,11 @@ KEYS = {  # config key -> tiers it may switch to
     "firm_standard": ["STANDARD", "SCALE"],
     "firm_scale": ["SCALE"],
     "none": [],
+    # Founding Firms (AuditLab FFT-6): a firm on a LIVE free trial. No plan
+    # switching AND no payment-method update -- adding a card during the free
+    # year would convert it to a $299 charge on day 365. Cancel and invoice
+    # history stay on. Worker: tiers.ts portalConfigurationIdForFoundingTrial().
+    "founding_trial": [],
 }
 RETURN_URL = "https://deadline-radar.com/firm-dashboard/#account"
 PRIVACY_URL = "https://deadline-radar.com/privacy/"
@@ -106,7 +111,7 @@ def build_params(key: str, products: dict[str, list[str]], mode: str, create: bo
         ("default_return_url", RETURN_URL),
         ("features[customer_update][enabled]", "false"),
         ("features[invoice_history][enabled]", "true"),
-        ("features[payment_method_update][enabled]", "true"),
+        ("features[payment_method_update][enabled]", "false" if key == "founding_trial" else "true"),
         ("features[subscription_cancel][enabled]", "true"),
         ("features[subscription_cancel][mode]", "at_period_end"),
         ("features[subscription_cancel][proration_behavior]", "none"),

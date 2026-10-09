@@ -58,6 +58,12 @@ FIRM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
 EVIDENCE_RE = re.compile(r"^[A-Za-z0-9 .,:/()'_#+=-]{20,500}$")
 VERIFIED_BY = ("devin", "orchestrator")
 MAX_SLOTS = 5
+GROWTH_SEAT_CAP = 10  # worker/src/tiers.ts firm_growth; the trial is Growth-only
+# Same definition as store.countFirmLicenses(): removed-by-admin staff do not count.
+ROSTER_COUNT_SQL = (
+    "(SELECT COUNT(*) FROM subscribers WHERE firm_id = f.id "
+    "AND NOT (status = 'stopped' AND stop_reason = 'removed_by_admin'))"
+)
 
 # The lowest slot in 1..5 not already taken, or NULL when all five are used.
 LOWEST_FREE_SLOT = (
@@ -145,6 +151,9 @@ def explain_refusal(firm_id: str, local: bool) -> str:
         return "firm is a demo or test tenant"
     if f["plan_tier"] != "free" or f["stripe_subscription_id"] or f["stripe_customer_id"]:
         return f"firm is or was a Stripe customer (plan {f['plan_tier']!r}); a founding firm must never have been one"
+    roster = rows("SELECT " + ROSTER_COUNT_SQL.replace("f.id", sql_str(firm_id)) + " AS n", local)[0]["n"]
+    if roster > GROWTH_SEAT_CAP:
+        return f"roster has {roster} staff; the trial is Growth-only (cap {GROWTH_SEAT_CAP}), so this firm could not use it"
     used = rows("SELECT COUNT(*) AS n FROM founding_firm_grants", local)[0]["n"]
     if used >= MAX_SLOTS:
         return "all 5 founding slots are taken"
@@ -170,6 +179,7 @@ def cmd_grant(args) -> None:
         f"WHERE f.id = {sql_str(args.firm_id)} AND s.slot IS NOT NULL "
         "AND f.status = 'active' AND f.demo_locked = 0 AND f.is_test_tenant = 0 "
         "AND f.plan_tier = 'free' AND f.stripe_subscription_id IS NULL AND f.stripe_customer_id IS NULL "
+        f"AND {ROSTER_COUNT_SQL} <= {GROWTH_SEAT_CAP} "
         "AND NOT EXISTS (SELECT 1 FROM founding_firm_grants g WHERE g.firm_id = f.id)"
     )
     print("SQL:\n" + sql + "\n")
@@ -202,6 +212,11 @@ def cmd_revoke(args) -> None:
         f"DELETE FROM founding_firm_grants WHERE firm_id = {sql_str(args.firm_id)} AND trial_started_at IS NULL"
     )
     print("SQL:\n" + sql + "\n")
+    print(
+        "NOTE: a Checkout session this firm opened in the last hour (founding sessions expire after 1 h) can still "
+        "complete after the revoke. The webhook then cancels that trial subscription, leaves the firm's tier alone "
+        "and sends an alert, so it is safe, but expect that alert."
+    )
     if not args.apply:
         print("DRY RUN: nothing written. Re-run with --apply.")
         return

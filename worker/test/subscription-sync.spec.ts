@@ -257,22 +257,60 @@ describe("POST /firm/billing/portal", () => {
     expect((await postPortal(cookie)).status).toBe(200);
     expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_none1");
   });
-  // Founding Firms (2026-10-09): portal behaviour on a trial subscription is unmeasured, so a granted firm gets no plan switching.
-  it("Founding Firms: a granted firm gets the no-switching config on a plain Growth sub; the same firm without a grant gets the Growth config", async () => {
-    const subs: Record<string, SubStub | undefined> = {};
-    const calls = installFetch(subs);
-    const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
-    subs[sub] = { status: "trialing", items: [{ price: "price_gr_a", quantity: 1 }] };
-    await addRoster(firmId, 7);
-    expect((await postPortal(cookie)).status).toBe(200);
-    expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_growth1"); // control: no grant
-    await env.DB.prepare(
-      "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note) VALUES (1, ?1, ?2, 'devin', 'test')"
-    )
-      .bind(firmId, new Date().toISOString())
-      .run();
-    expect((await postPortal(cookie)).status).toBe(200);
-    expect(calls.portalPosts[1]!.get("configuration")).toBe("bpc_none1");
+  // Founding Firms (AuditLab FFT-3 / FFT-6): the dedicated configuration (no plan switching AND no payment-method
+  // update) applies only while the trial is LIVE; a converted founding firm is an ordinary customer again.
+  describe("Founding Firms portal configuration", () => {
+    const FOUNDING_CONFIGS = JSON.stringify({ firm_growth: "bpc_growth1", none: "bpc_none1", founding_trial: "bpc_founding1" });
+    async function grantTo(firmId: string): Promise<void> {
+      await env.DB.prepare(
+        "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note) VALUES (1, ?1, ?2, 'devin', 'test')"
+      )
+        .bind(firmId, new Date().toISOString())
+        .run();
+    }
+    it("CONTROL: a trialing Growth firm WITHOUT a grant gets the ordinary Growth config", async () => {
+      await env.DB.prepare("DELETE FROM founding_firm_grants").run();
+      const subs: Record<string, SubStub | undefined> = {};
+      const calls = installFetch(subs);
+      const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+      subs[sub] = { status: "trialing", items: [{ price: "price_gr_a", quantity: 1 }] };
+      await addRoster(firmId, 7);
+      expect((await postPortal(cookie, { STRIPE_PORTAL_CONFIGS: FOUNDING_CONFIGS })).status).toBe(200);
+      expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_growth1");
+    });
+    it("granted + trialing -> the founding_trial configuration", async () => {
+      await env.DB.prepare("DELETE FROM founding_firm_grants").run();
+      const subs: Record<string, SubStub | undefined> = {};
+      const calls = installFetch(subs);
+      const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+      subs[sub] = { status: "trialing", items: [{ price: "price_gr_a", quantity: 1 }] };
+      await addRoster(firmId, 7);
+      await grantTo(firmId);
+      expect((await postPortal(cookie, { STRIPE_PORTAL_CONFIGS: FOUNDING_CONFIGS })).status).toBe(200);
+      expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_founding1");
+    });
+    it("granted but CONVERTED (status active) -> back to the ordinary Growth config, switching offered again", async () => {
+      await env.DB.prepare("DELETE FROM founding_firm_grants").run();
+      const subs: Record<string, SubStub | undefined> = {};
+      const calls = installFetch(subs);
+      const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+      subs[sub] = { status: "active", items: [{ price: "price_gr_a", quantity: 1 }] };
+      await addRoster(firmId, 7);
+      await grantTo(firmId);
+      expect((await postPortal(cookie, { STRIPE_PORTAL_CONFIGS: FOUNDING_CONFIGS })).status).toBe(200);
+      expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_growth1");
+    });
+    it("granted + trialing but founding_trial NOT provisioned -> 503, no portal session (fails closed, never falls back to a config that allows adding a card)", async () => {
+      await env.DB.prepare("DELETE FROM founding_firm_grants").run();
+      const subs: Record<string, SubStub | undefined> = {};
+      const calls = installFetch(subs);
+      const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+      subs[sub] = { status: "trialing", items: [{ price: "price_gr_a", quantity: 1 }] };
+      await addRoster(firmId, 7);
+      await grantTo(firmId);
+      expect((await postPortal(cookie)).status).toBe(503); // BASE_ENV CONFIGS has no founding_trial key
+      expect(calls.portalPosts).toHaveLength(0);
+    });
   });
   it("a subscription Stripe doesn't have, or whose shape isn't recognised, gets the no-switching config", async () => {
     const subs: Record<string, SubStub | undefined> = {};

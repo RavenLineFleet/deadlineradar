@@ -48,6 +48,10 @@ interface StripeCheckoutSessionParams {
    * no invoice, no charge, no past_due). Never combined with couponId by the
    * caller -- Stripe's discounts array is replaced wholesale, not merged. */
   noCardTrialDays?: number;
+  /** Unix seconds after which the Checkout Session can no longer be completed.
+   * Stripe allows 30 min .. 24 h (default 24 h). Founding Firms sessions use a
+   * short window so a revoked grant's open session cannot land much later. */
+  expiresAtSeconds?: number;
 }
 
 export interface StripeCheckoutSession {
@@ -85,6 +89,9 @@ export async function createCheckoutSession(
   }
   if (params.couponId) {
     body.set("discounts[0][coupon]", params.couponId);
+  }
+  if (params.expiresAtSeconds !== undefined) {
+    body.set("expires_at", String(params.expiresAtSeconds));
   }
   if (params.noCardTrialDays !== undefined) {
     body.set("subscription_data[trial_period_days]", String(params.noCardTrialDays));
@@ -263,6 +270,22 @@ export interface StripeSubscriptionCancellation {
  * value -- Stripe supports un-cancelling a still-active subscription this
  * way with no separate endpoint.
  */
+/**
+ * DELETE /v1/subscriptions/{id} -- cancels immediately. Used ONLY to retire a
+ * Founding Firms trial subscription that has no live grant behind it (revoked
+ * mid-checkout, or a duplicate session). A $0 no-card trial: nothing to refund.
+ */
+export async function cancelSubscriptionNow(secretKey: string, subscriptionId: string): Promise<void> {
+  const res = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}` },
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new StripeApiError(json.error?.message ?? "Stripe subscription cancel failed.", res.status);
+  }
+}
+
 export async function updateSubscriptionCancelAtPeriodEnd(
   secretKey: string,
   subscriptionId: string,

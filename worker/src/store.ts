@@ -2491,7 +2491,8 @@ export async function recordFirmDeletionRefund(db: D1Database, firmId: string, r
  * founding_firm_grants (migration 0090) is left alone for the same reason in
  * reverse: it is the "exactly 5, ever" cap, and deleting a firm's row would
  * hand its slot back. Like stripe_webhook_events it is scrubbed, not purged:
- * firm_id and stripe_subscription_id are set NULL (RETAIN-4 shape).
+ * firm_id and stripe_subscription_id are set NULL and evidence_note blanked
+ * (RETAIN-4 shape).
  *
  * Returns the ids actually deleted, so the caller can log a real count
  * instead of a silent no-op either way.
@@ -2688,10 +2689,13 @@ export async function hardDeleteExpiredFirms(
       await db.prepare(`UPDATE stripe_webhook_events SET firm_id = NULL WHERE firm_id = ?1`).bind(firmId).run();
       // Founding Firms (migration 0090, SecurityLab MEDIUM-2): the grant row
       // is retained (the slot stays consumed: "exactly 5, ever") but released
-      // from the deleted firm and from its Stripe subscription, so what
-      // survives is only "slot N was used".
+      // from the deleted firm, its Stripe subscription and the operator's
+      // evidence note (which can name the firm; AuditLab FFT-4), so what
+      // survives is only "slot N was used, when, and by whom it was verified".
       await db
-        .prepare(`UPDATE founding_firm_grants SET firm_id = NULL, stripe_subscription_id = NULL WHERE firm_id = ?1`)
+        .prepare(
+          `UPDATE founding_firm_grants SET firm_id = NULL, stripe_subscription_id = NULL, evidence_note = '' WHERE firm_id = ?1`
+        )
         .bind(firmId)
         .run();
       // RETAIN-5 (AuditLab/SecurityLab, HIGH, 2026-10-02): same shape as
@@ -3691,21 +3695,23 @@ export async function getFoundingFirmGrant(db: D1Database, firmId: string): Prom
 
 /**
  * Stamps the grant as used, exactly once: true only for the call that moved
- * trial_started_at from NULL. Scoped by BOTH firm_id and slot so a metadata
- * value alone (never trusted) cannot claim someone else's grant.
+ * trial_started_at from NULL. Keyed on firm_id ALONE (UNIQUE), never on a slot
+ * taken from session metadata: a slot number can go stale (revoke + re-grant
+ * between session creation and completion), and a stale-slot miss must not be
+ * confused with a live grant (AuditLab FFT-1). `false` therefore means exactly
+ * "this firm has no unstarted grant right now".
  */
 export async function claimFoundingFirmTrialStart(
   db: D1Database,
   firmId: string,
-  slot: number,
   stripeSubscriptionId: string
 ): Promise<boolean> {
   const result = await db
     .prepare(
       `UPDATE founding_firm_grants SET trial_started_at = ?1, stripe_subscription_id = ?2
-       WHERE firm_id = ?3 AND slot = ?4 AND trial_started_at IS NULL`
+       WHERE firm_id = ?3 AND trial_started_at IS NULL`
     )
-    .bind(nowIso(), stripeSubscriptionId, firmId, slot)
+    .bind(nowIso(), stripeSubscriptionId, firmId)
     .run();
   return (result.meta.changes ?? 0) > 0;
 }

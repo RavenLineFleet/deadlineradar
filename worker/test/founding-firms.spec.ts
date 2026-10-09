@@ -92,6 +92,15 @@ async function completed(firmId: string, subId: string, metadata: Record<string,
   const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
   return workerFetch(new Request("https://deadline-radar.com/stripe/webhook", { method: "POST", headers: { "content-type": "application/json", "Stripe-Signature": sig }, body: payload }));
 }
+function recordFetch(): { calls: { url: string; method: string }[] } {
+  const calls: { url: string; method: string }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    calls.push({ url, method: init?.method ?? "GET" });
+    return new Response("{}", { status: 200 });
+  });
+  return { calls };
+}
 function trialKeys(b: URLSearchParams): string[] {
   return [...b.keys()].filter((k) => k.startsWith("subscription_data") || k === "payment_method_collection");
 }
@@ -144,6 +153,7 @@ describe("founding_firm_grants table: the cap is structural", () => {
     expect(row).not.toBeNull();
     expect(row?.firm_id).toBeNull();
     expect(row?.stripe_subscription_id).toBeNull();
+    expect(row?.evidence_note).toBe(""); // the operator's note can name the firm (AuditLab FFT-4)
     expect(row?.trial_started_at).not.toBeNull(); // history of use is kept
   });
   it("CONTROL: another firm's grant row is untouched by a different firm's hard delete", async () => {
@@ -219,16 +229,32 @@ describe("POST /firm/billing/checkout with a founding grant", () => {
     expect(bodies).toHaveLength(0);
   });
 
-  it("granted with a roster above Growth's cap: 400 naming the cap, no Stripe call", async () => {
+  it("AuditLab FFT-5: granted with a roster above Growth's cap falls through to an ordinary paid checkout (any tier), never a dead end", async () => {
     await clearGrants();
     const { firmId, cookie } = await makeFirm();
     await addRoster(firmId, 11);
     await grant(firmId, 1);
     const { bodies } = mockStripe();
-    const r = await checkout(cookie, { tier: "firm_growth" });
-    expect(r.status).toBe(400);
-    expect(((await r.json()) as { error: string }).error).toMatch(/up to 10 staff/);
-    expect(bodies).toHaveLength(0);
+    expect((await checkout(cookie, { tier: "firm_growth" })).status).toBe(400); // Growth cannot hold 11: ordinary rule, not a founding dead end
+    expect((await checkout(cookie, { tier: "firm_standard" })).status).toBe(200);
+    expect(trialKeys(bodies[0]!)).toEqual([]);
+    expect(bodies[0]!.get("metadata[founding_firm_slot]")).toBeNull();
+    expect(bodies[0]!.get("expires_at")).toBeNull();
+  });
+
+  it("AuditLab FFT-1: a founding session expires in about an hour; an ordinary session carries no expires_at", async () => {
+    await clearGrants();
+    const g = await makeFirm();
+    await grant(g.firmId, 1);
+    const plain = await makeFirm();
+    const { bodies } = mockStripe();
+    await checkout(g.cookie, { tier: "firm_growth" });
+    await checkout(plain.cookie, { tier: "firm_growth" });
+    const exp = Number(bodies[0]!.get("expires_at"));
+    const nowS = Math.floor(Date.now() / 1000);
+    expect(exp).toBeGreaterThan(nowS + 1800); // Stripe's 30-minute floor
+    expect(exp).toBeLessThanOrEqual(nowS + 3700);
+    expect(bodies[1]!.get("expires_at")).toBeNull();
   });
 
   it("a grant whose trial already started is NOT a second free year: plain checkout again", async () => {
@@ -305,26 +331,85 @@ describe("checkout.session.completed for a founding trial", () => {
     expect(trialKeys(bodies[0]!)).toEqual([]);
   });
 
-  it("a second completed session for the same grant does not restamp (first subscription id wins)", async () => {
+  it("AuditLab FFT-2: a SECOND completed session for the same grant is cancelled in Stripe, never tracked; the first subscription stays on the firm", async () => {
     await clearGrants();
     const { firmId } = await makeFirm();
     await grant(firmId, 1);
-    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
+    const { calls } = recordFetch();
     await completed(firmId, "sub_first", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
-    await completed(firmId, "sub_second", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]); // control: the legitimate first one is not cancelled
+    const r = await completed(firmId, "sub_second", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
+    expect(r.status).toBe(200);
     expect((await store.getFoundingFirmGrant(env.DB, firmId))?.stripe_subscription_id).toBe("sub_first");
+    expect((await store.getFirmById(env.DB, firmId))?.stripe_subscription_id).toBe("sub_first");
+    const deletes = calls.filter((c) => c.method === "DELETE");
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]!.url).toBe("https://api.stripe.com/v1/subscriptions/sub_second");
   });
 
-  it("metadata naming someone else's slot, or a slot that is not 1-5, stamps nothing", async () => {
+  it("AuditLab FFT-1: grant REVOKED (and the slot re-granted to another firm) while a session was open -> the late completion gets NO free year, its subscription is cancelled, the other firm's grant is untouched", async () => {
+    await clearGrants();
+    const a = await makeFirm();
+    const b = await makeFirm();
+    await grant(a.firmId, 1);
+    const { bodies } = mockStripe();
+    expect((await checkout(a.cookie, { tier: "firm_growth" })).status).toBe(200);
+    expect(bodies[0]!.get("metadata[founding_firm_slot]")).toBe("1");
+    vi.restoreAllMocks();
+    await env.DB.prepare("DELETE FROM founding_firm_grants WHERE firm_id = ?1").bind(a.firmId).run(); // operator revokes
+    await grant(b.firmId, 1); // ...and re-grants slot 1 to B
+    const { calls } = recordFetch();
+    const r = await completed(a.firmId, "sub_a_late", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
+    expect(r.status).toBe(200);
+    const aFirm = await store.getFirmById(env.DB, a.firmId);
+    expect(aFirm?.plan_tier).toBe("free");
+    expect(aFirm?.stripe_subscription_id).toBeNull();
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["https://api.stripe.com/v1/subscriptions/sub_a_late"]);
+    expect((await store.getFoundingFirmGrant(env.DB, b.firmId))?.trial_started_at).toBeNull();
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM founding_firm_grants").first<{ n: number }>())?.n).toBe(1);
+  });
+
+  it("AuditLab FFT-1b: revoke + re-grant the SAME firm on a different slot -> the old session still lands on the NEW live grant (keyed on the firm, not the stale slot)", async () => {
+    await clearGrants();
+    const a = await makeFirm();
+    await grant(a.firmId, 2);
+    await env.DB.prepare("DELETE FROM founding_firm_grants WHERE firm_id = ?1").bind(a.firmId).run();
+    await grant(a.firmId, 1);
+    const { calls } = recordFetch();
+    await completed(a.firmId, "sub_a", { target_plan_tier: "firm_growth", founding_firm_slot: "2" });
+    expect((await store.getFoundingFirmGrant(env.DB, a.firmId))?.stripe_subscription_id).toBe("sub_a");
+    expect((await store.getFirmById(env.DB, a.firmId))?.plan_tier).toBe("firm_growth");
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+  });
+
+  it("metadata claiming a founding trial for a firm with NO grant at all gets nothing: no tier, subscription cancelled; a slot outside 1-5 is not a founding marker (ordinary paid path)", async () => {
     await clearGrants();
     const victim = await makeFirm();
     await grant(victim.firmId, 4);
     const attacker = await makeFirm();
-    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
+    const { calls } = recordFetch();
     await completed(attacker.firmId, "sub_x", { target_plan_tier: "firm_growth", founding_firm_slot: "4" });
+    expect((await store.getFirmById(env.DB, attacker.firmId))?.plan_tier).toBe("free");
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["https://api.stripe.com/v1/subscriptions/sub_x"]);
     await completed(attacker.firmId, "sub_y", { target_plan_tier: "firm_growth", founding_firm_slot: "9" });
     await completed(attacker.firmId, "sub_z", { target_plan_tier: "firm_growth", founding_firm_slot: "4; DROP" });
     expect((await store.getFoundingFirmGrant(env.DB, victim.firmId))?.trial_started_at).toBeNull();
+  });
+
+  it("SecurityLab MEDIUM-4: a REFERRED founding firm resolves no referral on the $0 session (no coupon call, no referral_reward_applied_at); eligibility is kept for its first paid checkout", async () => {
+    await clearGrants();
+    const referrer = await makeFirm();
+    const { firmId } = await makeFirm();
+    await env.DB.prepare("UPDATE firms SET referred_by_firm_id = ?1 WHERE id = ?2").bind(referrer.firmId, firmId).run();
+    await grant(firmId, 1);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
+    await completed(firmId, "sub_ref", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("firm_growth");
+    expect(firm?.referral_reward_applied_at).toBeNull();
+    expect(firm?.referred_by_firm_id).toBe(referrer.firmId);
+    const couponCalls = fetchSpy.mock.calls.filter((c) => String((c[1] as RequestInit | undefined)?.body ?? "").includes("coupon"));
+    expect(couponCalls).toEqual([]);
   });
 
   it("CONTROL: a normal paid session (no founding metadata) leaves every grant untouched", async () => {

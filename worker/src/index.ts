@@ -291,6 +291,7 @@ import {
   firmTierByPlanTier,
   deriveSubscriptionState,
   firmTierForSeatCount,
+  portalConfigurationIdForFoundingTrial,
   portalConfigurationIdForRoster,
   referralTierCouponId,
   seatCapForFirmTier,
@@ -301,6 +302,7 @@ import {
 import {
   createBillingPortalSession,
   fetchStripeSubscription,
+  cancelSubscriptionNow,
   createCheckoutSession,
   updateSubscriptionCancelAtPeriodEnd,
   getLatestInvoiceForSubscription,
@@ -3638,26 +3640,27 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   // The slot is read from D1 here and re-verified against D1 at the webhook;
   // nothing the client sends decides eligibility.
   const foundingGrant = await store.getFoundingFirmGrant(env.DB, firm.id);
-  // Also requires NO stripe_customer_id: the webhook stamps the grant
-  // best-effort (its retry cannot fire, SecurityLab HIGH-1), so "this firm
-  // has never been a Stripe customer" is the backstop that makes a lost stamp
-  // unable to hand out a second free year.
-  const foundingTrial = foundingGrant !== null && foundingGrant.trial_started_at === null && !firm.stripe_customer_id;
-  if (foundingTrial && tierDef.planTier !== FOUNDING_FIRM_PLAN_TIER) {
-    return jsonResponse(400, { error: "Your Founding Firm plan is Growth. Choose Growth to start it." });
-  }
-  const checkoutInterval: "annual" | "monthly" = foundingTrial ? "annual" : interval;
 
   // The firm's LIVE roster count at click-time -- never trusted from the
   // request -- so a client can never buy a cheaper tier than its real
   // headcount qualifies for. There is no staff-count value captured at
   // signup to compare against instead; this is the actual source of truth.
   const seatCount = await store.countFirmLicenses(env.DB, session.firmId);
-  if (foundingTrial && seatCount > tierDef.seatCap) {
-    return jsonResponse(400, {
-      error: `The Founding Firm plan covers up to ${tierDef.seatCap} staff and your roster has ${seatCount}. Remove staff to fit, or get in touch.`,
-    });
+  const foundingGrowthCap = firmTierByPlanTier(FOUNDING_FIRM_PLAN_TIER)?.seatCap ?? 0;
+  // Also requires NO stripe_customer_id: "this firm has never been a Stripe
+  // customer" is the backstop that makes a lost grant stamp unable to hand out
+  // a second free year (SecurityLab HIGH-1). And a roster above Growth's cap
+  // falls through to the ordinary paid checkout (AuditLab FFT-5) -- the trial
+  // is Growth-only, so refusing every tier would leave the firm unable to pay.
+  const foundingTrial =
+    foundingGrant !== null &&
+    foundingGrant.trial_started_at === null &&
+    !firm.stripe_customer_id &&
+    seatCount <= foundingGrowthCap;
+  if (foundingTrial && tierDef.planTier !== FOUNDING_FIRM_PLAN_TIER) {
+    return jsonResponse(400, { error: "Your Founding Firm plan is Growth. Choose Growth to start it." });
   }
+  const checkoutInterval: "annual" | "monthly" = foundingTrial ? "annual" : interval;
   const minimumTier = firmTierForSeatCount(seatCount);
   // PR6 per-seat add-on (2026-10-02, Devin approved 2026-10-02 12:01 MDT):
   // above the top tier's seat cap, checkout is no longer a flat refusal --
@@ -3738,6 +3741,9 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
       couponId: foundingTrial ? undefined : referralCouponId,
       extraLineItem: perSeatAddonPriceId ? { priceId: perSeatAddonPriceId, quantity: extraSeats } : undefined,
       noCardTrialDays: foundingTrial ? FOUNDING_FIRM_TRIAL_DAYS : undefined,
+      // One hour (Stripe allows 30 min - 24 h): a session minted just before an
+      // operator revokes the grant cannot land a day later (AuditLab FFT-1).
+      expiresAtSeconds: foundingTrial ? Math.floor(Date.now() / 1000) + 3600 : undefined,
     });
     return jsonResponse(200, { checkout_url: checkoutSession.url });
   } catch (err) {
@@ -3801,12 +3807,17 @@ async function handleFirmBillingPortal(request: Request, env: Env): Promise<Resp
     // recognised exactly, also gets the no-switching configuration.
     const snapshot = await fetchStripeSubscription(env.STRIPE_SECRET_KEY, session.firm.stripe_subscription_id);
     const derived = snapshot ? deriveSubscriptionState(env, snapshot.items) : null;
-    // Founding Firms: a granted firm is never offered plan switching either
-    // (portal behaviour on a trial subscription is unmeasured, so the choice
-    // is removed rather than guessed at).
-    const foundingGrant = await store.getFoundingFirmGrant(env.DB, session.firmId);
-    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0 || foundingGrant !== null;
-    const configurationId = portalConfigurationIdForRoster(env, rosterCount, noSwitching);
+    // Founding Firms: only while the trial is LIVE (the Stripe snapshot says
+    // "trialing") the firm gets the dedicated configuration with no plan
+    // switching AND no payment-method update. A founding firm that has
+    // converted (status "active") is an ordinary customer again (AuditLab
+    // FFT-3). Fail closed if that configuration is not provisioned (FFT-6).
+    const foundingTrialLive =
+      snapshot?.status === "trialing" && (await store.getFoundingFirmGrant(env.DB, session.firmId)) !== null;
+    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0;
+    const configurationId = foundingTrialLive
+      ? portalConfigurationIdForFoundingTrial(env)
+      : portalConfigurationIdForRoster(env, rosterCount, noSwitching);
     if (!configurationId) {
       return jsonResponse(503, { error: "Billing management isn't available right now. Please try again later." });
     }
@@ -4210,6 +4221,15 @@ async function applyReferralRewardIfEligible(env: Env, referredFirmId: string, c
   // reopen the exact "referred firm never gets claimed, coupon reusable
   // forever" gap this function's own docstring describes fixing. Widen this
   // check to accept "no_payment_required" too if that ever changes.
+  //
+  // DECIDED 2026-10-09 (SecurityLab MEDIUM-4): the Founding Firms checkout IS
+  // the first fully-free session, and the early return below is deliberately
+  // KEPT for it -- widening would pay a referrer a compounding discount for a
+  // $0 signup. Nothing is lost or left claimable-forever: this function sets
+  // referral_reward_applied_at only when it claims, so a referred founding firm
+  // stays eligible on both sides and the referral resolves on its first real
+  // PAID checkout (the founding checkout also never spends the referee's own
+  // 10%: it sends no coupon). Pinned by founding-firms.spec.ts.
   if (checkoutSessionObject.payment_status !== "paid") return;
 
   const firm = await store.getFirmById(env.DB, referredFirmId);
@@ -4324,39 +4344,64 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     if (firmId && targetPlanTier && customerId && subscriptionId) {
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
       if (isNew) {
+        // Founding Firms (see FOUNDING_FIRMS_DESIGN.md). The slot in metadata is
+        // only a marker that this session was minted as a founding trial; WHAT
+        // decides is whether this firm has an unstarted grant right now
+        // (AuditLab FFT-1: never trust a slot number from session metadata).
+        //   claimed  -> record the trial subscription on the grant.
+        //   false    -> no live grant: revoked mid-checkout, or a duplicate
+        //               session. The subscription is a $0 no-card trial we do
+        //               not track, so cancel it, do NOT write the firm's tier,
+        //               and alert. Nothing was charged, nothing to refund.
+        //   threw    -> keep going and write the tier (the checkout-side
+        //               "never a Stripe customer" rule stops a second free
+        //               year), but alert. The retry a throw would rely on
+        //               cannot fire: the event id is already in the ledger
+        //               (SecurityLab HIGH-1, pre-existing ledger design).
+        const foundingMarker = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
+        let foundingStampError: string | null = null;
+        if (foundingMarker && /^[1-5]$/.test(foundingMarker)) {
+          let claimed = false;
+          try {
+            claimed = await store.claimFoundingFirmTrialStart(env.DB, firmId, subscriptionId);
+          } catch (err) {
+            foundingStampError = `founding trial stamp failed: ${String(err)}`;
+            claimed = true; // unknown, not "no grant" -- do not cancel on a D1 error
+          }
+          if (!claimed) {
+            let cancelNote = "cancelled in Stripe";
+            try {
+              if (!env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY unset");
+              await cancelSubscriptionNow(env.STRIPE_SECRET_KEY, subscriptionId);
+            } catch (err) {
+              cancelNote = `CANCEL FAILED (${String(err)}) -- cancel it by hand in Stripe`;
+            }
+            try {
+              await alertUnsynced(
+                env,
+                event.id,
+                firmId,
+                subscriptionId,
+                `founding trial session completed with no unstarted grant (revoked mid-checkout, or a duplicate session); trial subscription ${cancelNote}; firm's tier NOT changed`
+              );
+            } catch (err) {
+              console.log(`[founding-firm] rejected trial sub ${subscriptionId} for firm ${firmId} (${cancelNote}); alert failed: ${String(err)}`);
+            }
+            await store.markWebhookEventProcessed(env.DB, event.id);
+            return jsonResponse(200, { received: true });
+          }
+        }
         await store.updateFirmBilling(env.DB, firmId, {
           planTier: targetPlanTier,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           billingInterval,
         });
-        // Founding Firms: stamp the grant right after the tier write, and make
-        // it NON-throwing. The retry a throw would rely on cannot fire:
-        // recordWebhookEventIfNew() has already inserted this event id, so a
-        // redelivery hits the PK, returns false and skips this whole block
-        // (SecurityLab HIGH-1, pre-existing ledger design). The second-free-year
-        // risk of a lost stamp is closed independently: checkout only offers
-        // the trial to a firm with NO stripe_customer_id, and updateFirmBilling
-        // above just wrote one. The slot number comes from session metadata but
-        // is only a lookup key -- the UPDATE is scoped to this firm AND slot AND
-        // "not yet started". A failed or non-matching stamp alerts the operator
-        // (the existing billingSyncAlert email), because it can mean a second
-        // trial subscription our DB has no pointer to.
-        const foundingSlotRaw = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
-        if (foundingSlotRaw && /^[1-5]$/.test(foundingSlotRaw)) {
-          let foundingProblem: string | null = null;
+        if (foundingStampError) {
           try {
-            const stamped = await store.claimFoundingFirmTrialStart(env.DB, firmId, Number(foundingSlotRaw), subscriptionId);
-            if (!stamped) foundingProblem = `founding trial subscription not recorded on slot ${foundingSlotRaw}: no matching unstarted grant (duplicate session?)`;
+            await alertUnsynced(env, event.id, firmId, subscriptionId, foundingStampError);
           } catch (err) {
-            foundingProblem = `founding trial stamp failed for slot ${foundingSlotRaw}: ${String(err)}`;
-          }
-          if (foundingProblem) {
-            try {
-              await alertUnsynced(env, event.id, firmId, subscriptionId, foundingProblem);
-            } catch (err) {
-              console.log(`[founding-firm] ${foundingProblem}; alert also failed: ${String(err)}`);
-            }
+            console.log(`[founding-firm] ${foundingStampError}; alert also failed: ${String(err)}`);
           }
         }
         // PR6-B (migration 0086, 2026-10-02): "restored instantly on

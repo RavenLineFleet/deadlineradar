@@ -6617,11 +6617,14 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     #   webhook for this firm_id be reprocessed as new.
     # founding_firm_grants: migration 0090 -- the "exactly 5, ever" cap. A
     #   slot must stay consumed after its firm is deleted, so purging it with
-    #   the firm would hand the slot back. Like stripe_webhook_events it is
-    #   SCRUBBED instead: hardDeleteExpiredFirms() NULLs firm_id and
-    #   stripe_subscription_id (the two linkage fields), leaving a timestamp
-    #   and an operator note that carries no personal data.
-    deliberately_excluded = {"firms", "subscribers", "stripe_webhook_events", "founding_firm_grants"}
+    #   the firm would hand the slot back.
+    # Both of those last two are RETAINED-AND-SCRUBBED, not "unchecked": the
+    # gate also requires hardDeleteExpiredFirms() to contain an
+    # `UPDATE <table> SET` statement for each (SecurityLab 13:17: "retained"
+    # must not be a synonym for "nobody looked"), so a retained table cannot be
+    # added here without a scrub that releases its firm linkage.
+    scrubbed_retained = {"stripe_webhook_events", "founding_firm_grants"}
+    deliberately_excluded = {"firms", "subscribers"} | scrubbed_retained
 
     # GATE-7 (AuditLab, 2026-08-21, LOW, self-directed): the original
     # `\n\);` closer only matched a CREATE TABLE whose closing paren is the
@@ -6679,6 +6682,13 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
     missing = sorted(in_migrations - covered - deliberately_excluded)
     stale = sorted(covered - in_migrations)
 
+    hd = re.search(r"export async function hardDeleteExpiredFirms[\s\S]*?\n}\n", store_src)
+    hard_delete_body = hd.group(0) if hd else ""
+    unscrubbed = sorted(
+        t for t in scrubbed_retained
+        if t in in_migrations and not re.search(rf"UPDATE\s+{t}\s+SET", hard_delete_body)
+    )
+
     # Anchors: tables whose rows are known to be purged (or, for
     # `subscribers` itself, deliberately handled by a dedicated DELETE)
     # when a firm is hard-deleted. NOT the full deliberately_excluded set --
@@ -6710,6 +6720,11 @@ def check_retention_coverage(repo_root: Path) -> list[str]:
         errors.append(
             "[RETAIN] firm-scoped table(s) NOT in store.ts's FIRM_SCOPED_TABLES and not "
             f"deliberately excluded -- a deleted firm's rows here survive forever: {', '.join(missing)}"
+        )
+    if unscrubbed:
+        errors.append(
+            "[RETAIN] retained table(s) with no `UPDATE <table> SET` scrub inside hardDeleteExpiredFirms() -- "
+            f"a deleted firm's linkage survives in them: {', '.join(unscrubbed)}"
         )
     if stale:
         errors.append(
