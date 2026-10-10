@@ -276,6 +276,7 @@ import {
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
 import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup } from "./entitlements";
+import { computeSeatUsage, decideAdd, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
   lookupAssistantCpe,
@@ -7083,7 +7084,7 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
   // firmRosterOverCapUnpaidPostTrial()'s own comment for the exact bypass
   // this closes. Checked before ownership/cap below since there's nothing
   // to validate a selection against if there's nothing to choose between.
-  if (!store.firmRosterOverCapUnpaidPostTrial(session.firm, roster.length)) {
+  if (!store.firmRosterOverCapUnpaidPostTrial(session.firm, computeSeatUsage(roster).people)) {
     return jsonResponse(400, { error: "There's nothing to choose yet -- your roster isn't over your plan's staff limit." });
   }
 
@@ -7094,7 +7095,10 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
   }
 
   const cap = seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
-  if (requestedIds.length > cap) {
+  // Seats are people (seat_usage.ts): several lines for one person count once,
+  // and firm-entity lines use no seat.
+  const requestedSet = new Set(requestedIds);
+  if (computeSeatUsage(roster.filter((r) => requestedSet.has(r.id))).people > cap) {
     return jsonResponse(400, { error: `You can keep at most ${cap} staff active on your current plan.` });
   }
 
@@ -7185,6 +7189,9 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     // subscribed gets ITS tier's own cap, trial or not). Same sentinel the
     // enforcement gate below uses, so the two can never disagree.
     seat_cap: trialLiftsSeatCap(session.firm) ? TRIAL_SEAT_CAP : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at),
+    // Seats used = distinct people, not lines (seat_usage.ts, 2026-10-10): the
+    // dashboard compares THIS to seat_cap, never its own roster row count.
+    seat_count: computeSeatUsage(rows).people,
     trial_ends_at: session.firm.trial_ends_at,
     // PR6-B (migration 0086, 2026-10-02): null until the admin's first
     // explicit roster-pause pick -- the dashboard uses this (plus whether
@@ -8253,51 +8260,6 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     return jsonResponse(429, { error: "Too many staff added today for this firm. Please try again in 24 hours." });
   }
 
-  // BILL-1 (2026-08-04, Devin's decision): enforce the advertised self-serve
-  // cap -- tier-aware since the same-day paid-tiers build (seatCapForFirmTier
-  // falls back to today's SELF_SERVE_SEAT_CAP for `pilot`/any unrecognised
-  // tier, so pre-conversion behavior is unchanged). Frozen-at-current-count
-  // grandfathering, not a retroactive lockout: a firm already AT or OVER the
-  // cap is never touched here -- existing roster rows keep working exactly
-  // as before, nothing is deactivated -- this only blocks adding MORE staff
-  // once the count is at or past the cap. That freezes any already-over-cap
-  // firm at whatever it already had, which was the explicit instruction
-  // rather than either force-removing rows down to the cap or silently
-  // exempting them from it going forward.
-  // PR6 round 2 (migration 0085/0086, 2026-10-02): the 14-day trial lifts
-  // this cap to TRIAL_SEAT_CAP (35, not unlimited) for a firm with no paid
-  // tier of its own yet (trialLiftsSeatCap()) -- same constant the
-  // dashboard display above uses, so what's shown and what's enforced can
-  // never disagree. Once the trial lapses, this reverts to the ordinary
-  // (non-trial) cap on its own -- no separate expiry code needed for the
-  // ADD-staff gate itself; the roster-pause reconciliation (store.ts's
-  // reconcileRosterPauseState()) is the separate mechanism that decides
-  // which of an already-over-cap roster's EXISTING members keep getting
-  // reminders once that happens.
-  const seatCap = trialLiftsSeatCap(session.firm)
-    ? TRIAL_SEAT_CAP
-    : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
-  const currentSeatCount = await store.countFirmLicenses(env.DB, session.firmId);
-  if (currentSeatCount >= seatCap) {
-    // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to
-    // add more" pointed at /firm-dashboard/#account regardless of who hit
-    // this -- correct for a free/pilot firm (that panel's real checkout
-    // buttons genuinely start a paid subscription), but a firm ALREADY on
-    // a named paid tier has no self-serve path to a HIGHER tier there --
-    // today that's cancel, wait for annual billing to clear (up to 12
-    // months), then re-buy. Pointing an already-paying customer at a panel
-    // with nothing to click for their actual situation was the bug;
-    // distinguishing on firmTierByPlanTier() (null for free/pilot, a real
-    // tier def otherwise) sends each to the step that's actually real for
-    // them.
-    const onPaidTier = firmTierByPlanTier(session.firm.plan_tier) !== null;
-    return jsonResponse(402, {
-      error: onPaidTier
-        ? `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier -- there's no self-serve tier change yet.`
-        : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
-      pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
-    });
-  }
 
   const parsed = await readFirmLicenseJsonBody(request);
   if (parsed instanceof Response) return parsed;
@@ -8384,6 +8346,55 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   if (existing) {
     return jsonResponse(409, {
       error: "A subscriber already exists for this email and state (possibly a free-tier signup, or already on a firm's roster).",
+    });
+  }
+
+  // BILL-1 (2026-08-04) seat cap, reworked 2026-10-10 (Devin, option 2b): the
+  // cap counts PEOPLE, not lines -- a second state for someone already on the
+  // roster uses no seat, and a firm-entity ("-firm") permit/registration line
+  // uses none either. See seat_usage.ts for the identity rule, the two line
+  // ceilings and why decideAdd() lives in one pure place. Frozen-at-current
+  // grandfathering is unchanged: a firm already AT or OVER the cap keeps every
+  // existing row; only an add that would take a NEW person past the cap is
+  // refused. The 14-day trial still lifts the cap to TRIAL_SEAT_CAP for a firm
+  // with no paid tier (trialLiftsSeatCap()), same constant the dashboard shows.
+  const seatCap = trialLiftsSeatCap(session.firm)
+    ? TRIAL_SEAT_CAP
+    : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
+  const seatDecision = decideAdd(
+    computeSeatUsage(await store.listFirmLicenses(env.DB, session.firmId)),
+    email,
+    deadlineFields.license_type_id,
+    seatCap
+  );
+  if (!seatDecision.ok) {
+    if (seatDecision.reason === "person_line_ceiling") {
+      return jsonResponse(400, {
+        error: `One person can have up to ${PER_PERSON_LINE_CEILING} state lines on a roster. If this is a different person, use their own email address.`,
+      });
+    }
+    if (seatDecision.reason === "firm_entity_type_ceiling") {
+      return jsonResponse(400, {
+        error: `That firm permit or registration is already tracked on ${FIRM_ENTITY_LINES_PER_TYPE} lines. Email us if you need more contacts on it.`,
+      });
+    }
+    if (seatDecision.reason === "firm_entity_ceiling") {
+      return jsonResponse(400, {
+        error: `A roster can track up to ${FIRM_ENTITY_LINE_CEILING} firm permits or registrations. Email us if your firm needs more.`,
+      });
+    }
+    // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to add
+    // more" points at /firm-dashboard/#account for a free/pilot firm (that
+    // panel's checkout genuinely starts a paid subscription), but a firm
+    // ALREADY on a named paid tier has no self-serve path to a HIGHER tier
+    // there, so it is sent to /contact/ instead (firmTierByPlanTier() is null
+    // for free/pilot, a real tier def otherwise).
+    const onPaidTier = firmTierByPlanTier(session.firm.plan_tier) !== null;
+    return jsonResponse(402, {
+      error: onPaidTier
+        ? `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier -- there's no self-serve tier change yet.`
+        : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
+      pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
     });
   }
 

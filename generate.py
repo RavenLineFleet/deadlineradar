@@ -12816,6 +12816,13 @@ var drRuleChangeModalCurrentEvent = null;
 // show a number we haven't actually gotten from the server yet" posture as
 // drLicenses starting empty rather than a guessed default.
 var drSeatCap = null;
+// Seats used = distinct PEOPLE (one person in several states is one seat,
+// firm-entity permit lines use none), computed server-side as seat_count.
+// Every comparison against drSeatCap uses drSeatUsed(), never the row count.
+// Falls back to the row count only until the first real load (or if an older
+// server omits seat_count).
+var drSeatCount = null;
+function drSeatUsed() { return drSeatCount !== null ? drSeatCount : drLicenses.length; }
 
 // Self-serve cancellation (2026-08-05, migration 0021). Same "null until
 // the first real load" posture as drSeatCap above.
@@ -13705,7 +13712,7 @@ function drRenderCsvPreview() {
     // rather than a new fetch.
     var seatCapNote = '';
     if (drSeatCap !== null) {
-      var seatsAvailable = Math.max(0, drSeatCap - drLicenses.length);
+      var seatsAvailable = Math.max(0, drSeatCap - drSeatUsed());
       var willFit = Math.min(validCount, seatsAvailable);
       if (willFit < validCount) {
         seatCapNote = ' Only ' + willFit + ' of those ' + validCount + ' will fit on your current plan --' +
@@ -13956,7 +13963,7 @@ function drRenderStats() {
   // actual percentage ("80%") -- easy to misread as a second, competing
   // compliance number instead of what it actually is: plan SEAT usage.
   // "X of Y seats used" names the axis explicitly.
-  var seatSub = drSeatCap !== null ? total + ' of ' + drSeatCap + ' seats used' : total + ' staff tracked';
+  var seatSub = drSeatCap !== null ? drSeatUsed() + ' of ' + drSeatCap + ' seats used' : total + ' staff tracked';
 
   row.innerHTML =
     '<div class="dr-stat-card">' + drDonutSvg(proximity, total, DR_PROXIMITY_ORDER, DR_PROXIMITY_COLORS, DR_PROXIMITY_LABELS) +
@@ -14509,7 +14516,7 @@ function drRenderTrialBanner() {
     var base = daysLeft === 1
       ? 'Your 14-day trial of the paid features ends tomorrow.'
       : 'Your 14-day trial of the paid features ends in ' + daysLeft + ' days.';
-    var seatCount = drLicenses.length;
+    var seatCount = drSeatUsed();
     var pickWarning = seatCount > DR_FREE_STAFF_CAP
       ? (' Your roster (' + seatCount + ' staff) is above the free tier’s ' + DR_FREE_STAFF_CAP + '-staff limit -- ' +
          'pick a plan, or choose which ' + DR_FREE_STAFF_CAP + ' stay active, before then. Staff you don’t ' +
@@ -14535,7 +14542,7 @@ function drRenderRosterPausePicker() {
   var pausedCount = drLicenses.filter(function(l) { return l.paused; }).length;
   var trialEndsAt = drBilling.trialEndsAt;
   var trialLapsed = trialEndsAt && Date.now() >= Date.parse(trialEndsAt);
-  var overCapNoPickYet = trialLapsed && drLicenses.length > DR_FREE_STAFF_CAP && !drBilling.activeStaffChoiceAt && pausedCount === 0;
+  var overCapNoPickYet = trialLapsed && drSeatUsed() > DR_FREE_STAFF_CAP && !drBilling.activeStaffChoiceAt && pausedCount === 0;
   if (pausedCount === 0 && !overCapNoPickYet) { el.hidden = true; return; }
 
   var introEl = document.getElementById('dr-roster-pause-picker-intro');
@@ -14543,7 +14550,7 @@ function drRenderRosterPausePicker() {
     introEl.textContent = pausedCount > 0
       ? (pausedCount + ' of ' + drLicenses.length + ' staff are currently paused (no reminders). Pick up to ' +
          DR_FREE_STAFF_CAP + ' to keep active -- changes take effect immediately.')
-      : ('Your trial has ended and your roster (' + drLicenses.length + ' staff) is above the free tier’s ' +
+      : ('Your trial has ended and your roster (' + drSeatUsed() + ' staff) is above the free tier’s ' +
          DR_FREE_STAFF_CAP + '-staff limit. Pick up to ' + DR_FREE_STAFF_CAP + ' to keep active, or upgrade for everyone.');
   }
 
@@ -14568,7 +14575,17 @@ function drSaveRosterActivePicks() {
   if (!listEl) return;
   var checked = Array.prototype.slice.call(listEl.querySelectorAll('.dr-roster-pause-picker-checkbox:checked'));
   var ids = checked.map(function(c) { return c.value; });
-  if (ids.length > DR_FREE_STAFF_CAP) {
+  // Seats are people: several lines for one person count once, and firm-entity
+  // lines (license type ending -firm) use none; the server re-checks this.
+  var pickedPeople = {};
+  var pickedCount = 0;
+  drLicenses.forEach(function(l) {
+    if (ids.indexOf(l.id) === -1) return;
+    if (typeof l.license_type_id === 'string' && /-firm$/.test(l.license_type_id)) return;
+    var pk = String(l.email || '').trim().toLowerCase();
+    if (!pickedPeople[pk]) { pickedPeople[pk] = true; pickedCount++; }
+  });
+  if (pickedCount > DR_FREE_STAFF_CAP) {
     if (errEl) { errEl.textContent = 'Pick at most ' + DR_FREE_STAFF_CAP + ' staff, or upgrade to keep everyone active.'; errEl.hidden = false; }
     return;
   }
@@ -14739,7 +14756,7 @@ function drRenderBillingPanel() {
     // always accepted a free-tier firm. Same tier-fit filtering the old
     // whole-dashboard paywall panel used (courtesy only -- checkout
     // re-checks the real roster count server-side either way).
-    var seatCount = drLicenses.length;
+    var seatCount = drSeatUsed();
     var topTier = DR_BILLING_TIERS[DR_BILLING_TIERS.length - 1];
     // PR6 (2026-10-02): annual/monthly toggle -- exact prices from
     // DR_BILLING_TIERS, savings % always computed (drAnnualSavingsPercent),
@@ -17952,6 +17969,7 @@ function drLoadLicenses() {
       drPreviousLoginAt = data.previous_login_at || null;
       drNpsPromptDue = Boolean(data.nps_prompt_due);
       drSeatCap = typeof data.seat_cap === 'number' ? data.seat_cap : null;
+      drSeatCount = typeof data.seat_count === 'number' ? data.seat_count : null;
       // Roadmap #151 Phase 4: real server-computed value, replacing the
       // optimistic `true` default set above -- read by drRenderStats()/
       // drRenderAtRisk() below.

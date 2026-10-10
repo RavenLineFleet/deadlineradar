@@ -26,6 +26,7 @@ import { computeSubscriberDeadline, nearestSimpleFixedCalendarDeadlines } from "
 // doesn't introduce a real circular runtime dependency.
 import { checkPaidFeatureAccess, hasActiveTrial } from "./entitlements";
 import { seatCapForFirmTier } from "./tiers";
+import { computeSeatUsage, isFirmEntityRow, personKeyForEmail } from "./seat_usage";
 
 export const STATUS_PENDING = "pending_confirmation";
 export const STATUS_CONFIRMED = "confirmed";
@@ -2205,7 +2206,7 @@ function deriveDemoBaselineRoster(asOf: Date): { email: string; firstName: strin
 export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<{ seeded: boolean; count: number }> {
   const firm = await getDemoFirm(db);
   if (!firm) return { seeded: false, count: 0 };
-  const currentCount = await countFirmLicenses(db, firm.id);
+  const currentCount = await countFirmRosterLines(db, firm.id);
   if (currentCount >= DEMO_ROSTER_FLOOR) return { seeded: false, count: currentCount };
 
   for (const staffer of deriveDemoBaselineRoster(new Date())) {
@@ -2237,7 +2238,7 @@ export async function reseedDemoFirmRosterIfBelowFloor(db: D1Database): Promise<
       // Best-effort, same posture as the real add-staff handler.
     }
   }
-  return { seeded: true, count: await countFirmLicenses(db, firm.id) };
+  return { seeded: true, count: await countFirmRosterLines(db, firm.id) };
 }
 
 /**
@@ -3357,7 +3358,7 @@ export async function listReminderLogForFirm(db: D1Database, firmId: string): Pr
  * BILL-1 seat-cap check, which runs on every staff-create request and only
  * needs the number.
  */
-export async function countFirmLicenses(db: D1Database, firmId: string): Promise<number> {
+export async function countFirmRosterLines(db: D1Database, firmId: string): Promise<number> {
   const row = await db
     .prepare(
       `SELECT COUNT(*) AS n FROM subscribers
@@ -3366,6 +3367,19 @@ export async function countFirmLicenses(db: D1Database, firmId: string): Promise
     .bind(firmId, STATUS_STOPPED, STOP_REASON_REMOVED_BY_ADMIN)
     .first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+/**
+ * SEATS used by this firm (Devin 2026-10-10, option 2b): distinct PEOPLE, not
+ * roster lines -- one person in several states is one seat, and firm-entity
+ * ("-firm") lines use none. See seat_usage.ts for the identity rule and the
+ * ceilings. Every seat comparison (add gate, checkout tier, portal config,
+ * over-cap emails, subscription sync, pause reconciler) goes through here or
+ * through computeSeatUsage() on the same rows, so they cannot disagree.
+ * Raw line count (demo seeding only): countFirmRosterLines() above.
+ */
+export async function countFirmLicenses(db: D1Database, firmId: string): Promise<number> {
+  return computeSeatUsage(await listFirmLicenses(db, firmId)).people;
 }
 
 // ---------------------------------------------------------------------------
@@ -3481,7 +3495,7 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
   const roster = await listFirmLicenses(db, firmId);
   if (!firm) return roster;
 
-  if (!firmNeedsRosterPauseReconciliation(firm, roster.length)) {
+  if (!firmNeedsRosterPauseReconciliation(firm, computeSeatUsage(roster).people)) {
     // SecurityLab PR6-M (MEDIUM, 2026-10-03): `active_staff_choice_at` records
     // that a pick happened but carries no payload of its own -- the payload
     // IS the `paused_at` wholesale-unpause this branch just below performs
@@ -3510,8 +3524,25 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
   }
 
   const cap = seatCapForFirmTier(firm.plan_tier, firm.created_at);
+  // Seats are PEOPLE (seat_usage.ts): the earliest-added `cap` people stay
+  // active with ALL their lines, firm-entity lines never use a seat so they
+  // stay active too, everyone else's lines are paused.
   const sorted = [...roster].sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const activeIds = new Set(sorted.slice(0, cap).map((r) => r.id));
+  const activePeople = new Set<string>();
+  const activeIds = new Set<string>();
+  for (const r of sorted) {
+    if (isFirmEntityRow(r)) {
+      activeIds.add(r.id);
+      continue;
+    }
+    const key = personKeyForEmail(r.email);
+    if (activePeople.has(key)) {
+      activeIds.add(r.id);
+    } else if (activePeople.size < cap) {
+      activePeople.add(key);
+      activeIds.add(r.id);
+    }
+  }
   const now = nowIso();
   const toPause = roster.filter((r) => !activeIds.has(r.id) && r.paused_at === null).map((r) => r.id);
   const toUnpause = roster.filter((r) => activeIds.has(r.id) && r.paused_at !== null).map((r) => r.id);
