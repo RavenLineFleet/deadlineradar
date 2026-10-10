@@ -8607,8 +8607,24 @@ def print_es_translation_review_advisory(repo_root: Path) -> None:
     reviewed = total - len(pending)
     print(f"i18n.py Phase A keys: {total}   reviewed & current: {reviewed}   pending review: {len(pending)}")
     if pending:
-        print(f"  Pending (falls back to English until AuditLab approves): {', '.join(sorted(pending)[:10])}"
-              + (f" ... and {len(pending) - 10} more" if len(pending) > 10 else ""))
+        # AuditLab SRC-22 (2026-10-10): the old alphabetical [:10] hid every
+        # key that sits on a page with a LIVE /es/ build (they sort behind
+        # a11y.*/faq.firm.*, which have no /es/ page). Print those in full
+        # first -- they are English text served at a Spanish URL, not a
+        # review queue.
+        live_prefix = {
+            "pricing.": "pricing", "methodology.": "methodology", "msf.": "multi-state-firms",
+            "ppc.": "practice-privilege-check", "calc.": "deadline-calculator", "contact.": "contact",
+        }
+        live_pages = {
+            pfx: slug for pfx, slug in live_prefix.items() if (repo_root / "docs" / "es" / slug / "index.html").exists()
+        }
+        on_live = sorted(k for k in pending if any(k.startswith(p) for p in live_pages))
+        rest = sorted(k for k in pending if k not in on_live)
+        if on_live:
+            print(f"  ON A LIVE /es/ PAGE ({len(on_live)} -- English served at a Spanish URL): {', '.join(on_live)}")
+        print(f"  Other pending, no live /es/ page (falls back to English until AuditLab approves): {', '.join(rest[:10])}"
+              + (f" ... and {len(rest) - 10} more" if len(rest) > 10 else ""))
     else:
         print("  PASS -- every Phase A key has a reviewed, current Spanish translation.")
 
