@@ -975,14 +975,8 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.meta_description': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
-        # shortened to fit the SERP budget, so this translation no longer
-        # matches it. Marked unreviewed rather than asserting my own
-        # un-vetted Spanish as a fresh translation -- falls back to the
-        # (correctly short) English text until AuditLab reviews a real
-        # replacement, same posture as calc.meta_description above.
-        "text": 'El estándar de verificación de Deadline-Radar: cada fecha de renovación de licencia de CPA remite a la propia página de la junta estatal más el estatuto o norma codificada real detrás de ella — nunca una suposición.',
-        "en_hash": '7537769bf17371d3',
+        "text": 'Estándar de fuentes de Deadline-Radar: cada fecha de renovación remite a la página de la junta estatal y a la norma codificada — nunca una suposición.',
+        "en_hash": '788cc76b0aa7c29c',
         "reviewed": False,
     },
     'methodology.see_for_yourself_body': {
@@ -1061,11 +1055,8 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.meta_description': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
-        # shortened to fit the SERP budget, so this translation no longer
-        # matches it. Marked unreviewed, same posture as calc.meta_description.
-        "text": 'Para una firma de CPA con personal en varios estados: un mapa de cobertura, una Verificación de privilegio de práctica gratuita, y un feed continuo de cambios de normas de movilidad — todo con fuentes y citas.',
-        "en_hash": '2db9cec4bc7c6c31',
+        "text": 'Para firmas de CPA con personal en varios estados: mapa de cobertura, Verificación de privilegio de práctica gratuita y feed de cambios de normas, con fuentes.',
+        "en_hash": '48bb583c964fff69',
         "reviewed": False,
     },
     'msf.new_here_bold': {
@@ -1104,11 +1095,8 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.title': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN title was
-        # shortened to fit the SERP budget, so this translation no longer
-        # matches it. Marked unreviewed, same posture as calc.meta_description.
-        "text": 'Firmas de CPA multiestatales: mapa, verificación de movilidad y cambios de normas',
-        "en_hash": 'df39614c32f5145b',
+        "text": 'Firmas de CPA multiestatales: movilidad y normas',
+        "en_hash": '8fd2d63e653e2e9b',
         "reviewed": False,
     },
     'msf.try_demo': {
@@ -1232,11 +1220,8 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'ppc.meta_description': {
-        # Phase 3 item 4 (SEO snippet length, 2026-10-02): the EN string was
-        # shortened to fit the SERP budget, so this translation no longer
-        # matches it. Marked unreviewed, same posture as calc.meta_description.
-        "text": 'Qué significa el privilegio de práctica (movilidad) de CPA, cómo funciona la equivalencia sustancial, y cómo verificar si un CPA puede atender a un cliente en otro estado sin una licencia local — gratis, verificado en las 55 jurisdicciones de EE. UU.',
-        "en_hash": '14f9c079ff6173df',
+        "text": 'Qué es el privilegio de práctica de CPA y cómo verificar si un CPA puede atender a un cliente en otro estado sin licencia local — gratis, 55 jurisdicciones.',
+        "en_hash": '518674a590e5aa94',
         "reviewed": False,
     },
     'ppc.overview_link_text': {
