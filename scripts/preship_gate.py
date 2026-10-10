@@ -2437,6 +2437,64 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
           f"{unbound} not statically bindable (parameters/loop vars/runtime-created) and unchecked.")
 
 
+# FRESH-5 (AuditLab, 2026-10-10): generate.py's _SITEWIDE_FRESHNESS_DATASETS is a
+# hand-kept list backing the claim "N of N dated records across this site's
+# datasets re-checked in the last 30 days". It drifted twice (FRESH-1 held 1
+# dataset while 3 siblings published dated badges; FRESH-4 left
+# reg_change_events.json out) with nothing failing. Every data/*.json whose
+# records carry last_verified/verified_date must be EITHER in that list OR in
+# this named exclusion map with the reason it is outside the claim. A new
+# dated dataset therefore fails the build until someone decides which.
+_FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
+    "reg_change_events.json": "published at /rule-changes/ but outside the homepage tile's 4-dataset denominator; copy is scoped to the four named datasets and /rule-changes/ appends its own runtime 'overdue' flag at 30 days (FRESH-4)",
+    "ptin_federal.json": "worker-side only, no static page renders its dates (FRESH-4 table)",
+    "competitor_prices.json": "internal comparison facts, not a re-verified-record dataset",
+}
+
+
+def check_freshness_denominator_covers_datasets(repo_root: Path) -> list[str]:
+    gen = repo_root / "generate.py"
+    if not gen.exists():
+        return [f"[FRESH-5] {gen} not found -- check_freshness_denominator_covers_datasets() is measuring nothing"]
+    src = gen.read_text(encoding="utf-8")
+    block = re.search(r"_SITEWIDE_FRESHNESS_DATASETS[^=\n]*=\s*\[(.*?)\n\]", src, re.S)
+    if not block:
+        return ["[FRESH-5] _SITEWIDE_FRESHNESS_DATASETS list not found in generate.py -- the gate is measuring nothing and must be repaired"]
+    covered: set[str] = set()
+    for const in re.findall(r"\(\s*([A-Z_]+)\s*,", block.group(1)):
+        m = re.search(rf'^{const}\s*=.*?"data"\s*/\s*"([^"]+\.json)"', src, re.M)
+        if not m:
+            return [f"[FRESH-5] could not resolve {const} to a data/*.json file -- the gate is measuring nothing and must be repaired"]
+        covered.add(m.group(1))
+    if not covered:
+        return ["[FRESH-5] parsed 0 datasets from _SITEWIDE_FRESHNESS_DATASETS -- the gate is measuring nothing"]
+
+    def has_date_field(o) -> bool:
+        if isinstance(o, dict):
+            return any(k in ("last_verified", "verified_date") for k in o) or any(has_date_field(v) for v in o.values())
+        if isinstance(o, list):
+            return any(has_date_field(v) for v in o)
+        return False
+
+    errors = []
+    for f in sorted((repo_root / "data").glob("*.json")):
+        try:
+            dated = has_date_field(json.loads(f.read_text(encoding="utf-8")))
+        except Exception as e:
+            errors.append(f"[FRESH-5] data/{f.name} unreadable ({type(e).__name__}) -- cannot tell whether it carries dated records")
+            continue
+        if dated and f.name not in covered and f.name not in _FRESHNESS_DENOMINATOR_EXCLUSIONS:
+            errors.append(
+                f"[FRESH-5] data/{f.name} carries last_verified/verified_date records but is in neither _SITEWIDE_FRESHNESS_DATASETS "
+                f"(generate.py) nor _FRESHNESS_DENOMINATOR_EXCLUSIONS (preship_gate.py) -- the sitewide 'N of N across this site's datasets' "
+                f"claim would silently omit it. Add it to one of them with a reason."
+            )
+    for name in _FRESHNESS_DENOMINATOR_EXCLUSIONS:
+        if name in covered:
+            errors.append(f"[FRESH-5] {name} is both in _SITEWIDE_FRESHNESS_DATASETS and the exclusion map -- remove the stale exclusion")
+    return errors
+
+
 def check_cpe_hours_currency(repo_root: Path) -> list[str]:
     """AuditLab BADGE-1 (MEDIUM, 2026-08-09): roadmap #47 upgraded the public
     CPE badge from a bare "Verified" to a dated "Verified 2026-07-15" on 50
@@ -8927,6 +8985,7 @@ def main():
     all_errors += check_hidden_display_override(html_files, docs_dir)
     all_errors += check_runtime_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
+    all_errors += check_freshness_denominator_covers_datasets(repo_root)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)

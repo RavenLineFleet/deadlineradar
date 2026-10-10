@@ -737,7 +737,7 @@ ES: dict[str, dict] = {
     'calc.trust_records': {
         "text": 'registros con fecha en los conjuntos de datos de este sitio re-verificados en los últimos 30 días',
         "en_hash": '4660be9dce7c8be0',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.verification_writeup_link_text': {
         "text": 'el resumen completo de verificación',
