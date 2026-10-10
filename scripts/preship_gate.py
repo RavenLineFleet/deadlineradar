@@ -872,7 +872,9 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # current events (6 source_conflict-kind) never reach because they
     # render to no page. topic/citation are the other two fields that
     # endpoint serves verbatim. Loaded via {"events": [...]}, handled above.
-    "reg_change_events.json": ["summary_public", "topic", "citation"],
+    "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator (claim copy says 'this site's datasets' without enumerating them on /, /deadline-calculator/, /compliance-reports/; /for-firms/, /pricing/, /methodology/ do enumerate); /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening to 254 of 264 is an open product call (FRESH-4/5)",
+    "ptin_federal.json": "worker-side only, no static page renders its dates (FRESH-4 table)",
+    "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
 
 
