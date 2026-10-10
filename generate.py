@@ -10325,13 +10325,18 @@ def _product_showcase_html() -> str:
 # own trust bullets, the unsubscribe flow, the standing non-affiliation
 # disclaimer) rather than asserting anything new -- same discipline
 # _FIRM_FAQ below already holds itself to.
+# SRC-29 (AuditLab 2026-10-10): CPE-hour tracking AND individual Practice Privilege Check
+# are FIRM-account features (every mobility route is /firm/mobility/*; a free individual,
+# non-firm account cannot hold a CPE entry: cpe_entries.firm_id is NOT NULL, POST
+# /subscriber/cpe 404s; individual_cpe_entries, migration 0018, has no call sites). Only
+# individual reminders are free on "any account". Do not widen this.
 _INDIVIDUAL_FAQ = [
     (
         "Is this actually free?",
-        "Yes. Individual reminders, CPE-hour tracking, and individual Practice Privilege Check "
-        "(one person, one target state) are all free, no card required, no time limit, for any "
-        "account, solo or with a whole firm's roster. Paid firm plans exist for the multistate Map "
-        "and firm-level registration check.",
+        "Yes. Individual reminders are free on any account, no card required, no time limit. "
+        "CPE-hour tracking and individual Practice Privilege Check (one person, one target state) "
+        "are free on a firm account: free for up to 3 people, and a solo CPA can open one for "
+        "themselves. Paid firm plans exist for the multistate Map and firm-level registration check.",
     ),
     (
         "How do you actually verify the dates?",
