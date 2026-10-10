@@ -975,9 +975,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.meta_description': {
-        "text": 'Estándar de fuentes de Deadline-Radar: cada fecha de renovación remite a la página de la junta estatal y a la norma codificada — nunca una suposición.',
+        "text": 'El estándar de verificación de Deadline-Radar: cada fecha de renovación remite a la página de la junta estatal y a la norma codificada — nunca una suposición.',
         "en_hash": '788cc76b0aa7c29c',
-        "reviewed": False,
+        "reviewed": True,
     },
     'methodology.see_for_yourself_body': {
         "text": 'Elija cualquier página estatal y busque la línea “Source of record” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
@@ -1055,9 +1055,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.meta_description': {
-        "text": 'Para firmas de CPA con personal en varios estados: mapa de cobertura, Verificación de privilegio de práctica gratuita y feed de cambios de normas, con fuentes.',
+        "text": 'Para firmas de CPA en varios estados: mapa de cobertura, Verificación de privilegio de práctica gratuita y feed de cambios de normas — con fuentes y citas.',
         "en_hash": '48bb583c964fff69',
-        "reviewed": False,
+        "reviewed": True,
     },
     'msf.new_here_bold': {
         "text": '¿Nuevo en Deadline-Radar?',
@@ -1095,9 +1095,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.title': {
-        "text": 'Firmas de CPA multiestatales: movilidad y normas',
+        "text": 'Firmas de CPA multiestatales: movilidad',
         "en_hash": '8fd2d63e653e2e9b',
-        "reviewed": False,
+        "reviewed": True,
     },
     'msf.try_demo': {
         "text": 'Pruebe la demo en vivo →',
@@ -1222,7 +1222,7 @@ ES: dict[str, dict] = {
     'ppc.meta_description': {
         "text": 'Qué es el privilegio de práctica de CPA y cómo verificar si un CPA puede atender a un cliente en otro estado sin licencia local — gratis, 55 jurisdicciones.',
         "en_hash": '518674a590e5aa94',
-        "reviewed": False,
+        "reviewed": True,
     },
     'ppc.overview_link_text': {
         "text": 'resumen para firmas',
