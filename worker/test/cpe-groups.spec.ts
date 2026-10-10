@@ -269,9 +269,10 @@ describe("rate-limit unit accounting (AuditLab CPE-6) -- pinned so a later tidy-
     const il = await seed(firmId, p, "illinois", "il-individual");
     const g = (await (await postCpe(cookie, { ...base(ga), also: [{ subscriber_id: il }] })).json()) as { id: string };
     expect((await delCpe(cookie, g.id, "group")).status).toBe(200);
-    const before = await env.DB.prepare("SELECT COUNT(*) AS n FROM cpe_entries WHERE firm_id = ?1 AND deleted_at IS NOT NULL").bind(firmId).first<{ n: number }>();
+    // compare the deleted_at VALUES, not a count of non-nulls: a count cannot see a re-write of already-deleted rows (AuditLab 16:48)
+    const stamps = async () => (await env.DB.prepare("SELECT group_concat(deleted_at, '|') AS v FROM (SELECT deleted_at FROM cpe_entries WHERE firm_id = ?1 ORDER BY id)").bind(firmId).first<{ v: string }>())!.v;
+    const before = await stamps();
     expect((await delCpe(cookie, g.id, "group")).status).toBe(404);
-    const after = await env.DB.prepare("SELECT COUNT(*) AS n FROM cpe_entries WHERE firm_id = ?1 AND deleted_at IS NOT NULL").bind(firmId).first<{ n: number }>();
-    expect(after!.n).toBe(before!.n);
+    expect(await stamps()).toBe(before);
   });
 });
