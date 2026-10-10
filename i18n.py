@@ -988,7 +988,7 @@ ES: dict[str, dict] = {
     'methodology.see_for_yourself_body': {
         "text": 'Elija cualquier página estatal y busque la línea “Source of record” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
         "en_hash": 'a8ceea4d0a4bee54',
-        "reviewed": False,
+        "reviewed": True,
     },
     'methodology.title': {
         "text": 'Cómo verificamos cada fecha límite',
@@ -1013,7 +1013,7 @@ ES: dict[str, dict] = {
     'methodology.two_source_item2': {
         "text": '<strong>El estatuto codificado o la norma administrativa real</strong> de la que se deriva el requisito de la junta — no un resumen, sino el texto legal primario mismo. Esa cita y un enlace directo a ella se muestran debajo de cada fecha verificada en este sitio, con la etiqueta “Source of record”.',
         "en_hash": 'fad15d7df2de1f83',
-        "reviewed": False,
+        "reviewed": True,
     },
     'methodology.verified_badge_body': {
         "text": 'Un recuadro destacado muestra una insignia <strong>Verificado</strong> solo cuando esa fecha específica tiene una cita real a la ley codificada que la respalda, verificada de la manera descrita arriba. Un registro sin ella nunca muestra la insignia — no existe un estado intermedio donde una fecha parezca confirmada sin estarlo.',
@@ -1272,6 +1272,21 @@ ES: dict[str, dict] = {
     'ppc.what_it_does_intro': {
         "text": 'Una pregunta distinta a las fechas de renovación: ¿puede este CPA prestar este servicio específico en este estado específico ahora mismo, sin una licencia local — y qué tiene que suceder primero?',
         "en_hash": '6d90d13b10200e27',
+        "reviewed": True,
+    },
+    'a11y.skip_to_content': {
+        "text": 'Saltar al contenido',
+        "en_hash": 'ac576a66d4563e60',
+        "reviewed": True,
+    },
+    'nav.pricing': {
+        "text": 'Precios',
+        "en_hash": 'dfe95783edfef791',
+        "reviewed": True,
+    },
+    'footer.link_compliance_reports': {
+        "text": 'Informes de cumplimiento',
+        "en_hash": '02f61b55c9a42b38',
         "reviewed": True,
     },
     'site.tagline': {

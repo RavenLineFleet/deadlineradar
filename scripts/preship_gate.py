@@ -8619,7 +8619,10 @@ def print_es_translation_review_advisory(repo_root: Path) -> None:
         live_pages = {
             pfx: slug for pfx, slug in live_prefix.items() if (repo_root / "docs" / "es" / slug / "index.html").exists()
         }
-        on_live = sorted(k for k in pending if any(k.startswith(p) for p in live_pages))
+        # AuditLab SRC-23: nav./footer./a11y. keys render on EVERY published
+        # /es/ page, so they count as live whenever any /es/ page exists.
+        global_prefixes = ("nav.", "footer.", "a11y.") if live_pages else ()
+        on_live = sorted(k for k in pending if any(k.startswith(p) for p in (*live_pages, *global_prefixes)))
         rest = sorted(k for k in pending if k not in on_live)
         if on_live:
             print(f"  ON A LIVE /es/ PAGE ({len(on_live)} -- English served at a Spanish URL): {', '.join(on_live)}")
