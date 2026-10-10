@@ -496,7 +496,7 @@ EN: dict[str, str] = {
     "pricing.breakdown_link_text": "full firm-tier breakdown",
     "pricing.title": "Pricing",
     "pricing.meta_description": (
-        "Deadline-Radar pricing: free individual reminders, free Practice Privilege Check, and "
+        "Pricing: free individual reminders, free Practice Privilege Check, "
         "firm plans from $199 to $549/year (or $20 to $55/month) — identical features at every tier."
     ),
     # Shared FAQ (_FIRM_FAQ), used by /pricing/ and /for-firms/. Indexed
