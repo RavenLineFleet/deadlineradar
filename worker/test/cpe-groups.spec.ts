@@ -271,7 +271,11 @@ describe("rate-limit unit accounting (AuditLab CPE-6) -- pinned so a later tidy-
     expect((await delCpe(cookie, g.id, "group")).status).toBe(200);
     // compare the deleted_at VALUES, not a count of non-nulls: a count cannot see a re-write of already-deleted rows (AuditLab 16:48)
     const stamps = async () => (await env.DB.prepare("SELECT group_concat(deleted_at, '|') AS v FROM (SELECT deleted_at FROM cpe_entries WHERE firm_id = ?1 ORDER BY id)").bind(firmId).first<{ v: string }>())!.v;
+    // BACKSTOP only (AuditLab 17:08): the 404 below is what catches dropping `deleted_at IS NULL`, because
+    // removeCpeEntryGroup returns the UPDATE's own changes. This value compare guards a future decoupling of
+    // return value from write, and only works while the two writes land in different ms -- hence the format pin.
     const before = await stamps();
+    expect(before).toMatch(/^\d{4}-\d\d-\d\dT[\d:]+\.\d{3}Z\|\d{4}-\d\d-\d\dT[\d:]+\.\d{3}Z$/);
     expect((await delCpe(cookie, g.id, "group")).status).toBe(404);
     expect(await stamps()).toBe(before);
   });
