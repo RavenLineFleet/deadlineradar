@@ -25460,7 +25460,10 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
     # recheck that didn't happen. Falls back to reviewed_iso so every other
     # article (the common case: content and sources reviewed together) is
     # unaffected.
-    date_modified_iso = article.get("content_modified", reviewed_iso)
+    # CRAWL-10: never earlier than the post existed (Georgia: reviewed 10-06,
+    # published 10-09) -- mirrors the sitemap lastmod clamp. ISO dates compare
+    # correctly as strings.
+    date_modified_iso = max(article.get("content_modified", reviewed_iso), published_iso)
     blog_posting_schema = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
