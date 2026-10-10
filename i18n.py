@@ -326,7 +326,7 @@ EN: dict[str, str] = {
     "calc.see_exactly_how": "see exactly how",
     "calc.trust_jurisdictions": "jurisdictions covered",
     "calc.trust_determined": "where we compute your exact date",
-    "calc.trust_records": "dated records across all datasets re-checked in the last 30 days",
+    "calc.trust_records": "dated records across this site's datasets re-checked in the last 30 days",
     "calc.h2_what_calculated_looks_like": "What “calculated” actually looks like, state by state",
     "calc.what_calculated_intro": (
         "This isn't one formula — every state renews on its own rule, and those rules take "
@@ -735,9 +735,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.trust_records': {
-        "text": 'registros con fecha en todos los conjuntos de datos re-verificados en los últimos 30 días',
-        "en_hash": 'f03eb3ba4d8c0f2a',
-        "reviewed": True,
+        "text": 'registros con fecha en los conjuntos de datos de este sitio re-verificados en los últimos 30 días',
+        "en_hash": '4660be9dce7c8be0',
+        "reviewed": False,
     },
     'calc.verification_writeup_link_text': {
         "text": 'el resumen completo de verificación',

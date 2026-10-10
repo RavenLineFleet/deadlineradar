@@ -8503,7 +8503,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">{_hint_counts["birth_month"]}</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">{_hint_counts["varies"]}</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across all datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
+    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across this site's datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
   <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
