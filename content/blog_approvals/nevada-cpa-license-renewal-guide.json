@@ -3,15 +3,15 @@
   "approvals": [
     {
       "party": "auditlab",
-      "payload_sha256": "309a312424171d2ef9f966055ac0fa89eee3f900e0a59b86fd6aec79e856081d",
-      "verdict_file": "auditlab_20261002_blog_APPROVED_nevada_309a3124.md",
-      "sent": "2026-10-02 15:35 MDT"
+      "payload_sha256": "b27405bde17a00dcdd19d4565fa386411a400be83d0e77452969451ea32348a1",
+      "verdict_file": "auditlab_20261010_0730_blog_gate_GA_NV_descs_ALL_CLAIMS_PASS_plus_SRC-26_the_only_trim_that_fits_deletes_the_scope.md",
+      "sent": "2026-10-10 07:30 MDT"
     },
     {
       "party": "orchestrator",
-      "payload_sha256": "309a312424171d2ef9f966055ac0fa89eee3f900e0a59b86fd6aec79e856081d",
-      "verdict_file": "Orchestrator/state/orch_blog_APPROVED_nevada_309a3124.md",
-      "sent": "2026-10-02 15:40 MDT"
+      "payload_sha256": "b27405bde17a00dcdd19d4565fa386411a400be83d0e77452969451ea32348a1",
+      "verdict_file": "orchestrator_20261010_blog_desc_APPROVED_ga_nv.md",
+      "sent": "2026-10-10 08:05 MDT"
     }
   ]
 }

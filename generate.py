@@ -25329,7 +25329,7 @@ so both clocks work for you instead of quietly running past you.</p>
         "title": "Nevada CPA Renewal: Annual, December 31 — The Outlier in a Biennial Region",
         "seo_title": "Nevada CPA Renewal: December 31, Every Year",
         "meta_description": (
-            "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not the 80-over-two-years rule that's most common elsewhere. Here's the exact rule, the fee, and what happens if you lapse."
+            "Nevada CPA licenses renew every year, not every two: 40 CPE hours annually, not the 80-over-two-years rule most common elsewhere. The exact rule and the fee."
         ),
         "body_html": '''
 <p class="intro">Nevada CPA licenses renew every year, not every two, an annual cycle that makes Nevada an outlier next to most of its neighbors. The permit expires December 31, but renewal fees can be paid without penalty through January 31 of the following year. CPE follows the same annual rhythm: 40 hours a year. Here's what's actually codified, what the Board confirmed directly, and what it costs if you miss the window.</p>
@@ -25359,7 +25359,7 @@ so both clocks work for you instead of quietly running past you.</p>
         "title": "Georgia CPA License Renewal: December 31 of Odd Years, 80 CPE Hours, and a Superseded 16-Hour Figure",
         "seo_title": "Georgia CPA License Renewal: December 31, Odd Years",
         "meta_description": (
-            "Georgia CPA licenses expire December 31 of odd-numbered years, with 80 CPE hours per cycle. Here's the exact rule, the $100 fee, the penalty period, and the firm deadline that runs on a different calendar."
+            "Georgia individual CPA licenses expire December 31 of odd years: 80 CPE hours per cycle, a $100 fee, a four-month penalty window. Firms: June 30, even years."
         ),
         "body_html": '''
 <p class="intro">Georgia CPA licenses expire on <strong>December 31 of every odd-numbered year</strong>, so the current cycle ends December 31, 2027. The renewal fee is $100, the CPE requirement is 80 hours per two-year period, and firm licenses run on a completely different calendar: June 30 of even-numbered years. Here's what the rules actually say, including one CPE figure that's still widely repeated and no longer current.</p>
