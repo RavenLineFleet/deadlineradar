@@ -10691,7 +10691,7 @@ to create an account yet? <a href="#firm-lead">Leave your email instead</a> and 
     return page_shell(
         f"For Firms — {SITE_NAME}",
         "CPA firm license tracking: roster, calendar, CPE hours, Practice Privilege Check free "
-        "forever — paid plans add the firm-registration check, from $199/year or $20/month.",
+        "— paid plans add the firm-registration check, from $199/year or $20/month.",
         body,
         home_href="../",
         canonical_path="/for-firms/",
