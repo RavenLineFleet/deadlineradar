@@ -568,9 +568,9 @@ EN: dict[str, str] = {
         "independently verified, and we keep it clearly labeled and separate from the sourced "
         "renewal dates — we won't blur the two. "
         "Licensed in more than one state? Add one line per state; each line is tracked against "
-        "that state's own requirement, and lines for the same person count once toward your plan's "
-        "staff limit. Each person can have up to 10 state lines; your firm's own permits and "
-        "registrations are separate lines that use no staff seat, up to 25."
+        "that state's own requirement, and lines for the same person (matched by email address) count once toward "
+        "your plan's staff limit. Each person can have up to 10 state lines; your firm's own permits "
+        "and registrations are separate lines that use no staff seat, up to 2 per state and 25 in total."
     ),
     "faq.firm.7_q": "How is this different from my staff just signing up for free individually?",
     "faq.firm.7_a": (

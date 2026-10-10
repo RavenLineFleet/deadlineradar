@@ -10575,7 +10575,7 @@ against actual state law, the same way we already do for individuals. The dashbo
 Hours tab where your firm can log completed hours against each state's own requirement &mdash; that
 log is your own self-reported record, not independently verified, and we keep it clearly labeled and
 separate from the sourced renewal dates. We won't blur the two &mdash; self-reported hours and
-sourced dates staying visibly distinct is the whole reason to trust this site. Licensed in more than one state? Add one line per state; each line is tracked against that state's own requirement, and lines for the same person count once toward your plan's staff limit.</p>
+sourced dates staying visibly distinct is the whole reason to trust this site. Licensed in more than one state? Add one line per state; each line is tracked against that state's own requirement, and lines for the same person (matched by email address) count once toward your plan's staff limit.</p>
 
 <h2>Pricing</h2>
 <p>Roster, Calendar, CPE Hours, and individual Practice Privilege Check are <strong>free for any firm,
