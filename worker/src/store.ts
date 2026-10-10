@@ -4433,6 +4433,8 @@ export interface CpeEntryRow {
   entered_by_firm_session_id: string | null;
   created_at: string;
   deleted_at: string | null;
+  /** migration 0091: shared by the rows of one "log once, apply to several states" submission; null otherwise. */
+  group_id: string | null;
 }
 
 export interface AddCpeEntryInput {
@@ -4513,6 +4515,7 @@ export async function addCpeEntry(db: D1Database, input: AddCpeEntryInput): Prom
     entered_by_firm_session_id: input.enteredByFirmSessionId,
     created_at: createdAt,
     deleted_at: null,
+    group_id: null,
   };
 }
 
@@ -4597,6 +4600,136 @@ export async function removeCpeEntry(db: D1Database, firmId: string, id: string)
     .bind(nowIso(), id, firmId)
     .run();
   return (result.meta.changes ?? 0) > 0;
+}
+
+/**
+ * "Remove all linked" (migration 0091): soft-deletes every live row sharing this
+ * entry's group_id, firm-bound at the SQL layer. The group id is looked up from
+ * the entry first, scoped to the firm, so a crafted id from another firm finds
+ * nothing. An entry with no group falls back to the single-row removal.
+ * Returns the number of rows removed (0 = not found).
+ */
+export async function removeCpeEntryGroup(db: D1Database, firmId: string, id: string): Promise<number> {
+  const row = await db
+    .prepare(`SELECT group_id FROM cpe_entries WHERE id = ?1 AND firm_id = ?2 AND deleted_at IS NULL`)
+    .bind(id, firmId)
+    .first<{ group_id: string | null }>();
+  if (!row) return 0;
+  if (!row.group_id) return (await removeCpeEntry(db, firmId, id)) ? 1 : 0;
+  const result = await db
+    .prepare(`UPDATE cpe_entries SET deleted_at = ?1 WHERE firm_id = ?2 AND group_id = ?3 AND deleted_at IS NULL`)
+    .bind(nowIso(), firmId, row.group_id)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+export interface CpeGroupTarget {
+  subscriberId: string;
+  hours: number;
+  category: CpeCategory;
+}
+
+export interface AddCpeEntryGroupInput {
+  firmId: string;
+  entryDate: string;
+  description: string | null;
+  enteredByFirmSessionId: string | null;
+  /** First element is the PRIMARY line (the staffer the form was opened for); the rest are the "also count toward" lines. */
+  targets: CpeGroupTarget[];
+  /** Certificate for the primary line only (documents are per subscriber). */
+  primaryCertificateDocumentId: string | null;
+}
+
+export type AddCpeEntryGroupResult =
+  | { ok: true; groupId: string; entries: CpeEntryRow[] }
+  | { ok: false; reason: "not_found" | "different_person" | "firm_entity_line" | "too_many" };
+
+/** Most lines one submission can write: the per-person ceiling (seat_usage.ts). */
+export const CPE_GROUP_MAX_LINES = 10;
+
+/**
+ * Writes one CPE entry per chosen line, all sharing a group_id, in ONE db.batch
+ * (atomic). Every check happens server-side against the firm's own roster and
+ * nothing the client says about WHO a line belongs to is trusted:
+ *   - every subscriber_id must be a live line of THIS firm (else not_found, the
+ *     same anti-enumeration answer as a cross-firm id);
+ *   - every line must be the SAME PERSON as the primary: exact normalized email
+ *     (the identity the seat count uses), never a client-supplied claim;
+ *   - firm-entity (-firm) lines are not people and can't take CPE hours.
+ * Each INSERT also re-asserts firm ownership of its subscriber in SQL (INSERT ...
+ * SELECT ... WHERE EXISTS), so a line removed between the check and the write
+ * simply inserts nothing and the whole result is reported not_found.
+ */
+export async function addCpeEntryGroup(db: D1Database, input: AddCpeEntryGroupInput): Promise<AddCpeEntryGroupResult> {
+  const ids = input.targets.map((t) => t.subscriberId);
+  if (ids.length === 0 || ids.length > CPE_GROUP_MAX_LINES || new Set(ids).size !== ids.length) {
+    return { ok: false, reason: "too_many" };
+  }
+  const roster = await listFirmLicenses(db, input.firmId);
+  const byId = new Map(roster.map((r) => [r.id, r]));
+  const lines = ids.map((id) => byId.get(id));
+  if (lines.some((l) => !l)) return { ok: false, reason: "not_found" };
+  const personKey = personKeyForEmail(lines[0]!.email);
+  for (let i = 0; i < lines.length; i++) {
+    if (personKeyForEmail(lines[i]!.email) !== personKey) return { ok: false, reason: "different_person" };
+    if (i > 0 && isFirmEntityRow(lines[i]!)) return { ok: false, reason: "firm_entity_line" };
+  }
+
+  const groupId = newToken();
+  const createdAt = nowIso();
+  const rows: CpeEntryRow[] = input.targets.map((t, i) => ({
+    id: newToken(),
+    firm_id: input.firmId,
+    subscriber_id: t.subscriberId,
+    entry_date: input.entryDate,
+    hours: t.hours,
+    category: t.category,
+    description: input.description,
+    certificate_document_id: i === 0 ? input.primaryCertificateDocumentId : null,
+    entered_by_actor_type: "admin",
+    entered_by_firm_session_id: input.enteredByFirmSessionId,
+    created_at: createdAt,
+    deleted_at: null,
+    group_id: groupId,
+  }));
+  const results = await db.batch(
+    rows.map((r) =>
+      db
+        .prepare(
+          `INSERT INTO cpe_entries
+           (id, firm_id, subscriber_id, entry_date, hours, category, description,
+            certificate_document_id, entered_by_actor_type, entered_by_firm_session_id, created_at, group_id)
+           SELECT ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12
+           WHERE EXISTS (SELECT 1 FROM subscribers WHERE id = ?3 AND firm_id = ?2
+                         AND NOT (status = ?13 AND stop_reason = ?14))`
+        )
+        .bind(
+          r.id,
+          r.firm_id,
+          r.subscriber_id,
+          r.entry_date,
+          r.hours,
+          r.category,
+          r.description,
+          r.certificate_document_id,
+          r.entered_by_actor_type,
+          r.entered_by_firm_session_id,
+          r.created_at,
+          r.group_id,
+          STATUS_STOPPED,
+          STOP_REASON_REMOVED_BY_ADMIN
+        )
+    )
+  );
+  if (results.some((res) => (res.meta.changes ?? 0) !== 1)) {
+    // Never leave a half-visible group behind: soft-delete whatever landed.
+    await db
+      .prepare(`UPDATE cpe_entries SET deleted_at = ?1 WHERE firm_id = ?2 AND group_id = ?3`)
+      .bind(createdAt, input.firmId, groupId)
+      .run();
+    return { ok: false, reason: "not_found" };
+  }
+  return { ok: true, groupId, entries: rows };
 }
 
 // ---------------------------------------------------------------------------

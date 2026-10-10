@@ -16153,6 +16153,7 @@ function drRenderCpeStaffSelect() {
     return '<option value="' + drEscapeHtml(item.id) + '">' + drEscapeHtml(item.staff_label || item.email) + '</option>';
   }).join('');
   sel.value = current;
+  drRenderCpeAlso();
 }
 
 function drRenderCpeRecent() {
@@ -16182,8 +16183,17 @@ function drRenderCpeRecent() {
       ? '<span class="dr-sample-tag">Sample</span>'
       : '<button type="button" class="dr-cpe-recent-remove" data-id="' + drEscapeHtml(e.id) + '" data-label="' +
         drEscapeHtml(String(e.hours) + 'h for ' + name) + '">Remove</button>';
+    var linkedTag = '';
+    if (e.group_id && !(staffer && staffer.is_sample)) {
+      var linkedCount = drCpeEntries.filter(function(x) { return x.group_id === e.group_id; }).length;
+      linkedTag = ' <span class="dr-sample-tag">linked: ' + linkedCount + ' states</span>';
+      if (linkedCount > 1) {
+        removeControl += ' <button type="button" class="dr-cpe-recent-remove" data-group="1" data-id="' + drEscapeHtml(e.id) +
+          '" data-label="' + drEscapeHtml('all ' + linkedCount + ' linked states') + '">Remove all linked</button>';
+      }
+    }
     return '<div class="dr-cpe-recent-item"><span><b>' + name + '</b> logged ' + drEscapeHtml(String(e.hours)) +
-      'h (' + drEscapeHtml(e.category) + ')' + desc +
+      'h (' + drEscapeHtml(e.category) + ')' + desc + linkedTag +
       '<span class="dr-agenda-date" style="display:block;">' + drEscapeHtml(drFormatDeadline(e.entry_date)) + '</span></span>' +
       removeControl + '</div>';
   }).join('');
@@ -16562,6 +16572,59 @@ function drLoadMobilityCompletions() {
     .catch(function() {});
 }
 
+// "Log once, apply to several states" (roadmap #344, migration 0091). The list of
+// other lines is built from drLicenses (same person = same email address, the
+// identity the seat count uses); the SERVER re-checks that and the firm, so
+// this is convenience, never the control.
+function drCpeAlsoCandidates() {
+  var sel = document.getElementById('dr-cpe-staff-select');
+  var primaryId = sel ? sel.value : '';
+  if (!primaryId) return [];
+  var primary = null;
+  drLicenses.forEach(function(item) { if (item.id === primaryId) primary = item; });
+  if (!primary || primary.is_sample) return [];
+  var key = String(primary.email || '').trim().toLowerCase();
+  return drLicenses.filter(function(item) {
+    if (item.id === primaryId || item.is_sample || item.status === 'opted_out') return false;
+    if (typeof item.license_type_id === 'string' && /-firm$/.test(item.license_type_id)) return false;
+    return String(item.email || '').trim().toLowerCase() === key;
+  });
+}
+
+function drRenderCpeAlso() {
+  var box = document.getElementById('dr-cpe-also');
+  var list = document.getElementById('dr-cpe-also-list');
+  if (!box || !list) return;
+  var cands = drCpeAlsoCandidates();
+  if (cands.length === 0) { box.hidden = true; list.innerHTML = ''; return; }
+  list.innerHTML = cands.map(function(item) {
+    var label = drEscapeHtml(item.state_name || item.state_slug || 'Other state');
+    return '<div class="dr-cpe-also-row" data-id="' + drEscapeHtml(item.id) + '">' +
+      '<label><input type="checkbox" class="dr-cpe-also-check"> ' + label + '</label> ' +
+      '<input type="number" class="dr-cpe-also-hours" min="0.1" max="100" step="0.1" placeholder="hours" aria-label="Hours for ' + label + '"> ' +
+      '<select class="dr-cpe-also-category" aria-label="Category for ' + label + '">' +
+      '<option value="">same category</option><option value="general">General</option>' +
+      '<option value="ethics">Ethics</option><option value="other">Other</option></select></div>';
+  }).join('');
+  box.hidden = false;
+}
+
+function drCollectCpeAlso() {
+  var out = [];
+  var rows = document.querySelectorAll('#dr-cpe-also-list .dr-cpe-also-row');
+  Array.prototype.forEach.call(rows, function(row) {
+    var check = row.querySelector('.dr-cpe-also-check');
+    if (!check || !check.checked) return;
+    var entry = {subscriber_id: row.getAttribute('data-id')};
+    var hrs = row.querySelector('.dr-cpe-also-hours');
+    var cat = row.querySelector('.dr-cpe-also-category');
+    if (hrs && hrs.value) entry.hours = hrs.value;
+    if (cat && cat.value) entry.category = cat.value;
+    out.push(entry);
+  });
+  return out;
+}
+
 function drSubmitCpeEntry(form) {
   // AuditLab IDEM-1 (MEDIUM, 2026-08-04): two concurrent submits of this
   // form (a double-click, or a slow network making a first click look like
@@ -16585,6 +16648,8 @@ function drSubmitCpeEntry(form) {
   // through JSON.stringify would serialize as "{}", not the file. Handled
   // as its own separate upload step below instead.
   fd.forEach(function(v, k) { body[k] = v; });
+  var alsoLines = drCollectCpeAlso();
+  if (alsoLines.length > 0) body.also = alsoLines;
 
   var certificateInput = document.getElementById('dr-cpe-certificate');
   var certificateFile = certificateInput && certificateInput.files ? certificateInput.files[0] : null;
@@ -16646,6 +16711,7 @@ function drSubmitCpeEntry(form) {
       form.reset();
       var staffSel = document.getElementById('dr-cpe-staff-select');
       if (staffSel) staffSel.value = keepStaffId;
+      drRenderCpeAlso();
       if (submitBtn) submitBtn.disabled = false;
       drLoadCpeEntries();
     });
@@ -16655,9 +16721,10 @@ function drSubmitCpeEntry(form) {
   });
 }
 
-function drRemoveCpeEntry(id, label) {
-  if (!window.confirm('Remove this CPE entry' + (label ? ' (' + label + ')' : '') + '? This cannot be undone from the dashboard.')) return;
-  fetch('/api/firm/cpe/' + encodeURIComponent(id), {method: 'DELETE', credentials: 'include'})
+function drRemoveCpeEntry(id, label, wholeGroup) {
+  var what = wholeGroup ? 'every linked state for this course' : 'this CPE entry';
+  if (!window.confirm('Remove ' + what + (label ? ' (' + label + ')' : '') + '? This cannot be undone from the dashboard.')) return;
+  fetch('/api/firm/cpe/' + encodeURIComponent(id) + (wholeGroup ? '?scope=group' : ''), {method: 'DELETE', credentials: 'include'})
     .then(function(res) {
       if (res.status === 401) { window.location.href = '/firm-login/'; return; }
       if (res.ok) { drLoadCpeEntries(); return; }
@@ -19357,13 +19424,15 @@ document.addEventListener('DOMContentLoaded', function() {
       drSubmitCpeEntry(cpeLogForm);
     });
   }
+  var cpeStaffSelect = document.getElementById('dr-cpe-staff-select');
+  if (cpeStaffSelect) cpeStaffSelect.addEventListener('change', drRenderCpeAlso);
   var cpeRecentBody = document.getElementById('dr-cpe-recent-body');
   if (cpeRecentBody) {
     cpeRecentBody.addEventListener('click', function(ev) {
       var btn = ev.target.closest ? ev.target.closest('.dr-cpe-recent-remove') : null;
       if (!btn) return;
       var id = btn.getAttribute('data-id');
-      if (id) drRemoveCpeEntry(id, btn.getAttribute('data-label'));
+      if (id) drRemoveCpeEntry(id, btn.getAttribute('data-label'), btn.getAttribute('data-group') === '1');
     });
   }
 
@@ -21891,6 +21960,13 @@ def build_firm_dashboard_page(
           <select id="dr-cpe-staff-select" name="subscriber_id" required>
             <option value="">Select staff member</option>
           </select>
+          <fieldset id="dr-cpe-also" class="dr-cpe-also" hidden>
+            <legend>Also count toward:</legend>
+            <div id="dr-cpe-also-list"></div>
+            <p class="field-hint">This person has other state lines. You choose which states this course counts toward;
+            Deadline-Radar records your choice and does not confirm that any state board accepts a course. Check with
+            the board or your provider. Leave hours or category blank to use the values above.</p>
+          </fieldset>
           <div class="signup-form-row">
             <div>
               <label for="dr-cpe-entry-date">Date completed</label>

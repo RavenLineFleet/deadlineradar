@@ -8997,6 +8997,7 @@ function toCpeEntryJson(row: store.CpeEntryRow): Record<string, unknown> {
     description: row.description,
     certificate_document_id: row.certificate_document_id,
     entered_by_actor_type: row.entered_by_actor_type,
+    group_id: row.group_id ?? null,
   };
 }
 
@@ -9099,6 +9100,69 @@ async function handleCpeEntryCreate(request: Request, env: Env): Promise<Respons
     certificateDocumentId = doc.id;
   }
 
+  // "Log once, apply to the states I pick" (migration 0091, roadmap #344): optional
+  // `also` = [{subscriber_id, hours?, category?}] naming OTHER lines of the SAME
+  // person. The user chooses the states; nothing here claims a state accepts the
+  // course. Who a line belongs to is re-derived server-side (store.addCpeEntryGroup).
+  const alsoRaw = (parsed as Record<string, unknown>).also;
+  if (alsoRaw !== undefined && alsoRaw !== null) {
+    if (!Array.isArray(alsoRaw) || alsoRaw.length === 0 || alsoRaw.length > store.CPE_GROUP_MAX_LINES - 1) {
+      return jsonResponse(400, { error: `Choose between 1 and ${store.CPE_GROUP_MAX_LINES - 1} other states for this course.` });
+    }
+    const targets: store.CpeGroupTarget[] = [{ subscriberId, hours, category: categoryRaw }];
+    for (const item of alsoRaw) {
+      if (typeof item !== "object" || item === null || typeof (item as Record<string, unknown>).subscriber_id !== "string") {
+        return jsonResponse(400, { error: "Each chosen state needs a subscriber_id." });
+      }
+      const it = item as Record<string, unknown>;
+      const itemId = String(it.subscriber_id).trim();
+      if (!itemId || hasControlChars(itemId)) return jsonResponse(400, { error: "Invalid characters in submission." });
+      let itemHours = hours;
+      if (it.hours !== undefined && it.hours !== null) {
+        const h = typeof it.hours === "string" ? parseStrictCpeHours(it.hours) : null;
+        if (h === null) return jsonResponse(400, { error: `Please enter a valid number of hours (greater than 0, up to ${MAX_CPE_HOURS_PER_ENTRY}).` });
+        itemHours = h;
+      }
+      let itemCategory: store.CpeCategory = categoryRaw;
+      if (it.category !== undefined && it.category !== null) {
+        if (typeof it.category !== "string" || !isValidCpeCategory(it.category.trim())) {
+          return jsonResponse(400, { error: "Category must be general, ethics, or other." });
+        }
+        itemCategory = it.category.trim() as store.CpeCategory;
+      }
+      targets.push({ subscriberId: itemId, hours: itemHours, category: itemCategory });
+    }
+    // The per-firm daily cap counts every entry written, not every request (AuditLab S-3):
+    // one request writing N entries spends N units, checked BEFORE anything is written.
+    for (let i = 0; i < alsoRaw.length; i++) {
+      if (!(await checkRateLimit(env.DB, session.firmId, "cpe_entry_create", RATE_LIMIT_CPE_ENTRY_CREATE))) {
+        return jsonResponse(429, { error: "Too many CPE entries logged today for this firm. Please try again in 24 hours." });
+      }
+    }
+    const group = await store.addCpeEntryGroup(env.DB, {
+      firmId: session.firmId,
+      entryDate: entryDateIso,
+      description,
+      enteredByFirmSessionId: session.sessionId,
+      targets,
+      primaryCertificateDocumentId: certificateDocumentId,
+    });
+    if (!group.ok) {
+      if (group.reason === "different_person") {
+        return jsonResponse(400, { error: "A course can only be applied to other states of the same person (same email address)." });
+      }
+      if (group.reason === "firm_entity_line") {
+        return jsonResponse(400, { error: "Firm permits and registrations don't take CPE hours." });
+      }
+      if (group.reason === "too_many") {
+        return jsonResponse(400, { error: "Choose each state only once." });
+      }
+      return jsonResponse(404, { error: "Not found." });
+    }
+    const [primary, ...linked] = group.entries;
+    return jsonResponse(201, { ...toCpeEntryJson(primary!), linked_entries: linked.map(toCpeEntryJson) });
+  }
+
   const created = await store.addCpeEntry(env.DB, {
     firmId: session.firmId,
     subscriberId,
@@ -9134,6 +9198,13 @@ async function handleCpeEntryDelete(request: Request, env: Env, id: string): Pro
     return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
+  // ?scope=group (migration 0091): remove every linked line of a "log once, apply to
+  // several states" entry. Default stays one row. Both are firm-bound in SQL.
+  if (new URL(request.url).searchParams.get("scope") === "group") {
+    const n = await store.removeCpeEntryGroup(env.DB, session.firmId, id);
+    if (n === 0) return jsonResponse(404, { error: "Not found." });
+    return jsonResponse(200, { id, status: "removed", removed_count: n });
+  }
   const removed = await store.removeCpeEntry(env.DB, session.firmId, id);
   if (!removed) return jsonResponse(404, { error: "Not found." });
   return jsonResponse(200, { id, status: "removed" });
