@@ -346,6 +346,24 @@ describe("SEAT-1: concurrent adds cannot both win the last seat (post-insert re-
     expect(addViolatesAfterInsert(lines, lines[10]!, 3)).toEqual({ ok: false, reason: "person_line_ceiling" });
   });
 
+  it("SEAT-2 pure: ceilings under a same-ms tie -- the added row sorting FIRST by id is still refused (person 11th, firm-entity total 26th, per-type 3rd)", () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `L${String(i).padStart(2, "0")}`);
+    // one person, 11 lines, every created_at identical; the added row has the LOWEST id (what a random token can produce)
+    const lines = ids(11).map((id, i) => mk(id, "p@x.com", `s${i}-individual`, 100));
+    expect(addViolatesAfterInsert(lines, lines[0]!, 3)).toEqual({ ok: false, reason: "person_line_ceiling" });
+    // firm-entity total: 26 distinct firm types, one ms
+    const firm = ids(26).map((id, i) => mk(id, `f${i}@x.com`, `t${i}-firm`, 100));
+    expect(addViolatesAfterInsert(firm, firm[0]!, 3)).toEqual({ ok: false, reason: "firm_entity_ceiling" });
+    // firm-entity per type: 3 lines of one type, one ms
+    const typed = ids(3).map((id, i) => mk(id, `g${i}@x.com`, "ga-firm", 100));
+    expect(addViolatesAfterInsert(typed, typed[0]!, 3)).toEqual({ ok: false, reason: "firm_entity_type_ceiling" });
+    // positive control: exactly AT each limit (10 / 25 / 2 lines) a lone same-ms add still fits
+    const ten = ids(10).map((id, i) => mk(id, "p@x.com", `s${i}-individual`, 100));
+    expect(addViolatesAfterInsert(ten, ten[0]!, 3)).toEqual({ ok: true });
+    const two = ids(2).map((id, i) => mk(id, `g${i}@x.com`, "ga-firm", 100));
+    expect(addViolatesAfterInsert(two, two[0]!, 3)).toEqual({ ok: true });
+  });
+
   it("pure: a frozen over-cap roster is not retroactively flagged for an EXISTING person's new line", () => {
     const over = ["a", "b", "c", "d", "e"].map((n, i) => mk(String(i), `${n}@x.com`, "ga-individual", i + 1));
     const extra = mk("z", "e@x.com", "il-individual", 50);
