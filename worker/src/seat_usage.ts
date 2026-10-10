@@ -137,9 +137,23 @@ export interface SeatRowOrdered extends SeatRowLike {
   created_at: string;
 }
 
-function byAge(a: SeatRowOrdered, b: SeatRowOrdered): number {
-  if (a.created_at !== b.created_at) return a.created_at < b.created_at ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+/**
+ * Age order with the row under test ranked LAST among rows that share its
+ * created_at (SEAT-2, SecurityLab 2026-10-10). The re-check that can SEE a
+ * conflict is the only party able to act on it, so on an exact-millisecond tie
+ * the checker yields: whichever racer re-reads after the other's insert refuses
+ * itself, instead of letting a random id decide, which could rank the later
+ * inserter first and leave both standing. Cost, accepted: if both re-reads see
+ * both rows they both yield (a rare same-millisecond double-add can 402 twice,
+ * fails safe, a retry succeeds because both rows were removed).
+ */
+function byAgeYielding(added: SeatRowOrdered): (a: SeatRowOrdered, b: SeatRowOrdered) => number {
+  return (a, b) => {
+    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? -1 : 1;
+    if (a.id === added.id && b.id !== added.id) return 1;
+    if (b.id === added.id && a.id !== added.id) return -1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
 }
 
 /**
@@ -148,9 +162,9 @@ function byAge(a: SeatRowOrdered, b: SeatRowOrdered): number {
  * those steps, so two concurrent adds can both pass. After the insert the
  * handler re-reads the roster and asks THIS function whether the row it just
  * wrote is within the limits. The decision is deterministic and shared by
- * every racer: rows are ranked by (created_at, id), so when two adds raced
- * past the cap exactly the later-ranked one is told to undo itself, and the
- * earlier one stands. It reuses the same constants as decideAdd(), so the
+ * every racer: rows are ranked by (created_at, id) with the checked row last
+ * on a created_at tie (see byAgeYielding), so when two adds raced past the cap
+ * the later-ranked one is told to undo itself, and the earlier one stands. It reuses the same constants as decideAdd(), so the
  * rules still live only in this file.
  *
  * Only ever flags the row the caller just added: an existing person's extra
@@ -158,6 +172,7 @@ function byAge(a: SeatRowOrdered, b: SeatRowOrdered): number {
  * cap (frozen, grandfathered) is not retroactively touched.
  */
 export function addViolatesAfterInsert(rows: readonly SeatRowOrdered[], added: SeatRowOrdered, seatCap: number): AddDecision {
+  const byAge = byAgeYielding(added);
   const typeId = licenseTypeIdFromDeadlineFields(added.deadline_fields);
   if (isFirmEntityLicenseType(typeId)) {
     const firmRows = rows.filter((r) => isFirmEntityRow(r)).sort(byAge);

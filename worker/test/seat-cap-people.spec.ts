@@ -306,13 +306,36 @@ describe("SEAT-1: concurrent adds cannot both win the last seat (post-insert re-
     deadline_fields: JSON.stringify({ license_type_id: typeId }),
   });
 
-  it("pure: of two NEW people past the cap, the later-ranked row is told to undo and the earlier stands (symmetric for both racers)", () => {
+  it("pure: of two NEW people past the cap, the later-created row is told to undo and the earlier stands", () => {
     const base = [mk("1", "a@x.com", "ga-individual", 1), mk("2", "b@x.com", "ga-individual", 2)];
     const c = mk("3", "c@x.com", "ga-individual", 3);
-    const d = mk("4", "d@x.com", "ga-individual", 3); // same ms as c: id breaks the tie
+    const d = mk("4", "d@x.com", "ga-individual", 4);
     const rows = [...base, c, d];
     expect(addViolatesAfterInsert(rows, c, 3)).toEqual({ ok: true });
     expect(addViolatesAfterInsert(rows, d, 3)).toEqual({ ok: false, reason: "seat_cap" });
+  });
+
+  it("SEAT-2 pure: same created_at, ASYMMETRIC interleave -- the checker that can see the conflict yields, so the cap holds for BOTH id orders", () => {
+    const P = [mk("p1", "p1@x.com", "ga-individual", 1), mk("p2", "p2@x.com", "ga-individual", 2)];
+    for (const [aId, bId] of [["zzz", "aaa"], ["aaa", "zzz"]] as const) {
+      // A re-reads before B's insert lands (cannot see B); B re-reads after (sees both); identical ms.
+      const A = mk(aId, "a@x.com", "ga-individual", 5);
+      const B = mk(bId, "b@x.com", "ga-individual", 5);
+      const aView = addViolatesAfterInsert([...P, A], A, 3);
+      const bView = addViolatesAfterInsert([...P, A, B], B, 3);
+      const standing = 2 + [aView, bView].filter((x) => x.ok).length;
+      expect(standing).toBeLessThanOrEqual(3); // inverted ids (aId>bId) breached the cap before the fix (4 people)
+    }
+  });
+
+  it("SEAT-2 pure: symmetric same-ms race -- both checkers see both rows; both yield (fail-safe), never both standing", () => {
+    const P = [mk("p1", "p1@x.com", "ga-individual", 1), mk("p2", "p2@x.com", "ga-individual", 2)];
+    const A = mk("zzz", "a@x.com", "ga-individual", 5);
+    const B = mk("aaa", "b@x.com", "ga-individual", 5);
+    const rows = [...P, A, B];
+    const results = [addViolatesAfterInsert(rows, A, 3), addViolatesAfterInsert(rows, B, 3)];
+    expect(2 + results.filter((x) => x.ok).length).toBeLessThanOrEqual(3);
+    expect(results.every((x) => !x.ok)).toBe(true); // documented cost: a retry then succeeds
   });
 
   it("pure: an existing person's extra state line is never the 'new person'; ceiling boundary is exact (10th ok, 11th flagged)", () => {
@@ -387,8 +410,14 @@ describe("SEAT-1: concurrent adds cannot both win the last seat (post-insert re-
       );
     const [x, y] = await Promise.all([send("x"), send("y")]);
     expect(arrived).toBe(2); // both really sat at the gate together
-    expect([x.status, y.status].sort()).toEqual([201, 402]);
-    expect(await store.countFirmLicenses(env.DB, firmId)).toBe(3);
+    // At most ONE survives. Usually exactly one; if both rows landed in the same millisecond both
+    // checkers yield (SEAT-2, fail-safe), so [402, 402] is also correct -- never two 201s.
+    const statuses = [x.status, y.status];
+    expect(statuses.every((c) => c === 201 || c === 402)).toBe(true);
+    expect(statuses.filter((c) => c === 201).length).toBeLessThanOrEqual(1);
+    const people = await store.countFirmLicenses(env.DB, firmId);
+    expect(people).toBe(2 + statuses.filter((c) => c === 201).length);
+    expect(people).toBeLessThanOrEqual(3);
   });
 });
 
