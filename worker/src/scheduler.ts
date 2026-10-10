@@ -35,6 +35,7 @@
 import type { Env } from "./env";
 import type { BuiltEmail } from "./emails";
 import * as store from "./store";
+import { computeSeatUsage } from "./seat_usage";
 import { StaleDataError, checkDataFreshness, computeSubscriberDeadline, stateNameForSlug } from "./deadline";
 import {
   buildReminderEmail,
@@ -2961,9 +2962,16 @@ export async function runTrialEndingAlertPass(env: Env, opts: RunTrialEndingAler
       // notice must reflect the REAL post-reconciliation state, not a
       // stale pre-reconciliation roster.
       const roster = await store.reconcileRosterPauseState(env.DB, firm.id);
-      const pausedCount = roster.filter((r) => r.paused_at !== null).length;
+      // Counted in PEOPLE, same unit as the cap (seat_usage.ts): the email says
+      // "staff", so a person with several state lines is one, and firm-entity
+      // lines (which use no seat and are never paused by default) are not staff.
+      const activePeople = new Set(computeSeatUsage(roster.filter((r) => r.paused_at === null)).linesByPerson.keys());
+      const pausedPeopleOnly = [...computeSeatUsage(roster.filter((r) => r.paused_at !== null)).linesByPerson.keys()].filter(
+        (k) => !activePeople.has(k)
+      );
+      const pausedCount = pausedPeopleOnly.length;
       if (pausedCount === 0) continue; // trial lapsed but never went over cap -- no notice needed
-      const activeCount = roster.length - pausedCount;
+      const activeCount = activePeople.size;
       const claimed = await store.claimRosterPausedNotice(env.DB, firm.id);
       if (!claimed) continue;
       const built = buildRosterPausedEmail({ firmName: firm.name, pausedCount, activeCount, dashboardUrl });

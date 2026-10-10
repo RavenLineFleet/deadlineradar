@@ -12,6 +12,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
+import { runTrialEndingAlertPass } from "../src/scheduler";
 import {
   computeSeatUsage,
   decideAdd,
@@ -231,5 +232,74 @@ describe("roster pause reconciler -- seats are people", () => {
     const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
     const paused = new Set(reconciled.filter((r) => r.paused_at !== null).map((r) => r.id));
     expect([...paused]).toEqual([ids["p4/georgia"]]);
+  });
+});
+
+describe("same-state plus-alias -> 409 (documented boundary between the two identity notions)", () => {
+  it("a+jane@ and a+bob@ cannot both hold the SAME state: the dedupe (folded identity) answers 409 before any seat logic; a different state is judged by seats", async () => {
+    const { firmId, cookie } = await createFirm("PeopleCapSameStateAlias");
+    const t = Date.now();
+    await seed(firmId, `a+jane${t}@example.com`, "georgia", "ga-individual");
+    const sameState = await post(cookie, { email: `a+bob${t}@example.com`, state_slug: "georgia", license_type_id: "ga-individual" });
+    // The mailbox base 'a' is the same person to findActiveOrPending(), so this is a dedupe 409, NOT a 402.
+    // Pinned on purpose: changing the dedupe to exact-email would reopen the plus-alias seat bypass.
+    expect(sameState.status).toBe(409);
+    const otherState = await post(cookie, { email: `a+bob${t}@example.com`, state_slug: "illinois", license_type_id: "il-individual" });
+    expect(otherState.status).toBe(201); // exact-email identity: a different person for seats (2 of 3 used)
+    expect((await listBody(cookie)).seat_count).toBe(2);
+  });
+});
+
+describe("scheduler over-cap notices count people (runTrialEndingAlertPass)", () => {
+  type Sent = { to: string; subject: string; text: string };
+  async function runPass(sent: Sent[]): Promise<void> {
+    await runTrialEndingAlertPass({ ...env, SEND_APPROVED_PASSES: "trialEndingAlert" } as never, {
+      send: async (to, built) => {
+        sent.push({ to, subject: built.subject, text: built.textBody });
+        return true;
+      },
+    });
+  }
+  async function firmWithAdmin(name: string): Promise<{ firmId: string; admin: string }> {
+    const { firmId } = await createFirm(name);
+    const row = await env.DB.prepare("SELECT admin_email FROM firms WHERE id = ?1").bind(firmId).first<{ admin_email: string }>();
+    return { firmId, admin: row!.admin_email };
+  }
+
+  it("trial-ending-soon: a multi-state firm UNDER the people cap gets no warning; a genuinely over-cap firm still does", async () => {
+    const soon = new Date(Date.now() + 86_400_000).toISOString();
+    const under = await firmWithAdmin("PeopleCapNoticeUnder");
+    const over = await firmWithAdmin("PeopleCapNoticeOver");
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = ?1 WHERE id IN (?2, ?3)").bind(soon, under.firmId, over.firmId).run();
+    const t = Date.now();
+    // 3 people x 4 states = 12 lines (lines > cap 3, people == cap 3)
+    for (const who of ["u1", "u2", "u3"]) for (const st of ["georgia", "alabama", "alaska", "arizona"]) await seed(under.firmId, `${who}-${t}@example.com`, st, `${st}-individual`);
+    // 4 distinct people = genuinely over the cap
+    for (const who of ["o1", "o2", "o3", "o4"]) await seed(over.firmId, `${who}-${t}@example.com`, "georgia", "ga-individual");
+    const sent: Sent[] = [];
+    await runPass(sent);
+    expect(sent.filter((m) => m.to === under.admin)).toHaveLength(0);
+    expect(sent.filter((m) => m.to === over.admin)).toHaveLength(1);
+  });
+
+  it("roster-paused notice counts staff as people, not lines", async () => {
+    const f = await firmWithAdmin("PeopleCapNoticePaused");
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = ?1 WHERE id = ?2")
+      .bind(new Date(Date.now() - 8 * 86_400_000).toISOString(), f.firmId)
+      .run();
+    const t = Date.now();
+    const order = [["p1", "georgia"], ["p1", "alabama"], ["p2", "georgia"], ["p3", "georgia"], ["p4", "georgia"], ["p4", "alabama"], ["p5", "georgia"]] as const;
+    for (let i = 0; i < order.length; i++) {
+      const [who, st] = order[i]!;
+      const id = await seed(f.firmId, `${who}-${t}@example.com`, st, `${st}-individual`);
+      await env.DB.prepare("UPDATE subscribers SET created_at = ?1 WHERE id = ?2").bind(new Date(t + i).toISOString(), id).run();
+    }
+    const sent: Sent[] = [];
+    await runPass(sent);
+    const mine = sent.filter((m) => m.to === f.admin);
+    expect(mine).toHaveLength(1);
+    // 5 people, cap 3: p4 and p5 paused = 2 staff (4 lines), 3 active (p1,p2,p3)
+    expect(mine[0]!.subject).toContain("2 staff paused");
+    expect(mine[0]!.text).toContain("your 3 earliest-added staff");
   });
 });
