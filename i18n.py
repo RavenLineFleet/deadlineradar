@@ -394,7 +394,8 @@ EN: dict[str, str] = {
         "<strong>free for any firm, up to 3 staff</strong>, no card required, no time limit. Paid "
         "firm plans add the multistate map and the firm-level registration check — every paid "
         "tier has the identical feature set, priced only by how many staff it covers; nothing is "
-        "held back on a cheaper plan."
+        "held back on a cheaper plan. A person licensed in several states counts once toward the "
+        "staff limit, and your firm's own permit and registration lines don't count toward it."
     ),
     "pricing.freshness_stat": (
         "dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, "
@@ -565,7 +566,11 @@ EN: dict[str, str] = {
         "Yes — the dashboard has a CPE Hours tab where your firm can log completed hours "
         "against each state's own requirement. That log is your own self-reported record, not "
         "independently verified, and we keep it clearly labeled and separate from the sourced "
-        "renewal dates — we won't blur the two."
+        "renewal dates — we won't blur the two. "
+        "Licensed in more than one state? Add one line per state; each line is tracked against "
+        "that state's own requirement, and lines for the same person count once toward your plan's "
+        "staff limit. Each person can have up to 10 state lines; your firm's own permits and "
+        "registrations are separate lines that use no staff seat, up to 25."
     ),
     "faq.firm.7_q": "How is this different from my staff just signing up for free individually?",
     "faq.firm.7_a": (

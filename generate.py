@@ -5494,7 +5494,7 @@ _DEMO_DOORS = [
     (
         "cpe",
         "CPE Hours",
-        "Completed continuing-education hours, tracked per staff member against each state's own requirement.",
+        "Completed continuing-education hours, tracked per staff member against each state's own requirement. Licensed in more than one state? Add one line per state.",
     ),
     ("reports", "Reports", "A printable compliance summary and audit trail, for a board inquiry or your own file."),
     (
@@ -10266,7 +10266,7 @@ _PRODUCT_SHOWCASE_TABS = [
     ("roster", "Roster", "showcase/roster.jpg", "Coverage overview: who's current, who's at risk, at a glance — the coverage %, status breakdown, and at-risk ranking shown here are part of a paid firm plan."),
     ("calendar", "Calendar", "showcase/calendar.jpg", "Every upcoming renewal, by date, with an .ics feed to export."),
     ("map", "Map", "showcase/map.jpg", "Which states your firm has staff licensed in, and who's at risk."),
-    ("cpe", "CPE Hours", "showcase/cpe-hours.jpg", "Completed continuing-education hours, tracked per staff member against each state's own requirement."),
+    ("cpe", "CPE Hours", "showcase/cpe-hours.jpg", "Completed continuing-education hours, tracked per staff member against each state's own requirement. Licensed in more than one state? Add one line per state."),
     ("reports", "Reports", "showcase/reports.jpg", "A printable compliance summary and audit trail, for a board inquiry or your own file."),
     ("mobility", "Practice Privilege Check", "showcase/mobility.jpg", "A real result: can this CPA provide this service in this state, and what has to happen first."),
 ]
@@ -10575,14 +10575,16 @@ against actual state law, the same way we already do for individuals. The dashbo
 Hours tab where your firm can log completed hours against each state's own requirement &mdash; that
 log is your own self-reported record, not independently verified, and we keep it clearly labeled and
 separate from the sourced renewal dates. We won't blur the two &mdash; self-reported hours and
-sourced dates staying visibly distinct is the whole reason to trust this site.</p>
+sourced dates staying visibly distinct is the whole reason to trust this site. Licensed in more than one state? Add one line per state; each line is tracked against that state's own requirement, and lines for the same person count once toward your plan's staff limit.</p>
 
 <h2>Pricing</h2>
 <p>Roster, Calendar, CPE Hours, and individual Practice Privilege Check are <strong>free for any firm,
 up to 3 staff</strong>, no card required, no time limit. New accounts also try the paid features free
 for their first 14 days. Paid tiers add the Map and the firm-level
 registration check &mdash; every paid tier gets the identical feature set; the only difference between
-them is how many staff it covers, nothing is held back on a cheaper plan.</p>
+them is how many staff it covers, nothing is held back on a cheaper plan. A person licensed in several
+states counts once toward the staff limit, and your firm's own permit and registration lines don't
+count toward it.</p>
 <p class="field-hint">Which one is you?</p>
 <div class="dr-segment-grid">
   <a class="dr-segment-card" href="/pricing/#individual">
@@ -21862,7 +21864,8 @@ def build_firm_dashboard_page(
     <div id="dr-view-cpe" class="dr-view" role="tabpanel" aria-labelledby="dr-tab-cpe" hidden>
       <h1>CPE Hours</h1>
       <p class="subhead">Track completed continuing-education hours against each state's own
-      requirement. Internal visibility only -- not an official state filing, and not a substitute for
+      requirement. Licensed in more than one state? Add a line for each state and log the hours
+      against each one. Internal visibility only -- not an official state filing, and not a substitute for
       your state board's own CPE reporting system.</p>
 
       <div class="dr-cpe-summary" id="dr-cpe-summary"></div>
