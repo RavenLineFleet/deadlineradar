@@ -706,11 +706,7 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.title': {
-        # SRC-17 (AuditLab 2026-10-09): byte-identical to the already-approved
-        # calc.h1; flipped reviewed so the /es/ page is not Spanish body under
-        # an English <title>. ES title overruns the 60-char SERP budget
-        # (accepted by AuditLab, separate copy task).
-        "text": 'Calculadora de fechas límite de renovación de licencia de CPA',
+        "text": 'Calculadora de renovación de licencia CPA',
         "en_hash": 'b1c1ab4dab8f32f5',
         "reviewed": True,
     },
