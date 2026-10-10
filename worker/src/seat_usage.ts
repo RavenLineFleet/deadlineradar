@@ -131,3 +131,58 @@ export function decideAdd(
   if (existingLines === 0 && usage.people >= seatCap) return { ok: false, reason: "seat_cap" };
   return { ok: true };
 }
+
+export interface SeatRowOrdered extends SeatRowLike {
+  id: string;
+  created_at: string;
+}
+
+function byAge(a: SeatRowOrdered, b: SeatRowOrdered): number {
+  if (a.created_at !== b.created_at) return a.created_at < b.created_at ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/**
+ * Post-INSERT re-check for the add gate (SecurityLab SEAT-1, 2026-10-10).
+ * The gate reads the roster, decides, then inserts, with nothing serialising
+ * those steps, so two concurrent adds can both pass. After the insert the
+ * handler re-reads the roster and asks THIS function whether the row it just
+ * wrote is within the limits. The decision is deterministic and shared by
+ * every racer: rows are ranked by (created_at, id), so when two adds raced
+ * past the cap exactly the later-ranked one is told to undo itself, and the
+ * earlier one stands. It reuses the same constants as decideAdd(), so the
+ * rules still live only in this file.
+ *
+ * Only ever flags the row the caller just added: an existing person's extra
+ * state line is never the "new person", and a roster that was already over the
+ * cap (frozen, grandfathered) is not retroactively touched.
+ */
+export function addViolatesAfterInsert(rows: readonly SeatRowOrdered[], added: SeatRowOrdered, seatCap: number): AddDecision {
+  const typeId = licenseTypeIdFromDeadlineFields(added.deadline_fields);
+  if (isFirmEntityLicenseType(typeId)) {
+    const firmRows = rows.filter((r) => isFirmEntityRow(r)).sort(byAge);
+    if (firmRows.findIndex((r) => r.id === added.id) >= FIRM_ENTITY_LINE_CEILING) {
+      return { ok: false, reason: "firm_entity_ceiling" };
+    }
+    const sameType = firmRows.filter((r) => licenseTypeIdFromDeadlineFields(r.deadline_fields) === typeId);
+    if (sameType.findIndex((r) => r.id === added.id) >= FIRM_ENTITY_LINES_PER_TYPE) {
+      return { ok: false, reason: "firm_entity_type_ceiling" };
+    }
+    return { ok: true };
+  }
+  const key = personKeyForEmail(added.email);
+  const personRows = rows.filter((r) => !isFirmEntityRow(r) && personKeyForEmail(r.email) === key).sort(byAge);
+  const myIdx = personRows.findIndex((r) => r.id === added.id);
+  if (myIdx >= PER_PERSON_LINE_CEILING) return { ok: false, reason: "person_line_ceiling" };
+  if (myIdx === 0) {
+    // This row is the person's earliest line, i.e. they are NEW. Rank people by their earliest line.
+    const earliest = new Map<string, SeatRowOrdered>();
+    for (const r of [...rows].filter((x) => !isFirmEntityRow(x)).sort(byAge)) {
+      const k = personKeyForEmail(r.email);
+      if (!earliest.has(k)) earliest.set(k, r);
+    }
+    const ranked = [...earliest.values()].sort(byAge);
+    if (ranked.findIndex((r) => personKeyForEmail(r.email) === key) >= seatCap) return { ok: false, reason: "seat_cap" };
+  }
+  return { ok: true };
+}

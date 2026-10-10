@@ -276,7 +276,7 @@ import {
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
 import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup } from "./entitlements";
-import { computeSeatUsage, decideAdd, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
   lookupAssistantCpe,
@@ -8367,18 +8367,18 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     deadlineFields.license_type_id,
     seatCap
   );
-  if (!seatDecision.ok) {
-    if (seatDecision.reason === "person_line_ceiling") {
+  const refuseAdd = (reason: Exclude<ReturnType<typeof decideAdd>, { ok: true }>["reason"]): Response => {
+    if (reason === "person_line_ceiling") {
       return jsonResponse(400, {
         error: `One person can have up to ${PER_PERSON_LINE_CEILING} state lines on a roster. If this is a different person, use their own email address.`,
       });
     }
-    if (seatDecision.reason === "firm_entity_type_ceiling") {
+    if (reason === "firm_entity_type_ceiling") {
       return jsonResponse(400, {
         error: `That firm permit or registration is already tracked on ${FIRM_ENTITY_LINES_PER_TYPE} lines. Email us if you need more contacts on it.`,
       });
     }
-    if (seatDecision.reason === "firm_entity_ceiling") {
+    if (reason === "firm_entity_ceiling") {
       return jsonResponse(400, {
         error: `A roster can track up to ${FIRM_ENTITY_LINE_CEILING} firm permits or registrations. Email us if your firm needs more.`,
       });
@@ -8396,7 +8396,8 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
         : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
       pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
     });
-  }
+  };
+  if (!seatDecision.ok) return refuseAdd(seatDecision.reason);
 
   // HYBRID consent model (2026-07-28, Devin's decision, firm path only):
   // admin-added staff go ACTIVE immediately (skipConfirmation) -- no
@@ -8447,6 +8448,27 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     officeTag,
     licenseIssueDate,
   });
+
+  // SecurityLab SEAT-1 (MEDIUM, 2026-10-10): the gate above is read-then-insert,
+  // so two concurrent adds can both pass it. Re-read and let seat_usage.ts rule
+  // on the row just written (deterministic by created_at, id: exactly one racer
+  // survives). The loser undoes its own row through the ordinary removal path
+  // before any history reattach, activity log or email, and gets the same 402/400
+  // a non-racing add would have. Fails closed: if the re-read itself throws,
+  // the add stands (the nightly reconcile and the next gate still see it).
+  try {
+    const afterRows = await store.listFirmLicenses(env.DB, session.firmId);
+    const self = afterRows.find((r) => r.id === record.id);
+    if (self) {
+      const post = addViolatesAfterInsert(afterRows, self, seatCap);
+      if (!post.ok) {
+        await store.removeFirmLicense(env.DB, session.firmId, record.id);
+        return refuseAdd(post.reason);
+      }
+    }
+  } catch {
+    // Non-fatal: see above.
+  }
 
   // AuditLab LC-1 (LOW, 2026-08-04; extended by LC-5/LC-6, 2026-08-21): if
   // this same person was previously removed from this exact state on this

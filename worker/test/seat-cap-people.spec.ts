@@ -13,13 +13,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 import { runTrialEndingAlertPass } from "../src/scheduler";
-import {
-  computeSeatUsage,
-  decideAdd,
-  FIRM_ENTITY_LINE_CEILING,
-  FIRM_ENTITY_LINES_PER_TYPE,
-  PER_PERSON_LINE_CEILING,
-} from "../src/seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd } from "../src/seat_usage";
 
 async function createFirm(name: string): Promise<{ firmId: string; cookie: string }> {
   const firm = await store.createFirm(env.DB, { name, adminEmail: `${name.replace(/\W/g, "")}-${Date.now()}@example.com` });
@@ -137,22 +131,22 @@ describe("POST /firm/licenses -- people-based seat cap (free tier, cap 3)", () =
   it("per-person line ceiling: the 10th line is allowed, the 11th is refused (400)", async () => {
     const { firmId, cookie } = await createFirm("PeopleCapCeiling");
     const p = `ceil-${Date.now()}@example.com`;
-    for (const st of STATES.slice(0, PER_PERSON_LINE_CEILING - 1)) await seed(firmId, p, st, `${st}-individual`);
+    for (const st of STATES.slice(0, 9)) await seed(firmId, p, st, `${st}-individual`);
     const tenth = await post(cookie, { email: p, state_slug: "georgia", license_type_id: "ga-individual" });
     expect(tenth.status).toBe(201);
     const eleventh = await post(cookie, { email: p, state_slug: "illinois", license_type_id: "il-individual" });
     expect(eleventh.status).toBe(400);
-    expect(((await eleventh.json()) as { error: string }).error).toContain(String(PER_PERSON_LINE_CEILING));
+    expect(((await eleventh.json()) as { error: string }).error).toContain("10");
   });
 
   it("firm-entity ceilings: per-type cap refuses the 3rd 'ga-firm' line; total cap refuses past the ceiling", async () => {
     const { firmId, cookie } = await createFirm("PeopleCapFirmCeilings");
     const t = Date.now();
-    for (let i = 0; i < FIRM_ENTITY_LINES_PER_TYPE; i++) await seed(firmId, `gaf${i}-${t}@example.com`, "georgia", "ga-firm");
+    for (let i = 0; i < 2; i++) await seed(firmId, `gaf${i}-${t}@example.com`, "georgia", "ga-firm");
     const third = await post(cookie, { email: `gaf-extra-${t}@example.com`, state_slug: "georgia", license_type_id: "ga-firm" });
     expect(third.status).toBe(400);
     const { firmId: f2, cookie: c2 } = await createFirm("PeopleCapFirmTotal");
-    for (let i = 0; i < FIRM_ENTITY_LINE_CEILING; i++) await seed(f2, `ft${i}-${t}@example.com`, "georgia", `type${i}-firm`);
+    for (let i = 0; i < 25; i++) await seed(f2, `ft${i}-${t}@example.com`, "georgia", `type${i}-firm`);
     const over = await post(c2, { email: `ft-extra-${t}@example.com`, state_slug: "georgia", license_type_id: "ga-firm" });
     expect(over.status).toBe(400);
   });
@@ -301,5 +295,106 @@ describe("scheduler over-cap notices count people (runTrialEndingAlertPass)", ()
     // 5 people, cap 3: p4 and p5 paused = 2 staff (4 lines), 3 active (p1,p2,p3)
     expect(mine[0]!.subject).toContain("2 staff paused");
     expect(mine[0]!.text).toContain("your 3 earliest-added staff");
+  });
+});
+
+describe("SEAT-1: concurrent adds cannot both win the last seat (post-insert re-check)", () => {
+  const mk = (id: string, email: string, typeId: string, t: number) => ({
+    id,
+    email,
+    created_at: new Date(t).toISOString(),
+    deadline_fields: JSON.stringify({ license_type_id: typeId }),
+  });
+
+  it("pure: of two NEW people past the cap, the later-ranked row is told to undo and the earlier stands (symmetric for both racers)", () => {
+    const base = [mk("1", "a@x.com", "ga-individual", 1), mk("2", "b@x.com", "ga-individual", 2)];
+    const c = mk("3", "c@x.com", "ga-individual", 3);
+    const d = mk("4", "d@x.com", "ga-individual", 3); // same ms as c: id breaks the tie
+    const rows = [...base, c, d];
+    expect(addViolatesAfterInsert(rows, c, 3)).toEqual({ ok: true });
+    expect(addViolatesAfterInsert(rows, d, 3)).toEqual({ ok: false, reason: "seat_cap" });
+  });
+
+  it("pure: an existing person's extra state line is never the 'new person'; ceiling boundary is exact (10th ok, 11th flagged)", () => {
+    const rows = [mk("1", "a@x.com", "ga-individual", 1), mk("2", "b@x.com", "ga-individual", 2), mk("3", "c@x.com", "ga-individual", 3), mk("9", "a@x.com", "il-individual", 9)];
+    expect(addViolatesAfterInsert(rows, rows[3]!, 3)).toEqual({ ok: true });
+    const lines = Array.from({ length: 11 }, (_, i) => mk(`L${String(i).padStart(2, "0")}`, "p@x.com", `s${i}-individual`, 100 + i));
+    expect(addViolatesAfterInsert(lines, lines[9]!, 3)).toEqual({ ok: true });
+    expect(addViolatesAfterInsert(lines, lines[10]!, 3)).toEqual({ ok: false, reason: "person_line_ceiling" });
+  });
+
+  it("pure: a frozen over-cap roster is not retroactively flagged for an EXISTING person's new line", () => {
+    const over = ["a", "b", "c", "d", "e"].map((n, i) => mk(String(i), `${n}@x.com`, "ga-individual", i + 1));
+    const extra = mk("z", "e@x.com", "il-individual", 50);
+    expect(addViolatesAfterInsert([...over, extra], extra, 3)).toEqual({ ok: true });
+  });
+
+  it("HTTP with FORCED interleave: both requests pass the gate read before either inserts -> exactly one survives", async () => {
+    const { firmId, cookie } = await createFirm("PeopleCapRace");
+    const t = Date.now();
+    await seed(firmId, `r1-${t}@example.com`, "georgia", "ga-individual");
+    await seed(firmId, `r2-${t}@example.com`, "georgia", "ga-individual");
+    // Barrier: each request's FIRST roster read (the gate) waits until both have done it.
+    let arrived = 0;
+    let release!: () => void;
+    const both = new Promise<void>((res) => (release = res));
+    const wrapDb = (db: D1Database): D1Database => {
+      let firstRosterRead = true;
+      return new Proxy(db, {
+        get(target, prop) {
+          if (prop !== "prepare") return Reflect.get(target, prop).bind?.(target) ?? Reflect.get(target, prop);
+          return (sql: string) => {
+            const stmt = target.prepare(sql);
+            const isRosterRead = /FROM subscribers\s+WHERE firm_id = \?1 AND NOT \(status/.test(sql);
+            if (!isRosterRead) return stmt;
+            return new Proxy(stmt, {
+              get(st, p) {
+                if (p !== "bind") return Reflect.get(st, p).bind(st);
+                return (...args: unknown[]) => {
+                  const bound = st.bind(...args);
+                  return new Proxy(bound, {
+                    get(bs, bp) {
+                      if (bp !== "all") return Reflect.get(bs, bp).bind(bs);
+                      return async () => {
+                        if (firstRosterRead) {
+                          firstRosterRead = false;
+                          arrived += 1;
+                          if (arrived === 2) release();
+                          await both;
+                        }
+                        return bs.all();
+                      };
+                    },
+                  });
+                };
+              },
+            });
+          };
+        },
+      });
+    };
+    const worker = (await import("../src/index")).default;
+    const ctx = { waitUntil() {}, passThroughOnException() {}, props: {} } as unknown as ExecutionContext;
+    const send = (who: string) =>
+      worker.fetch(
+        new Request("https://deadline-radar.com/firm/licenses", {
+          method: "POST",
+          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.201", Cookie: cookie },
+          body: JSON.stringify({ email: `race-${who}-${t}@example.com`, state_slug: "georgia", license_type_id: "ga-individual" }),
+        }),
+        { ...env, DB: wrapDb(env.DB) } as never,
+        ctx
+      );
+    const [x, y] = await Promise.all([send("x"), send("y")]);
+    expect(arrived).toBe(2); // both really sat at the gate together
+    expect([x.status, y.status].sort()).toEqual([201, 402]);
+    expect(await store.countFirmLicenses(env.DB, firmId)).toBe(3);
+  });
+});
+
+describe("ceiling constants are pinned by literal value", () => {
+  it("10 per person, 25 firm-entity total, 2 per firm type (changing one must be a deliberate, reviewed edit)", async () => {
+    const m = await import("../src/seat_usage");
+    expect([m.PER_PERSON_LINE_CEILING, m.FIRM_ENTITY_LINE_CEILING, m.FIRM_ENTITY_LINES_PER_TYPE]).toEqual([10, 25, 2]);
   });
 });
