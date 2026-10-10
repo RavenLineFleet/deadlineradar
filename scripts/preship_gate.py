@@ -8607,11 +8607,13 @@ def print_es_translation_review_advisory(repo_root: Path) -> None:
     reviewed = total - len(pending)
     print(f"i18n.py Phase A keys: {total}   reviewed & current: {reviewed}   pending review: {len(pending)}")
     if pending:
-        # AuditLab SRC-22 (2026-10-10): the old alphabetical [:10] hid every
-        # key that sits on a page with a LIVE /es/ build (they sort behind
-        # a11y.*/faq.firm.*, which have no /es/ page). Print those in full
-        # first -- they are English text served at a Spanish URL, not a
-        # review queue.
+        # AuditLab SRC-22 (2026-10-10): the old alphabetical [:10] hid keys
+        # that render on a LIVE /es/ page behind keys that don't. Print the
+        # live ones in full first -- they are English text served at a
+        # Spanish URL, not a review queue. NOTE the key->page map below is
+        # by key NAME (a guess about rendering; the rendered page is the
+        # only authority) -- a key with an unmapped prefix lands in "rest",
+        # which is why that bucket is labelled "unmapped", not "not live".
         live_prefix = {
             "pricing.": "pricing", "methodology.": "methodology", "msf.": "multi-state-firms",
             "ppc.": "practice-privilege-check", "calc.": "deadline-calculator", "contact.": "contact",
@@ -8619,14 +8621,15 @@ def print_es_translation_review_advisory(repo_root: Path) -> None:
         live_pages = {
             pfx: slug for pfx, slug in live_prefix.items() if (repo_root / "docs" / "es" / slug / "index.html").exists()
         }
-        # AuditLab SRC-23: nav./footer./a11y. keys render on EVERY published
-        # /es/ page, so they count as live whenever any /es/ page exists.
-        global_prefixes = ("nav.", "footer.", "a11y.") if live_pages else ()
+        # AuditLab SRC-23: nav./footer./a11y./site. keys render on EVERY
+        # published /es/ page, so they count as live whenever any /es/ page
+        # exists (a11y.skip_to_content was once mislabelled "no live page").
+        global_prefixes = ("nav.", "footer.", "a11y.", "site.") if live_pages else ()
         on_live = sorted(k for k in pending if any(k.startswith(p) for p in (*live_pages, *global_prefixes)))
         rest = sorted(k for k in pending if k not in on_live)
         if on_live:
             print(f"  ON A LIVE /es/ PAGE ({len(on_live)} -- English served at a Spanish URL): {', '.join(on_live)}")
-        print(f"  Other pending, no live /es/ page (falls back to English until AuditLab approves): {', '.join(rest[:10])}"
+        print(f"  Other pending (no mapped live /es/ page; falls back to English until AuditLab approves): {', '.join(rest[:10])}"
               + (f" ... and {len(rest) - 10} more" if len(rest) > 10 else ""))
     else:
         print("  PASS -- every Phase A key has a reviewed, current Spanish translation.")
