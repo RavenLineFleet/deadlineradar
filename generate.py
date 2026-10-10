@@ -57,7 +57,7 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
 
-def _es_page_has_real_translation(en_html: str, es_html: str) -> bool:
+def _es_page_has_real_translation(en_html: str, es_html: str, key_prefix: str | None = None) -> bool:
     """AuditLab ES-2 (2026-08-19): a page rendered with lang="es" whose EVERY
     Phase A key is still unreviewed/stale falls back to English for all of
     them via i18n.t() -- so the "Spanish" page is byte-for-byte English
@@ -69,8 +69,23 @@ def _es_page_has_real_translation(en_html: str, es_html: str) -> bool:
     per-key reviewed-ratio check: that would need a key-to-page registry
     that doesn't exist, and would still have to answer "how much is
     enough" -- this instead measures the actual thing that matters, whether
-    a reader would see any different words."""
+    a reader would see any different words.
+
+    AuditLab SRC-21 (2026-10-10): that text diff alone passes a page whose
+    ONLY Spanish is the shared nav/footer chrome (/es/pricing/ had 0 of 56
+    pricing.* keys translated yet published, lang="es" + hreflang + English
+    body). key_prefix closes that: when given, EVERY EN key under that
+    prefix must also have a reviewed, hash-current ES entry, or the page
+    does not publish. Only pricing opts in so far (the other pages carry
+    real translated body text; their remaining gaps are tracked as
+    ES-1/I18N-1)."""
     strip = lambda h: _WS_RE.sub(" ", _TAG_RE.sub(" ", h)).strip()
+    if key_prefix is not None:
+        import i18n as _i18n
+
+        pending = set(_i18n.stale_or_missing_keys())
+        if any(k.startswith(key_prefix) and k in pending for k in _i18n.EN):
+            return False
     return strip(en_html) != strip(es_html)
 
 
@@ -26052,7 +26067,9 @@ def main() -> None:
     # (and advertise it via hreflang) only if it's genuinely different from
     # English, and remove any stale /es/pricing/ output otherwise.
     _pricing_es_check = build_pricing_page(by_slug, as_of, real_today, lang="es")
-    es_ready["pricing"] = _es_page_has_real_translation(build_pricing_page(by_slug, as_of, real_today), _pricing_es_check)
+    es_ready["pricing"] = _es_page_has_real_translation(
+        build_pricing_page(by_slug, as_of, real_today), _pricing_es_check, key_prefix="pricing."
+    )
 
     pricing_dir = SITE_DIR / "pricing"
     pricing_dir.mkdir(parents=True, exist_ok=True)
