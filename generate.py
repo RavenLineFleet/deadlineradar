@@ -16174,7 +16174,8 @@ function drRenderCpeRecent() {
   });
   el.innerHTML = sorted.slice(0, 15).map(function(e) {
     var staffer = byId[e.subscriber_id];
-    var name = staffer ? drEscapeHtml(staffer.staff_label || staffer.email) : 'Removed staff member';
+    var rawName = staffer ? (staffer.staff_label || staffer.email) : 'Removed staff member';
+    var name = drEscapeHtml(rawName);
     var desc = e.description ? ' &mdash; ' + drEscapeHtml(e.description) : '';
     // Roadmap #29: a sample entry's id ('sample-cpe-1' etc.) matches nothing
     // on the server -- same reasoning as drRenderRow's sample-row Actions
@@ -16182,7 +16183,7 @@ function drRenderCpeRecent() {
     var removeControl = (staffer && staffer.is_sample)
       ? '<span class="dr-sample-tag">Sample</span>'
       : '<button type="button" class="dr-cpe-recent-remove" data-id="' + drEscapeHtml(e.id) + '" data-label="' +
-        drEscapeHtml(String(e.hours) + 'h for ' + name) + '">Remove</button>';
+        drEscapeHtml(String(e.hours) + 'h for ' + rawName) + '">Remove</button>';
     var linkedTag = '';
     if (e.group_id && !(staffer && staffer.is_sample)) {
       var linkedCount = drCpeEntries.filter(function(x) { return x.group_id === e.group_id; }).length;

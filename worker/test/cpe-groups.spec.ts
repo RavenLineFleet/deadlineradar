@@ -241,3 +241,37 @@ describe("DELETE /firm/cpe/:id?scope=group -- remove all linked", () => {
     expect((await liveEntries(firmId)).length).toBe(1);
   });
 });
+
+describe("rate-limit unit accounting (AuditLab CPE-6) -- pinned so a later tidy-up cannot change it silently", () => {
+  async function units(firmId: string, bucket: string): Promise<number> {
+    const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE ip = ?1 AND bucket = ?2").bind(firmId, bucket).first<{ n: number }>();
+    return r!.n;
+  }
+
+  it("create spends 1 unit per row written; group delete spends exactly 1 unit however many rows it removes", async () => {
+    const { firmId, cookie } = await createFirm("CpeGroupUnits");
+    const p = `u-${Date.now()}@example.com`;
+    const ga = await seed(firmId, p, "georgia", "ga-individual");
+    const il = await seed(firmId, p, "illinois", "il-individual");
+    const al = await seed(firmId, p, "alabama", "al-individual");
+    const g = (await (await postCpe(cookie, { ...base(ga), also: [{ subscriber_id: il }, { subscriber_id: al }] })).json()) as { id: string };
+    expect(await units(firmId, "cpe_entry_create")).toBe(3);
+    expect(await units(firmId, "cpe_entry_delete")).toBe(0);
+    const r = await delCpe(cookie, g.id, "group");
+    expect(((await r.json()) as { removed_count: number }).removed_count).toBe(3);
+    expect(await units(firmId, "cpe_entry_delete")).toBe(1);
+  });
+
+  it("control: a second delete of the already-removed group 404s and its lookup writes no rows", async () => {
+    const { firmId, cookie } = await createFirm("CpeGroupUnits2");
+    const p = `u2-${Date.now()}@example.com`;
+    const ga = await seed(firmId, p, "georgia", "ga-individual");
+    const il = await seed(firmId, p, "illinois", "il-individual");
+    const g = (await (await postCpe(cookie, { ...base(ga), also: [{ subscriber_id: il }] })).json()) as { id: string };
+    expect((await delCpe(cookie, g.id, "group")).status).toBe(200);
+    const before = await env.DB.prepare("SELECT COUNT(*) AS n FROM cpe_entries WHERE firm_id = ?1 AND deleted_at IS NOT NULL").bind(firmId).first<{ n: number }>();
+    expect((await delCpe(cookie, g.id, "group")).status).toBe(404);
+    const after = await env.DB.prepare("SELECT COUNT(*) AS n FROM cpe_entries WHERE firm_id = ?1 AND deleted_at IS NOT NULL").bind(firmId).first<{ n: number }>();
+    expect(after!.n).toBe(before!.n);
+  });
+});

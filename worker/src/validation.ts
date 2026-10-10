@@ -693,6 +693,13 @@ export function parseReminderThresholds(raw: unknown): number[] | null {
 // stale SSO identities) looks the same shape as those.
 export const RATE_LIMIT_FIRM_LICENSE_DELETE: RateLimit = { max: 50, windowSeconds: 86400 };
 export const RATE_LIMIT_FIRM_LICENSE_RENEW: RateLimit = { max: 50, windowSeconds: 86400 };
+// AuditLab CPE-6 (LOW, 2026-10-10): the 100/day ceiling is per REQUEST on the delete
+// side, not per row -- DELETE ?scope=group soft-deletes up to PER_PERSON_LINE_CEILING
+// rows for one unit. That stays bounded by creation: both statements filter
+// deleted_at IS NULL (a re-delete 404s at the lookup), live grouped rows have one
+// producer (addCpeEntryGroup, 1 create unit per row, 100/day), so each created row costs
+// at most 2 writes ever. Deliberately NOT charged n units: that would tax the feature's
+// whole purpose ("Remove all linked") and buys no bound. Pinned in cpe-groups.spec.ts.
 export const RATE_LIMIT_CPE_ENTRY_DELETE: RateLimit = { max: 100, windowSeconds: 86400 };
 export const RATE_LIMIT_OAUTH_IDENTITY_DELETE: RateLimit = { max: 20, windowSeconds: 86400 };
 

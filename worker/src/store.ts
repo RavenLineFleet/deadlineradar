@@ -4656,6 +4656,10 @@ export const CPE_GROUP_MAX_LINES = PER_PERSON_LINE_CEILING;
  *   - every line must be the SAME PERSON as the primary: exact normalized email
  *     (the identity the seat count uses), never a client-supplied claim;
  *   - firm-entity (-firm) lines are not people and can't take CPE hours.
+ * The exact-email rule holds at WRITE time only (AuditLab CPE-7): a later reattach
+ * (reattachOrphanedSubscriberRecords) matches on the wider cooldown_key, so one group_id
+ * can end up spanning two exact emails of the same folded identity, always inside one
+ * firm. Not cross-tenant, and group_id is display + "remove all linked" only.
  * Each INSERT also re-asserts firm ownership of its subscriber in SQL (INSERT ...
  * SELECT ... WHERE EXISTS), so a line removed between the check and the write
  * simply inserts nothing and the whole result is reported not_found.
