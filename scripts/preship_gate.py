@@ -878,6 +878,12 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
 
 def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
     errors: list[str] = []
+    # REG-4 (AuditLab, 2026-10-10): a str value here iterates CHARACTERS below,
+    # r.get('p') is always None, and the check reports success while checking
+    # nothing. Fail loud on a malformed table instead.
+    for _fn, _fields in _ASSISTANT_API_FIELDS_BY_DATASET.items():
+        if not (isinstance(_fields, list) and _fields and all(isinstance(f, str) for f in _fields)):
+            return [f"[REG-4] _ASSISTANT_API_FIELDS_BY_DATASET[{_fn!r}] must be a non-empty list[str], got {type(_fields).__name__} -- the leak guard would be silently vacuous"]
     for filename, fields in _ASSISTANT_API_FIELDS_BY_DATASET.items():
         path = data_dir / filename
         if not path.exists():
@@ -2446,9 +2452,9 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
 # this named exclusion map with the reason it is outside the claim. A new
 # dated dataset therefore fails the build until someone decides which.
 _FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
-    "reg_change_events.json": "published at /rule-changes/ but outside the homepage tile's 4-dataset denominator; copy is scoped to the four named datasets and /rule-changes/ appends its own runtime 'overdue' flag at 30 days (FRESH-4)",
+    "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator (claim copy says 'this site's datasets' without enumerating them on /, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/; /for-firms/, /pricing/, /methodology/ do enumerate); /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening to 254 of 264 is an open product call (FRESH-4/5)",
     "ptin_federal.json": "worker-side only, no static page renders its dates (FRESH-4 table)",
-    "competitor_prices.json": "internal comparison facts, not a re-verified-record dataset",
+    "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
 
 
