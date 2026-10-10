@@ -26,7 +26,7 @@ import { computeSubscriberDeadline, nearestSimpleFixedCalendarDeadlines } from "
 // doesn't introduce a real circular runtime dependency.
 import { checkPaidFeatureAccess, hasActiveTrial } from "./entitlements";
 import { seatCapForFirmTier } from "./tiers";
-import { computeSeatUsage, isFirmEntityRow, personKeyForEmail } from "./seat_usage";
+import { computeSeatUsage, isFirmEntityRow, personKeyForEmail, PER_PERSON_LINE_CEILING } from "./seat_usage";
 
 export const STATUS_PENDING = "pending_confirmation";
 export const STATUS_CONFIRMED = "confirmed";
@@ -4644,8 +4644,8 @@ export type AddCpeEntryGroupResult =
   | { ok: true; groupId: string; entries: CpeEntryRow[] }
   | { ok: false; reason: "not_found" | "different_person" | "firm_entity_line" | "too_many" };
 
-/** Most lines one submission can write: the per-person ceiling (seat_usage.ts). */
-export const CPE_GROUP_MAX_LINES = 10;
+/** Most lines one submission can write: the per-person ceiling (one constant, seat_usage.ts). */
+export const CPE_GROUP_MAX_LINES = PER_PERSON_LINE_CEILING;
 
 /**
  * Writes one CPE entry per chosen line, all sharing a group_id, in ONE db.batch
@@ -4672,7 +4672,7 @@ export async function addCpeEntryGroup(db: D1Database, input: AddCpeEntryGroupIn
   const personKey = personKeyForEmail(lines[0]!.email);
   for (let i = 0; i < lines.length; i++) {
     if (personKeyForEmail(lines[i]!.email) !== personKey) return { ok: false, reason: "different_person" };
-    if (i > 0 && isFirmEntityRow(lines[i]!)) return { ok: false, reason: "firm_entity_line" };
+    if (isFirmEntityRow(lines[i]!)) return { ok: false, reason: "firm_entity_line" };
   }
 
   const groupId = newToken();

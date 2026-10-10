@@ -159,6 +159,24 @@ describe("POST /firm/cpe with `also` -- log once, apply to several of the SAME p
     expect((await postCpe(cookie, { ...base(ga), also: [{ subscriber_id: fine }] })).status).toBe(201);
   });
 
+  it("a firm-entity (-firm) line cannot be the PRIMARY either (control: the same person's normal line as primary works)", async () => {
+    const { firmId, cookie } = await createFirm("CpeGroupFirmPrimary");
+    const p = `fp-${Date.now()}@example.com`;
+    const firmLine = await seed(firmId, p, "illinois", "il-firm");
+    const ga = await seed(firmId, p, "georgia", "ga-individual");
+    const al = await seed(firmId, p, "alabama", "al-individual");
+    expect((await postCpe(cookie, { ...base(firmLine), also: [{ subscriber_id: ga }] })).status).toBe(400);
+    expect((await liveEntries(firmId)).length).toBe(0);
+    expect((await postCpe(cookie, { ...base(ga), also: [{ subscriber_id: al }] })).status).toBe(201);
+  });
+
+  it("the group size limit IS the per-person line ceiling (one constant): 10 total lines, so 9 targets pass shape checks and 10 do not", async () => {
+    const m = await import("../src/store");
+    const u = await import("../src/seat_usage");
+    expect(m.CPE_GROUP_MAX_LINES).toBe(u.PER_PERSON_LINE_CEILING);
+    expect(m.CPE_GROUP_MAX_LINES).toBe(10);
+  });
+
   it("duplicate targets, the primary listed again, an empty list and too many targets are refused with nothing written", async () => {
     const { firmId, cookie } = await createFirm("CpeGroupShape");
     const p = `s-${Date.now()}@example.com`;
