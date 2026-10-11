@@ -29,6 +29,7 @@ import urllib.error
 import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass
+from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -119,17 +120,25 @@ _NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirect)   # allow_private
 _PUBLIC_ONLY_OPENER = urllib.request.build_opener(_NoRedirect, _GuardedHTTPHandler, _GuardedHTTPSHandler)
 
 
-def _url_resolves_public(url: str) -> bool:
-    """Pre-flight for paths we cannot hook at connect time (the browser). Same policy, one resolution."""
+def _preflight_reason(url: str) -> Optional[str]:
+    """Pre-flight for paths we cannot hook at connect time (the browser). Same policy, one resolution.
+    None = ok; "preflight_unresolved" = resolver error (fails closed, RVF-4a: not an address-policy refusal);
+    "blocked_address" = a non-public answer or no host."""
     p = urlparse(url)
     if not p.hostname:
-        return False
+        return "blocked_address"
     port = p.port or (443 if p.scheme == "https" else 80)
     try:
         infos = socket.getaddrinfo(p.hostname, port, type=socket.SOCK_STREAM)
     except OSError:
-        return False     # fail closed: chromium may resolve differently (DoH/own resolver) than this process
-    return all(_address_allowed(sa[0], sa[1]) for _f, _t, _p, _c, sa in infos)
+        return "preflight_unresolved"   # fail closed: chromium may resolve differently (DoH/own resolver) than this process
+    if all(_address_allowed(sa[0], sa[1]) for _f, _t, _p, _c, sa in infos):
+        return None
+    return "blocked_address"
+
+
+def _url_resolves_public(url: str) -> bool:
+    return _preflight_reason(url) is None
 
 
 def _is_blocked_address(exc: BaseException) -> bool:
@@ -262,8 +271,10 @@ class Fetcher:
         http/pdf-only runs and the offline tests don't need it installed."""
         if not self.allowed(url):
             return Fetched(url, False, None, "robots_disallow", None, None, url)
-        if not self._allow_private and not _url_resolves_public(url):
-            return Fetched(url, False, None, "blocked_address", None, None, url)
+        if not self._allow_private:
+            why = _preflight_reason(url)
+            if why:
+                return Fetched(url, False, None, why, None, None, url)
         self._throttle(urlparse(url).netloc)
         try:
             from playwright.sync_api import sync_playwright

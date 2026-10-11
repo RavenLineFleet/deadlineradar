@@ -1003,6 +1003,26 @@ def test_browser_preflight_fails_closed_on_unresolvable_host(monkeypatch):
     assert fetch._url_resolves_public("http://unresolvable.invalid/x") is False
 
 
+def test_browser_preflight_resolver_error_has_its_own_reason_but_still_refuses(monkeypatch):
+    """RVF-4a: a resolver failure must stay fail-closed but not be logged as an address-POLICY refusal."""
+    import socket
+
+    f = Fetcher(sleep=lambda s: None)                    # production default: allow_private=False
+    monkeypatch.setattr(f, "allowed", lambda u: True)    # isolate the pre-flight from the robots fetch
+
+    def boom(*a, **k):
+        raise socket.gaierror("nope")
+    monkeypatch.setattr(socket, "getaddrinfo", boom)
+    r = f._get_browser("http://unresolvable.invalid/x")
+    assert not r.ok and r.reason == "preflight_unresolved"
+
+    def private(*a, **k):                                # positive control: a real policy refusal keeps its reason
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
+    monkeypatch.setattr(socket, "getaddrinfo", private)
+    r = f._get_browser("http://localhost-alias.invalid/x")
+    assert not r.ok and r.reason == "blocked_address"
+
+
 def test_load_bearing_optional_dependencies_are_installed():
     """Three tests importorskip these and guard the RVF-1A real-PDF control and both browser guards; a host
     without them would report green with those arms unexercised. Fail loudly instead."""
