@@ -805,8 +805,14 @@ def test_rvf1_negative_controls_still_fetch(two_hosts):
 def test_rvf1_each_hop_host_is_rate_limited_under_its_own_key(two_hosts):
     A, B, _, _ = two_hosts
     f = _real_fetcher()
+    calls = []
+    orig = f._throttle
+    f._throttle = lambda h: (calls.append(h), orig(h))[1]
     f.get(f"{A}/to_public")
     assert A.split("//")[1] in f._last_hit and B.split("//")[1] in f._last_hit
+    # RVF-3 (SecurityLab): B is keyed by its robots.txt fetch alone, so the key check cannot fail. The
+    # serving host must be throttled for its robots.txt AND its page (A: robots+page, B: robots+page).
+    assert calls.count(B.split("//")[1]) >= 2 and calls.count(A.split("//")[1]) >= 2
 
 
 def test_rvf1_redirect_loop_and_bad_scheme_fail_closed(two_hosts):
