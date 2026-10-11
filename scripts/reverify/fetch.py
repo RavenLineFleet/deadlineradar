@@ -283,6 +283,7 @@ class Fetcher:
         start_host = urlparse(url).netloc
         blocked: list[str] = []
         private: list[str] = []
+        unresolved: list[str] = []
         too_many: list[str] = []
         final = url
         try:
@@ -308,8 +309,9 @@ class Fetcher:
                                 blocked.append(cur)
                                 route.abort()
                                 return
-                            if not self._allow_private and not _url_resolves_public(cur):
-                                private.append(cur)
+                            why = None if self._allow_private else _preflight_reason(cur)
+                            if why:
+                                (unresolved if why == "preflight_unresolved" else private).append(cur)
                                 route.abort()
                                 return
                             if urlparse(cur).netloc != start_host:
@@ -345,6 +347,8 @@ class Fetcher:
         except Exception as e:
             if private:
                 return Fetched(url, False, None, "blocked_address", None, None, private[-1])
+            if unresolved:
+                return Fetched(url, False, None, "preflight_unresolved", None, None, unresolved[-1])
             if blocked:
                 return Fetched(url, False, None, "robots_disallow", None, None, blocked[-1])
             if too_many:

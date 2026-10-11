@@ -955,6 +955,22 @@ def test_rvf2_browser_path_refuses_redirect_onto_internal_service(public_a_priva
     assert hits_c == []
 
 
+def test_rvf4a_browser_hop_resolver_error_has_its_own_reason_but_still_refuses(public_a_private_c, monkeypatch):
+    """Hop half of RVF-4a: a resolver error on a mid-redirect target is fail-closed and labelled
+    preflight_unresolved; the same hop answering with a non-public address stays blocked_address."""
+    pytest.importorskip("playwright.sync_api")
+    A, C, hits_a, hits_c = public_a_private_c
+    c_port = C.rsplit(":", 1)[1]
+    real = fetch._preflight_reason
+    monkeypatch.setattr(fetch, "_preflight_reason",
+                        lambda u: "preflight_unresolved" if f":{c_port}/" in u else real(u))
+    f = Fetcher(sleep=lambda s: None)
+    assert f.get(f"{A}/plain.html", "browser").ok         # negative control
+    r = f.get(f"{A}/to-internal", "browser")
+    assert not r.ok and r.reason == "preflight_unresolved"
+    assert hits_c == []                                   # refused before any request reached the target
+
+
 def test_rvf2a_production_never_disables_the_address_guard():
     import inspect
     import cache_sources
