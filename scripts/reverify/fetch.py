@@ -9,14 +9,20 @@ Deterministic, no LLM. Rules (Orchestrator 2026-10-02 auto-reverify directive):
 - redirects are followed by hand, at most MAX_REDIRECTS hops, and EVERY hop
   gets the same robots + 1 req/s checks as the first request (RVF-1: the
   transport used to follow a 3xx to another host with none of them);
-- a document routed to the PDF extractor must carry the %PDF- magic (RVF-1A).
+- a document routed to the PDF extractor must carry the %PDF- magic (RVF-1A);
+- the address actually connected to must be globally routable (RVF-2): a redirect (or a dataset
+  URL) that resolves to loopback / private / link-local / reserved space is refused, because an
+  internal service publishes no robots.txt and so would read as "allowed".
 Extraction reuses source_check's pdf/docx/html extractors so both tools read a
 document the same way.
 """
 from __future__ import annotations
 
 import hashlib
+import http.client
+import ipaddress
 import os
+import socket
 import sys
 import time
 import urllib.error
@@ -44,7 +50,86 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirect)
+class BlockedAddress(OSError):
+    """The host resolved to (or redirected onto) a non-public address."""
+
+
+def _address_allowed(ip: str, port: int) -> bool:
+    """Policy hook (tests monkeypatch it; production = globally routable only)."""
+    addr = ipaddress.ip_address(ip.split("%")[0])
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return addr.is_global and not addr.is_multicast
+
+
+def _guarded_create_connection(address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None):
+    """socket.create_connection that resolves once, refuses any non-public answer, and connects to the
+    address it validated (so a DNS answer cannot change between the check and the connect)."""
+    host, port = address
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    for _fam, _typ, _proto, _canon, sa in infos:
+        if not _address_allowed(sa[0], sa[1]):
+            raise BlockedAddress(f"{host} resolves to non-public address {sa[0]}")
+    last_exc: OSError | None = None
+    for fam, typ, proto, _canon, sa in infos:
+        sock = None
+        try:
+            sock = socket.socket(fam, typ, proto)
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(timeout)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sa)
+            return sock
+        except OSError as e:
+            last_exc = e
+            if sock is not None:
+                sock.close()
+    raise last_exc or OSError(f"no address for {host}")
+
+
+class _GuardedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self._create_connection = _guarded_create_connection
+
+
+class _GuardedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self._create_connection = _guarded_create_connection
+
+
+class _GuardedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_GuardedHTTPConnection, req)
+
+
+class _GuardedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_GuardedHTTPSConnection, req, context=self._context)
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirect)   # allow_private=True (tests / loopback fixtures)
+_PUBLIC_ONLY_OPENER = urllib.request.build_opener(_NoRedirect, _GuardedHTTPHandler, _GuardedHTTPSHandler)
+
+
+def _url_resolves_public(url: str) -> bool:
+    """Pre-flight for paths we cannot hook at connect time (the browser). Same policy, one resolution."""
+    p = urlparse(url)
+    if not p.hostname:
+        return False
+    port = p.port or (443 if p.scheme == "https" else 80)
+    try:
+        infos = socket.getaddrinfo(p.hostname, port, type=socket.SOCK_STREAM)
+    except OSError:
+        return True      # unresolvable: the fetch itself will fail with its own reason
+    return all(_address_allowed(sa[0], sa[1]) for _f, _t, _p, _c, sa in infos)
+
+
+def _is_blocked_address(exc: BaseException) -> bool:
+    return isinstance(exc, BlockedAddress) or (
+        isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, BlockedAddress))
 
 
 @dataclass
@@ -54,13 +139,17 @@ class Fetched:
     status: int | None
     reason: str          # "" when ok; short machine-readable cause otherwise
     text: str | None     # normalised extracted text
-    sha256: str | None   # of the raw body, for the verification_history audit trail
+    sha256: str | None   # http/pdf: of the raw response body. browser: of chromium's re-serialised DOM
+    #                      (page.content()) -- there is no single raw body for a rendered page, so this digest
+    #                      is NOT reproducible by re-fetching the URL. Audit-trail use only.
     final_url: str = ""  # the URL that actually served `text`/`sha256` (== url unless redirected)
 
 
 class Fetcher:
-    def __init__(self, opener=None, sleep=time.sleep, clock=time.monotonic, robots_loader=None):
-        self._open = opener or _NO_REDIRECT_OPENER.open
+    def __init__(self, opener=None, sleep=time.sleep, clock=time.monotonic, robots_loader=None,
+                 allow_private=False):
+        self._allow_private = allow_private
+        self._open = opener or (_NO_REDIRECT_OPENER if allow_private else _PUBLIC_ONLY_OPENER).open
         self._sleep = sleep
         self._clock = clock
         self._last_hit: dict[str, float] = {}
@@ -139,6 +228,8 @@ class Fetcher:
                         continue
                     return Fetched(url, False, e.code, f"http_{e.code}", None, None, cur)
                 except Exception as e:
+                    if _is_blocked_address(e):
+                        return Fetched(url, False, None, "blocked_address", None, None, cur)
                     if attempt == 0:
                         self._sleep(2)
                         continue
@@ -166,6 +257,8 @@ class Fetcher:
         http/pdf-only runs and the offline tests don't need it installed."""
         if not self.allowed(url):
             return Fetched(url, False, None, "robots_disallow", None, None, url)
+        if not self._allow_private and not _url_resolves_public(url):
+            return Fetched(url, False, None, "blocked_address", None, None, url)
         self._throttle(urlparse(url).netloc)
         try:
             from playwright.sync_api import sync_playwright
@@ -173,6 +266,7 @@ class Fetcher:
             return Fetched(url, False, None, "playwright_missing", None, None, url)
         start_host = urlparse(url).netloc
         blocked: list[str] = []
+        private: list[str] = []
         too_many: list[str] = []
         final = url
         try:
@@ -196,6 +290,10 @@ class Fetcher:
                         for _ in range(MAX_REDIRECTS + 1):
                             if not self.allowed(cur):
                                 blocked.append(cur)
+                                route.abort()
+                                return
+                            if not self._allow_private and not _url_resolves_public(cur):
+                                private.append(cur)
                                 route.abort()
                                 return
                             if urlparse(cur).netloc != start_host:
@@ -229,6 +327,8 @@ class Fetcher:
                 finally:
                     b.close()
         except Exception as e:
+            if private:
+                return Fetched(url, False, None, "blocked_address", None, None, private[-1])
             if blocked:
                 return Fetched(url, False, None, "robots_disallow", None, None, blocked[-1])
             if too_many:

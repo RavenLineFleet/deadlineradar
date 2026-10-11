@@ -774,7 +774,7 @@ def two_hosts():
 
 
 def _real_fetcher():
-    return Fetcher(sleep=lambda s: None)
+    return Fetcher(sleep=lambda s: None, allow_private=True)   # fixtures live on loopback
 
 
 @pytest.mark.parametrize("hop", ["jump301", "jump302", "jump307", "jump308"])
@@ -882,3 +882,67 @@ def test_rvf1b_history_line_names_the_serving_url_only_when_redirected():
                      "(served by https://x.gov/a.pdf), sha256=ab, anchor='Renewal of certificate'")
     same = runner.history_line("2026-10-12", [{"i": 0, "url": "https://x.gov/a", "sha256": "ab"}], recipe)
     assert "served by" not in same
+
+
+# ---------------- RVF-2: the address actually connected to must be public ----------------
+@pytest.mark.parametrize("ip,ok", [
+    ("127.0.0.1", False), ("10.1.2.3", False), ("172.16.0.9", False), ("192.168.1.1", False),
+    ("169.254.169.254", False), ("100.64.0.1", False), ("0.0.0.0", False), ("224.0.0.1", False),
+    ("::1", False), ("fc00::1", False), ("fe80::1", False), ("::ffff:127.0.0.1", False), ("::ffff:10.0.0.1", False),
+    ("8.8.8.8", True), ("151.101.1.1", True), ("2606:4700:4700::1111", True), ("::ffff:8.8.8.8", True),
+])
+def test_rvf2_address_policy(ip, ok):
+    assert fetch._address_allowed(ip, 80) is ok
+
+
+@pytest.fixture
+def public_a_private_c(monkeypatch):
+    """A is treated as a public host, C as an internal service (both are loopback fixtures; the policy
+    hook tells them apart by port). C 404s robots.txt like a real internal service does."""
+    html = {"Content-Type": "text/html"}
+    srv_c, C, hits_c = _serve({"/admin/metrics": (200, html, b"<p>INTERNAL-SERVICE-BODY</p>")})
+    srv_a, A, hits_a = _serve({
+        "/robots.txt": (200, {}, b"User-agent: *\nAllow: /\n"),
+        "/plain.html": (200, html, b"<p>PLAIN-A-BODY</p>"),
+        "/to-internal": (302, {"Location": C + "/admin/metrics"}, b""),
+    })
+    a_port = srv_a.server_address[1]
+    real = fetch._address_allowed
+    monkeypatch.setattr(fetch, "_address_allowed",
+                        lambda ip, port: True if port == a_port else real(ip, port))
+    yield A, C, hits_a, hits_c
+    srv_a.shutdown()
+    srv_c.shutdown()
+
+
+def test_rvf2_redirect_onto_internal_service_is_refused_before_any_request(public_a_private_c):
+    A, C, hits_a, hits_c = public_a_private_c
+    f = Fetcher(sleep=lambda s: None)                    # production default: allow_private=False
+    ok = f.get(f"{A}/plain.html")                        # negative control: the "public" host still fetches
+    assert ok.ok and "PLAIN-A-BODY" in ok.text
+    r = f.get(f"{A}/to-internal")
+    assert not r.ok and r.reason == "blocked_address"
+    assert r.final_url == C + "/admin/metrics"
+    assert hits_c == []                                  # not even robots.txt or the page: no request was sent
+
+
+def test_rvf2_direct_dataset_url_on_private_address_is_refused(public_a_private_c):
+    A, C, hits_a, hits_c = public_a_private_c
+    r = Fetcher(sleep=lambda s: None).get(f"{C}/admin/metrics")
+    assert not r.ok and r.reason == "blocked_address" and hits_c == []
+
+
+def test_rvf2_allow_private_is_the_only_way_through(public_a_private_c):
+    A, C, hits_a, hits_c = public_a_private_c
+    r = Fetcher(sleep=lambda s: None, allow_private=True).get(f"{A}/to-internal")
+    assert r.ok and "INTERNAL-SERVICE-BODY" in r.text   # proves the refusal above is the guard, not a dead fixture
+
+
+def test_rvf2_browser_path_refuses_redirect_onto_internal_service(public_a_private_c):
+    pytest.importorskip("playwright.sync_api")
+    A, C, hits_a, hits_c = public_a_private_c
+    f = Fetcher(sleep=lambda s: None)
+    assert f.get(f"{A}/plain.html", "browser").ok         # negative control
+    r = f.get(f"{A}/to-internal", "browser")
+    assert not r.ok and r.reason == "blocked_address"
+    assert hits_c == []
