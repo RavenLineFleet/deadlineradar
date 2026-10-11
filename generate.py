@@ -20910,13 +20910,14 @@ def _calc_firm_clock(records: list[dict]) -> str:
     indiv = [r for r in records if r.get("license_type") not in _FIRM_ONLY_LICENSE_TYPES]
     if any(not r.get("next_deadline_computed") for r in firm):
         return "separate"
-    if len(indiv) != 1 or not indiv[0].get("next_deadline_computed"):
-        # The individual answer is personal/cohort-based (or a gap) while the
+    if not indiv or any(not r.get("next_deadline_computed") for r in indiv):
+        # An individual answer that is personal/cohort-based (or a gap) while the
         # firm has one fixed computed date -- the clocks differ by construction.
         return "different"
-    if any(r["next_deadline_computed"] != indiv[0]["next_deadline_computed"] for r in firm):
-        return "different"
-    return "separate"
+    # Every record on both sides has a computed date: one shared date is one clock,
+    # anything else (including two individual records on different dates) is not.
+    dates = {r["next_deadline_computed"] for r in indiv} | {r["next_deadline_computed"] for r in firm}
+    return "separate" if len(dates) == 1 else "different"
 
 
 def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date, lang: str = "en") -> dict:

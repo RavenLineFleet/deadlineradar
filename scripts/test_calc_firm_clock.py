@@ -64,7 +64,13 @@ def test_classifier_rules_on_synthetic_records():
     assert f([_rec("individual", None), _rec("firm", "2026-12-31")]) == "different"         # personal/gap vs fixed
     assert f([_rec("individual", None), _rec("firm", None)]) == "separate"
     assert f([_rec("individual", "2027-06-30"), _rec("individual", "2027-12-31"),
-              _rec("cpa_firm", "2027-06-30")]) == "different"                               # no single individual date
+              _rec("cpa_firm", "2027-06-30")]) == "different"                               # individuals disagree
+    assert f([_rec("individual", "2027-06-30"), _rec("individual", "2027-06-30"),
+              _rec("cpa_firm", "2027-06-30")]) == "separate"                                # CALC-6: one shared date = one clock
+    assert f([_rec("individual", "2027-06-30"), _rec("individual", "2027-06-30"),
+              _rec("firm", "2026-12-31")]) == "different"
+    assert f([_rec("individual", "2027-06-30"), _rec("individual", None),
+              _rec("firm", "2027-06-30")]) == "different"                                   # one individual is personal/gap
 
 
 def test_gap_states_never_open_with_the_individual_date_prefix():
