@@ -670,7 +670,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "reinstatement_fee_usd": 150,
-      "reinstatement_fee_notes": "Flat $150 reinstatement fee (N.J.A.C. 13:29-1.5), plus the current triennial renewal fee ($135), the past-due renewal fee for the prior triennial period, and (if within the 30-day grace window) a separate $50 late fee.",
+      "reinstatement_fee_notes": "Flat $150 reinstatement fee (N.J.A.C. 13:29-1.5(a)4), plus the current triennial renewal fee ($135, (a)3), the past-due renewal fee for the prior triennial period, and (if within the 30-day grace window) a separate $50 late renewal fee ((a)5).",
       "penalty_cpe_hours": null,
       "penalty_cpe_notes": "No extra CPE beyond normal -- reinstatement requires evidence of completing the standard 120-credit triennial requirement (min. 20/year) for the lapsed period, per N.J.A.C. 13:29-1.9(a)(6), not an added penalty amount.",
       "penalty_ethics_hours": null,

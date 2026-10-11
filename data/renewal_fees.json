@@ -521,7 +521,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "fee_usd": 135,
-      "fee_notes": "Flat $135 triennial (3-year) registration fee. N.J.A.C. 13:29-1.5(a) sets one fee schedule covering CPAs, PAs, AND accounting firms (sole proprietorships, partnerships, PCs, LLCs, LLPs) together -- firm renewal is also $135/triennium, the same figure and the same subsection, not a separate number.",
+      "fee_notes": "$135 per triennial (3-year) registration period for CPAs and accounting firms (N.J.A.C. 13:29-1.5(a)3, 'Triennial registration'). One fee schedule covers CPAs, PAs, AND accounting firms (sole proprietorships, partnerships, PCs, LLCs, LLPs) together -- firm renewal is also $135/triennium, the same figure and the same subsection, not a separate number. A newly licensed CPA or firm pays a separate initial license fee under (a)2, prorated by which year of the triennial period they join: $135 in the first year, $90 in the second, $45 in the third.",
       "source_url": "https://www.njconsumeraffairs.gov/Adoptions/accado_09042018.pdf",
       "confidence": "high",
       "verified_date": "2026-10-11",
