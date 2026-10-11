@@ -912,6 +912,19 @@ PAGE_CSS = """
      announced. Same --accent/--on-accent pairing every other CTA on the
      site already uses, so it reads as "this site's button," not a
      bolted-on accessibility widget. */
+  /* Founding Firms bar: slim and static (not a marquee). Flex lives on the
+     INNER row, never on the element carrying [hidden], so the dismissed state
+     really hides it (a display rule on the hidden element would override it). */
+  .dr-founding-bar { background: var(--accent); color: var(--on-accent); font-size: 0.9rem; line-height: 1.35; }
+  .dr-founding-bar[hidden] { display: none; }
+  .dr-founding-bar-inner { display: flex; align-items: center; gap: 0.75rem; padding-top: 0.45rem; padding-bottom: 0.45rem; }
+  .dr-founding-bar p { margin: 0; flex: 1; }
+  .dr-founding-bar a { color: inherit; font-weight: 700; text-decoration: underline; }
+  .dr-founding-bar button {
+    flex: none; min-width: 2.75rem; min-height: 2.75rem; background: transparent; color: inherit;
+    border: 1px solid currentColor; border-radius: 0.3rem; font-size: 1.1rem; line-height: 1; cursor: pointer;
+  }
+  .dr-founding-bar button:focus-visible, .dr-founding-bar a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   .dr-skip-link {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
@@ -3477,7 +3490,7 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
     buttons[i].addEventListener('click', function(ev) {{
       var btn = ev.currentTarget;
       var tier = btn.getAttribute('data-tier');
-      if (errEl) {{ errEl.hidden = true; errEl.textContent = ''; }}
+      if (errEl) {{ errEl.hidden = true; errEl.textContent = ''; errEl.style.color = '#c33737'; }}
       btn.disabled = true;
       fetch('{REMINDER_BACKEND_BASE_URL}/firm/billing/checkout', {{
         method: 'POST',
@@ -3508,6 +3521,8 @@ _PRICING_CHECKOUT_JS_HTML = f"""<script>
               toggleEl.hidden = true;
             }}
             if (errEl) {{
+              // Not an error: an already-subscribed firm is told where to go, so no alarm-red.
+              if (alreadySubscribed) {{ errEl.style.color = '#1f3d54'; }}
               errEl.textContent = alreadySubscribed
                 ? '{_ALREADY_SUBSCRIBED_PRICING_MSG}'
                 : ((data && data.error) ? data.error : 'Something went wrong, please try again.');
@@ -5552,6 +5567,90 @@ def _demo_doors_html(promoted: str | None = None, mention_tour: bool = False) ->
     )
 
 
+# Founding Firms (Devin 2026-10-09; Orchestrator Lane 3): 5 spots, each a 365-day
+# Stripe trial of the Growth plan with no card (worker/src: founding_firm_grants,
+# handleFirmBillingCheckout). English-only on purpose: the ES pages carry no bar.
+# FOUNDING_FIRMS_OPEN is a hand-flipped switch, NOT a live count: set it to False
+# (and redeploy) the day the 5th spot is granted -- `python scripts/founding_firm_grant.py
+# status` shows the slots. No "N left" number is shown anywhere because nothing
+# public reads the real count.
+FOUNDING_FIRMS_OPEN = True
+FOUNDING_FIRMS_ONE_LINE = (
+    "Founding Firms: 5 spots for CPA firms with 4 to 10 staff. "
+    "A 365-day trial of the Growth plan with no card. It ends on its own at day 365."
+)
+FOUNDING_FIRMS_LINK_TEXT = "See how it works"
+FOUNDING_FIRMS_BAR_STORAGE_KEY = "dr_founding_bar_v1"
+
+
+def _founding_firms_one_line_html() -> str:
+    """The same one-line offer, with its link, for /pricing/ and /for-firms/."""
+    return f'{esc(FOUNDING_FIRMS_ONE_LINE)} <a href="/founding-firms/">{esc(FOUNDING_FIRMS_LINK_TEXT)}</a>'
+
+
+def _founding_bar_html(lang: str, canonical_path: str, hide_signin: bool) -> str:
+    """Slim, STATIC, dismissible site-wide bar (not a marquee). Shown on public
+    English pages only: not on the Spanish pages, not on the signed-in/auth pages
+    (hide_signin), and not on /founding-firms/ itself. Dismissal is remembered in
+    localStorage when it is available and simply not remembered when it is not."""
+    if not FOUNDING_FIRMS_OPEN or lang != "en" or hide_signin or canonical_path == "/founding-firms/":
+        return ""
+    return (
+        '<div class="dr-founding-bar" id="dr-founding-bar" role="region" aria-label="Founding Firms offer">'
+        '<div class="wrap dr-founding-bar-inner">'
+        f'<p>{_founding_firms_one_line_html()}</p>'
+        '<button type="button" id="dr-founding-bar-close" aria-label="Dismiss this message">&times;</button>'
+        '</div></div>\n'
+        "<script>(function(){var b=document.getElementById('dr-founding-bar');if(!b){return;}"
+        f"var k='{FOUNDING_FIRMS_BAR_STORAGE_KEY}';"
+        "try{if(localStorage.getItem(k)==='1'){b.hidden=true;return;}}catch(e){}"
+        "var c=document.getElementById('dr-founding-bar-close');"
+        "if(c){c.addEventListener('click',function(){b.hidden=true;try{localStorage.setItem(k,'1');}catch(e){}});}"
+        "})();</script>"
+    )
+
+
+def build_founding_firms_page() -> str:
+    """/founding-firms/ -- the explainer the bar and the one-liners link to.
+    Text is claim-ledgered (AssetLab/claims/drafts/founding_page_v2.*) and needs an
+    AuditLab pass on these exact bytes before it ships. The apply path is a mailto
+    to the support address (no form, no new endpoint)."""
+    apply_href = f"mailto:{esc(CONTACT_EMAIL)}?subject=Founding%20Firms%20application"
+    if FOUNDING_FIRMS_OPEN:
+        body = f"""<h1>Founding Firms: the Growth plan for 365 days, no card</h1>
+<p class="intro">We are opening 5 Founding Firm spots. If your firm has more than 3 staff and up to 10, a Founding Firm spot gives you our Growth plan, normally $299 a year, as a 365-day trial with no card.</p>
+
+<h2>How it works</h2>
+<ol>
+<li>Request a spot by email.</li>
+<li>We confirm that you are a real CPA firm with more than 3 staff and up to 10.</li>
+<li>We reserve one of the 5 spots for your account and tell you when it is ready.</li>
+<li>You sign in, choose the Growth plan on the <a href="/pricing/">pricing page</a>, and the 365-day trial starts at checkout. We do not ask for a card.</li>
+</ol>
+<p><a class="dr-paywall-tier-btn" href="{apply_href}">Request a spot</a></p>
+
+<h2>What happens at day 365</h2>
+<p>The trial ends on its own at day 365 and your account moves to the Free plan (up to 3 staff). Nothing is charged. If your roster is above 3 staff then, you choose which 3 stay active; the rest are paused, never deleted, and restored instantly if you subscribe. We do not ask for a card, and billing management will not take one while the trial runs. To keep the Growth plan after day 365, you subscribe then.</p>
+
+<h2>What we would welcome</h2>
+<p>What we would welcome, and it is not a condition of the plan: an honest private note to us about the site. We never ask for a positive one.</p>
+
+<p class="field-hint">Once the 5 spots are taken, they are gone.</p>
+"""
+    else:
+        body = """<h1>Founding Firms</h1>
+<p class="intro">All 5 Founding Firm spots have been taken. Thank you to everyone who asked.</p>
+<p><a href="/pricing/">See plans and pricing</a></p>
+"""
+    return page_shell(
+        f"Founding Firms — {SITE_NAME}",
+        "Five Founding Firm spots: a 365-day trial of the Growth plan with no card, for CPA firms with more than 3 staff and up to 10.",
+        body,
+        home_href="../",
+        canonical_path="/founding-firms/",
+    )
+
+
 def page_shell(
     title: str,
     meta_description: str,
@@ -5595,6 +5694,7 @@ def page_shell(
 </head>
 <body>
 <a href="#main" class="dr-skip-link">{esc(_t("a11y.skip_to_content", lang))}</a>
+{_founding_bar_html(lang, canonical_path, hide_signin)}
 {site_header(home_href, hide_signin=hide_signin, has_remind_anchor=has_remind_anchor, sticky_top_nav=sticky_top_nav, lang=lang)}
 <main id="main" tabindex="-1">
 {body}
@@ -9006,6 +9106,7 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 </div>
 <p class="field-hint">{_t("pricing.footnote_solo", lang)}</p>
 <p class="field-hint" id="dr-pricing-trial-note">{_t("pricing.footnote_trial", lang)}</p>
+{('<p class="field-hint" id="dr-pricing-founding-note">' + _founding_firms_one_line_html() + '</p>') if (FOUNDING_FIRMS_OPEN and lang == "en") else ""}
 
 <h2>{_t("pricing.h2_plans", lang)}</h2>
 <p class="field-hint">{_t("pricing.plans_intro", lang)}</p>
@@ -10585,7 +10686,7 @@ sourced dates staying visibly distinct is the whole reason to trust this site. L
 <h2>Pricing</h2>
 <p>Roster, Calendar, CPE Hours, and individual Practice Privilege Check are <strong>free for any firm,
 up to 3 staff</strong>, no card required, no time limit. New accounts also try the paid features free
-for their first 14 days. Paid tiers add the Map and the firm-level
+for their first 14 days. {_founding_firms_one_line_html() if FOUNDING_FIRMS_OPEN else ''} Paid tiers add the Map and the firm-level
 registration check &mdash; every paid tier gets the identical feature set; the only difference between
 them is how many staff it covers, nothing is held back on a cheaper plan. A person licensed in several
 states counts once toward the staff limit, and your firm's own permit and registration lines don't
@@ -25737,6 +25838,9 @@ def build_sitemap(
     <loc>{SITE_BASE_URL}/for-firms/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""", f"""  <url>
+    <loc>{SITE_BASE_URL}/founding-firms/</loc>
+    <lastmod>{as_of.isoformat()}</lastmod>
+  </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/compliance-reports/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""",
@@ -26267,6 +26371,11 @@ def main() -> None:
     roadmap_dir.mkdir(parents=True, exist_ok=True)
     (roadmap_dir / "index.html").write_text(build_roadmap_page(), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/roadmap/index.html")
+
+    founding_dir = SITE_DIR / "founding-firms"
+    founding_dir.mkdir(parents=True, exist_ok=True)
+    (founding_dir / "index.html").write_text(build_founding_firms_page(), encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/founding-firms/index.html")
 
     # year_end_expired must be known before build_sitemap() runs below --
     # it decides whether /year-end-renewals/ is listed there too.

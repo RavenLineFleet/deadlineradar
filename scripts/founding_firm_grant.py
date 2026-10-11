@@ -59,6 +59,12 @@ FIRM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
 EVIDENCE_RE = re.compile(r"^[A-Za-z0-9 .,:;/()'_#+=?<>-]{20,500}$")
 VERIFIED_BY = ("devin", "orchestrator")
 MAX_SLOTS = 5
+# AuditLab FOUNDING-1: the public offer is switched off by hand, so say so loudly at the moment it becomes true.
+LAST_SLOT_WARNING = (
+    "!! ALL 5 FOUNDING SLOTS ARE TAKEN. The site still advertises the offer until you set "
+    "FOUNDING_FIRMS_OPEN = False in generate.py and redeploy the static site (bar, /pricing/ and /for-firms/ "
+    "one-liners, /founding-firms/ page). Do that now or the offer stays live for spots that do not exist."
+)
 GROWTH_SEAT_CAP = 10  # worker/src/tiers.ts firm_growth; the trial is Growth-only
 # Same definition as store.countFirmLicenses(): removed-by-admin staff do not count.
 ROSTER_COUNT_SQL = (
@@ -152,6 +158,8 @@ def cmd_status(args) -> None:
         state = "trial started " + g["trial_started_at"] if g["trial_started_at"] else "granted, not started"
         print(f"slot {g['slot']}: firm {g['firm_id']}  {state}  (verified_by {g['verified_by']}, {g['granted_at']})")
     print(f"{MAX_SLOTS - len(grants)} of {MAX_SLOTS} slots left")
+    if len(grants) >= MAX_SLOTS:
+        print(LAST_SLOT_WARNING)
     problems = rows(
         "SELECT id, received_at, event_type, firm_id FROM stripe_webhook_events "
         "WHERE substr(event_type, 1, 15) = 'founding_trial:' ORDER BY received_at",

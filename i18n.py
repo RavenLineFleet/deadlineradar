@@ -469,8 +469,8 @@ EN: dict[str, str] = {
     "pricing.card_individual_title": "Individual",
     "pricing.card_individual_price": "Free",
     "pricing.card_individual_detail": (
-        "Your own CPE-hour tracking and Practice Privilege Check — included at no cost for a "
-        "solo CPA tracking just your own license. Just want free renewal reminders? "
+        "Roster, Calendar, CPE-hour tracking and Practice Privilege Check — free for any firm, "
+        "up to 3 staff, no card and no time limit. Just want free renewal reminders? "
         "{signup_link} — no account needed."
     ),
     "pricing.signup_free_link_text": "Sign up free",
