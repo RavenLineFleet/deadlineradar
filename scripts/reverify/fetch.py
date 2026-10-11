@@ -54,11 +54,16 @@ class BlockedAddress(OSError):
     """The host resolved to (or redirected onto) a non-public address."""
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
 def _address_allowed(ip: str, port: int) -> bool:
     """Policy hook (tests monkeypatch it; production = globally routable only)."""
     addr = ipaddress.ip_address(ip.split("%")[0])
     if addr.version == 6 and addr.ipv4_mapped is not None:
         addr = addr.ipv4_mapped
+    elif addr.version == 6 and addr in _NAT64:
+        addr = ipaddress.ip_address(int(addr) & 0xFFFFFFFF)   # 64:ff9b::7f00:1 embeds 127.0.0.1
     return addr.is_global and not addr.is_multicast
 
 
@@ -123,7 +128,7 @@ def _url_resolves_public(url: str) -> bool:
     try:
         infos = socket.getaddrinfo(p.hostname, port, type=socket.SOCK_STREAM)
     except OSError:
-        return True      # unresolvable: the fetch itself will fail with its own reason
+        return False     # fail closed: chromium may resolve differently (DoH/own resolver) than this process
     return all(_address_allowed(sa[0], sa[1]) for _f, _t, _p, _c, sa in infos)
 
 

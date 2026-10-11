@@ -896,6 +896,7 @@ def test_rvf1b_history_line_names_the_serving_url_only_when_redirected():
     ("169.254.169.254", False), ("100.64.0.1", False), ("0.0.0.0", False), ("224.0.0.1", False),
     ("::1", False), ("fc00::1", False), ("fe80::1", False), ("::ffff:127.0.0.1", False), ("::ffff:10.0.0.1", False),
     ("8.8.8.8", True), ("151.101.1.1", True), ("2606:4700:4700::1111", True), ("::ffff:8.8.8.8", True),
+    ("64:ff9b::7f00:1", False), ("64:ff9b::a9fe:a9fe", False), ("64:ff9b::808:808", True),   # NAT64 embeddings
 ])
 def test_rvf2_address_policy(ip, ok):
     assert fetch._address_allowed(ip, 80) is ok
@@ -958,6 +959,52 @@ def test_rvf2a_production_never_disables_the_address_guard():
     import inspect
     import cache_sources
     assert inspect.signature(Fetcher).parameters["allow_private"].default is False
-    assert "allow_private" not in inspect.getsource(runner) + inspect.getsource(cache_sources)
-    job_src = open(os.path.join(os.path.dirname(__file__), "job.py"), encoding="utf-8").read()
-    assert "allow_private" not in job_src
+    here = os.path.dirname(os.path.abspath(__file__))
+    for name in sorted(os.listdir(here)):      # every module in scripts/reverify/, not a hand-kept list
+        if name.endswith(".py") and name not in ("test_reverify.py", "fetch.py"):
+            assert "allow_private" not in open(os.path.join(here, name), encoding="utf-8").read(), name
+
+
+def test_rvf3_connect_uses_the_validated_address_not_the_hostname(public_a_private_c, monkeypatch):
+    """Anti-rebind pin (SecurityLab N5): the socket must be connected to an address taken from the answer
+    that was validated, never to the hostname (which would resolve a second time). A resolution-count
+    test cannot see this - socket.connect resolves in C - so record what connect() is actually given."""
+    import socket
+    A, C, hits_a, hits_c = public_a_private_c
+    url = A.replace("127.0.0.1", "localhost")
+    targets = []
+    real_connect = socket.socket.connect
+    monkeypatch.setattr(socket.socket, "connect", lambda self, addr: (targets.append(addr), real_connect(self, addr))[1])
+    assert Fetcher(sleep=lambda s: None).get(f"{url}/plain.html").ok
+    assert targets, "connect() was never observed"
+    for addr in targets:
+        assert addr[0] != "localhost" and addr[0].replace(".", "").replace(":", "").isalnum(), addr
+        assert addr[0] in ("127.0.0.1", "::1"), addr
+
+
+def test_rvf3_one_private_answer_among_public_ones_refuses(monkeypatch):
+    """SecurityLab N4: validate EVERY getaddrinfo answer, not just the first."""
+    import socket
+    real = socket.getaddrinfo
+    mixed = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80)),
+             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: mixed)
+    with pytest.raises(fetch.BlockedAddress):
+        fetch._guarded_create_connection(("example.test", 80), 1)
+    monkeypatch.setattr(socket, "getaddrinfo", real)
+
+
+def test_browser_preflight_fails_closed_on_unresolvable_host(monkeypatch):
+    import socket
+
+    def boom(*a, **k):
+        raise socket.gaierror("nope")
+    monkeypatch.setattr(socket, "getaddrinfo", boom)
+    assert fetch._url_resolves_public("http://unresolvable.invalid/x") is False
+
+
+def test_load_bearing_optional_dependencies_are_installed():
+    """Three tests importorskip these and guard the RVF-1A real-PDF control and both browser guards; a host
+    without them would report green with those arms unexercised. Fail loudly instead."""
+    import fitz  # noqa: F401
+    import playwright.sync_api  # noqa: F401
