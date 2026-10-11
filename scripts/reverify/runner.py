@@ -215,7 +215,10 @@ def history_line(day: str, check_results: list[dict], recipe: dict) -> str:
     parts = []
     for p in check_results:
         anchor = recipe["checks"][p["i"]]["anchor"].replace("'", "\u2019")
-        parts.append(f"confirmed via {p['url']}, sha256={p['sha256']}, anchor='{anchor}'")
+        # RVF-1B (SecurityLab): when a redirect moved the fetch, say which URL served the bytes the
+        # sha256 covers -- the requested URL alone attributed the hash to a host that served nothing.
+        served = f" (served by {p['final_url']})" if p.get("final_url") and p["final_url"] != p["url"] else ""
+        parts.append(f"confirmed via {p['url']}{served}, sha256={p['sha256']}, anchor='{anchor}'")
     return f"{day} (automated re-verification, auto-anchor): " + "; ".join(parts)
 
 

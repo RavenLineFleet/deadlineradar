@@ -872,3 +872,13 @@ def test_rvf1_trail_names_the_host_that_served_the_bytes():
     same = Fetched("https://a.gov/x", True, 200, "", "the fee 150", "ab" * 32, "https://a.gov/x")
     assert runner.judge_record(r, {"fee_usd": 150}, {0: moved})["checks"][0]["final_url"] == "https://b.gov/y"
     assert "final_url" not in runner.judge_record(r, {"fee_usd": 150}, {0: same})["checks"][0]
+
+
+def test_rvf1b_history_line_names_the_serving_url_only_when_redirected():
+    recipe = {"checks": [chk()]}
+    moved = runner.history_line("2026-10-12", [{"i": 0, "url": "https://www.x.gov/a.pdf", "sha256": "ab",
+                                                  "final_url": "https://x.gov/a.pdf"}], recipe)
+    assert moved == ("2026-10-12 (automated re-verification, auto-anchor): confirmed via https://www.x.gov/a.pdf "
+                     "(served by https://x.gov/a.pdf), sha256=ab, anchor='Renewal of certificate'")
+    same = runner.history_line("2026-10-12", [{"i": 0, "url": "https://x.gov/a", "sha256": "ab"}], recipe)
+    assert "served by" not in same
