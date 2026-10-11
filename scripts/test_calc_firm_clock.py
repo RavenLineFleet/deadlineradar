@@ -72,3 +72,15 @@ def test_gap_states_never_open_with_the_individual_date_prefix():
     assert "entry.kind === 'gap') ? '' : 'This is your individual license date. '" in js
     assert js.count("firmPrefix +") == 2     # both branches go through the prefix guard
     assert "has_firm_deadline" not in js and "has_firm_deadline" not in generate._deadline_calculator_widget_data.__code__.co_names
+
+
+def test_es_calculator_result_links_do_not_404():
+    """The ES page lives at /es/deadline-calculator/ but only 5 pages exist under /es/, so a
+    '../<slug>/' result link resolved to /es/<slug>/ (404 for all states) until 2026-10-11."""
+    from datetime import date
+    by = _states()
+    en = generate._deadline_calculator_widget_html(by, date(2026, 10, 11), "en")
+    es = generate._deadline_calculator_widget_html(by, date(2026, 10, 11), "es")
+    assert 'var DR_CALC_BASE = "../";' in en
+    assert 'var DR_CALC_BASE = "../../";' in es
+    assert "DR_CALC_BASE + slug" in generate._DEADLINE_CALC_JS and "'<a href=\"../' + slug" not in generate._DEADLINE_CALC_JS

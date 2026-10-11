@@ -21132,7 +21132,7 @@ _DEADLINE_CALC_JS = """
       firmNote = '<p class="field-hint">' + firmPrefix + 'A firm registration is a separate filing from ' +
         'individual licenses \\u2014 see the full ' + label + ' page below for the firm\\u2019s details.</p>';
     }
-    result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="../' + slug + '/">See the full ' + label +
+    result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="' + DR_CALC_BASE + slug + '/">See the full ' + label +
       ' page &amp; set up a free reminder &rarr;</a></p>';
   }
 
@@ -21262,7 +21262,7 @@ _DEADLINE_CALC_JS = """
 """
 
 
-def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date) -> str:
+def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date, lang: str = "en") -> str:
     data = _deadline_calculator_widget_data(by_slug, as_of)
     state_options = "\n".join(
         f'<option value="{esc(slug)}">{esc(entry["label"])}</option>'
@@ -21280,6 +21280,7 @@ def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date
 <script>
 var DR_CALC_DATA = {json.dumps(data)};
 var DR_CALC_AS_OF = {json.dumps(as_of.isoformat())};
+var DR_CALC_BASE = {json.dumps("../" if lang == "en" else "../../")};
 {_DEADLINE_CALC_JS}
 </script>"""
 
@@ -21356,7 +21357,7 @@ def build_deadline_calculator_page(
     body = f"""<h1>{_t("calc.h1", lang)}</h1>
 <p class="intro">{_t("calc.intro", lang, methodology_link=methodology_link)}</p>
 
-{_deadline_calculator_widget_html(by_slug, as_of)}
+{_deadline_calculator_widget_html(by_slug, as_of, lang)}
 
 <div class="trust-row">
   <div class="item"><span class="n">{cov["total"]}</span><span class="lbl">{_t("calc.trust_jurisdictions", lang)}</span></div>
