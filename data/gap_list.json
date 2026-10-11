@@ -49,7 +49,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "Your New Jersey CPA license renews on a personal, rolling triennial (3-year) cycle -- three years from your own license's last expiration date, not a shared calendar date for every licensee. N.J.A.C. 13:29-1.7(b) sets this out directly, and the same three-year clock applies to your first renewal too. Confirm your exact date on your license certificate or with the Board.",
+      "note": "New Jersey runs CPA renewals on a triennial (3-year) registration period, and the Board opens one online renewal portal for it. N.J.A.C. 13:29-1.7(b) sets the renewal term at three years from the last expiration date. Confirm your exact expiration date on your license certificate or with the Board before relying on any date.",
       "is_block_claim": false,
       "terminal_disclosure": true
     },
@@ -59,7 +59,7 @@
       "state": "New Jersey",
       "state_slug": "new-jersey",
       "field": "data_gap_note",
-      "note": "New Jersey firm registration renews on the same personal, rolling triennial cycle as individual licenses -- three years from your firm's own last registration date, not one shared calendar date for every firm. Confirm your firm's exact renewal date with the New Jersey State Board of Accountancy or on your registration certificate.",
+      "note": "New Jersey's fee schedule puts CPAs and accounting firms on the same triennial (3-year) registration period. Confirm your firm's exact registration date with the New Jersey State Board of Accountancy or on your registration certificate before relying on any date.",
       "is_block_claim": false,
       "terminal_disclosure": true
     },
