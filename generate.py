@@ -20883,10 +20883,13 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
 def _calc_firm_clock(records: list[dict]) -> str:
     """Calculator cross-reference kind for one state (AuditLab CALC-1/2/3,
     2026-10-11). "" = no firm record; "different" = the firm renews on a
-    provably different date or cycle than the one individual date shown;
-    "separate" = a firm record exists but the date is the same as the
-    individual's or can't be compared -- the copy then claims only that the
-    firm registration is its own filing, never that the clock differs."""
+    provably different date than the one individual date shown (or the
+    individual answer is personal/cohort-based/a gap and the firm has one
+    fixed computed date); "separate" = a firm record exists but its date is
+    the same as the individual's or isn't computed -- the copy then claims
+    only that the firm registration is its own filing, never that the clock
+    differs. The cycle (renewal_pattern) is deliberately NOT compared: its
+    labels differ for same-clock pairs (CT), so it is no evidence either way."""
     firm = [r for r in records if r.get("license_type") in _FIRM_ONLY_LICENSE_TYPES]
     if not firm:
         return ""
@@ -20949,10 +20952,12 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
         # different clock" whenever a firm record with a computed date
         # existed -- false in 14 states where the firm renews on the same
         # date and cycle as the individual. Now three-valued: "different"
-        # only when both dates are known and differ (or the cycle pattern
-        # differs); "separate" (no claim about the date) when a firm record
-        # exists but the dates are same-as-individual or can't be compared;
-        # "" when the state carries no firm record at all.
+        # only when both dates are known and differ (or there is no single
+        # individual date and the firm has one fixed date); "separate" (no
+        # claim about the date) when a firm record exists but the dates are
+        # same-as-individual or the firm date isn't computed; "" when the
+        # state carries no firm record at all. Pinned by
+        # scripts/test_calc_firm_clock.py.
         firm_clock = _calc_firm_clock(records)
         if slug == "california":
             out[slug] = {
