@@ -20880,6 +20880,28 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
     )
 
 
+def _calc_firm_clock(records: list[dict]) -> str:
+    """Calculator cross-reference kind for one state (AuditLab CALC-1/2/3,
+    2026-10-11). "" = no firm record; "different" = the firm renews on a
+    provably different date or cycle than the one individual date shown;
+    "separate" = a firm record exists but the date is the same as the
+    individual's or can't be compared -- the copy then claims only that the
+    firm registration is its own filing, never that the clock differs."""
+    firm = [r for r in records if r.get("license_type") in _FIRM_ONLY_LICENSE_TYPES]
+    if not firm:
+        return ""
+    indiv = [r for r in records if r.get("license_type") not in _FIRM_ONLY_LICENSE_TYPES]
+    if any(not r.get("next_deadline_computed") for r in firm):
+        return "separate"
+    if len(indiv) != 1 or not indiv[0].get("next_deadline_computed"):
+        # The individual answer is personal/cohort-based (or a gap) while the
+        # firm has one fixed computed date -- the clocks differ by construction.
+        return "different"
+    if any(r["next_deadline_computed"] != indiv[0]["next_deadline_computed"] for r in firm):
+        return "different"
+    return "separate"
+
+
 def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date) -> dict:
     """Per-state payload for the LIVE calculator on /deadline-calculator/ (Devin,
     live, 2026-08-13: "We can't add a calculator?" -- fair; the page's own name
@@ -20920,12 +20942,18 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
         # firm-registration record (Colorado's is 7 days out at the time of
         # that report) got a calculator answer that silently said nothing
         # about it -- a firm admin reading "due Nov 2027" reasonably
-        # concludes there's nothing to do sooner. `has_firm_deadline` lets
-        # the client JS append a one-line cross-reference to the state's
-        # full page rather than staying silent about a real second clock.
-        has_firm_deadline = any(
-            r.get("license_type") in _FIRM_ONLY_LICENSE_TYPES and r.get("next_deadline_computed") for r in records
-        )
+        # concludes there's nothing to do sooner. `firm_clock` lets the
+        # client JS append a one-line cross-reference to the state's full
+        # page rather than staying silent about a real second clock.
+        # AuditLab CALC-1/2/3 (2026-10-11): the hint used to claim "a
+        # different clock" whenever a firm record with a computed date
+        # existed -- false in 14 states where the firm renews on the same
+        # date and cycle as the individual. Now three-valued: "different"
+        # only when both dates are known and differ (or the cycle pattern
+        # differs); "separate" (no claim about the date) when a firm record
+        # exists but the dates are same-as-individual or can't be compared;
+        # "" when the state carries no firm record at all.
+        firm_clock = _calc_firm_clock(records)
         if slug == "california":
             out[slug] = {
                 "label": state_name,
@@ -20934,7 +20962,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                     {"odd": r["odd_birth_year_next_deadline"], "even": r["even_birth_year_next_deadline"]}
                     for r in ca_table
                 ],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         if slug == "texas":
@@ -20942,7 +20970,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "tx",
                 "months": [r["next_deadline"] for r in tx_table],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         primary_date = _primary_individual_date(records)
@@ -20951,7 +20979,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "computed",
                 "date": fmt_date(date.fromisoformat(primary_date)),
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         # Orchestrator finding (2026-08-27, Oct-1 retest pass): Florida
@@ -20980,7 +21008,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "renewal_day": cfg.get("renewal_day", cfg["day"]),
                 "initial_periods": cfg["initial_periods"],
                 "term_years": cfg["term_years"],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         # Same bug class, three more shapes: Washington/Puerto Rico (a
@@ -21006,7 +21034,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "month": cfg["month"],
                 "day": cfg["day"],
                 "term_years": cfg["term_years"],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         aytc_record = next((r for r in individual if r["id"] in ANCHOR_YEAR_CHOSEN_TERM_STATES), None)
@@ -21020,7 +21048,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "term_options": cfg["term_options"],
                 "month": cfg["month"],
                 "day": cfg["day"],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         if slug in ANCHOR_DATE_PLUS_TERM_STATES:
@@ -21029,7 +21057,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "adt",
                 "term_years": cfg["term_years"],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         cohort_record = next((r for r in individual if r.get("cohort_groups")), None)
@@ -21041,7 +21069,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                     {"group": g["group"], "date": fmt_date(date.fromisoformat(g["next_deadline"]))}
                     for g in cohort_record["cohort_groups"]
                 ],
-                "has_firm_deadline": has_firm_deadline,
+                "firm_clock": firm_clock,
             }
             continue
         gap_record = individual[0]
@@ -21054,7 +21082,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "We can't auto-compute this one from public data alone -- check your license "
                 "certificate or the state board directly for your exact date."
             )
-        out[slug] = {"label": state_name, "kind": "gap", "note": note, "has_firm_deadline": has_firm_deadline}
+        out[slug] = {"label": state_name, "kind": "gap", "note": note, "firm_clock": firm_clock}
     return out
 
 
@@ -21085,10 +21113,20 @@ _DEADLINE_CALC_JS = """
     // only -- a state that also carries a firm-registration deadline (a
     // genuinely different clock) gets an explicit pointer to the full page
     // instead of silently saying nothing about it.
-    var firmNote = (entry && entry.has_firm_deadline)
-      ? '<p class="field-hint">This is your individual license date. Your firm\\u2019s own ' +
-        'registration renews on a different clock \\u2014 see the full ' + label + ' page below.</p>'
-      : '';
+    // AuditLab CALC-1/2/3: "different clock" only where the firm date or
+    // cycle provably differs from the individual date shown; otherwise just
+    // say the firm registration is its own filing. A gap state shows no
+    // individual date, so it never opens with "This is your individual
+    // license date".
+    var firmNote = '';
+    var firmPrefix = (entry && entry.kind === 'gap') ? '' : 'This is your individual license date. ';
+    if (entry && entry.firm_clock === 'different') {
+      firmNote = '<p class="field-hint">' + firmPrefix + 'Your firm\\u2019s own ' +
+        'registration renews on a different clock \\u2014 see the full ' + label + ' page below.</p>';
+    } else if (entry && entry.firm_clock === 'separate') {
+      firmNote = '<p class="field-hint">' + firmPrefix + 'A firm registration is a separate filing from ' +
+        'individual licenses \\u2014 see the full ' + label + ' page below for the firm\\u2019s details.</p>';
+    }
     result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="../' + slug + '/">See the full ' + label +
       ' page &amp; set up a free reminder &rarr;</a></p>';
   }
