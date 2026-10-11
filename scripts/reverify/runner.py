@@ -182,7 +182,11 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
                         "url": getattr(f, "url", chk["url"])})
             continue
         st, got = judge_check(chk, f.text)
-        per.append({"i": idx, "status": st, "got": got, "url": f.url, "sha256": f.sha256})
+        entry = {"i": idx, "status": st, "got": got, "url": f.url, "sha256": f.sha256}
+        final = getattr(f, "final_url", "") or f.url
+        if final != f.url:   # RVF-1: name the host that actually served the bytes the sha256 covers
+            entry["final_url"] = final
+        per.append(entry)
     if any(p["status"] == "DIFFERENT" for p in per):
         return {"outcome": "CHANGED", "checks": per}
     if any(p["status"] in ("FETCH_FAILED", "NO_ANCHOR", "NO_TEXT", "AMBIGUOUS_ANCHOR") for p in per):

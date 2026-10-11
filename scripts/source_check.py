@@ -229,7 +229,13 @@ def _fetch(url: str) -> tuple[str, bytes | None, str, int | None]:
 
 
 def _extract_pdf(body: bytes) -> str | None:
-    """The ladder the directive names: pypdf, then PyMuPDF, before giving up."""
+    """The ladder the directive names: pypdf, then PyMuPDF, before giving up.
+    RVF-1A (AuditLab, 2026-10-11): MuPDF sniffs the bytes and renders HTML as a
+    clean 1-page document, so a non-PDF served for a PDF URL used to SUCCEED.
+    Refuse anything without the %PDF- header (allowed anywhere in the first
+    1024 bytes, per the PDF spec) before either rung runs."""
+    if b"%PDF-" not in body[:1024]:
+        return None
     try:
         from pypdf import PdfReader
 

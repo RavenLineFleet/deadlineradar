@@ -716,3 +716,159 @@ def test_watchdog_live_worker_age_alert_stale27():
     assert wd.live_check({"status": "ok", "worst_record_age_days": 0})[0] is True
     down = lambda url, timeout=None: (_ for _ in ()).throw(OSError("down"))
     assert wd.fetch_health(opener=down) is None
+
+
+# ---------------- RVF-1 / RVF-1A: redirects re-checked per hop, PDF magic (real loopback servers) ----------------
+import http.server
+import threading
+
+
+def _serve(routes):
+    """routes: path -> (status, headers dict, body bytes). Returns (server, base_url, hits list)."""
+    hits = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            status, headers, body = routes.get(self.path, (404, {}, b"nf"))
+            self.send_response(status)
+            for k, v in headers.items():
+                self.send_header(k, v)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}", hits
+
+
+@pytest.fixture
+def two_hosts():
+    html = {"Content-Type": "text/html"}
+    srv_b, B, hits_b = _serve({
+        "/robots.txt": (200, {}, b"User-agent: *\nDisallow: /private/\n"),
+        "/public/page.html": (200, html, b"<p>PUBLIC-B-BODY</p>"),
+        "/private/page.html": (200, html, b"<p>PRIVATE-B-BODY</p>"),
+        "/notice.html": (200, html, b"<html><body><h1>NOT-A-PDF</h1><p>this is an HTML notice page</p></body></html>"),
+    })
+    srv_a, A, hits_a = _serve({
+        "/robots.txt": (200, {}, b"User-agent: *\nAllow: /\n"),
+        "/plain.html": (200, html, b"<p>PLAIN-A-BODY</p>"),
+        "/jump301": (301, {"Location": B + "/private/page.html"}, b""),
+        "/jump302": (302, {"Location": B + "/private/page.html"}, b""),
+        "/jump307": (307, {"Location": B + "/private/page.html"}, b""),
+        "/jump308": (308, {"Location": B + "/private/page.html"}, b""),
+        "/to_public": (302, {"Location": B + "/public/page.html"}, b""),
+        "/rel": (302, {"Location": "/plain.html"}, b""),
+        "/loop": (302, {"Location": "/loop"}, b""),
+        "/schedule.pdf": (302, {"Location": B + "/notice.html"}, b""),
+        "/ftp": (302, {"Location": "ftp://example.invalid/x"}, b""),
+    })
+    yield A, B, hits_a, hits_b
+    srv_a.shutdown()
+    srv_b.shutdown()
+
+
+def _real_fetcher():
+    return Fetcher(sleep=lambda s: None)
+
+
+@pytest.mark.parametrize("hop", ["jump301", "jump302", "jump307", "jump308"])
+def test_rvf1_redirect_into_robots_disallowed_path_is_refused(two_hosts, hop):
+    A, B, hits_a, hits_b = two_hosts
+    f = _real_fetcher()
+    r = f.get(f"{A}/{hop}")
+    assert not r.ok and r.reason == "robots_disallow"
+    assert r.final_url == B + "/private/page.html" and r.url == f"{A}/{hop}"
+    assert "/private/page.html" not in hits_b            # the disallowed path was never requested
+    assert "/robots.txt" in hits_b                       # ...because B's robots.txt WAS consulted
+
+
+def test_rvf1_negative_controls_still_fetch(two_hosts):
+    A, B, hits_a, hits_b = two_hosts
+    f = _real_fetcher()
+    direct = f.get(f"{B}/public/page.html")
+    assert direct.ok and "PUBLIC-B-BODY" in direct.text and direct.final_url == direct.url
+    plain = f.get(f"{A}/plain.html")
+    assert plain.ok and "PLAIN-A-BODY" in plain.text
+    hop = f.get(f"{A}/to_public")                        # cross-host redirect to an ALLOWED path succeeds
+    assert hop.ok and "PUBLIC-B-BODY" in hop.text
+    assert hop.url == f"{A}/to_public" and hop.final_url == f"{B}/public/page.html"
+    rel = f.get(f"{A}/rel")                              # relative Location resolves against the current URL
+    assert rel.ok and "PLAIN-A-BODY" in rel.text and rel.final_url == f"{A}/plain.html"
+
+
+def test_rvf1_each_hop_host_is_rate_limited_under_its_own_key(two_hosts):
+    A, B, _, _ = two_hosts
+    f = _real_fetcher()
+    f.get(f"{A}/to_public")
+    assert A.split("//")[1] in f._last_hit and B.split("//")[1] in f._last_hit
+
+
+def test_rvf1_redirect_loop_and_bad_scheme_fail_closed(two_hosts):
+    A, *_ = two_hosts
+    f = _real_fetcher()
+    assert f.get(f"{A}/loop").reason == "too_many_redirects"
+    assert f.get(f"{A}/ftp").reason == "redirect_bad_scheme"
+
+
+def test_rvf1_robots_txt_redirect_is_followed():
+    html = {"Content-Type": "text/html"}
+    srv_b, B, _ = _serve({"/real-robots": (200, {}, b"User-agent: *\nDisallow: /private/\n"),
+                          "/private/x": (200, html, b"<p>x</p>")})
+    srv_a, A, _ = _serve({"/robots.txt": (301, {"Location": B + "/real-robots"}, b""),
+                          "/private/x": (200, html, b"<p>SECRET</p>")})
+    try:
+        r = _real_fetcher().get(f"{A}/private/x")
+        assert not r.ok and r.reason == "robots_disallow"
+    finally:
+        srv_a.shutdown()
+        srv_b.shutdown()
+
+
+def test_rvf1a_html_served_for_a_pdf_is_not_a_pdf(two_hosts):
+    A, *_ = two_hosts
+    r = _real_fetcher().get(f"{A}/schedule.pdf", "pdf")
+    assert not r.ok and r.reason == "not_a_pdf" and r.text is None
+    assert r.final_url.endswith("/notice.html")
+    from source_check import _extract_pdf
+    assert _extract_pdf(b"<html><body><h1>NOT-A-PDF</h1></body></html>") is None
+
+
+def test_rvf1a_real_pdf_still_extracts():
+    fitz = pytest.importorskip("fitz")
+    doc = fitz.open()
+    doc.new_page().insert_text((72, 72), "REAL-PDF-BODY fee 150")
+    data = doc.tobytes()
+    srv, base, _ = _serve({"/robots.txt": (404, {}, b""), "/ok.pdf": (200, {"Content-Type": "application/pdf"}, data)})
+    try:
+        r = _real_fetcher().get(f"{base}/ok.pdf", "pdf")
+        assert r.ok and "REAL-PDF-BODY" in r.text
+    finally:
+        srv.shutdown()
+
+
+def test_rvf1_browser_path_rechecks_redirect_target(two_hosts):
+    pytest.importorskip("playwright.sync_api")
+    A, B, hits_a, hits_b = two_hosts
+    f = _real_fetcher()
+    r = f.get(f"{A}/jump302", "browser")
+    assert not r.ok and r.reason == "robots_disallow"
+    assert "/private/page.html" not in hits_b
+    ok = f.get(f"{A}/to_public", "browser")              # negative control: allowed cross-host target succeeds
+    assert ok.ok and "PUBLIC-B-BODY" in ok.text and ok.final_url == f"{B}/public/page.html"
+    plain = f.get(f"{A}/plain.html", "browser")            # no-redirect page still renders through the guard
+    assert plain.ok and "PLAIN-A-BODY" in plain.text and plain.final_url == f"{A}/plain.html"
+    assert f.get(f"{A}/loop", "browser").reason == "too_many_redirects"
+
+
+def test_rvf1_trail_names_the_host_that_served_the_bytes():
+    r = {"field": "fee_usd", "checks": [chk(anchor="fee", pattern=r"(\d+)", field="fee_usd")]}
+    moved = Fetched("https://a.gov/x", True, 200, "", "the fee 150", "ab" * 32, "https://b.gov/y")
+    same = Fetched("https://a.gov/x", True, 200, "", "the fee 150", "ab" * 32, "https://a.gov/x")
+    assert runner.judge_record(r, {"fee_usd": 150}, {0: moved})["checks"][0]["final_url"] == "https://b.gov/y"
+    assert "final_url" not in runner.judge_record(r, {"fee_usd": 150}, {0: same})["checks"][0]
