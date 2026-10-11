@@ -3456,7 +3456,7 @@ _NAV_TOGGLE_JS_HTML = """<script>
 # dashboard script, and the Worker secret together, only after SecurityLab +
 # AuditLab PASS and the live portal configurations exist
 # (scripts/configure_stripe_portal.py). preship_gate.py pins Python == JS.
-SELF_SERVE_PLAN_CHANGE_ENABLED = False
+SELF_SERVE_PLAN_CHANGE_ENABLED = True
 _ALREADY_SUBSCRIBED_PRICING_MSG = (
     "You already have an active subscription. Open Manage billing in your dashboard (Account tab) to switch plan or billing period."
     if SELF_SERVE_PLAN_CHANGE_ENABLED
@@ -12950,7 +12950,7 @@ var DR_MONTHLY_BILLING_ENABLED = true;
 
 // Self-serve plan change: shows "Manage billing" (Stripe Customer Portal) on a
 // subscribed firm's Account panel. See generate.py's SELF_SERVE_PLAN_CHANGE_ENABLED.
-var DR_SELF_SERVE_PLAN_CHANGE_ENABLED = false;
+var DR_SELF_SERVE_PLAN_CHANGE_ENABLED = true;
 
 // the SAME four tiers/prices as worker/src/tiers.ts's
 // FIRM_TIERS -- duplicated here deliberately, same "two places, same

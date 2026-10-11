@@ -353,7 +353,7 @@
               // Not an error: an already-subscribed firm is told where to go, so no alarm-red.
               if (alreadySubscribed) { errEl.style.color = '#1f3d54'; }
               errEl.textContent = alreadySubscribed
-                ? 'You already have an active subscription. To switch billing period (monthly or annual) or plan, contact support.'
+                ? 'You already have an active subscription. Open Manage billing in your dashboard (Account tab) to switch plan or billing period.'
                 : ((data && data.error) ? data.error : 'Something went wrong, please try again.');
               errEl.hidden = false;
             }
