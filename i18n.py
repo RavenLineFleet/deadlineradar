@@ -426,6 +426,28 @@ EN: dict[str, str] = {
     "calcw.date_style": (
         "{month} {day}, {year}|January|February|March|April|May|June|July|August|September|October|November|December"
     ),
+    # Data-label strings shown by the calculator (cohort group names, anchor/term field labels). The generator maps each English
+    # label in the data/config to one of these keys (_CALC_LABEL_KEYS) and fails the build on an unmapped one.
+    "calcw.lbl_cohort_due_2027": 'Cohort due 2027',
+    "calcw.lbl_cohort_due_2028": 'Cohort due 2028',
+    "calcw.lbl_cohort_due_2029": 'Cohort due 2029',
+    "calcw.lbl_even_birth_year_cpas": 'Even-birth-year CPAs',
+    "calcw.lbl_even_birth_year_cohort": 'Even-birth-year cohort',
+    "calcw.lbl_even_cert_holders": 'Even-numbered certificate holders',
+    "calcw.lbl_even_license_holders": 'Even-numbered license holders',
+    "calcw.lbl_even_permit_holders": 'Even-numbered permit holders',
+    "calcw.lbl_group_1": 'Group 1',
+    "calcw.lbl_group_2": 'Group 2',
+    "calcw.lbl_group_3": 'Group 3',
+    "calcw.lbl_odd_birth_year_cpas": 'Odd-birth-year CPAs',
+    "calcw.lbl_odd_birth_year_cohort": 'Odd-birth-year cohort',
+    "calcw.lbl_odd_cert_holders": 'Odd-numbered certificate holders',
+    "calcw.lbl_odd_license_holders": 'Odd-numbered license holders',
+    "calcw.lbl_odd_permit_holders": 'Odd-numbered permit holders',
+    "calcw.lbl_anchor_last_renewal": 'Year of your last renewal (or initial licensure, if never renewed)',
+    "calcw.lbl_anchor_first_licensed": 'Year you were first licensed',
+    "calcw.lbl_anchor_last_issued": 'Year your license was last issued or renewed',
+    "calcw.lbl_term_length": 'Term length shown on your certificate',
     # /pricing/ -- build_pricing_page(). Shared with /for-firms/: the FAQ
     # (_FIRM_FAQ) and the feature-table row labels.
     "pricing.h1": "Pricing",
@@ -1439,6 +1461,106 @@ ES: dict[str, dict] = {
         "text": '{n} año',
         "en_hash": '1ba137ae2367a137',
         "reviewed": True,
+    },
+    'calcw.lbl_cohort_due_2027': {
+        "text": 'Cohorte con vencimiento en 2027',
+        "en_hash": '1e812668d34b4e8e',
+        "reviewed": False,
+    },
+    'calcw.lbl_cohort_due_2028': {
+        "text": 'Cohorte con vencimiento en 2028',
+        "en_hash": 'e83bc1cd478166e2',
+        "reviewed": False,
+    },
+    'calcw.lbl_cohort_due_2029': {
+        "text": 'Cohorte con vencimiento en 2029',
+        "en_hash": 'c15c1e365ca30d7e',
+        "reviewed": False,
+    },
+    'calcw.lbl_even_birth_year_cpas': {
+        "text": 'CPA nacidos en año par',
+        "en_hash": '9c15ca2e03b15985',
+        "reviewed": False,
+    },
+    'calcw.lbl_even_birth_year_cohort': {
+        "text": 'Cohorte de año de nacimiento par',
+        "en_hash": '505d5a4c1c20f762',
+        "reviewed": False,
+    },
+    'calcw.lbl_even_cert_holders': {
+        "text": 'Titulares de certificado con número par',
+        "en_hash": 'd3beab9fe2c38747',
+        "reviewed": False,
+    },
+    'calcw.lbl_even_license_holders': {
+        "text": 'Titulares de licencia con número par',
+        "en_hash": 'e4c9409137806d61',
+        "reviewed": False,
+    },
+    'calcw.lbl_even_permit_holders': {
+        "text": 'Titulares de permiso con número par',
+        "en_hash": 'e802f62f49dbb5f3',
+        "reviewed": False,
+    },
+    'calcw.lbl_group_1': {
+        "text": 'Grupo 1',
+        "en_hash": 'bf37557cc9016d1c',
+        "reviewed": False,
+    },
+    'calcw.lbl_group_2': {
+        "text": 'Grupo 2',
+        "en_hash": '5b87e8ee3a4d1e58',
+        "reviewed": False,
+    },
+    'calcw.lbl_group_3': {
+        "text": 'Grupo 3',
+        "en_hash": '39126b5487425841',
+        "reviewed": False,
+    },
+    'calcw.lbl_odd_birth_year_cpas': {
+        "text": 'CPA nacidos en año impar',
+        "en_hash": 'a41ea9badce001a2',
+        "reviewed": False,
+    },
+    'calcw.lbl_odd_birth_year_cohort': {
+        "text": 'Cohorte de año de nacimiento impar',
+        "en_hash": '618c22e3a844ca4f',
+        "reviewed": False,
+    },
+    'calcw.lbl_odd_cert_holders': {
+        "text": 'Titulares de certificado con número impar',
+        "en_hash": '4f7838a47250812c',
+        "reviewed": False,
+    },
+    'calcw.lbl_odd_license_holders': {
+        "text": 'Titulares de licencia con número impar',
+        "en_hash": '423bbf56a79c9ca5',
+        "reviewed": False,
+    },
+    'calcw.lbl_odd_permit_holders': {
+        "text": 'Titulares de permiso con número impar',
+        "en_hash": '84fd30579bed2a4e',
+        "reviewed": False,
+    },
+    'calcw.lbl_anchor_last_renewal': {
+        "text": 'Año de su última renovación (o de su licenciamiento inicial, si nunca ha renovado)',
+        "en_hash": 'c5d1b037d829ebea',
+        "reviewed": False,
+    },
+    'calcw.lbl_anchor_first_licensed': {
+        "text": 'Año en que obtuvo su licencia por primera vez',
+        "en_hash": 'fd302f986bbbb124',
+        "reviewed": False,
+    },
+    'calcw.lbl_anchor_last_issued': {
+        "text": 'Año en que su licencia fue emitida o renovada por última vez',
+        "en_hash": 'f4a7e0625ef4c019',
+        "reviewed": False,
+    },
+    'calcw.lbl_term_length': {
+        "text": 'Duración del período que figura en su certificado',
+        "en_hash": 'c20685c182eef588',
+        "reviewed": False,
     },
 }
 

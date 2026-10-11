@@ -20882,6 +20882,36 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
     )
 
 
+_CALC_LABEL_KEYS = {
+    'Cohort due 2027': "calcw.lbl_cohort_due_2027",
+    'Cohort due 2028': "calcw.lbl_cohort_due_2028",
+    'Cohort due 2029': "calcw.lbl_cohort_due_2029",
+    'Even-birth-year CPAs': "calcw.lbl_even_birth_year_cpas",
+    'Even-birth-year cohort': "calcw.lbl_even_birth_year_cohort",
+    'Even-numbered certificate holders': "calcw.lbl_even_cert_holders",
+    'Even-numbered license holders': "calcw.lbl_even_license_holders",
+    'Even-numbered permit holders': "calcw.lbl_even_permit_holders",
+    'Group 1': "calcw.lbl_group_1",
+    'Group 2': "calcw.lbl_group_2",
+    'Group 3': "calcw.lbl_group_3",
+    'Odd-birth-year CPAs': "calcw.lbl_odd_birth_year_cpas",
+    'Odd-birth-year cohort': "calcw.lbl_odd_birth_year_cohort",
+    'Odd-numbered certificate holders': "calcw.lbl_odd_cert_holders",
+    'Odd-numbered license holders': "calcw.lbl_odd_license_holders",
+    'Odd-numbered permit holders': "calcw.lbl_odd_permit_holders",
+    'Year of your last renewal (or initial licensure, if never renewed)': "calcw.lbl_anchor_last_renewal",
+    'Year you were first licensed': "calcw.lbl_anchor_first_licensed",
+    'Year your license was last issued or renewed': "calcw.lbl_anchor_last_issued",
+    'Term length shown on your certificate': "calcw.lbl_term_length",
+}
+
+
+def _calc_label(text: str, lang: str) -> str:
+    """Localise a data/config label shown by the calculator. An unmapped label raises (fail the build), so a
+    new cohort name or anchor label cannot silently stay English on the Spanish page."""
+    return _t(_CALC_LABEL_KEYS[text], lang)
+
+
 def _calc_date_style(lang: str) -> tuple[str, list[str]]:
     """(template, 12 month names) from the single calcw.date_style key -- see its comment in i18n.py."""
     parts = _t("calcw.date_style", lang).split("|")
@@ -21051,7 +21081,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
             out[slug] = {
                 "label": state_name,
                 "kind": "ayt",
-                "anchor_label": cfg["anchor_label"],
+                "anchor_label": _calc_label(cfg["anchor_label"], lang),
                 "month": cfg["month"],
                 "day": cfg["day"],
                 "term_years": cfg["term_years"],
@@ -21064,8 +21094,8 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
             out[slug] = {
                 "label": state_name,
                 "kind": "aytc",
-                "anchor_label": cfg["anchor_label"],
-                "term_label": cfg["term_label"],
+                "anchor_label": _calc_label(cfg["anchor_label"], lang),
+                "term_label": _calc_label(cfg["term_label"], lang),
                 "term_options": cfg["term_options"],
                 "month": cfg["month"],
                 "day": cfg["day"],
@@ -21087,7 +21117,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "cohort",
                 "groups": [
-                    {"group": g["group"], "date": fmt(date.fromisoformat(g["next_deadline"]))}
+                    {"group": _calc_label(g["group"], lang), "date": fmt(date.fromisoformat(g["next_deadline"]))}
                     for g in cohort_record["cohort_groups"]
                 ],
                 "firm_clock": firm_clock,

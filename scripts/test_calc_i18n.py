@@ -52,3 +52,41 @@ def test_date_style_en_matches_fmt_date_and_es_has_twelve_months():
         assert all(tok in parts[0] for tok in ("{month}", "{day}", "{year}")), lang
     # unreviewed Spanish falls back to English as ONE unit (template + months together)
     assert generate._calc_date_style("es") == generate._calc_date_style("en") or i18n.ES["calcw.date_style"]["reviewed"]
+
+
+def _widget_data(lang):
+    import json
+    from collections import defaultdict
+    recs = json.load(open(Path(HERE).parent / "data" / "cpa_deadlines.json", encoding="utf-8"))["records"]
+    by = defaultdict(list)
+    for r in recs:
+        by[r["state_slug"]].append(r)
+    return generate._deadline_calculator_widget_data(by, date(2026, 10, 11), lang)
+
+
+def _labels(data):
+    out = set()
+    for e in data.values():
+        out |= {g["group"] for g in e.get("groups", [])}
+        out |= {e[k] for k in ("anchor_label", "term_label") if k in e}
+    return out
+
+
+def test_every_data_label_the_widget_shows_has_a_key_and_reviewed_es_replaces_all_of_them(monkeypatch):
+    en = _labels(_widget_data("en"))             # raises KeyError if the data gained an unmapped label
+    assert len(en) == 20 and en == set(generate._CALC_LABEL_KEYS)
+    for label, key in generate._CALC_LABEL_KEYS.items():
+        assert i18n.EN[key] == label             # EN output is the data string itself, byte for byte
+        es = i18n.ES[key]
+        assert es["en_hash"] == i18n.en_hash(key) and not _PLACEHOLDER.findall(es["text"]), key
+    # with every label key reviewed, none of the 20 stays English (unreviewed ones fall back per t())
+    for k in generate._CALC_LABEL_KEYS.values():
+        monkeypatch.setitem(i18n.ES, k, {**i18n.ES[k], "reviewed": True})
+    es_labels = _labels(_widget_data("es"))
+    assert len(es_labels) == 20 and not (es_labels & en)
+
+
+def test_unmapped_label_fails_the_build():
+    import pytest
+    with pytest.raises(KeyError):
+        generate._calc_label("A brand new cohort name", "en")
