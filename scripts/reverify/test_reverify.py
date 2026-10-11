@@ -952,3 +952,12 @@ def test_rvf2_browser_path_refuses_redirect_onto_internal_service(public_a_priva
     r = f.get(f"{A}/to-internal", "browser")
     assert not r.ok and r.reason == "blocked_address"
     assert hits_c == []
+
+
+def test_rvf2a_production_never_disables_the_address_guard():
+    import inspect
+    import cache_sources
+    assert inspect.signature(Fetcher).parameters["allow_private"].default is False
+    assert "allow_private" not in inspect.getsource(runner) + inspect.getsource(cache_sources)
+    job_src = open(os.path.join(os.path.dirname(__file__), "job.py"), encoding="utf-8").read()
+    assert "allow_private" not in job_src
