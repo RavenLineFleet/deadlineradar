@@ -498,26 +498,28 @@ def next_certificate_date_initial_term(
     return next_anchor_year_term(initial_end_year, renewal_month, renewal_day, term_years, as_of)
 
 
-def build_california_table(as_of: date) -> list[dict]:
+def build_california_table(as_of: date, fmt=None) -> list[dict]:
+    fmt = fmt or fmt_date
     rows = []
     for m in range(1, 13):
         odd_d = next_birth_month_parity_date(as_of, m, "odd")
         even_d = next_birth_month_parity_date(as_of, m, "even")
         rows.append({
             "month": MONTH_NAMES[m - 1],
-            "odd_birth_year_next_deadline": fmt_date(odd_d),
-            "even_birth_year_next_deadline": fmt_date(even_d),
+            "odd_birth_year_next_deadline": fmt(odd_d),
+            "even_birth_year_next_deadline": fmt(even_d),
         })
     return rows
 
 
-def build_texas_table(as_of: date) -> list[dict]:
+def build_texas_table(as_of: date, fmt=None) -> list[dict]:
+    fmt = fmt or fmt_date
     rows = []
     for m in range(1, 13):
         d = next_annual_month_end(as_of, m)
         rows.append({
             "month": MONTH_NAMES[m - 1],
-            "next_deadline": fmt_date(d),
+            "next_deadline": fmt(d),
         })
     return rows
 
@@ -20880,6 +20882,18 @@ def build_practice_privilege_landing_page(lang: str = "en", publish_es: bool = T
     )
 
 
+def _calc_date_style(lang: str) -> tuple[str, list[str]]:
+    """(template, 12 month names) from the single calcw.date_style key -- see its comment in i18n.py."""
+    parts = _t("calcw.date_style", lang).split("|")
+    assert len(parts) == 13, parts
+    return parts[0], parts[1:]
+
+
+def _calc_fmt_date(lang: str):
+    tpl, months = _calc_date_style(lang)
+    return lambda d: tpl.format(month=months[d.month - 1], day=d.day, year=d.year)
+
+
 def _calc_firm_clock(records: list[dict]) -> str:
     """Calculator cross-reference kind for one state (AuditLab CALC-1/2/3,
     2026-10-11). "" = no firm record; "different" = the firm renews on a
@@ -20905,7 +20919,7 @@ def _calc_firm_clock(records: list[dict]) -> str:
     return "separate"
 
 
-def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date) -> dict:
+def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date, lang: str = "en") -> dict:
     """Per-state payload for the LIVE calculator on /deadline-calculator/ (Devin,
     live, 2026-08-13: "We can't add a calculator?" -- fair; the page's own name
     promised one and the first enrichment pass still only pointed visitors at
@@ -20931,8 +20945,9 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
       gap      -- the honest "can't auto-compute this one," using the same
                   data_gap_note / New York's own computation note that state's
                   own page already shows -- never invents an answer"""
-    ca_table = build_california_table(as_of)
-    tx_table = build_texas_table(as_of)
+    fmt = _calc_fmt_date(lang)
+    ca_table = build_california_table(as_of, fmt)
+    tx_table = build_texas_table(as_of, fmt)
     out = {}
     for slug, records in by_slug.items():
         state_name = records[0]["state"]
@@ -20983,7 +20998,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
             out[slug] = {
                 "label": state_name,
                 "kind": "computed",
-                "date": fmt_date(date.fromisoformat(primary_date)),
+                "date": fmt(date.fromisoformat(primary_date)),
                 "firm_clock": firm_clock,
             }
             continue
@@ -21071,7 +21086,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "cohort",
                 "groups": [
-                    {"group": g["group"], "date": fmt_date(date.fromisoformat(g["next_deadline"]))}
+                    {"group": g["group"], "date": fmt(date.fromisoformat(g["next_deadline"]))}
                     for g in cohort_record["cohort_groups"]
                 ],
                 "firm_clock": firm_clock,
@@ -21091,10 +21106,25 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
     return out
 
 
+_CALC_I18N_KEYS = (
+    "select", "select_group", "cohort_label", "cohort_hint", "birth_month", "birth_year", "ph_birth_year",
+    "cert_date", "last_issuance", "ph_year_a", "ph_year_b", "next_due", "next_due_group", "cpe_clause",
+    "passed", "year_one", "year_many", "firm_prefix", "firm_different", "firm_separate", "cta", "date_style",
+)
+
 _DEADLINE_CALC_JS = """
 (function() {
-  var MONTHS = ["January","February","March","April","May","June","July","August",
-    "September","October","November","December"];
+  // Every user-visible string below comes from DR_CALC_I18N (i18n.py calcw.* keys), never a literal.
+  var I18N = DR_CALC_I18N;
+  var DATE_PARTS = I18N.date_style.split('|');
+  var MONTHS = DATE_PARTS.slice(1);
+  function fillTpl(tpl, vars) {
+    var out = tpl;
+    Object.keys(vars).forEach(function(k) { out = out.split('{' + k + '}').join(vars[k]); });
+    return out;
+  }
+  function fmtDate(d) { return fillTpl(DATE_PARTS[0], {month: MONTHS[d.getUTCMonth()], day: d.getUTCDate(), year: d.getUTCFullYear()}); }
+  function nextDue(label, dateStr) { return fillTpl(I18N.next_due, {label: label, date: dateStr}); }
   var stateSel = document.getElementById('dr-calc-state');
   var followup = document.getElementById('dr-calc-followup');
   var result = document.getElementById('dr-calc-result');
@@ -21106,7 +21136,7 @@ _DEADLINE_CALC_JS = """
   var DR_CALC_AS_OF_DATE = new Date(Date.UTC(parseInt(asOfParts[0], 10), parseInt(asOfParts[1], 10) - 1, parseInt(asOfParts[2], 10)));
 
   function monthOptionsHtml() {
-    var out = '<option value="">Select&hellip;</option>';
+    var out = '<option value="">' + I18N.select + '</option>';
     for (var i = 0; i < 12; i++) out += '<option value="' + (i + 1) + '">' + MONTHS[i] + '</option>';
     return out;
   }
@@ -21124,16 +21154,13 @@ _DEADLINE_CALC_JS = """
     // individual date, so it never opens with "This is your individual
     // license date".
     var firmNote = '';
-    var firmPrefix = (entry && entry.kind === 'gap') ? '' : 'This is your individual license date. ';
+    var firmPrefix = (entry && entry.kind === 'gap') ? '' : I18N.firm_prefix;
     if (entry && entry.firm_clock === 'different') {
-      firmNote = '<p class="field-hint">' + firmPrefix + 'Your firm\\u2019s own ' +
-        'registration renews on a different clock \\u2014 see the full ' + label + ' page below.</p>';
+      firmNote = '<p class="field-hint">' + firmPrefix + fillTpl(I18N.firm_different, {label: label}) + '</p>';
     } else if (entry && entry.firm_clock === 'separate') {
-      firmNote = '<p class="field-hint">' + firmPrefix + 'A firm registration is a separate filing from ' +
-        'individual licenses \\u2014 see the full ' + label + ' page below for the firm\\u2019s details.</p>';
+      firmNote = '<p class="field-hint">' + firmPrefix + fillTpl(I18N.firm_separate, {label: label}) + '</p>';
     }
-    result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="' + DR_CALC_BASE + slug + '/">See the full ' + label +
-      ' page &amp; set up a free reminder &rarr;</a></p>';
+    result.innerHTML = '<p>' + text + '</p>' + firmNote + '<p><a href="' + DR_CALC_BASE + slug + '/">' + fillTpl(I18N.cta, {label: label}) + '</a></p>';
   }
 
   function render() {
@@ -21145,46 +21172,45 @@ _DEADLINE_CALC_JS = """
     if (!entry) return;
 
     if (entry.kind === 'computed') {
-      showResult('Your next ' + entry.label + ' renewal is due <strong>' + entry.date + '</strong>.', slug, entry.label);
+      showResult(nextDue(entry.label, entry.date), slug, entry.label);
     } else if (entry.kind === 'gap') {
       showResult(entry.note, slug, entry.label);
     } else if (entry.kind === 'cohort') {
-      var html = '<label for="dr-calc-group">Your cohort group</label><select id="dr-calc-group">' +
-        '<option value="">Select your group&hellip;</option>';
+      var html = '<label for="dr-calc-group">' + I18N.cohort_label + '</label><select id="dr-calc-group">' +
+        '<option value="">' + I18N.select_group + '</option>';
       entry.groups.forEach(function(g, i) { html += '<option value="' + i + '">' + g.group + '</option>'; });
-      html += '</select><p class="field-hint">Not sure which group applies to you? Check your ' +
-        'license certificate or the state board\\u2019s lookup.</p>';
+      html += '</select><p class="field-hint">' + I18N.cohort_hint + '</p>';
       followup.innerHTML = html;
       document.getElementById('dr-calc-group').addEventListener('change', function() {
         var g = entry.groups[this.value];
         if (!g) { result.hidden = true; return; }
-        showResult('Your next ' + entry.label + ' renewal (' + g.group + ') is due <strong>' + g.date + '</strong>.', slug, entry.label);
+        showResult(fillTpl(I18N.next_due_group, {label: entry.label, group: g.group, date: g.date}), slug, entry.label);
       });
     } else if (entry.kind === 'tx') {
-      followup.innerHTML = '<label for="dr-calc-month">Your birth month</label><select id="dr-calc-month">' +
+      followup.innerHTML = '<label for="dr-calc-month">' + I18N.birth_month + '</label><select id="dr-calc-month">' +
         monthOptionsHtml() + '</select>';
       document.getElementById('dr-calc-month').addEventListener('change', function() {
         var m = parseInt(this.value, 10);
         if (!m) { result.hidden = true; return; }
-        showResult('Your next ' + entry.label + ' renewal is due <strong>' + entry.months[m - 1] + '</strong>.', slug, entry.label);
+        showResult(nextDue(entry.label, entry.months[m - 1]), slug, entry.label);
       });
     } else if (entry.kind === 'ca') {
-      followup.innerHTML = '<div class="signup-form-row"><div><label for="dr-calc-month">Your birth month</label>' +
+      followup.innerHTML = '<div class="signup-form-row"><div><label for="dr-calc-month">' + I18N.birth_month + '</label>' +
         '<select id="dr-calc-month">' + monthOptionsHtml() + '</select></div>' +
-        '<div><label for="dr-calc-year">Your birth year</label><input type="number" id="dr-calc-year" ' +
-        'min="1900" max="2100" placeholder="e.g. 1985"></div></div>';
+        '<div><label for="dr-calc-year">' + I18N.birth_year + '</label><input type="number" id="dr-calc-year" ' +
+        'min="1900" max="2100" placeholder="' + I18N.ph_birth_year + '"></div></div>';
       function update() {
         var m = parseInt(document.getElementById('dr-calc-month').value, 10);
         var y = parseInt(document.getElementById('dr-calc-year').value, 10);
         if (!m || !y) { result.hidden = true; return; }
         var isOdd = (y % 2) === 1;
         var d = isOdd ? entry.months[m - 1].odd : entry.months[m - 1].even;
-        showResult('Your next ' + entry.label + ' renewal is due <strong>' + d + '</strong>.', slug, entry.label);
+        showResult(nextDue(entry.label, d), slug, entry.label);
       }
       document.getElementById('dr-calc-month').addEventListener('change', update);
       document.getElementById('dr-calc-year').addEventListener('input', update);
     } else if (entry.kind === 'cdit') {
-      followup.innerHTML = '<label for="dr-calc-cdit-date">Your original certificate date</label>' +
+      followup.innerHTML = '<label for="dr-calc-cdit-date">' + I18N.cert_date + '</label>' +
         '<input type="date" id="dr-calc-cdit-date">';
       document.getElementById('dr-calc-cdit-date').addEventListener('change', function() {
         if (!this.value) { result.hidden = true; return; }
@@ -21196,30 +21222,30 @@ _DEADLINE_CALC_JS = """
         var y = firstFollowingYear + (entry.initial_periods - 1);
         var d = new Date(Date.UTC(y, entry.renewal_month - 1, entry.renewal_day));
         while (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) { y += entry.term_years; d = new Date(Date.UTC(y, entry.renewal_month - 1, entry.renewal_day)); }
-        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
-        var text = 'Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.';
+        var dateStr = fmtDate(d);
+        var text = nextDue(entry.label, dateStr);
         if (entry.renewal_month !== entry.period_end_month || entry.renewal_day !== entry.period_end_day) {
           var cpeD = new Date(Date.UTC(d.getUTCFullYear(), entry.period_end_month - 1, entry.period_end_day));
-          text += ' (your CPE for that cycle is due ' + MONTHS[cpeD.getUTCMonth()] + ' ' + cpeD.getUTCDate() + ', ' + cpeD.getUTCFullYear() + ')';
+          text += fillTpl(I18N.cpe_clause, {date: fmtDate(cpeD)});
         }
         showResult(text, slug, entry.label);
       });
     } else if (entry.kind === 'ayt') {
       followup.innerHTML = '<label for="dr-calc-ayt-year">' + entry.anchor_label + '</label>' +
-        '<input type="number" inputmode="numeric" id="dr-calc-ayt-year" placeholder="e.g. 2023" min="1900" max="2100">';
+        '<input type="number" inputmode="numeric" id="dr-calc-ayt-year" placeholder="' + I18N.ph_year_a + '" min="1900" max="2100">';
       document.getElementById('dr-calc-ayt-year').addEventListener('input', function() {
         var y = parseInt(this.value, 10);
         if (!y || y < 1900 || y > 2100) { result.hidden = true; return; }
         var d = new Date(Date.UTC(y, entry.month - 1, entry.day));
         while (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) { y += entry.term_years; d = new Date(Date.UTC(y, entry.month - 1, entry.day)); }
-        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
-        showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+        var dateStr = fmtDate(d);
+        showResult(nextDue(entry.label, dateStr), slug, entry.label);
       });
     } else if (entry.kind === 'aytc') {
-      var termOptionsHtml = '<option value="">Select&hellip;</option>';
-      entry.term_options.forEach(function(t) { termOptionsHtml += '<option value="' + t + '">' + t + (t === 1 ? ' year' : ' years') + '</option>'; });
+      var termOptionsHtml = '<option value="">' + I18N.select + '</option>';
+      entry.term_options.forEach(function(t) { termOptionsHtml += '<option value="' + t + '">' + fillTpl(t === 1 ? I18N.year_one : I18N.year_many, {n: t}) + '</option>'; });
       followup.innerHTML = '<div class="signup-form-row"><div><label for="dr-calc-aytc-year">' + entry.anchor_label +
-        '</label><input type="number" inputmode="numeric" id="dr-calc-aytc-year" placeholder="e.g. 2025" min="1900" max="2100"></div>' +
+        '</label><input type="number" inputmode="numeric" id="dr-calc-aytc-year" placeholder="' + I18N.ph_year_b + '" min="1900" max="2100"></div>' +
         '<div><label for="dr-calc-aytc-term">' + entry.term_label + '</label><select id="dr-calc-aytc-term">' + termOptionsHtml + '</select></div></div>';
       function updateAytc() {
         var y = parseInt(document.getElementById('dr-calc-aytc-year').value, 10);
@@ -21227,16 +21253,16 @@ _DEADLINE_CALC_JS = """
         if (!y || y < 1900 || y > 2100 || entry.term_options.indexOf(term) === -1) { result.hidden = true; return; }
         var d = new Date(Date.UTC(y + term, entry.month - 1, entry.day));
         if (d.getTime() < DR_CALC_AS_OF_DATE.getTime()) {
-          showResult('That date has already passed \\u2014 check your most recent certificate/permit for its exact renewal date.', slug, entry.label);
+          showResult(I18N.passed, slug, entry.label);
         } else {
-          var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
-          showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+          var dateStr = fmtDate(d);
+          showResult(nextDue(entry.label, dateStr), slug, entry.label);
         }
       }
       document.getElementById('dr-calc-aytc-year').addEventListener('input', updateAytc);
       document.getElementById('dr-calc-aytc-term').addEventListener('change', updateAytc);
     } else if (entry.kind === 'adt') {
-      followup.innerHTML = '<label for="dr-calc-adt-date">Last issuance or renewal date</label>' +
+      followup.innerHTML = '<label for="dr-calc-adt-date">' + I18N.last_issuance + '</label>' +
         '<input type="date" id="dr-calc-adt-date">';
       document.getElementById('dr-calc-adt-date').addEventListener('change', function() {
         if (!this.value) { result.hidden = true; return; }
@@ -21251,8 +21277,8 @@ _DEADLINE_CALC_JS = """
           return new Date(Date.UTC(y, m, day));
         }
         while (d.getTime() < todayUtc.getTime()) { d = addYearsClamped(d, entry.term_years); }
-        var dateStr = MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
-        showResult('Your next ' + entry.label + ' renewal is due <strong>' + dateStr + '</strong>.', slug, entry.label);
+        var dateStr = fmtDate(d);
+        showResult(nextDue(entry.label, dateStr), slug, entry.label);
       });
     }
   }
@@ -21263,15 +21289,16 @@ _DEADLINE_CALC_JS = """
 
 
 def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date, lang: str = "en") -> str:
-    data = _deadline_calculator_widget_data(by_slug, as_of)
+    data = _deadline_calculator_widget_data(by_slug, as_of, lang)
+    i18n_js = {k: _t("calcw." + k, lang) for k in _CALC_I18N_KEYS}
     state_options = "\n".join(
         f'<option value="{esc(slug)}">{esc(entry["label"])}</option>'
         for slug, entry in sorted(data.items(), key=lambda kv: kv[1]["label"])
     )
     return f"""<div class="dr-calc" id="dr-calc">
-  <label for="dr-calc-state">Your state</label>
+  <label for="dr-calc-state">{_t("calcw.state_label", lang)}</label>
   <select id="dr-calc-state">
-    <option value="">Select your state&hellip;</option>
+    <option value="">{_t("calcw.select_state", lang)}</option>
     {state_options}
   </select>
   <div id="dr-calc-followup"></div>
@@ -21281,6 +21308,7 @@ def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date
 var DR_CALC_DATA = {json.dumps(data)};
 var DR_CALC_AS_OF = {json.dumps(as_of.isoformat())};
 var DR_CALC_BASE = {json.dumps("../" if lang == "en" else "../../")};
+var DR_CALC_I18N = {json.dumps(i18n_js)};
 {_DEADLINE_CALC_JS}
 </script>"""
 

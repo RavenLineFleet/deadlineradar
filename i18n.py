@@ -386,6 +386,46 @@ EN: dict[str, str] = {
         "Free CPA license renewal deadline calculator — pick your state, get your exact renewal "
         "date, cited to the statute, rule or board page. No signup required."
     ),
+    # /deadline-calculator/ widget chrome + result sentences (AuditLab I18N-2, 2026-10-11) -- everything the
+    # interactive calculator prints. {placeholders} are filled client-side by fillTpl() in _DEADLINE_CALC_JS;
+    # values containing HTML entities (&hellip; &amp; &rarr;) are written into innerHTML on purpose.
+    # calcw.date_style packs the date template and the 12 month names into ONE key (separated by "|") so
+    # an unreviewed/stale Spanish entry can never mix English months into a Spanish date or the reverse.
+    "calcw.state_label": "Your state",
+    "calcw.select_state": "Select your state&hellip;",
+    "calcw.select": "Select&hellip;",
+    "calcw.select_group": "Select your group&hellip;",
+    "calcw.cohort_label": "Your cohort group",
+    "calcw.cohort_hint": (
+        "Not sure which group applies to you? Check your license certificate or the state board\u2019s lookup."
+    ),
+    "calcw.birth_month": "Your birth month",
+    "calcw.birth_year": "Your birth year",
+    "calcw.ph_birth_year": "e.g. 1985",
+    "calcw.cert_date": "Your original certificate date",
+    "calcw.last_issuance": "Last issuance or renewal date",
+    "calcw.ph_year_a": "e.g. 2023",
+    "calcw.ph_year_b": "e.g. 2025",
+    "calcw.next_due": "Your next {label} renewal is due <strong>{date}</strong>.",
+    "calcw.next_due_group": "Your next {label} renewal ({group}) is due <strong>{date}</strong>.",
+    "calcw.cpe_clause": " (your CPE for that cycle is due {date})",
+    "calcw.passed": (
+        "That date has already passed \u2014 check your most recent certificate/permit for its exact renewal date."
+    ),
+    "calcw.year_one": "{n} year",
+    "calcw.year_many": "{n} years",
+    "calcw.firm_prefix": "This is your individual license date. ",
+    "calcw.firm_different": (
+        "Your firm\u2019s own registration renews on a different clock \u2014 see the full {label} page below."
+    ),
+    "calcw.firm_separate": (
+        "A firm registration is a separate filing from individual licenses \u2014 see the full {label} page "
+        "below for the firm\u2019s details."
+    ),
+    "calcw.cta": "See the full {label} page &amp; set up a free reminder &rarr;",
+    "calcw.date_style": (
+        "{month} {day}, {year}|January|February|March|April|May|June|July|August|September|October|November|December"
+    ),
     # /pricing/ -- build_pricing_page(). Shared with /for-firms/: the FAQ
     # (_FIRM_FAQ) and the feature-table row labels.
     "pricing.h1": "Pricing",
@@ -1279,6 +1319,126 @@ ES: dict[str, dict] = {
         "text": 'Fechas límite de renovación de licencias de CPA por estado — verificadas y actualizadas',
         "en_hash": 'dd3f728722518b7c',
         "reviewed": True,
+    },
+    'calcw.birth_month': {
+        "text": 'Su mes de nacimiento',
+        "en_hash": '58b9a896c475fd27',
+        "reviewed": False,
+    },
+    'calcw.birth_year': {
+        "text": 'Su año de nacimiento',
+        "en_hash": '2800ae8c4ce3d96f',
+        "reviewed": False,
+    },
+    'calcw.cert_date': {
+        "text": 'La fecha de su certificado original',
+        "en_hash": '4c09d059d9e0bce4',
+        "reviewed": False,
+    },
+    'calcw.cohort_hint': {
+        "text": '¿No está seguro de qué grupo le corresponde? Consulte su certificado de licencia o la herramienta de búsqueda de la junta estatal.',
+        "en_hash": '1a005d5d565f81ea',
+        "reviewed": False,
+    },
+    'calcw.cohort_label': {
+        "text": 'Su grupo de cohorte',
+        "en_hash": '4a43d3dd65da4e79',
+        "reviewed": False,
+    },
+    'calcw.cpe_clause': {
+        "text": ' (su CPE para ese ciclo vence el {date})',
+        "en_hash": '6e90e97d358bb02d',
+        "reviewed": False,
+    },
+    'calcw.cta': {
+        "text": 'Vea la página completa de {label} y configure un recordatorio gratuito &rarr;',
+        "en_hash": '2c02f990ff16a4f9',
+        "reviewed": False,
+    },
+    'calcw.date_style': {
+        "text": '{day} de {month} de {year}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre',
+        "en_hash": '52a3d241adbbf3df',
+        "reviewed": False,
+    },
+    'calcw.firm_different': {
+        "text": 'El registro de su firma se renueva en un calendario distinto — vea la página completa de {label} más abajo.',
+        "en_hash": '4a925f6becf4bcaf',
+        "reviewed": False,
+    },
+    'calcw.firm_prefix': {
+        "text": 'Esta es la fecha de su licencia individual. ',
+        "en_hash": '92465a0bd33e8b64',
+        "reviewed": False,
+    },
+    'calcw.firm_separate': {
+        "text": 'El registro de una firma es un trámite aparte de las licencias individuales — vea la página completa de {label} más abajo para conocer los detalles de la firma.',
+        "en_hash": 'e318f8a6c7d344a2',
+        "reviewed": False,
+    },
+    'calcw.last_issuance': {
+        "text": 'Fecha de la última emisión o renovación',
+        "en_hash": 'd4717e2461959ecd',
+        "reviewed": False,
+    },
+    'calcw.next_due': {
+        "text": 'Su próxima renovación de {label} vence el <strong>{date}</strong>.',
+        "en_hash": '482de177c6309a6a',
+        "reviewed": False,
+    },
+    'calcw.next_due_group': {
+        "text": 'Su próxima renovación de {label} ({group}) vence el <strong>{date}</strong>.',
+        "en_hash": '99d53d9b587b15ec',
+        "reviewed": False,
+    },
+    'calcw.passed': {
+        "text": 'Esa fecha ya pasó — consulte su certificado o permiso más reciente para conocer la fecha exacta de renovación.',
+        "en_hash": 'e94d9a91ba42fc46',
+        "reviewed": False,
+    },
+    'calcw.ph_birth_year': {
+        "text": 'p. ej., 1985',
+        "en_hash": 'a26553853444d93c',
+        "reviewed": False,
+    },
+    'calcw.ph_year_a': {
+        "text": 'p. ej., 2023',
+        "en_hash": 'a37284d65c1d2285',
+        "reviewed": False,
+    },
+    'calcw.ph_year_b': {
+        "text": 'p. ej., 2025',
+        "en_hash": '3e6455ed40572930',
+        "reviewed": False,
+    },
+    'calcw.select': {
+        "text": 'Seleccione&hellip;',
+        "en_hash": 'aaf6959f9689f33b',
+        "reviewed": False,
+    },
+    'calcw.select_group': {
+        "text": 'Seleccione su grupo&hellip;',
+        "en_hash": '601ac0fae329d257',
+        "reviewed": False,
+    },
+    'calcw.select_state': {
+        "text": 'Seleccione su estado&hellip;',
+        "en_hash": 'dfa22e6787ddfd72',
+        "reviewed": False,
+    },
+    'calcw.state_label': {
+        "text": 'Su estado',
+        "en_hash": '747ef243069f09a6',
+        "reviewed": False,
+    },
+    'calcw.year_many': {
+        "text": '{n} años',
+        "en_hash": 'e12ed5b4ac222dcc',
+        "reviewed": False,
+    },
+    'calcw.year_one': {
+        "text": '{n} año',
+        "en_hash": '1ba137ae2367a137',
+        "reviewed": False,
     },
 }
 

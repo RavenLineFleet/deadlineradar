@@ -370,6 +370,47 @@ DRAFTS: dict[str, str] = {
         "estado, obtenga su fecha de renovación exacta, con fuente en la propia norma de la "
         "junta de su estado. No se requiere registro."
     ),
+    # /deadline-calculator/ widget (AuditLab I18N-2, 2026-10-11). Placeholders {label} {date} {group} {n}
+    # and the HTML entities are copied verbatim from the EN source.
+    "calcw.state_label": "Su estado",
+    "calcw.select_state": "Seleccione su estado&hellip;",
+    "calcw.select": "Seleccione&hellip;",
+    "calcw.select_group": "Seleccione su grupo&hellip;",
+    "calcw.cohort_label": "Su grupo de cohorte",
+    "calcw.cohort_hint": (
+        "¿No está seguro de qué grupo le corresponde? Consulte su certificado de licencia o la herramienta "
+        "de búsqueda de la junta estatal."
+    ),
+    "calcw.birth_month": "Su mes de nacimiento",
+    "calcw.birth_year": "Su año de nacimiento",
+    "calcw.ph_birth_year": "p. ej., 1985",
+    "calcw.cert_date": "La fecha de su certificado original",
+    "calcw.last_issuance": "Fecha de la última emisión o renovación",
+    "calcw.ph_year_a": "p. ej., 2023",
+    "calcw.ph_year_b": "p. ej., 2025",
+    "calcw.next_due": "Su próxima renovación de {label} vence el <strong>{date}</strong>.",
+    "calcw.next_due_group": "Su próxima renovación de {label} ({group}) vence el <strong>{date}</strong>.",
+    "calcw.cpe_clause": " (su CPE para ese ciclo vence el {date})",
+    "calcw.passed": (
+        "Esa fecha ya pasó — consulte su certificado o permiso más reciente para conocer la fecha exacta "
+        "de renovación."
+    ),
+    "calcw.year_one": "{n} año",
+    "calcw.year_many": "{n} años",
+    "calcw.firm_prefix": "Esta es la fecha de su licencia individual. ",
+    "calcw.firm_different": (
+        "El registro de su firma se renueva en un calendario distinto — vea la página completa de {label} "
+        "más abajo."
+    ),
+    "calcw.firm_separate": (
+        "El registro de una firma es un trámite aparte de las licencias individuales — vea la página "
+        "completa de {label} más abajo para conocer los detalles de la firma."
+    ),
+    "calcw.cta": "Vea la página completa de {label} y configure un recordatorio gratuito &rarr;",
+    "calcw.date_style": (
+        "{day} de {month} de {year}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|"
+        "noviembre|diciembre"
+    ),
 }
 
 

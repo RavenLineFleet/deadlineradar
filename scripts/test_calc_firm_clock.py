@@ -69,7 +69,7 @@ def test_classifier_rules_on_synthetic_records():
 
 def test_gap_states_never_open_with_the_individual_date_prefix():
     js = generate._DEADLINE_CALC_JS
-    assert "entry.kind === 'gap') ? '' : 'This is your individual license date. '" in js
+    assert "firmPrefix = (entry && entry.kind === 'gap') ? '' : I18N.firm_prefix;" in js
     assert js.count("firmPrefix +") == 2     # both branches go through the prefix guard
     assert "has_firm_deadline" not in js and "has_firm_deadline" not in generate._deadline_calculator_widget_data.__code__.co_names
 
