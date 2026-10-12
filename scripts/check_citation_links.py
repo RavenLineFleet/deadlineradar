@@ -109,6 +109,17 @@ from urllib.parse import urlparse
 
 TIMEOUT_SECONDS = 12
 USER_AGENT = "Mozilla/5.0 (compatible; DeadlineRadarLinkCheck/1.0)"
+# AuditLab SRC-36 (MEDIUM, 2026-10-12): urllib sends NO Accept header, and
+# adminrules.utah.gov/api/public/getfile/ content-negotiates on exactly that
+# header -- a browser navigation gets a 2KB React shell that renders blank,
+# no Accept gets the real PDF. The checker was green on links no reader
+# could use, by construction. Send what a browser navigation sends.
+REQUEST_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+}
 # Generous enough that two genuinely different real documents (e.g. two
 # distinct PDFs) essentially never collide, but bounded so a single fetch
 # can't stall the sweep on a multi-hundred-MB response. AuditLab's own
@@ -157,7 +168,7 @@ def _fetch(url: str) -> tuple[int | None, bytes | None, str]:
     HEAD-then-always-GET-anyway would just be a second request for no
     benefit.
     """
-    req = urllib.request.Request(url, method="GET", headers={"User-Agent": USER_AGENT})
+    req = urllib.request.Request(url, method="GET", headers=REQUEST_HEADERS)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
             body = resp.read(CONTENT_SAMPLE_BYTES)
@@ -272,6 +283,24 @@ def _extract_citation_token(citation: str) -> str | None:
     return m.group(0) if m else None
 
 
+# SRC-36 step 2: a small text/html 200 whose only body is an empty mount node
+# is a JS-only shell -- a reader on a real browser may see nothing. AuditLab's
+# sweep shows this over-flags (Montana, Indiana, Texas Appian, NJ, D.C. all
+# hit it and render fine), so it is a REVIEW (UNVERIFIABLE) triage signal,
+# never DEAD.
+_SHELL_MAX_BYTES = 4096
+_EMPTY_SHELL_RE = re.compile(
+    r"""id=["'](?:root|app|__next)["'][^>]*>\s*</div>|you need to enable javascript""",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_empty_spa_shell(body: bytes | None) -> bool:
+    if body is None or len(body) >= _SHELL_MAX_BYTES or _looks_like_pdf(body):
+        return False
+    return bool(_EMPTY_SHELL_RE.search(body.decode("utf-8", errors="replace")))
+
+
 def _looks_like_pdf(body: bytes) -> bool:
     return body[:5] == b"%PDF-"
 
@@ -338,6 +367,9 @@ def classify(real_status, real_body, sig_status, sig_body, citation=None, url=No
         return "UNVERIFIABLE", "control probe failed at the network level; no baseline for this host"
     if real_status is None:
         return "UNVERIFIABLE", "citation URL failed at the network level (not a real HTTP status)"
+
+    if real_status == 200 and _looks_like_empty_spa_shell(real_body):
+        return "UNVERIFIABLE", f"small ({len(real_body)} bytes) 200 page whose body is an empty JS mount node -- may render blank in a browser (SRC-36)"
 
     if sig_status == 200 and real_status == 200:
         if sig_body is not None and real_body is not None:

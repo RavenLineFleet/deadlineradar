@@ -403,8 +403,8 @@
     {
       "state_slug": "utah",
       "monitor_urls": [
-        "https://adminrules.utah.gov/api/public/getfile/uac-pdf/568163a4-6f7f-4c4f-b2f3-d930f2598eff.pdf/R156-1.pdf",
-        "https://adminrules.utah.gov/api/public/getfile/uac-pdf/a87bebd9-585a-455e-b397-fe66ba37a698.pdf/R156-26a.pdf",
+        "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules",
+        "https://adminrules.utah.gov/public/rule/R156-26a/Current%20Rules",
         "https://le.utah.gov/xcode/Title58/Chapter1/C58-1-S308_2024050120240501.html"
       ]
     },
