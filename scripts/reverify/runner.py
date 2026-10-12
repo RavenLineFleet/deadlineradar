@@ -310,11 +310,19 @@ def tranche(automatable: list[str], by_id: dict, today: date, failing=()) -> lis
 
 
 def cap_cpa(todo: list[str], by_id: dict, today: date) -> list[str]:
-    """Keep at most CPA_STAMP_CAP cpa_deadlines ids (oldest first, same tie-break as tranche); others untouched."""
-    cpa = [i for i in todo if by_id[i][0] == "cpa_deadlines"]
-    cpa.sort(key=lambda i: (-_age_days(by_id[i][1], "cpa_deadlines", today), hashlib.sha256(i.encode()).hexdigest()))
-    keep = set(cpa[:CPA_STAMP_CAP])
-    return [i for i in todo if by_id[i][0] != "cpa_deadlines" or i in keep]
+    """Keep at most CPA_STAMP_CAP cpa_deadlines ids (oldest first, same tie-break as tranche); others untouched.
+    STALE-53 (AuditLab 2026-10-12): the cap is also DERIVED from what already carries today's date, so records
+    hand-stamped onto `today` before this run use up the budget instead of being added on top of it. A record
+    already dated `today` does not move the cohort when re-checked, so it is kept for free."""
+    ds = "cpa_deadlines"
+    already = sum(1 for d, r in by_id.values() if d == ds and _age_days(r, ds, today) == 0)
+    room = min(CPA_STAMP_CAP, max(0, CPA_STAMP_CAP + HAND_STAMPS_PER_DAY - already))   # = MAX - MARGIN - already
+    cpa = [i for i in todo if by_id[i][0] == ds]
+    cpa.sort(key=lambda i: (-_age_days(by_id[i][1], ds, today), hashlib.sha256(i.encode()).hexdigest()))
+    free = [i for i in cpa if _age_days(by_id[i][1], ds, today) == 0]
+    moving = [i for i in cpa if _age_days(by_id[i][1], ds, today) != 0]
+    keep = set(free) | set(moving[:room])
+    return [i for i in todo if by_id[i][0] != ds or i in keep]
 
 
 def advance_as_of(data: dict) -> str | None:

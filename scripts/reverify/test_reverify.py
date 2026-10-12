@@ -299,6 +299,33 @@ def test_cpa_cap_bounds_backstop_and_recoveries_stale39():
     assert runner.cap_cpa(allids[:5], by_id, date(2026, 10, 23)) == allids[:5]    # under the cap: unchanged
 
 
+def _cpa_by_id(n_old, n_today, today="2026-10-23"):
+    by_id = {f"old{i:02d}": ("cpa_deadlines", {"id": f"old{i:02d}", "last_verified": "2026-10-02"}) for i in range(n_old)}
+    by_id.update({f"hand{i:02d}": ("cpa_deadlines", {"id": f"hand{i:02d}", "last_verified": today}) for i in range(n_today)})
+    return by_id
+
+
+def test_cpa_cap_is_derived_from_what_already_carries_today_stale53():
+    """AuditLab STALE-53: hand stamps dated today BEFORE the run use up the budget, so the cohort on today's
+    date can never exceed the preship ratchet (10) however many hand stamps landed first."""
+    from datetime import date
+    today = date(2026, 10, 23)
+    for hand, expect_room in ((0, 8), (1, 8), (2, 7), (3, 6), (9, 0), (10, 0)):
+        by_id = _cpa_by_id(30, hand)
+        old = [i for i in by_id if i.startswith("old")]
+        kept = [i for i in runner.cap_cpa(sorted(by_id), by_id, today) if i.startswith("old")]
+        assert len(kept) == min(expect_room, 30), (hand, len(kept))
+        assert hand + len(kept) <= 10 - runner.CPA_MARGIN or hand >= 10 - runner.CPA_MARGIN    # never past the margin
+        assert hand + len(kept) <= 10                                                          # never past the gate
+
+
+def test_cpa_cap_keeps_records_already_dated_today_for_free_stale53():
+    from datetime import date
+    by_id = _cpa_by_id(30, 2)
+    kept = runner.cap_cpa(sorted(by_id), by_id, date(2026, 10, 23))
+    assert {"hand00", "hand01"} <= set(kept)               # a same-day re-check does not move the cohort
+
+
 def test_cpa_cap_equals_the_preship_ratchet_constant_stale33():
     src = open(os.path.join(os.path.dirname(__file__), "..", "preship_gate.py"), encoding="utf-8").read()
     m = re.search(r"^CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE\s*=\s*(\d+)", src, re.M)
