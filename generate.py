@@ -6533,6 +6533,7 @@ def render_parity_lookup_state(state_slug: str, record: dict, as_of: date) -> st
     own comment for which 4 states this covers and why the other 2 flagged
     states (Ohio, Rhode Island) are deliberately NOT here."""
     cfg = PARITY_LOOKUP_STATES[state_slug]
+    as_of = table_clock(as_of)  # TABLE-3: a countdown, same clock as the other month-end tables
     odd_d = next_fixed_date_parity(as_of, cfg["month"], cfg["day"], "odd")
     even_d = next_fixed_date_parity(as_of, cfg["month"], cfg["day"], "even")
     return f"""<div class="callout">

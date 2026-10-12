@@ -77,3 +77,47 @@ def test_deadline_calculator_widget_tables_use_the_same_clock(nov1):
         by_slug.setdefault(r["state_slug"], []).append(r)
     blob = json.dumps(generate._deadline_calculator_widget_data(by_slug, AS_OF))
     assert "October 31, 2026" not in blob and "October 31, 2027" in blob
+
+
+# ---- TABLE-3 (AuditLab, 2026-10-12): the parity-lookup table (KS/KY/OR/NE) is a 5th clocked site, and TABLE-1
+# must be able to SEE its rows (data-parity), which its old data-month-only regex never matched.
+
+class _Jun(_FrozenDT):
+    frozen = datetime(2027, 7, 2, 12, 0, tzinfo=timezone.utc)
+
+
+def test_parity_lookup_table_tracks_the_clock(monkeypatch):
+    rec = _REC["or-individual"]
+    assert "June 30, 2027" in generate.render_parity_lookup_state("oregon", rec, AS_OF)   # today: odd row is future
+    monkeypatch.setattr(generate, "datetime", _Jun)
+    html = generate.render_parity_lookup_state("oregon", rec, AS_OF)
+    assert "June 30, 2027" not in html and "June 30, 2029" in html
+
+
+def _gate(monkeypatch, today):
+    import preship_gate as pg
+
+    class D(date):
+        @classmethod
+        def today(cls):
+            return today
+    monkeypatch.setattr(pg, "date", D)
+    return pg
+
+
+def test_table1_now_sees_data_parity_rows(monkeypatch, tmp_path):
+    sys.path.insert(0, os.path.join(str(REPO_ROOT), "scripts"))
+    f = tmp_path / "p.html"
+    f.write_text('<tr data-parity="odd"><td>Odd</td><td>June 30, 2027</td></tr>'
+                 '<tr data-parity="even"><td>Even</td><td>June 30, 2028</td></tr>', encoding="utf-8")
+    pg = _gate(monkeypatch, date(2027, 7, 2))
+    errs = pg.check_birth_month_table_currency([f])
+    assert len(errs) == 1 and "June 30, 2027" in errs[0] and "parity" in errs[0]
+    assert _gate(monkeypatch, date(2027, 6, 30)).check_birth_month_table_currency([f]) == []   # due today has not passed
+
+
+def test_table1_still_sees_data_month_rows(monkeypatch, tmp_path):
+    sys.path.insert(0, os.path.join(str(REPO_ROOT), "scripts"))
+    f = tmp_path / "m.html"
+    f.write_text('<tr data-month="10"><td>October</td><td>October 31, 2026</td></tr>', encoding="utf-8")
+    assert len(_gate(monkeypatch, date(2026, 11, 1)).check_birth_month_table_currency([f])) == 1

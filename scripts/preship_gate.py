@@ -2169,7 +2169,7 @@ def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path
     return errors
 
 
-_TABLE_ROW_RE = re.compile(r'<tr data-month="(\d+)">(.*?)</tr>')
+_TABLE_ROW_RE = re.compile(r'<tr data-(?:month|parity)="([^"]+)">(.*?)</tr>')  # TABLE-3: parity-lookup rows too
 _TABLE_CELL_RE = re.compile(r"<td>(.*?)</td>")
 _MONTH_NAME_TO_NUM = {name: i + 1 for i, name in enumerate(MONTH_NAMES)}
 _TABLE_DATE_RE = re.compile(r"^(" + "|".join(MONTH_NAMES) + r") (\d{1,2}), (\d{4})$")
@@ -2206,7 +2206,7 @@ def check_birth_month_table_currency(html_files: list[Path]) -> list[str]:
                 iso = f"{year:04d}-{_MONTH_NAME_TO_NUM[month_name]:02d}-{day:02d}"
                 if iso < today:
                     errors.append(
-                        f"[TABLE-1][{f}] data-month={month_num} row shows an elapsed date "
+                        f"[TABLE-1][{f}] data-month/parity={month_num} row shows an elapsed date "
                         f"'{cell_text}' (today={today}) -- this is a build-time-computed "
                         f"birth-month table cell, not hand-maintained JSON; the build is "
                         f"simply too old. Regenerate docs/ (re-run generate.py) before shipping."
