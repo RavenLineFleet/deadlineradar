@@ -7455,7 +7455,7 @@ def build_state_page(
     """Returns (title, html_body) for a state's page."""
     state_name = records[0]["state"]
     source_url = records[0]["source_url"]
-    last_verified = records[0]["last_verified"]
+    last_verified = min(r["last_verified"] for r in records)   # oldest record, not whichever sorts first (STALE-52)
 
     patterns = {r["renewal_pattern"] for r in records}
 
