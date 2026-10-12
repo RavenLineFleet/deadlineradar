@@ -3085,16 +3085,22 @@ _SUNSET_WINDOW = 300
 _SUNSET_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 # REG-7: states whose prose names a sunset we deliberately do NOT track as a field, each with the reason. Every
 # entry must still be matched by the detector (test_mobility_sunset_gate), so a stale exemption fails loudly.
+# Keyed on the exempted DATE, not the state (REG-8): another sunset in the same state still errors.
 SUNSET_PROSE_EXEMPT = {
-    "new-mexico": "statute-wide Public Accountancy Act sunset 2030-07-01, routinely extended; no mobility rule hangs on it",
+    "new-mexico": {
+        "date": "2030-07-01",
+        "reason": "statute-wide Public Accountancy Act sunset, routinely extended; no mobility rule hangs on it",
+    },
 }
 
 
-def _sunset_prose_hit(text: str, today: date) -> bool:
-    """Shape, not list (REG-7): a time-limit word (emergency/temporary/time-limited/interim/stopgap/sunset) and an
-    end verb (expir*/sunset*/laps*/terminat*/repeal*/valid through/effective until) within 300 chars of each other in
-    either order and across sentence boundaries, with a date beside the verb that has NOT already passed (an
-    already-passed repeal is history, not a pending sunset). A date with no year counts as pending."""
+def _sunset_prose_dates(text: str, today: date) -> list:
+    """Every pending sunset date the prose names, as ISO strings, in order of appearance; None stands for a
+    year-less date (pending, but not comparable to an exemption). Shape, not list (REG-7): a time-limit word
+    (emergency/temporary/time-limited/interim/stopgap/sunset) and an end verb (expir*/sunset*/laps*/terminat*/
+    repeal*/valid through/effective until) within 300 chars of each other in either order and across sentence
+    boundaries, with a date beside the verb that has NOT already passed (an already-passed repeal is history)."""
+    out: list = []
     for v in _SUNSET_VERB_RE.finditer(text):
         if not _SUNSET_TRIG_RE.search(text[max(0, v.start() - _SUNSET_WINDOW): v.end() + _SUNSET_WINDOW]):
             continue
@@ -3105,12 +3111,30 @@ def _sunset_prose_hit(text: str, today: date) -> bool:
                 elif dm.group("y"):
                     d = date(int(dm.group("y")), _SUNSET_MONTHS.index(dm.group("mon")[:3].lower()) + 1, int(dm.group("d")))
                 else:
-                    return True
+                    iso = None
+                    if iso not in out:
+                        out.append(iso)
+                    continue
             except ValueError:
                 continue
-            if d >= today:
-                return True
-    return False
+            if d >= today and d.isoformat() not in out:
+                out.append(d.isoformat())
+    return out
+
+
+def _sunset_prose_hit(text: str, today: date) -> bool:
+    return bool(_sunset_prose_dates(text, today))
+
+
+def _unexempted_sunset_dates(slug, r: dict, today: date) -> list:
+    """Pending sunset dates in the record's prose that the date-keyed exemption does not cover (REG-8)."""
+    exempt = (SUNSET_PROSE_EXEMPT.get(slug) or {}).get("date")
+    found: list = []
+    for f in ("citation", "data_gap_note", "notes"):
+        for d in _sunset_prose_dates(r.get(f) or "", today):
+            if d is None or d != exempt:
+                found.append(d)
+    return found
 
 
 def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> list[str]:
@@ -3136,8 +3160,7 @@ def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> l
                 parsed = date.fromisoformat(str(exp))
             except ValueError:
                 errors.append(f"[REG-6][{slug}] rule_expires_on={exp!r} is not an ISO date")
-        elif slug not in SUNSET_PROSE_EXEMPT and any(
-                _sunset_prose_hit(r.get(f) or "", today) for f in ("citation", "data_gap_note", "notes")):
+        elif _unexempted_sunset_dates(slug, r, today):
             errors.append(
                 f"[REG-6][{slug}] citation/data_gap_note/notes describe time-limited (emergency/temporary) "
                 "legislation that expires, but the record has no date-typed rule_expires_on -- the sunset exists "

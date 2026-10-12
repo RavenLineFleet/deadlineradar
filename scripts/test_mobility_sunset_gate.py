@@ -120,12 +120,13 @@ def test_corpus_measured_exactly_dc_and_new_mexico_fire_everything_else_silent()
     assert fired == {"dc", "new-mexico"}
 
 
-def test_every_exemption_is_still_matched_by_the_detector_so_none_goes_stale():
+def test_every_exemption_names_a_date_the_detector_still_finds_on_that_record():
     recs = {r["state_slug"]: r for r in json.loads((REPO_ROOT / "worker" / "src" / "mobility_rules.json").read_text(encoding="utf-8"))["records"]}
     assert gate.SUNSET_PROSE_EXEMPT
-    for slug, reason in gate.SUNSET_PROSE_EXEMPT.items():
-        assert reason.strip()
-        assert any(gate._sunset_prose_hit(recs[slug].get(f) or "", TODAY) for f in ("citation", "data_gap_note", "notes")), slug
+    for slug, ex in gate.SUNSET_PROSE_EXEMPT.items():
+        assert ex["reason"].strip() and ex["date"]
+        found = {d for f in ("citation", "data_gap_note", "notes") for d in gate._sunset_prose_dates(recs[slug].get(f) or "", TODAY)}
+        assert ex["date"] in found, (slug, ex["date"], found)
 
 
 def test_exemption_is_what_silences_new_mexico_and_removing_it_fails(tmp_path, monkeypatch):
@@ -133,3 +134,32 @@ def test_exemption_is_what_silences_new_mexico_and_removing_it_fails(tmp_path, m
     assert gate.check_mobility_sunset_field(_repo(tmp_path / "a", [nm]), today=TODAY) == []
     monkeypatch.setattr(gate, "SUNSET_PROSE_EXEMPT", {})
     assert len(gate.check_mobility_sunset_field(_repo(tmp_path / "b", [nm]), today=TODAY)) == 1
+
+
+# ---- REG-8: the exemption is keyed on the exempted DATE, so another sunset in the same state still errors ----
+
+NM_OLD = "SUNSET: the entire Act is scheduled for repeal 2030-07-01 (routinely extended)."
+NM_NEW = " EMERGENCY: NM enacted an emergency mobility amendment effective 2027-01-15 that expires 2027-04-15 unless made permanent."
+
+
+def test_a_second_sunset_in_an_exempt_state_still_errors(tmp_path):
+    only_old = rec(state_slug="new-mexico", notes=NM_OLD)
+    both = rec(state_slug="new-mexico", notes=NM_OLD + NM_NEW)
+    assert gate.check_mobility_sunset_field(_repo(tmp_path / "a", [only_old]), today=TODAY) == []
+    errs = gate.check_mobility_sunset_field(_repo(tmp_path / "b", [both]), today=TODAY)
+    assert len(errs) == 1 and "no date-typed rule_expires_on" in errs[0]
+
+
+def test_identical_prose_on_a_non_exempt_state_errors_control(tmp_path):
+    assert len(gate.check_mobility_sunset_field(_repo(tmp_path, [rec(state_slug="connecticut", notes=NM_OLD + NM_NEW)]), today=TODAY)) == 1
+
+
+def test_a_yearless_sunset_date_is_never_covered_by_an_exemption(tmp_path):
+    nm = rec(state_slug="new-mexico", notes=NM_OLD + " EMERGENCY act expires Nov. 8.")
+    assert len(gate.check_mobility_sunset_field(_repo(tmp_path, [nm]), today=TODAY)) == 1
+
+
+def test_a_changed_exempt_date_is_a_stale_exemption(monkeypatch):
+    monkeypatch.setitem(gate.SUNSET_PROSE_EXEMPT, "new-mexico", {"date": "2031-07-01", "reason": "x"})
+    errs = gate.check_mobility_sunset_field(REPO_ROOT, today=TODAY)
+    assert any("new-mexico" in e for e in errs)
