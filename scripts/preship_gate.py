@@ -3076,7 +3076,41 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
     return errors
 
 
-_SUNSET_PROSE_RE = re.compile(r"(?:emergency|time-limited|temporary)\b[^.]{0,240}?\bexpir", re.IGNORECASE)
+_SUNSET_MON = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+_SUNSET_DATE_RE = re.compile(r"(?P<iso>\b(?P<iy>\d{4})-(?P<im>\d{2})-(?P<id>\d{2})\b)|\b(?P<mon>" + _SUNSET_MON + r")\.?\s+(?P<d>\d{1,2})(?:,?\s+(?P<y>\d{4}))?\b", re.IGNORECASE)
+_SUNSET_TRIG_RE = re.compile(r"\b(?:emergency|time-limited|temporary|interim|stopgap|sunset\w*)\b", re.IGNORECASE)
+_SUNSET_VERB_RE = re.compile(
+    r"\b(?:expir\w*|sunset\w*|laps\w*|terminat\w*|repeal\w*|valid through|effective until)\b|\bscheduled for repeal\b", re.IGNORECASE)
+_SUNSET_WINDOW = 300
+_SUNSET_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+# REG-7: states whose prose names a sunset we deliberately do NOT track as a field, each with the reason. Every
+# entry must still be matched by the detector (test_mobility_sunset_gate), so a stale exemption fails loudly.
+SUNSET_PROSE_EXEMPT = {
+    "new-mexico": "statute-wide Public Accountancy Act sunset 2030-07-01, routinely extended; no mobility rule hangs on it",
+}
+
+
+def _sunset_prose_hit(text: str, today: date) -> bool:
+    """Shape, not list (REG-7): a time-limit word (emergency/temporary/time-limited/interim/stopgap/sunset) and an
+    end verb (expir*/sunset*/laps*/terminat*/repeal*/valid through/effective until) within 300 chars of each other in
+    either order and across sentence boundaries, with a date beside the verb that has NOT already passed (an
+    already-passed repeal is history, not a pending sunset). A date with no year counts as pending."""
+    for v in _SUNSET_VERB_RE.finditer(text):
+        if not _SUNSET_TRIG_RE.search(text[max(0, v.start() - _SUNSET_WINDOW): v.end() + _SUNSET_WINDOW]):
+            continue
+        for dm in _SUNSET_DATE_RE.finditer(text[max(0, v.start() - 120): v.end() + 120]):
+            try:
+                if dm.group("iso"):
+                    d = date(int(dm.group("iy")), int(dm.group("im")), int(dm.group("id")))
+                elif dm.group("y"):
+                    d = date(int(dm.group("y")), _SUNSET_MONTHS.index(dm.group("mon")[:3].lower()) + 1, int(dm.group("d")))
+                else:
+                    return True
+            except ValueError:
+                continue
+            if d >= today:
+                return True
+    return False
 
 
 def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> list[str]:
@@ -3102,7 +3136,8 @@ def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> l
                 parsed = date.fromisoformat(str(exp))
             except ValueError:
                 errors.append(f"[REG-6][{slug}] rule_expires_on={exp!r} is not an ISO date")
-        elif any(_SUNSET_PROSE_RE.search(r.get(f) or "") for f in ("citation", "data_gap_note", "notes")):
+        elif slug not in SUNSET_PROSE_EXEMPT and any(
+                _sunset_prose_hit(r.get(f) or "", today) for f in ("citation", "data_gap_note", "notes")):
             errors.append(
                 f"[REG-6][{slug}] citation/data_gap_note/notes describe time-limited (emergency/temporary) "
                 "legislation that expires, but the record has no date-typed rule_expires_on -- the sunset exists "

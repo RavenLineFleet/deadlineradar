@@ -41,7 +41,7 @@ def test_prose_only_sunset_is_a_failure(tmp_path):
 
 def test_each_prose_field_and_keyword_is_seen(tmp_path):
     for f in ("citation", "data_gap_note", "notes"):
-        for text in ("temporary act expiring Dec 1", "TIME-LIMITED: expires", "emergency amendment that will expire"):
+        for text in ("temporary act expiring Dec 1", "TIME-LIMITED: expires on 2027-01-01", "emergency amendment that will expire on 2027-03-01"):
             errs = gate.check_mobility_sunset_field(_repo(tmp_path / f"{f}{abs(hash(text))}", [rec(**{f: text})]), today=TODAY)
             assert len(errs) == 1, (f, text)
 
@@ -71,3 +71,65 @@ def test_arrived_sunset_needs_a_verification_on_or_after_it(tmp_path):
 def test_advisory_counts_down(tmp_path, capsys):
     gate.print_mobility_sunset_advisory(_repo(tmp_path, [rec(state_slug="dc", rule_expires_on="2026-11-08")]), today=TODAY)
     assert "dc: rule_expires_on 2026-11-08 in 27 day(s)" in capsys.readouterr().out
+
+
+# ---- REG-7: the detector is a shape, not a list; measured against the real 55 and AuditLab's phrasings ----
+
+FIRES = [
+    "emergency act expires November 8, 2026",
+    "This rests on emergency legislation. It expires November 8, 2026.",     # [^.] used to stop at the period
+    "temporary act sunsets on 2027-03-01",
+    "emergency rule lapses 2027-03-01",
+    "emergency amendment terminates 2027-03-01",
+    "emergency act, repealed effective 2027-03-01",
+    "emergency legislation, valid through March 1, 2027",
+    "interim rule expires 2027-03-01",
+    "this stopgap measure expires 2027-03-01",
+    "expires 2027-03-01 under the emergency act",                           # order reversed
+    "SUNSET: the entire Act is scheduled for repeal 2030-07-01",
+]
+SILENT = [
+    "The old statute was repealed effective 2025-10-01 and replaced",       # past repeal, no time-limit word
+    "The 2023 emergency order was repealed on 2024-01-05.",                  # past-dated: history, not pending
+    "3-year cycle expiring June 30, 2026",                                   # renewal cycle, and already past
+    "if the home license lapses, the privilege ends",                        # no date
+    "temporary practice permit; renew by 2027-12-31",                        # time-limit word, no end verb
+]
+
+
+def test_detector_fires_on_every_phrasing_of_a_pending_sunset():
+    for t in FIRES:
+        assert gate._sunset_prose_hit(t, TODAY), t
+
+
+def test_detector_stays_silent_on_history_cycles_and_dateless_text():
+    for t in SILENT:
+        assert not gate._sunset_prose_hit(t, TODAY), t
+
+
+def test_no_year_date_counts_as_pending_a_dated_past_one_does_not():
+    assert gate._sunset_prose_hit("emergency act expires Nov. 8", TODAY)
+    assert not gate._sunset_prose_hit("emergency act expired 2026-10-11", date(2026, 10, 12))
+    assert gate._sunset_prose_hit("emergency act expires 2026-10-12", date(2026, 10, 12))   # due today has not passed
+
+
+def test_corpus_measured_exactly_dc_and_new_mexico_fire_everything_else_silent():
+    recs = json.loads((REPO_ROOT / "worker" / "src" / "mobility_rules.json").read_text(encoding="utf-8"))["records"]
+    fired = {r["state_slug"] for r in recs
+             if any(gate._sunset_prose_hit(r.get(f) or "", TODAY) for f in ("citation", "data_gap_note", "notes"))}
+    assert fired == {"dc", "new-mexico"}
+
+
+def test_every_exemption_is_still_matched_by_the_detector_so_none_goes_stale():
+    recs = {r["state_slug"]: r for r in json.loads((REPO_ROOT / "worker" / "src" / "mobility_rules.json").read_text(encoding="utf-8"))["records"]}
+    assert gate.SUNSET_PROSE_EXEMPT
+    for slug, reason in gate.SUNSET_PROSE_EXEMPT.items():
+        assert reason.strip()
+        assert any(gate._sunset_prose_hit(recs[slug].get(f) or "", TODAY) for f in ("citation", "data_gap_note", "notes")), slug
+
+
+def test_exemption_is_what_silences_new_mexico_and_removing_it_fails(tmp_path, monkeypatch):
+    nm = rec(state_slug="new-mexico", notes="SUNSET: the entire Act is scheduled for repeal 2030-07-01 (routinely extended).")
+    assert gate.check_mobility_sunset_field(_repo(tmp_path / "a", [nm]), today=TODAY) == []
+    monkeypatch.setattr(gate, "SUNSET_PROSE_EXEMPT", {})
+    assert len(gate.check_mobility_sunset_field(_repo(tmp_path / "b", [nm]), today=TODAY)) == 1
