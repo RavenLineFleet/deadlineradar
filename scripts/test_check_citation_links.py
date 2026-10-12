@@ -85,3 +85,11 @@ def test_shell_signatures_are_detected():
     assert ccl._looks_like_empty_spa_shell(b"<div id='app'>\n</div>")
     assert ccl._looks_like_empty_spa_shell(b"<noscript>You need to enable JavaScript to run this app.</noscript>")
     assert not ccl._looks_like_empty_spa_shell(b'<div id="root"><p>real content</p></div>')
+
+
+def test_browser_verified_entry_clears_then_ages_out():
+    import datetime as dt
+    u = "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules"
+    assert "human-verified" in ccl.browser_verified_note(u, today=dt.date(2026, 10, 13))
+    assert ccl.browser_verified_note(u, today=dt.date(2027, 4, 20)) is None  # >180d: back to the queue
+    assert ccl.browser_verified_note("https://adminrules.utah.gov/api/public/getfile/x.pdf", today=dt.date(2026, 10, 13)) is None

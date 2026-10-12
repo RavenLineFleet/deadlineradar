@@ -301,6 +301,34 @@ def _looks_like_empty_spa_shell(body: bytes | None) -> bool:
     return bool(_EMPTY_SHELL_RE.search(body.decode("utf-8", errors="replace")))
 
 
+# SRC-36 follow-up (AuditLab 2026-10-12): adminrules.utah.gov returns the same
+# 2,224-byte shell to ANY fetcher for ANY path, so no fetch-based check can
+# ever verify a Utah citation link. A human browser read is the only evidence,
+# so it is recorded per URL with a date and ages out (re-raised after
+# BROWSER_VERIFIED_MAX_AGE_DAYS) rather than clearing the entry forever.
+BROWSER_VERIFIED_MAX_AGE_DAYS = 180
+BROWSER_VERIFIED = {
+    "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules":
+        ("2026-10-12", "real Chrome, renders 96,972 chars incl. 'C.P.A. Firm December 31 even years'"),
+    "https://adminrules.utah.gov/public/rule/R156-26a/Current%20Rules":
+        ("2026-10-12", "real Chrome, renders 35,667 chars, effective 07/08/2026, incl. the 80-hour two-year sentence"),
+}
+
+
+def browser_verified_note(url: str, today=None):
+    """Returns the human-verification note for an UNVERIFIABLE url if it is on
+    file AND fresh, else None (so an aged-out entry goes back to the review queue)."""
+    import datetime as _dt
+    rec = BROWSER_VERIFIED.get(url)
+    if not rec:
+        return None
+    today = today or _dt.date.today()
+    age = (today - _dt.date.fromisoformat(rec[0])).days
+    if age > BROWSER_VERIFIED_MAX_AGE_DAYS:
+        return None
+    return f"human-verified in a browser {rec[0]} ({age}d ago): {rec[1]}"
+
+
 def _looks_like_pdf(body: bytes) -> bool:
     return body[:5] == b"%PDF-"
 
@@ -439,7 +467,8 @@ def main() -> int:
 
     dead = [(u, r, l) for u, (v, r, l) in results.items() if v == "DEAD"]
     wrong_page = [(u, r, l) for u, (v, r, l) in results.items() if v == "WRONG-PAGE"]
-    unverifiable = [(u, r, l) for u, (v, r, l) in results.items() if v == "UNVERIFIABLE"]
+    unverifiable = [(u, r, l) for u, (v, r, l) in results.items() if v == "UNVERIFIABLE" and not browser_verified_note(u)]
+    human_cleared = [(u, browser_verified_note(u)) for u, (v, r, l) in results.items() if v == "UNVERIFIABLE" and browser_verified_note(u)]
     live_count = sum(1 for v, _, _ in results.values() if v == "LIVE")
 
     print()
@@ -447,6 +476,13 @@ def main() -> int:
         f"{live_count} LIVE, {len(unverifiable)} UNVERIFIABLE-BY-HTTP, {len(wrong_page)} WRONG-PAGE, "
         f"{len(dead)} DEAD of {len(all_urls)} citation URLs across {len(host_signatures)} hosts."
     )
+
+    if human_cleared:
+        print()
+        print(f"{len(human_cleared)} UNVERIFIABLE-BY-FETCHER but human-verified in a browser (expected; re-raised after {BROWSER_VERIFIED_MAX_AGE_DAYS} days):")
+        for url, note in human_cleared:
+            print(f"  {url}")
+            print(f"    {note}")
 
     if unverifiable:
         print(f"\n{len(unverifiable)} UNVERIFIABLE (not proof of anything -- HTTP cannot tell here; needs a real browser check):")
