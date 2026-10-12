@@ -215,6 +215,7 @@ export function normalizeRuleRow(raw: unknown): MobilityRuleRow | null {
     flux_note: str(r.flux_note),
     flux_summary: str(r.flux_summary),
     rule_changes_on: str(r.rule_changes_on),
+    rule_expires_on: str(r.rule_expires_on),
     forward_updated_for_change_on: str(r.forward_updated_for_change_on),
     home_state_substantially_equivalent: strictTriState(r.home_state_substantially_equivalent),
     home_state_substantially_equivalent_note: str(r.home_state_substantially_equivalent_note),
@@ -339,6 +340,17 @@ export interface MobilityRuleRow {
    * can warn ahead of time instead of silently going stale on the morning
    * the new rule takes effect. */
   rule_changes_on: string | null;
+
+  /**
+   * REG-6 (AuditLab, 2026-10-12): the date a TIME-LIMITED rule stops being law
+   * (emergency legislation with a sunset; D.C. Act 26-399 -> 2026-11-08). A
+   * DIFFERENT boundary from rule_changes_on, which is strictly forward-looking
+   * for a pending change and must not carry a past effective date. On or
+   * after this date the row blocks (not_verified) until it is re-verified on
+   * or after it; before it, every answer carries the sunset as a caveat.
+   * Optional so rows without a sunset (all but one) need no field.
+   */
+  rule_expires_on?: string | null;
 
   /**
    * FLUX-3 (AuditLab, 2026-08-22): FLUX-2's `verified_date >= rule_changes_on`
@@ -640,6 +652,34 @@ function requireCitationOrDowngrade(finding: MobilityFinding): MobilityFinding {
  * future record repeats that mistake (verified before its own change date
  * but with a past `rule_changes_on`), fix the DATA, not this logic.
  */
+/** REG-6: true once `rule_expires_on` has arrived and the row has not been re-verified on or after it. An
+ * unparseable value fails CLOSED (blocks), never silently ignored. null/absent = no sunset. */
+function sunsetHasPassedUnverified(rule: MobilityRuleRow, now: Date): boolean {
+  if (!rule.rule_expires_on) return false;
+  const expires = Date.parse(rule.rule_expires_on);
+  if (Number.isNaN(expires)) return true;
+  if (expires > now.getTime()) return false;
+  const verified = rule.verified_date ? Date.parse(rule.verified_date) : NaN;
+  return Number.isNaN(verified) || verified < expires;
+}
+
+/** REG-6: before the sunset, an answer that rests on time-limited legislation says so. */
+function applySunsetCaveat(finding: MobilityFinding, rule: MobilityRuleRow | null, now: Date): MobilityFinding {
+  if (!rule || !rule.rule_expires_on || sunsetHasPassedUnverified(rule, now)) return finding;
+  if (finding.verdict === "not_verified" || finding.verdict === "not_applicable") return finding;
+  const expires = Date.parse(rule.rule_expires_on);
+  if (Number.isNaN(expires) || expires <= now.getTime()) return finding;
+  return {
+    ...finding,
+    summary: `${finding.summary} (This rule rests on time-limited legislation that expires on ${rule.rule_expires_on}.)`,
+    requirements: [
+      ...finding.requirements,
+      `This rule rests on time-limited legislation that expires on ${rule.rule_expires_on}. Unless the state makes it ` +
+        "permanent or enacts a successor, the earlier rule may return -- re-confirm with the board before relying on this past that date.",
+    ],
+  };
+}
+
 function fluxHasSettled(rule: MobilityRuleRow, now: Date): boolean {
   if (!rule.rule_changes_on) return false; // undated source disagreement -- never "settled"
   const changesOn = Date.parse(rule.rule_changes_on);
@@ -671,6 +711,25 @@ function fluxHasSettled(rule: MobilityRuleRow, now: Date): boolean {
  * verification TTL cannot produce an answer through either path.
  */
 function blockingRuleCondition(rule: MobilityRuleRow, now: Date): MobilityFinding | null {
+  if (sunsetHasPassedUnverified(rule, now)) {
+    return {
+      verdict: "not_verified",
+      summary:
+        "This state's rule rests on time-limited legislation whose end date has arrived, and we have not yet " +
+        "re-confirmed what governs now. We are not going to guess. Confirm directly with the state board " +
+        "before relying on this.",
+      requirements: [
+        `The rule we have on file was due to expire on ${rule.rule_expires_on}. Unless the state has made it permanent or ` +
+          "enacted a successor, the earlier rule may be back in force.",
+      ],
+      citation: rule.citation,
+      citationUrl: rule.citation_url,
+      sourceUrl: rule.source_url,
+      verifiedDate: rule.verified_date,
+      confidence: rule.confidence,
+      disclaimer: MOBILITY_DISCLAIMER,
+    };
+  }
   if (rule.rule_in_flux === true && !fluxHasSettled(rule, now)) {
     return {
       verdict: "not_verified",
@@ -842,7 +901,7 @@ export function evaluateIndividualMobility(
 ): MobilityFinding {
   const sourced = hasSourcedEquivalence(rule, homeRule);
   return applySourcedEquivalenceNote(
-    applyRecentChangeCaveat(evaluateIndividualMobilityInner(input, rule, sourced, now), rule, now),
+    applySunsetCaveat(applyRecentChangeCaveat(evaluateIndividualMobilityInner(input, rule, sourced, now), rule, now), rule, now),
     sourced,
     homeRule
   );
@@ -1056,7 +1115,7 @@ export function evaluateFirmRegistration(
   rule: MobilityRuleRow | null,
   now: Date = new Date()
 ): MobilityFinding {
-  return applyRecentChangeCaveat(evaluateFirmRegistrationInner(input, rule, now), rule, now);
+  return applySunsetCaveat(applyRecentChangeCaveat(evaluateFirmRegistrationInner(input, rule, now), rule, now), rule, now);
 }
 
 function evaluateFirmRegistrationInner(

@@ -3076,6 +3076,74 @@ def check_cpa_deadlines_verification_date_concentration(repo_root: Path) -> list
     return errors
 
 
+_SUNSET_PROSE_RE = re.compile(r"(?:emergency|time-limited|temporary)\b[^.]{0,240}?\bexpir", re.IGNORECASE)
+
+
+def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> list[str]:
+    """AuditLab REG-6 (2026-10-12): a mobility rule that rests on time-limited legislation (D.C. Act 26-399, an
+    emergency act expiring 2026-11-08) must carry its end date in the date-typed `rule_expires_on` field, because
+    prose is the one place nothing can fire on. Three hard conditions on worker/src/mobility_rules.json:
+      1. a record whose citation / data_gap_note / notes says emergency|temporary|time-limited ... expir*
+         has a valid ISO `rule_expires_on`;
+      2. any `rule_expires_on` present is a valid ISO date;
+      3. once the date has arrived, verified_date must be on or after it -- the Worker is already returning
+         not_verified for that row (mobility.ts sunsetHasPassedUnverified), so this is the alarm, not a new block."""
+    path = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not path.exists():
+        return []
+    today = today or date.today()
+    errors: list[str] = []
+    for r in json.loads(path.read_text(encoding="utf-8"))["records"]:
+        slug = r.get("state_slug")
+        exp = r.get("rule_expires_on")
+        parsed = None
+        if exp is not None:
+            try:
+                parsed = date.fromisoformat(str(exp))
+            except ValueError:
+                errors.append(f"[REG-6][{slug}] rule_expires_on={exp!r} is not an ISO date")
+        elif any(_SUNSET_PROSE_RE.search(r.get(f) or "") for f in ("citation", "data_gap_note", "notes")):
+            errors.append(
+                f"[REG-6][{slug}] citation/data_gap_note/notes describe time-limited (emergency/temporary) "
+                "legislation that expires, but the record has no date-typed rule_expires_on -- the sunset exists "
+                "only in prose, so no gate or monitor can fire on it"
+            )
+        if parsed is not None and parsed <= today:
+            vd = r.get("verified_date")
+            try:
+                ok = vd is not None and date.fromisoformat(str(vd)) >= parsed
+            except ValueError:
+                ok = False
+            if not ok:
+                errors.append(
+                    f"[REG-6][{slug}] rule_expires_on={exp} has arrived and verified_date={vd} is before it: "
+                    "re-verify what governs now (permanent law / successor / reversion), update the record, then "
+                    "clear or move rule_expires_on. The Worker is returning not_verified for this state until then."
+                )
+    return errors
+
+
+def print_mobility_sunset_advisory(repo_root: Path, today: date | None = None) -> None:
+    """Non-blocking countdown for every rule_expires_on still ahead, so the re-verify has a visible clock."""
+    path = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not path.exists():
+        return
+    today = today or date.today()
+    print("\n--- mobility-sunset advisory (REG-6; an ARRIVED unverified sunset is reported above as a failure) ---")
+    rows = []
+    for r in json.loads(path.read_text(encoding="utf-8"))["records"]:
+        try:
+            d = date.fromisoformat(str(r.get("rule_expires_on")))
+        except ValueError:
+            continue
+        if d > today:
+            rows.append((d, r.get("state_slug")))
+    if not rows:
+        print("  none pending")
+    for d, slug in sorted(rows):
+        print(f"  {slug}: rule_expires_on {d.isoformat()} in {(d - today).days} day(s) -- re-verify on or after that date")
+
+
 def print_cpa_deadlines_cohort_concentration_advisory(repo_root: Path) -> None:
     """The loud, non-blocking half of STALE-27's gate: every cpa_deadlines
     cohort over CPA_DEADLINES_MAX_SHARED_VERIFICATION_DATE that the hard
@@ -8920,6 +8988,7 @@ def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
         (lambda: print_silent_drop_advisory(repo_root), "print_silent_drop_advisory"),
         (lambda: print_cpa_deadlines_staleness_advisory(repo_root), "print_cpa_deadlines_staleness_advisory"),
         (lambda: print_cpa_deadlines_cohort_concentration_advisory(repo_root), "print_cpa_deadlines_cohort_concentration_advisory"),
+        (lambda: print_mobility_sunset_advisory(repo_root), "print_mobility_sunset_advisory"),
         (lambda: print_cpe_hours_staleness_advisory(repo_root), "print_cpe_hours_staleness_advisory"),
         (lambda: print_reinstatement_staleness_advisory(repo_root), "print_reinstatement_staleness_advisory"),
         (lambda: print_renewal_fee_staleness_advisory(repo_root), "print_renewal_fee_staleness_advisory"),
@@ -9017,6 +9086,7 @@ def main():
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
+    all_errors += check_mobility_sunset_field(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_clock_kind_consistency(repo_root)
