@@ -24094,8 +24094,8 @@ deadline here</a>.</p>
 <h2>Firm permits: a different cycle &mdash; annual, ending October 31</h2>
 <p>Missouri firm permits do not follow the same two-year cycle as individual licenses. They're issued
 for a one-year period beginning November 1 and expiring October 31, renewed every single year (20 CSR
-2010-2.072(2)). The Board's newsletter confirms the current firm-permit cycle runs November 1, 2025
-through October 31, 2026 &mdash; meaning a firm's renewal deadline can land in a completely different
+2010-2.072(2)). The Board's newsletter confirms the firm-permit cycle that began November 1, 2025
+runs through October 31, 2026, and a new one-year cycle begins every November 1 &mdash; meaning a firm's renewal deadline can land in a completely different
 year than its individual license holders' next renewal, even at the same firm.</p>
 
 <h2>CPE: checked annually, regardless of the two-year license cycle</h2>
@@ -24737,27 +24737,27 @@ California renewal &mdash; it runs on a birth-month/odd-even cycle that's easy t
         "title": "Texas CPA Practicing in Oklahoma — What Actually Applies (and What Changes Nov. 1, 2026)",
         "seo_title": "Texas CPA Mobility to Oklahoma",
         "meta_description": (
-            "Oklahoma's mobility rule is open today but switches to individual criteria "
-            "Nov. 1, 2026. Here's what a Texas CPA needs to know before and after."
+            "Oklahoma's mobility rule is open through Oct. 31, 2026 and switches to individual "
+            "criteria on Nov. 1, 2026. Here's what a Texas CPA needs to know on either side."
         ),
         "body_html": """
 <p class="intro">Oklahoma is a genuinely useful example of why "check the current rule, not what you
-remember" matters &mdash; because Oklahoma's own mobility rule is mid-transition. What applies to a
-Texas-licensed CPA working in Oklahoma <strong>today</strong> is not quite the same as what applies
-starting November 1, 2026.</p>
+remember" matters &mdash; because Oklahoma's own mobility rule changes on a fixed date. What applies to a
+Texas-licensed CPA working in Oklahoma <strong>through October 31, 2026</strong> is not quite the same
+as what applies starting November 1, 2026.</p>
 
-<h2>The rule in effect right now, through October 31, 2026</h2>
-<p>Under the currently-operative version of 59 O.S. &sect; 15.12A (in force since a 2023 amendment),
+<h2>The rule through October 31, 2026</h2>
+<p>Under the version of 59 O.S. &sect; 15.12A in force from a 2023 amendment through October 31, 2026,
 Oklahoma grants full practice privilege to out-of-state CPAs &mdash; Texas-licensed CPAs included
 &mdash; with <strong>no notice, no fee, and no submission required</strong>, under a hybrid framework:
 licensees of NASBA-verified substantially-equivalent states are covered, and so is a catch-all
 provision presuming licensees of non-verified jurisdictions are ALSO substantially equivalent.
-Effectively, this functions as open CPA=CPA mobility today, even though the statute's own structure is
+Effectively, this functions as open CPA=CPA mobility for that period, even though the statute's own structure is
 a substantial-equivalency test rather than an individual-criteria one.</p>
 
-<h2>What changes on November 1, 2026</h2>
-<p>Oklahoma's 2026 UAA 9th-edition rewrite (HB 4317, signed May 5, 2026, no emergency clause) takes
-effect <strong>November 1, 2026</strong> and replaces that substantial-equivalency scheme with true
+<h2>The rule from November 1, 2026</h2>
+<p>Oklahoma's 2026 UAA 9th-edition rewrite (HB 4317, signed May 5, 2026, no emergency clause) is
+effective <strong>November 1, 2026</strong> and replaces that substantial-equivalency scheme with true
 individual-criteria mobility: a valid out-of-state CPA/PA license, a passed Uniform CPA Exam, and one
 of three pathways met at initial licensure (a post-baccalaureate accounting degree plus 1 year of
 experience; a bachelor's plus 30 additional semester hours plus 1 year; or a bachelor's with an
