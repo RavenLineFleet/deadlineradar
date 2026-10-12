@@ -2148,7 +2148,9 @@ def check_self_rolling_dates_rendered_correctly(repo_root: Path, data_path: Path
                     f"docs/{state_slug}/index.html but did not find it -- rebuild, or the markup shape changed"
                 )
             continue
-        anchor = re.escape(html.escape(cycle_desc[:40], quote=True))
+        # DATE-10: the rendered <small> is _date_note_prefix(r) + cycle_description, so a record with a
+        # _DATE_SEMANTICS note (al-all) starts with that note, not with its cycle_description.
+        anchor = re.escape(html.escape((generate_module._date_note_prefix(r) + cycle_desc)[:40], quote=True))
         m = re.search(r'<div class="v">([A-Za-z]+ \d{1,2}, \d{4})<small>' + anchor, page_html)
         if not m:
             errors.append(
