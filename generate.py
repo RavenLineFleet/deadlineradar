@@ -498,6 +498,15 @@ def next_certificate_date_initial_term(
     return next_anchor_year_term(initial_end_year, renewal_month, renewal_day, term_years, as_of)
 
 
+def table_clock(as_of: date) -> date:
+    """TABLE-2 (AuditLab, 2026-10-12): the month-end / birth-month table cells are a countdown a customer acts on, so
+    they must track the wall clock, not the dataset's as_of_date (the OLDEST record last_verified, STALE-27, which
+    trails today by about a tranche cycle). Before this, a rebuild after a month end re-rendered the same elapsed cell
+    and TABLE-1's "regenerate docs/" could not clear it. UTC, matching real_today in main() and deadline.ts (DATE-6).
+    Never earlier than as_of, so a fixed-date caller keeps its meaning."""
+    return max(as_of, datetime.now(timezone.utc).date())
+
+
 def build_california_table(as_of: date, fmt=None) -> list[dict]:
     fmt = fmt or fmt_date
     rows = []
@@ -6559,6 +6568,7 @@ BIRTH_MONTH_ANNUAL_STATES: set[str] = {"oklahoma", "new-mexico"}
 
 
 def build_birth_month_annual_table(as_of: date) -> list[dict]:
+    as_of = table_clock(as_of)
     rows = []
     for m in range(1, 13):
         d = next_annual_month_end(as_of, m)
@@ -6603,6 +6613,7 @@ BIRTH_MONTH_YEAR_PARITY_STATES: set[str] = {"arizona"}
 
 
 def build_birth_month_year_parity_table(as_of: date) -> list[dict]:
+    as_of = table_clock(as_of)
     rows = []
     for m in range(1, 13):
         odd_d = next_birth_month_parity_date(as_of, m, "odd")
@@ -7145,7 +7156,7 @@ def _render_records_computed_cohort_gapped(records: list[dict]) -> str:
 
 
 def render_california(record: dict, as_of: date) -> str:
-    table = build_california_table(as_of)
+    table = build_california_table(table_clock(as_of))
     rows = "\n".join(
         f'<tr data-month="{i}"><td>{esc(r["month"])}</td><td>{esc(r["odd_birth_year_next_deadline"])}</td>'
         f'<td>{esc(r["even_birth_year_next_deadline"])}</td></tr>'
@@ -7172,7 +7183,7 @@ odd-birth-year date on the March row.</p>
 
 
 def render_texas(record: dict, as_of: date) -> str:
-    table = build_texas_table(as_of)
+    table = build_texas_table(table_clock(as_of))
     rows = "\n".join(
         f'<tr data-month="{i}"><td>{esc(r["month"])}</td><td>{esc(r["next_deadline"])}</td></tr>'
         for i, r in enumerate(table, start=1)
@@ -20977,8 +20988,8 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                   data_gap_note / New York's own computation note that state's
                   own page already shows -- never invents an answer"""
     fmt = _calc_fmt_date(lang)
-    ca_table = build_california_table(as_of, fmt)
-    tx_table = build_texas_table(as_of, fmt)
+    ca_table = build_california_table(table_clock(as_of), fmt)
+    tx_table = build_texas_table(table_clock(as_of), fmt)
     out = {}
     for slug, records in by_slug.items():
         state_name = records[0]["state"]
