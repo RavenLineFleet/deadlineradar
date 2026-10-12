@@ -23,6 +23,7 @@ ANNUAL = {
     "ms-individual", "ms-firm", "al-all",
 }
 BIENNIAL = {"dc-all", "ut-all", "md-firm"}
+FEB_WALL = {"nv-firm", "sc-firm", "sc-individual"}  # next wall: 2027-02-01 / 02-02
 
 
 def _records():
@@ -47,7 +48,7 @@ def test_data_and_worker_copies_identical():
 
 def test_cliff_records_are_tagged_with_the_right_period():
     by = {r["id"]: r for r in _records()}
-    for i in ANNUAL | BIENNIAL:
+    for i in ANNUAL | BIENNIAL | FEB_WALL:
         c = by[i]["computation"]
         assert c["type"] == "fixed_calendar_recurring_no_anchor", i
         assert c["period_years"] == (2 if i in BIENNIAL else 1), i
@@ -57,17 +58,18 @@ def test_cliff_records_are_tagged_with_the_right_period():
 
 def test_build_does_not_refuse_across_the_cliff():
     recs = _records()
-    for today in ("2026-12-31", "2027-01-01", "2027-01-02"):
+    for today in ("2026-12-31", "2027-01-01", "2027-01-02", "2027-02-01", "2027-02-02"):
         assert _stale(recs, date.fromisoformat(today)) == [], today
 
 
 def test_control_untagged_records_do_refuse():
     recs = copy.deepcopy(_records())
     for r in recs:
-        if r["id"] in ANNUAL | BIENNIAL:
+        if r["id"] in ANNUAL | BIENNIAL | FEB_WALL:
             r.pop("computation")
     assert len(_stale(recs, date(2027, 1, 1))) == 17
     assert len(_stale(recs, date(2027, 1, 2))) == 19
+    assert len(_stale(recs, date(2027, 2, 2))) == 22
 
 
 def test_biennial_records_stay_on_even_years():
@@ -87,8 +89,8 @@ def test_late_dates_are_not_rolled_into_the_deadline():
 
 
 def test_date5_sees_every_tagged_record_on_its_rendered_page(monkeypatch):
-    """Positive control: from 2027-01-05 the built docs/ pages (still showing the old year) must be
-    flagged for ALL 19 records, with a 'renders X but correct is Y' message -- never 'could not find'
+    """Positive control: from 2027-02-05 the built docs/ pages (still showing the old year) must be
+    flagged for ALL 22 records, with a 'renders X but correct is Y' message -- never 'could not find'
     (al-all's <small> starts with its _DATE_SEMANTICS note, not its cycle_description)."""
     import datetime
     import preship_gate as gate
@@ -96,10 +98,10 @@ def test_date5_sees_every_tagged_record_on_its_rendered_page(monkeypatch):
     class _D(datetime.date):
         @classmethod
         def today(cls):
-            return cls(2027, 1, 5)
+            return cls(2027, 2, 5)
 
     monkeypatch.setattr(gate, "date", _D)
     errs = gate.check_self_rolling_dates_rendered_correctly(REPO, DATA)
     assert not [e for e in errs if "could not find" in e], errs
     flagged = {e.split("][")[2].split("]")[0].split("/")[1] for e in errs if "renders" in e}
-    assert (ANNUAL | BIENNIAL) <= flagged, (ANNUAL | BIENNIAL) - flagged
+    assert (ANNUAL | BIENNIAL | FEB_WALL) <= flagged, (ANNUAL | BIENNIAL | FEB_WALL) - flagged
