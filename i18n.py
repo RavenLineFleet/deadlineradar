@@ -457,7 +457,10 @@ EN: dict[str, str] = {
         "firm plans add the multistate map and the firm-level registration check — every paid "
         "tier has the identical feature set, priced only by how many staff it covers; nothing is "
         "held back on a cheaper plan. A person licensed in several states counts once toward the "
-        "staff limit, and your firm's own permit and registration lines don't count toward it."
+        "staff limit, and your firm's own permit and registration lines don't count toward it. "
+        "Your firm's own permit or registration renewal date is just another roster line, the same on every "
+        "plan: it uses no staff seat (up to 2 per state, 25 in total). The paid firm-level registration check is a "
+        "different feature: it looks up whether other states require your firm to register to practice there."
     ),
     "pricing.freshness_stat": (
         "dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, "
