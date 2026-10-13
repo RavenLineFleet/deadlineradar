@@ -248,17 +248,16 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02 | SRC-41 2026-10-13: re-pointed from the FindLaw mirror to the Arkansas Board rule (17 CAR 236-604(c): annual registration renewal, December 31 information deadline)",
   "checks": [
    {
-    "url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-504/",
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17CARpt.236-Final.pdf",
     "alt_urls": [],
-    "method": "http",
-    "anchor": "Unless otherwise provided by board rule, all licenses shall expire on",
-    "window": 16,
+    "method": "pdf",
+    "anchor": "shall renew their registration on an annual basis",
+    "window": 140,
     "pattern": null,
-    "expect_text": "December 31",
-    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+    "expect_text": "December 31"
    }
   ]
  },
@@ -3770,7 +3769,7 @@
     "window": 19,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd",
-    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+    "nonofficial_host_ok": "SRC-41 designated-administrator exception: NASBA administers CNMI CPA licensing and the Board confirmed in writing (2026-09-29, see the record's fee_notes) that NASBA's figure is the one to publish; the codified NMIAC 1-10-1605 amount is stale. No official host publishes the current fee, so the Board's confirmation cannot be automated; this stays hand-verified."
    }
   ]
  },
@@ -4343,17 +4342,16 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02 | SRC-41 2026-10-13: re-pointed from NASBA to Ley 293-1945 sec. 6 on bvirtualogp.pr.gov",
   "checks": [
    {
-    "url": "https://nasba.org/licensure/nasbalicensing/puerto-rico/",
+    "url": "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
     "alt_urls": [],
-    "method": "http",
-    "anchor": "ery three years). Application and payment must be submitted and received before",
-    "window": 15,
+    "method": "pdf",
+    "anchor": "Toda licencia expirará el día primero de",
+    "window": 20,
     "pattern": null,
-    "expect_text": "December 1",
-    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+    "expect_text": "diciembre"
    }
   ]
  },
@@ -4373,7 +4371,16 @@
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd",
-    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+    "nonofficial_host_ok": "SRC-41 designated-administrator exception: NASBA runs PR CPA licensing and publishes the fee (Ley 293 sets no amount; the PR Dept. of State page below says NASBA is designated). Gated by the second check, which must keep finding that designation on the official page."
+   },
+   {
+    "url": "https://www.statedepartment.pr.gov/juntas-examinadoras/certified-public-accountants",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "has been designated to provide CPA licensing services",
+    "window": 30,
+    "pattern": null,
+    "expect_text": "renewals"
    }
   ]
  },
