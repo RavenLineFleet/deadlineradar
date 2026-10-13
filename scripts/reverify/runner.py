@@ -36,11 +36,12 @@ from fetch import Fetcher, normalise  # noqa: E402
 # AuditLab SRC-41 (MEDIUM, 2026-10-13): a CONFIRMED stamp bumps last_verified, which the 30-day staleness
 # guard and the sourcing promise rest on. A match against a republisher (law.cornell.edu, an association, a
 # CPE vendor) attests the MIRROR's copy, not the rule, so only the issuing state's own host may confirm.
-# Official = .gov / .us (every state board and agency) plus two Florida publishers that are not .gov.
+# Official = .gov, the state-run *.state.xx.us namespace (.us itself is an open TLD anyone can register: SRC-42),
+# plus two Florida publishers that are not .gov.
 # A check on any other host is refused (status NONOFFICIAL_HOST -> record FAILED, never CONFIRMED) unless it
 # carries the explicit `nonofficial_host_ok` key: the grandfathered backlog, which test_reverify.py ratchets
 # DOWN only. The host judged is the one that actually served the bytes (final_url), not the recipe's URL.
-_OFFICIAL_HOST = re.compile(r"(\.gov|\.us|(^|\.)flrules\.org|(^|\.)myfloridalicense\.com)$")
+_OFFICIAL_HOST = re.compile(r"(\.gov|\.state\.[a-z]{2}\.us|(^|\.)flrules\.org|(^|\.)myfloridalicense\.com)$")
 
 
 def is_official_host(url: str) -> bool:
@@ -190,6 +191,10 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
     """fetched: check index -> Fetched-like (needs .ok .text .url .sha256 .reason)."""
     if recipe.get("manual"):
         return {"outcome": "MANUAL", "detail": recipe["manual"]}
+    if not recipe.get("checks"):
+        # AuditLab SRC-43: with no checks nothing below can fail, so it fell through to CONFIRMED and bumped
+        # last_verified with no fetch behind it. A recipe with nothing to check confirms nothing.
+        return {"outcome": "FAILED", "detail": "recipe has no checks: nothing to confirm against (SRC-43)"}
     per = []
     for idx, chk in enumerate(recipe["checks"]):
         f = fetched.get(idx)
@@ -558,6 +563,10 @@ def replay(results_path: str, today: str | None = None, base: str | None = None,
         stored_ok = True
         rcp = recipes[rid]
         for p, chk in zip(res["checks"], rcp["checks"]):
+            # AuditLab SRC-42: a results file written before the host guard existed (or by an older recipe set)
+            # must not stamp a mirror-confirmed bump on replay -- re-assert the same host rule judge_record uses.
+            if not is_official_host(p.get("final_url") or p.get("url") or "") and not chk.get("nonofficial_host_ok"):
+                stored_ok = False
             # same field rule as judge_record: the check's own field, else the record field (not in sum mode)
             f = chk.get("field") or (rcp.get("field") if rcp.get("combine") != "sum" else None)
             if f and chk.get("pattern") and _scaled(p.get("got"), chk) != _num(rec.get(f)):

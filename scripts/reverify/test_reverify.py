@@ -1102,9 +1102,11 @@ def test_src41_judges_the_host_that_served_the_bytes_not_the_recipe_url():
 
 def test_src41_official_host_predicate():
     for u in ("https://adminrules.idaho.gov/a", "https://boa.state.mn.us/", "https://flrules.org/x",
-              "https://www2.myfloridalicense.com/x", "https://www.flrules.org/gateway/x"):
+              "https://www2.myfloridalicense.com/x", "https://www.flrules.org/gateway/x",
+              "https://cpaboard.state.la.us/cpa-resources/", "https://secure.sos.state.or.us/x"):
         assert runner.is_official_host(u), u
-    for u in ("https://www.law.cornell.edu/x", "https://nasba.org/", "https://x.gov.evil.com/", "https://evilgov/x", "https://notflrules.org/x", ""):
+    for u in ("https://www.law.cornell.edu/x", "https://nasba.org/", "https://x.gov.evil.com/", "https://evilgov/x", "https://notflrules.org/x", "",
+              "https://cpa-mirror.us/rules", "https://nasba.us/x", "https://law.cornell.edu.us/x"):
         assert not runner.is_official_host(u), u
 
 
@@ -1135,3 +1137,30 @@ def test_src41_grandfather_ratchet_only_shrinks_and_has_no_stale_flags():
     stale = [(rid, i) for rid, i, c in _all_checks()
              if c.get("nonofficial_host_ok") and all(runner.is_official_host(u) for u in [c["url"], *c.get("alt_urls", [])])]
     assert not stale, f"flag left on an already-official check, delete it: {stale}"
+
+
+# SRC-42 (second half): replay must re-assert the host guard, not trust a saved CONFIRMED.
+def test_src42_replay_refuses_a_saved_mirror_confirmation(env, tmp_path):
+    tmp, ff = env
+    saved = runner.run(apply=False, all_records=True, fetcher=ff, today="2026-10-02")
+    saved["results"]["a-fee"]["checks"][0]["url"] = MIRROR            # a results file from before the guard
+    saved["results"]["a-fee"]["checks"][0].pop("final_url", None)
+    sp = tmp_path / "results.json"
+    sp.write_text(json.dumps(saved, default=str), encoding="utf-8")
+    base_txt = (tmp / "data" / "renewal_fees.json").read_text(encoding="utf-8")
+    base = lambda ds: json.loads(base_txt)["records"] if ds == "renewal_fees" else []
+    assert runner.replay(str(sp), base_loader=base) == 0
+    assert _recs(tmp)["a-fee"]["verified_date"] == "2026-09-01"        # not stamped
+
+
+# SRC-43: a recipe with nothing to check confirms nothing.
+def test_src43_zero_check_recipe_is_not_confirmed():
+    out = runner.judge_record({"checks": []}, {}, {})
+    assert out["outcome"] == "FAILED"
+
+
+def test_src43_every_non_manual_recipe_has_at_least_one_check():
+    with open(runner.RECIPES, encoding="utf-8") as fh:
+        recipes = json.load(fh)
+    empty = [rid for rid, rc in recipes.items() if not rc.get("manual") and not rc.get("checks")]
+    assert not empty, f"non-manual recipe(s) with no checks would confirm on no evidence: {empty}"
