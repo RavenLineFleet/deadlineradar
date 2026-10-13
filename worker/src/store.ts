@@ -3597,6 +3597,9 @@ export async function setRosterActivePicks(db: D1Database, firmId: string, reque
     // the same as "no choice yet." Caught by its own test after the first
     // draft of this function wrongly treated length===0 as "nothing to do"
     // and left every row at whatever paused_at it already had.
+    // SEAT-3: pausing by firm_id with no firm-entity exclusion is only safe because of the
+    // union above -- this branch is reachable only when the firm has NO firm-entity rows. If
+    // that union is ever refactored out, exclude firm-entity rows here too.
     await db.batch([markerStmt, db.prepare(`UPDATE subscribers SET paused_at = ?1 WHERE firm_id = ?2`).bind(now, firmId)]);
     return;
   }
