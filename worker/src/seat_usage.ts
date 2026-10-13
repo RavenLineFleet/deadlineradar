@@ -40,7 +40,13 @@ export const FIRM_ENTITY_LINE_CEILING = 25;
  * this many lines: the firm's own contact plus a backup. Without it a free
  * roster could park many staff emails as "ga-firm" lines (which use no seat)
  * and never pay for them; with it, getting 25 such lines needs 13+ different
- * firm types, each only reminding about that state's FIRM deadline. */
+ * firm types, each only reminding about that state's FIRM deadline.
+ *
+ * COPY DEPENDENCY: /pricing, /for-firms and the firm FAQ say "up to 2 per state".
+ * That is only exact while no state has more than one "-firm" license type
+ * (true for all 34 today, AuditLab BILL-41, 2026-10-13). If a second -firm type is
+ * ever added for one state, that state allows 4: update the copy (i18n.py
+ * pricing.intro, faq.firm.6_a, generate.py) or key this cap on state. */
 export const FIRM_ENTITY_LINES_PER_TYPE = 2;
 
 export interface SeatRowLike {
