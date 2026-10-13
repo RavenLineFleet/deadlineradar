@@ -2764,6 +2764,15 @@
     "window": 16,
     "pattern": null,
     "expect_text": "December 31"
+   },
+   {
+    "url": "https://www.revisor.mn.gov/rules/1105.2560/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "must expire on the",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "December 31"
    }
   ]
  },
