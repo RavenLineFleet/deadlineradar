@@ -1071,3 +1071,67 @@ def test_load_bearing_optional_dependencies_are_installed():
     without them would report green with those arms unexercised. Fail loudly instead."""
     import fitz  # noqa: F401
     import playwright.sync_api  # noqa: F401
+
+
+# ---------------- SRC-41: only the issuing state's own host may confirm ----------------
+MIRROR = "https://www.law.cornell.edu/regulations/x/1"
+
+
+def test_src41_mirror_match_is_not_confirmed():
+    r = {"field": "fee_usd", "checks": [chk(url=MIRROR)]}
+    out = runner.judge_record(r, {"fee_usd": 150}, {0: ok(PAGE, url=MIRROR)})
+    assert out["outcome"] == "FAILED"
+    assert out["checks"][0]["status"] == "NONOFFICIAL_HOST"
+
+
+def test_src41_grandfathered_mirror_still_confirms():
+    r = {"field": "fee_usd", "checks": [chk(url=MIRROR, nonofficial_host_ok="SRC-41 grandfathered")]}
+    assert runner.judge_record(r, {"fee_usd": 150}, {0: ok(PAGE, url=MIRROR)})["outcome"] == "CONFIRMED"
+
+
+def test_src41_judges_the_host_that_served_the_bytes_not_the_recipe_url():
+    # recipe points at an official host but it redirected to a mirror: the sha256 covers the mirror's page.
+    r = {"field": "fee_usd", "checks": [chk(url="https://x.gov/a")]}
+    f = Fetched("https://x.gov/a", True, 200, "", PAGE, "abc123", final_url=MIRROR)
+    assert runner.judge_record(r, {"fee_usd": 150}, {0: f})["outcome"] == "FAILED"
+    # ...and the reverse: a mirror URL that redirects to the state's own host is fine.
+    r2 = {"field": "fee_usd", "checks": [chk(url=MIRROR)]}
+    g = Fetched(MIRROR, True, 200, "", PAGE, "abc123", final_url="https://x.gov/a")
+    assert runner.judge_record(r2, {"fee_usd": 150}, {0: g})["outcome"] == "CONFIRMED"
+
+
+def test_src41_official_host_predicate():
+    for u in ("https://adminrules.idaho.gov/a", "https://boa.state.mn.us/", "https://flrules.org/x",
+              "https://www2.myfloridalicense.com/x", "https://www.flrules.org/gateway/x"):
+        assert runner.is_official_host(u), u
+    for u in ("https://www.law.cornell.edu/x", "https://nasba.org/", "https://x.gov.evil.com/", "https://evilgov/x", "https://notflrules.org/x", ""):
+        assert not runner.is_official_host(u), u
+
+
+# Ratchet over the REAL recipes file: the grandfathered backlog may only shrink.
+SRC41_GRANDFATHERED_CEILING = 41
+
+
+def _all_checks():
+    with open(runner.RECIPES, encoding="utf-8") as fh:
+        recipes = json.load(fh)
+    for rid, rc in recipes.items():
+        for i, c in enumerate(rc.get("checks") or []):
+            yield rid, i, c
+
+
+def test_src41_every_nonofficial_check_is_explicitly_grandfathered():
+    bad = []
+    for rid, i, c in _all_checks():
+        for u in [c["url"], *c.get("alt_urls", [])]:
+            if not runner.is_official_host(u) and not c.get("nonofficial_host_ok"):
+                bad.append((rid, i, u))
+    assert not bad, f"new non-state check URL(s) in recipes (SRC-41): {bad[:5]}"
+
+
+def test_src41_grandfather_ratchet_only_shrinks_and_has_no_stale_flags():
+    flagged = [(rid, i) for rid, i, c in _all_checks() if c.get("nonofficial_host_ok")]
+    assert len(flagged) <= SRC41_GRANDFATHERED_CEILING, "grandfathered mirror backlog grew; lower the ceiling as it shrinks, never raise it"
+    stale = [(rid, i) for rid, i, c in _all_checks()
+             if c.get("nonofficial_host_ok") and all(runner.is_official_host(u) for u in [c["url"], *c.get("alt_urls", [])])]
+    assert not stale, f"flag left on an already-official check, delete it: {stale}"

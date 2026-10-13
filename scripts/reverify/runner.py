@@ -33,6 +33,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from fetch import Fetcher, normalise  # noqa: E402
 
+# AuditLab SRC-41 (MEDIUM, 2026-10-13): a CONFIRMED stamp bumps last_verified, which the 30-day staleness
+# guard and the sourcing promise rest on. A match against a republisher (law.cornell.edu, an association, a
+# CPE vendor) attests the MIRROR's copy, not the rule, so only the issuing state's own host may confirm.
+# Official = .gov / .us (every state board and agency) plus two Florida publishers that are not .gov.
+# A check on any other host is refused (status NONOFFICIAL_HOST -> record FAILED, never CONFIRMED) unless it
+# carries the explicit `nonofficial_host_ok` key: the grandfathered backlog, which test_reverify.py ratchets
+# DOWN only. The host judged is the one that actually served the bytes (final_url), not the recipe's URL.
+_OFFICIAL_HOST = re.compile(r"(\.gov|\.us|(^|\.)flrules\.org|(^|\.)myfloridalicense\.com)$")
+
+
+def is_official_host(url: str) -> bool:
+    from urllib.parse import urlparse
+    host = (urlparse(url or "").hostname or "").lower()
+    return bool(_OFFICIAL_HOST.search(host))
+
+
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 DATA = os.path.join(ROOT, "data")
 RECIPES = os.path.join(DATA, "reverify_recipes.json")
@@ -182,14 +198,16 @@ def judge_record(recipe: dict, stored: dict, fetched: dict[int, object]) -> dict
                         "url": getattr(f, "url", chk["url"])})
             continue
         st, got = judge_check(chk, f.text)
-        entry = {"i": idx, "status": st, "got": got, "url": f.url, "sha256": f.sha256}
         final = getattr(f, "final_url", "") or f.url
+        if st == "MATCH" and not is_official_host(final) and not chk.get("nonofficial_host_ok"):
+            st = "NONOFFICIAL_HOST"
+        entry = {"i": idx, "status": st, "got": got, "url": f.url, "sha256": f.sha256}
         if final != f.url:   # RVF-1: name the host that actually served the bytes the sha256 covers
             entry["final_url"] = final
         per.append(entry)
     if any(p["status"] == "DIFFERENT" for p in per):
         return {"outcome": "CHANGED", "checks": per}
-    if any(p["status"] in ("FETCH_FAILED", "NO_ANCHOR", "NO_TEXT", "AMBIGUOUS_ANCHOR") for p in per):
+    if any(p["status"] in ("FETCH_FAILED", "NO_ANCHOR", "NO_TEXT", "AMBIGUOUS_ANCHOR", "NONOFFICIAL_HOST") for p in per):
         return {"outcome": "FAILED", "checks": per}
     field = recipe.get("field")
     if field:

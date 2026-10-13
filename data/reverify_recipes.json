@@ -171,7 +171,8 @@
     "anchor": "documentation showing the applicant's completion of at least",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_cpe_hours"
+    "field": "penalty_cpe_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/alaska/12-AAC-04.440",
@@ -180,7 +181,8 @@
     "anchor": "04.360(5) ; at least",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_ethics_hours"
+    "field": "penalty_ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -255,7 +257,8 @@
     "anchor": "Unless otherwise provided by board rule, all licenses shall expire on",
     "window": 16,
     "pattern": null,
-    "expect_text": "December 31"
+    "expect_text": "December 31",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -293,7 +296,8 @@
     "anchor": "reinstatement of a certificate by submitting: 1. An application fee of",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "reinstatement_fee_usd"
+    "field": "reinstatement_fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
@@ -302,7 +306,8 @@
     "anchor": "24 months have passed since the last registration due date for which CPE was completed.",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_ethics_hours"
+    "field": "penalty_ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -322,7 +327,8 @@
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd",
-    "duplicated_source": true
+    "duplicated_source": true,
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -379,7 +385,8 @@
     "anchor": "A registrant whose last registration period was for two years shall complete",
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/arizona/Ariz-Admin-Code-SS-R4-1-453",
@@ -388,7 +395,8 @@
     "anchor": "4. A registrant shall complete",
     "window": 19,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -419,7 +427,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.law.cornell.edu/regulations/california/16-CCR-87",
+    "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "As a condition for renewing a license in an active status, a licensee shall complete at least",
@@ -428,7 +436,7 @@
     "field": "total_hours"
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/california/16-CCR-87",
+    "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "(b) Ethics Continuing Education Requirement. A licensee renewing a license in an active status shall complete",
@@ -437,7 +445,7 @@
     "field": "ethics_hours"
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/california/16-CCR-87",
+    "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "(1) A licensee renewing a license in an active status, shall complete a minimum of",
@@ -462,7 +470,8 @@
     "anchor": "Permits issued under these rules expire at 12 midnight on the",
     "window": 67,
     "pattern": null,
-    "expect_text": "last day of the birth month"
+    "expect_text": "last day of the birth month",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -649,7 +658,8 @@
     "anchor": "ition precedent to renewal of such license, each applicant shall complete forty",
     "window": 19,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://portal.ct.gov/dcp/occupational-and-professional-division/occupational--profess/cpe-questions-and-answers",
@@ -1459,7 +1469,7 @@
     "expect": 120
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.400",
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "Reinstatement License",
@@ -1474,10 +1484,11 @@
     "anchor": "is to complete no less than",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_cpe_hours"
+    "field": "penalty_cpe_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/idaho/IDAPA-24.30.01.117",
+    "url": "https://adminrules.idaho.gov/rules/current/24/243001.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "hours of CPE, of which at least",
@@ -1615,7 +1626,8 @@
     "anchor": "renewal of a certificate as a CPA, PA, or AP must complete a minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
@@ -1624,7 +1636,8 @@
     "anchor": "(d) An ethics requirement of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-3-3",
@@ -1633,7 +1646,8 @@
     "anchor": "prior to the expiration of certificates with a minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "annual_minimum_hours"
+    "field": "annual_minimum_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -1690,7 +1704,8 @@
     "anchor": "In order to reinstate a certificate under this section, a licensee shall complete",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_cpe_hours"
+    "field": "penalty_cpe_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.in.gov/pla/files/Reinstatement_Exp_License_Packet5.pdf",
@@ -1775,7 +1790,8 @@
     "anchor": "(e) Reinstatement of permit to practice as a certified public accountant whose permit has expired: (1) For more than one year of a biennial period",
     "window": 110,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "reinstatement_fee_usd"
+    "field": "reinstatement_fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://ksboa.kansas.gov/wp-content/uploads/Reinstatement-of-Permit-2021.pdf",
@@ -2127,7 +2143,8 @@
     "anchor": "applicants for biennial license renewal must complete",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/massachusetts/252-CMR-2-14",
@@ -2136,7 +2153,8 @@
     "anchor": "except as stated in 252 CMR 2.14 (6).",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -2333,7 +2351,8 @@
     "anchor": "erly reported on the first renewal application. [F. An applicant shall complete",
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://regs.maryland.gov/us/md/exec/comar/09.24.02.03",
@@ -2988,7 +3007,8 @@
     "anchor": "Active licensees are required to have",
     "window": 18,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/montana/Mont-Admin-r-24.201.2106",
@@ -2997,7 +3017,8 @@
     "anchor": "hours of continuing professional education (CPE) with a subset of",
     "window": 18,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3029,7 +3050,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "url": "https://nccpaboard.gov/resource-group/ncac-08g-continuing-professional-education-cpe/",
     "alt_urls": [],
     "method": "http",
     "anchor": "(d) Active CPAs shall complete",
@@ -3039,7 +3060,7 @@
     "divide": 50
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "url": "https://nccpaboard.gov/resource-group/ncac-08g-continuing-professional-education-cpe/",
     "alt_urls": [],
     "method": "http",
     "anchor": "(d) Active CPAs shall complete",
@@ -3049,7 +3070,7 @@
     "divide": 50
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/north-carolina/21-N-C-Admin-Code-08G-0401",
+    "url": "https://nccpaboard.gov/resource-group/ncac-08g-continuing-professional-education-cpe/",
     "alt_urls": [],
     "method": "http",
     "anchor": "(e) A CPA shall complete a minimum of",
@@ -3328,7 +3349,8 @@
     "anchor": "4. Reinstatement of license:",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "reinstatement_fee_usd"
+    "field": "reinstatement_fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3347,7 +3369,8 @@
     "anchor": "3. Triennial registration:",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd"
+    "field": "fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3478,7 +3501,8 @@
     "anchor": "license renewal is required to complete, during the preceding triennial period",
     "window": 18,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.njcpa.org/learn/maintain-your-license/cpe-requirements",
@@ -3487,7 +3511,8 @@
     "anchor": "120 You must complete",
     "window": 16,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-6-2",
@@ -3496,7 +3521,8 @@
     "anchor": "s provided in (c) through (f) below. All applicants shall complete a minimum of",
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "annual_minimum_hours"
+    "field": "annual_minimum_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3515,7 +3541,8 @@
     "anchor": "(b) Each registered firm shall",
     "window": 60,
     "pattern": null,
-    "expect_text": "triennially register"
+    "expect_text": "triennially register",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3534,7 +3561,8 @@
     "anchor": "(b) A licensee shall renew his or her license for a period of",
     "window": 81,
     "pattern": null,
-    "expect_text": "three years from the last expiration date"
+    "expect_text": "three years from the last expiration date",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -3678,7 +3706,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.law.cornell.edu/regulations/north-dakota/N-D-A-C-3-02-02-08",
+    "url": "https://www.ndlegis.gov/information/acdata/pdf/3-02-02.pdf",
     "alt_urls": [],
     "method": "http",
     "anchor": "is required to pay a reinstatement fee not to exceed",
@@ -3741,7 +3769,8 @@
     "anchor": "Reciprocal -",
     "window": 19,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd"
+    "field": "fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -4275,7 +4304,8 @@
     "anchor": "Reinstatement of inactive or expired license",
     "window": 80,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "reinstatement_fee_usd"
+    "field": "reinstatement_fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.pa.gov/agencies/dos/department-and-offices/bpoa/boards-commissions/accountancy-board/renewal-information",
@@ -4322,7 +4352,8 @@
     "anchor": "ery three years). Application and payment must be submitted and received before",
     "window": 15,
     "pattern": null,
-    "expect_text": "December 1"
+    "expect_text": "December 1",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -4341,7 +4372,8 @@
     "anchor": "Renovación de individuo -",
     "window": 60,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd"
+    "field": "fee_usd",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -4764,7 +4796,8 @@
     "anchor": "shall complete no less than eighty",
     "window": 19,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.tn.gov/commerce/regboards/accountancy/license/cont-edu.html",
@@ -4801,7 +4834,8 @@
     "anchor": "(a) A licensee shall complete at least",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-112",
@@ -4810,7 +4844,8 @@
     "anchor": "CPE credits in each three-year period, and a minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "annual_minimum_hours"
+    "field": "annual_minimum_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/texas/22-Tex-Admin-Code-SS-523-130",
@@ -4819,7 +4854,8 @@
     "anchor": "(a) A licensee must complete a board-approved",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -4951,7 +4987,8 @@
     "anchor": "allowed their license to lapse; and (b)",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_cpe_hours"
+    "field": "penalty_cpe_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -5205,7 +5242,8 @@
     "anchor": "mation, please visit the NASBA CPE Requirements page . Total CPE Hours Required",
     "window": 18,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://app.leg.wa.gov/wac/default.aspx?cite=4-30-134",
@@ -5392,7 +5430,8 @@
     "anchor": "& FAQs CPE Requirements What are the membership CPE requirements? A minimum of",
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "annual_minimum_hours"
+    "field": "annual_minimum_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
@@ -5571,7 +5610,8 @@
     "anchor": "credits completed during this two calendar year period Thereafter",
     "window": 18,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "total_hours"
+    "field": "total_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    },
    {
     "url": "https://www.law.cornell.edu/regulations/wyoming/061-5-Wyo-Code-R-SS-5-3",
@@ -5580,7 +5620,8 @@
     "anchor": "d by the Board, and at least once every three-year continuing education period",
     "window": 19,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "ethics_hours"
+    "field": "ethics_hours",
+    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
    }
   ]
  },
