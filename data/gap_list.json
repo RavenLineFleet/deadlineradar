@@ -4,8 +4,8 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 1,
-  "terminal_disclosure_count": 35,
+  "gap_record_count": 0,
+  "terminal_disclosure_count": 36,
   "note_bearing_record_count": 36,
   "field_breakdown": {
     "verification_note": 4,
@@ -301,7 +301,7 @@
       "field": "data_gap_note",
       "note": "The $66 figure above is confirmed by the Board directly for the individual CPA renewal only (the biennial cycle ending November 30, 2027). Colorado firm registrations renew on a separate triennial cycle, expiring August 31 board-wide (which August 31 applies depends on when the firm last renewed; the Board does not publish which years anchor the cycle) -- the Colorado Board of Accountancy confirmed directly (2026-09-09 and 2026-09-14 correspondence) that the firm registration fee is a different amount and changes every renewal period, but does not disclose the figure. This amount is set by DORA each renewal period and is not published on any public-facing page; confirm the current firm registration fee directly with DORA.",
       "is_block_claim": false,
-      "terminal_disclosure": false
+      "terminal_disclosure": true
     },
     {
       "dataset": "renewal_fees.json",
