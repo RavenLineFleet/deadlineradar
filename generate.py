@@ -22928,6 +22928,30 @@ YEAR_END_PAGE_SLUG = "year-end-renewals"
 YEAR_END_TARGET_DATE = date(2026, 12, 31)
 
 
+# NV-2 / TABLE-4 (AuditLab 2026-10-13): hand-reviewed per-state notes for rows with no shared Dec 31 date in a
+# column. Each is checked against the record's own cycle_description/citation; the text is trusted HTML (no user data).
+# States whose December 31 is a filing/fee deadline, not the date the permit expires (found by the NV-2 sweep of
+# all 12 rows): the table must not print it under an "expires"-flavoured column heading as if it were one.
+YEAR_END_FILING_DATE_NOT_EXPIRY = {"alabama"}
+YEAR_END_ROW_NOTES = {
+    "alabama": ("Permits expire each September 30 (Ala. Admin. Code 30-X-5-.05(1)). December 31, 2026 is the "
+                "deadline to submit the renewal fee and CPE compliance statement for the permit that expired "
+                "(30-X-3-.07(1)); late penalties follow (30-X-3-.07(4)). Same dates for individuals and firms."),
+    "nevada": ("Individual permits expire December 31, 2026 (NRS 628.380(2)). Separately, the annual renewal fee "
+               "for every permit <em>and</em> every firm registration is due on or before January 31, 2027 "
+               "(NAC 628.190), and after that date neither a certificate holder nor a firm may lawfully practice "
+               "until delinquent fees and penalties are paid. A Nevada firm registration is continuous "
+               "(NRS 628.335), so it has no December 31 expiration."),
+    "kansas": ("Individual permits are biennial and expire on July 1 in the year matching the parity of the "
+               "certificate number (K.S.A. 1-310(b),(c)), so there is no shared individual date. The firm "
+               "registration is the December 31 deadline (K.S.A. 1-308)."),
+    "maryland": ("Individual licenses renew every two years, but the exact expiration date is personal to each "
+                 "license rather than one shared date (Md. Code Ann., Bus. Occ. &amp; Prof. 2-311); check your own "
+                 "license record. Firm permits share one date: December 31, 2026 (2-407)."),
+}
+
+
+
 def _year_end_dec31_rows(by_slug: dict[str, list[dict]]) -> list[dict]:
     """YE-1's structural fix: the state count and table rows are DERIVED
     from data/cpa_deadlines.json at build time, never hand-typed -- the
@@ -23000,20 +23024,48 @@ own page always carries its next actual deadline.</p>
     rows = _year_end_dec31_rows(by_slug)
     state_count = len(rows)
 
+    # NV-2 / TABLE-4 (AuditLab 2026-10-13): a date column may hold a date and nothing else. A row whose
+    # individual cell has no shared date (Kansas/Maryland) or whose firm record carries a different KIND
+    # of date (Nevada: a Jan 31 fee date, not a firm-permit expiry) renders a dash plus a link to a
+    # per-state note, and the build REFUSES a row that needs a note it does not have, so rule prose or a
+    # fee date can never land in a date cell again.
+    notes_needed: dict[str, str] = {}
+
+    def _flag(r: dict) -> str:
+        notes_needed[r["state_slug"]] = r["state_name"]
+        return f'&mdash; <a href="#ye-note-{esc(r["state_slug"])}">see note</a>'
+
     def _individual_cell(r: dict) -> str:
+        if r["state_slug"] in YEAR_END_FILING_DATE_NOT_EXPIRY:
+            return _flag(r)
         if r["individual_date"]:
             return esc(fmt_date(date.fromisoformat(r["individual_date"])))
         if r["individual_text"]:
-            return esc(r["individual_text"])
+            return _flag(r)
         return "&mdash;"
 
     def _firm_cell(r: dict) -> str:
-        return esc(fmt_date(date.fromisoformat(r["firm_date"]))) if r["firm_date"] else "&mdash;"
+        if not r["firm_date"]:
+            return "&mdash;"
+        if r["state_slug"] in YEAR_END_FILING_DATE_NOT_EXPIRY or r["firm_date"] != YEAR_END_TARGET_DATE.isoformat():
+            return _flag(r)
+        return esc(fmt_date(date.fromisoformat(r["firm_date"])))
 
     table_rows = "\n".join(
         f'<tr><td><a href="../{esc(r["state_slug"])}/">{esc(r["state_name"])}</a></td>'
         f'<td>{_individual_cell(r)}</td><td>{_firm_cell(r)}</td></tr>'
         for r in rows
+    )
+    missing_notes = sorted(set(notes_needed) - set(YEAR_END_ROW_NOTES))
+    if missing_notes:
+        raise ValueError(
+            "year-end page: no hand-reviewed note for " + ", ".join(missing_notes)
+            + " (YEAR_END_ROW_NOTES); a row without a shared date must not print rule text or a different "
+            "kind of date in a date cell")
+    state_notes = "\n".join(
+        f'<div class="callout" id="ye-note-{esc(slug)}"><p class="rule"><strong>{esc(notes_needed[slug])}:</strong> '
+        f'{YEAR_END_ROW_NOTES[slug]}</p></div>'
+        for slug in sorted(notes_needed, key=lambda k: notes_needed[k])
     )
 
     body = f"""<h1>Every CPA license and firm-permit deadline landing on December 31, 2026</h1>
@@ -23028,7 +23080,7 @@ firm-permit deadlines and aren't on this table.</p>
 
 <div class="table-wrap">
   <table>
-    <thead><tr><th>State</th><th>Individual license</th><th>Firm permit</th></tr></thead>
+    <thead><tr><th>State</th><th>Individual license</th><th>Firm permit or registration</th></tr></thead>
     <tbody>
     {table_rows}
     </tbody>
@@ -23040,11 +23092,7 @@ firm-permit deadlines and aren't on this table.</p>
   $50/year delinquency fee applies if you renew late &mdash; one of the stricter deadlines on this
   list.</p>
 </div>
-<div class="callout">
-  <p class="rule">Nevada's individual license is due December 31, 2026, but its firm registration is a
-  separate date, January 31, 2027 &mdash; don't let the shared headline date make you miss the second
-  one.</p>
-</div>
+{state_notes}
 
 <p><strong>Check your state and set up a reminder, free for up to 3 people.</strong>
 <a href="../firm-login/#dr-view-signup">No demo call, no card &rarr;</a></p>

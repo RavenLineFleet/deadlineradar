@@ -182,3 +182,49 @@ def test_5_raw_enum_token_gate_catches_a_real_leak(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+# --- 6. NV-2 / TABLE-4 (AuditLab 2026-10-13): a date cell holds a date or a dash, never prose or a fee date -----
+
+def _cells(html):
+    import re
+    out = {}
+    for m in re.finditer(r'<tr><td><a href="\.\./([a-z-]+)/">[^<]*</a></td><td>(.*?)</td><td>(.*?)</td></tr>', html):
+        out[m.group(1)] = (m.group(2), m.group(3))
+    return out
+
+
+def _page(by_slug=None):
+    html, _ = generate.build_year_end_renewals_page(by_slug or _load_by_slug(), date(2026, 10, 13))
+    return html
+
+
+def test_6_date_cells_hold_a_date_or_a_flagged_dash_only():
+    import re
+    cells = _cells(_page())
+    assert len(cells) == 12, sorted(cells)
+    ok = re.compile(r"^(December 31, 2026|&mdash; <a href=\"#ye-note-[a-z-]+\">see note</a>|&mdash;)$")
+    for slug, pair in cells.items():
+        for c in pair:
+            assert ok.match(c), (slug, c)
+    assert cells["nevada"][1].startswith("&mdash;"), "Nevada's Jan 31 fee date must not sit in the firm column"
+    assert cells["kansas"][0].startswith("&mdash;") and cells["maryland"][0].startswith("&mdash;")
+    assert all(c.startswith("&mdash;") for c in cells["alabama"]), "Dec 31 is Alabama's filing date, not its permit expiry"
+    assert cells["minnesota"] == ("December 31, 2026", "December 31, 2026")     # control: untouched rows keep their dates
+
+
+def test_7_retracted_nevada_split_is_gone_and_the_note_states_the_rule():
+    html = _page()
+    assert "separate date, January 31, 2027" not in html
+    assert "miss the second" not in html
+    i = html.index('id="ye-note-nevada"')
+    note = html[i:html.index("</div>", i)]
+    assert "NAC 628.190" in note and "NRS 628.380(2)" in note and "no December 31 expiration" in note
+
+
+def test_8_a_flagged_row_without_a_reviewed_note_refuses_to_build(monkeypatch):
+    notes = dict(generate.YEAR_END_ROW_NOTES)
+    notes.pop("nevada")
+    monkeypatch.setattr(generate, "YEAR_END_ROW_NOTES", notes)
+    with pytest.raises(ValueError, match="nevada"):
+        _page()
