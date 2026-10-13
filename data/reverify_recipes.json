@@ -3755,23 +3755,12 @@
  },
  "northern-mariana-islands-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": null,
+  "manual": "HAND-VERIFIED (SRC-41, 2026-10-13): CNMI CPA licensing is administered by NASBA and no official host publishes the current fee (codified NMIAC 1-10-1605(b)(2)(i) still says $100; the Board confirmed in writing 2026-09-29 that NASBA's figure is the one to publish). An automated NASBA-only check had no official-host tripwire, so it is removed: re-read nasba.org/licensure/nasbalicensing/cnmi/ by hand inside the 30-day window and re-confirm the Board still delegates to NASBA.",
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
-  "checks": [
-   {
-    "url": "https://nasba.org/licensure/nasbalicensing/cnmi/",
-    "alt_urls": [],
-    "method": "http",
-    "anchor": "Reciprocal -",
-    "window": 19,
-    "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
-    "field": "fee_usd",
-    "nonofficial_host_ok": "SRC-41 designated-administrator exception: NASBA administers CNMI CPA licensing and the Board confirmed in writing (2026-09-29, see the record's fee_notes) that NASBA's figure is the one to publish; the codified NMIAC 1-10-1605 amount is stale. No official host publishes the current fee, so the Board's confirmation cannot be automated; this stays hand-verified."
-   }
-  ]
+  "provenance": "bootstrap 2026-10-02 | SRC-41 2026-10-13: automated NASBA check removed, record is manual",
+  "checks": []
  },
  "nv-cpe": {
   "dataset": "cpe_hours",

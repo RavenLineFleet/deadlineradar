@@ -1111,7 +1111,7 @@ def test_src41_official_host_predicate():
 
 
 # Ratchet over the REAL recipes file: the grandfathered backlog may only shrink.
-SRC41_GRANDFATHERED_CEILING = 39
+SRC41_GRANDFATHERED_CEILING = 38
 
 
 def _all_checks():
