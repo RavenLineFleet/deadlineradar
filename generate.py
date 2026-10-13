@@ -14682,10 +14682,14 @@ function drRenderRosterPausePicker() {
   if (listEl) {
     listEl.innerHTML = drLicenses.map(function(l) {
       var label = l.staff_label || l.email;
+      // The firm's own permit/registration lines use no staff seat and are never paused
+      // (server-enforced, SEAT-3): show them locked on instead of as a box to uncheck.
+      var isFirmLine = typeof l.license_type_id === 'string' && /-firm$/.test(l.license_type_id);
       return '<label class="dr-roster-pause-picker-row">' +
         '<input type="checkbox" class="dr-roster-pause-picker-checkbox" value="' + drEscapeHtml(l.id) + '"' +
-        (!l.paused ? ' checked' : '') + '> ' + drEscapeHtml(label) +
-        (l.paused ? ' <span class="dr-roster-pause-badge">Paused</span>' : '') +
+        ((!l.paused || isFirmLine) ? ' checked' : '') + (isFirmLine ? ' disabled' : '') + '> ' + drEscapeHtml(label) +
+        (isFirmLine ? ' <span class="dr-roster-pause-badge">Firm permit: free, uses no staff seat, always active</span>' : '') +
+        (l.paused && !isFirmLine ? ' <span class="dr-roster-pause-badge">Paused</span>' : '') +
         '</label>';
     }).join('');
   }

@@ -3520,6 +3520,22 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
     // The admin has made a real choice -- reconciliation never overrides
     // it. (A roster that grew further past that same choice just stays
     // over-cap on the un-chosen side; the admin can always re-pick.)
+    //
+    // ONE exception (AuditLab SEAT-3, 2026-10-13): firm-entity lines use no
+    // seat and are never the admin's to pause. Picks made before the
+    // setRosterActivePicks() guard existed may have paused some; restore them
+    // here so a firm that already hit this heals on its next dashboard load
+    // or nightly pass without having to re-pick.
+    const pausedFirmLines = roster.filter((r) => isFirmEntityRow(r) && r.paused_at !== null);
+    if (pausedFirmLines.length > 0) {
+      const placeholders = pausedFirmLines.map((_, i) => `?${i + 2}`).join(", ");
+      await db
+        .prepare(`UPDATE subscribers SET paused_at = NULL WHERE firm_id = ?1 AND id IN (${placeholders})`)
+        .bind(firmId, ...pausedFirmLines.map((r) => r.id))
+        .run();
+      const healed = new Set(pausedFirmLines.map((r) => r.id));
+      return roster.map((r) => (healed.has(r.id) ? { ...r, paused_at: null } : r));
+    }
     return roster;
   }
 
@@ -3564,9 +3580,18 @@ export async function reconcileRosterPauseState(db: D1Database, firmId: string):
  * Sets firms.active_staff_choice_at so reconcileRosterPauseState() never
  * silently re-applies the earliest-added default over a real choice again.
  */
-export async function setRosterActivePicks(db: D1Database, firmId: string, activeSubscriberIds: string[]): Promise<void> {
+export async function setRosterActivePicks(db: D1Database, firmId: string, requestedSubscriberIds: string[]): Promise<void> {
   const now = nowIso();
   const markerStmt = db.prepare(`UPDATE firms SET active_staff_choice_at = ?1 WHERE id = ?2`).bind(now, firmId);
+  // AuditLab SEAT-3 (MEDIUM, 2026-10-13): the firm's OWN permit/registration
+  // lines use no staff seat (seat_usage.ts), so the picker must never pause
+  // them -- the same force-keep reconcileRosterPauseState() applies to the
+  // default path. Enforced HERE, server-side, because the picker UI lists every
+  // row as an undifferentiated checkbox and reconcile's "admin already chose"
+  // early-return never reaches its own force-keep loop; an unchecked firm line
+  // was paused permanently and its renewal reminders stopped silently.
+  const firmEntityIds = (await listFirmLicenses(db, firmId)).filter((r) => isFirmEntityRow(r)).map((r) => r.id);
+  const activeSubscriberIds = [...new Set([...requestedSubscriberIds, ...firmEntityIds])];
   if (activeSubscriberIds.length === 0) {
     // An empty pick is a deliberate, valid choice (pause everyone) -- NOT
     // the same as "no choice yet." Caught by its own test after the first

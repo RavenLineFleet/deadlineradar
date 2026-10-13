@@ -203,6 +203,77 @@ describe("store.reconcileRosterPauseState -- PR6-D grace window (day 14-21)", ()
   });
 });
 
+/** One firm-entity line (the firm's own permit; license_type_id ends "-firm" so it
+ * uses no staff seat). Created last so it is NOT among the earliest-added rows. */
+async function addFirmPermitLine(firmId: string, label: string): Promise<string> {
+  const row = await store.addPending(env.DB, {
+    email: `${label}-${Date.now()}@example.com`,
+    stateSlug: "georgia",
+    deadlineFields: { license_type_id: "ga-firm" },
+    firstName: null,
+    deadlineSource: store.DEADLINE_SOURCE_COMPUTED,
+    userDeadline: null,
+    firmId,
+    staffLabel: null,
+    skipConfirmation: true,
+  });
+  return row.id;
+}
+
+// AuditLab SEAT-3 (MEDIUM, 2026-10-13): the picker used to pause the firm's OWN permit
+// lines when an admin unchecked them, and the reconcile early-return for a firm that
+// has chosen never reached its firm-entity force-keep -- so the lines stayed paused
+// forever and their renewal reminders stopped silently. Firm lines use no staff seat.
+describe("SEAT-3 -- the picker never pauses the firm's own permit lines", () => {
+  it("a pick that omits the firm line still leaves it active and reminder-eligible", async () => {
+    const { firmId } = await createFirmWithSession("Seat3 Firm A", `seat3-a-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "seat3-a");
+    const firmLine = await addFirmPermitLine(firmId, "seat3-a-permit");
+    await expireTrial(firmId);
+
+    // Admin keeps 3 staff and (literal reading of "pick up to 3") unchecks the firm line.
+    await store.setRosterActivePicks(env.DB, firmId, ids.slice(0, 3));
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+
+    expect(reconciled.find((r) => r.id === firmLine)?.paused_at).toBeNull();
+    const active = reconciled.filter((r) => r.paused_at === null).map((r) => r.id);
+    expect(active.sort()).toEqual([...ids.slice(0, 3), firmLine].sort());
+    const eligible = (await store.allConfirmedActive(env.DB)).map((r) => r.id);
+    expect(eligible).toContain(firmLine);
+    expect(eligible).not.toContain(ids[5]);
+  });
+
+  it("an empty pick pauses every staff line but not the firm line", async () => {
+    const { firmId } = await createFirmWithSession("Seat3 Firm B", `seat3-b-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "seat3-b");
+    const firmLine = await addFirmPermitLine(firmId, "seat3-b-permit");
+    await expireTrial(firmId);
+
+    await store.setRosterActivePicks(env.DB, firmId, []);
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+
+    expect(reconciled.find((r) => r.id === firmLine)?.paused_at).toBeNull();
+    expect(reconciled.filter((r) => ids.includes(r.id)).every((r) => r.paused_at !== null)).toBe(true);
+  });
+
+  it("heals a firm line an earlier (pre-fix) pick already paused, on the next reconcile", async () => {
+    const { firmId } = await createFirmWithSession("Seat3 Firm C", `seat3-c-${Date.now()}@example.com`);
+    const ids = await fillRosterStaggered(firmId, 6, "seat3-c");
+    const firmLine = await addFirmPermitLine(firmId, "seat3-c-permit");
+    await expireTrial(firmId);
+    await store.setRosterActivePicks(env.DB, firmId, ids.slice(0, 3));
+    // Recreate the pre-fix state directly: marker set, firm line paused.
+    await env.DB.prepare("UPDATE subscribers SET paused_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), firmLine).run();
+
+    const reconciled = await store.reconcileRosterPauseState(env.DB, firmId);
+    expect(reconciled.find((r) => r.id === firmLine)?.paused_at).toBeNull();
+    const row = await env.DB.prepare("SELECT paused_at FROM subscribers WHERE id = ?1").bind(firmLine).first<{ paused_at: string | null }>();
+    expect(row?.paused_at).toBeNull();
+    // ...and it does not un-pause the staff the admin deliberately paused.
+    expect(reconciled.find((r) => r.id === ids[5])?.paused_at).not.toBeNull();
+  });
+});
+
 describe("store.setRosterActivePicks -- the admin's own explicit choice", () => {
   it("persists the pick, and reconciliation never reverts it to the earliest-added default afterward", async () => {
     const { firmId } = await createFirmWithSession("Pick Firm A", `pickfirm-a-${Date.now()}@example.com`);
