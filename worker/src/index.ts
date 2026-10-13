@@ -90,6 +90,7 @@ import {
   RATE_LIMIT_OAUTH_START,
   RATE_LIMIT_CPE_ENTRY_CREATE,
   RATE_LIMIT_FIRM_DOCUMENT_UPLOAD,
+  RATE_LIMIT_FIRM_DOCUMENT_EXTRACT,
   RATE_LIMIT_FIRM_CHECKLIST_WRITE,
   RATE_LIMIT_FIRM_ATTESTATION_CREATE,
   RATE_LIMIT_FIRM_PACKET_EXPORT,
@@ -160,6 +161,9 @@ import {
   parseStrictIsoDate,
   verifyTurnstile,
   TERMS_VERSION,
+  CPE_EXTRACTION_DRAFT_EMPTY,
+  parseCpeExtractionResponseText,
+  type CpeExtractionDraft,
 } from "./validation";
 import {
   StaleDataError,
@@ -9364,6 +9368,206 @@ async function handleDocumentUpload(request: Request, env: Env, subscriberId: st
   return jsonResponse(201, { document: toDocumentJson(doc) });
 }
 
+// Workers' `btoa` only accepts a binary string, and spreading a whole
+// 2MB-capped Uint8Array into String.fromCharCode(...) in one call risks
+// the engine's argument-count ceiling -- chunking avoids that without
+// pulling in a base64 library for one call site.
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+const CPE_EXTRACTION_PROMPT =
+  "You are reading a CPE (continuing professional education) completion certificate for a CPA. " +
+  'Extract exactly these fields and respond with ONLY a single JSON object, no other text: ' +
+  '{"entry_date": "YYYY-MM-DD or null", "hours": "the number of CPE hours completed, or null", ' +
+  '"category": "one of \\"ethics\\", \\"general\\", \\"other\\", or null if unclear -- use ' +
+  '\\"ethics\\" only if the course is clearly an ethics course", "description": "the course title ' +
+  'or provider name, 200 characters or fewer, or null"}. ' +
+  "If a field is not clearly and directly stated on the certificate, use null for that field -- " +
+  "never guess or calculate a value that isn't written on the document itself.";
+
+/** Calls the Claude API to propose draft CPE-entry fields from an uploaded
+ * certificate. Every failure mode -- no key configured (checked by the
+ * caller before this is ever invoked), a non-2xx response, a timeout, a
+ * response that isn't valid JSON, a response whose JSON doesn't contain
+ * the expected shape -- degrades to CPE_EXTRACTION_DRAFT_EMPTY rather than
+ * throwing: the certificate is already saved by the time this runs, so a
+ * failed extraction must never turn into a failed upload. Never trusts the
+ * model's own field types or values directly -- every field is re-run
+ * through the EXACT SAME validators (parseStrictIsoDate/parseStrictCpeHours/
+ * isValidCpeCategory/sanitizeFreeText) a hand-typed entry goes through, so
+ * this function has no more authority over what counts as a valid CPE
+ * entry than the manual form does. */
+const CPE_EXTRACTION_TIMEOUT_MS = 20_000;
+
+async function extractCpeCertificateFields(apiKey: string, bytes: ArrayBuffer, contentType: string): Promise<CpeExtractionDraft> {
+  try {
+    const base64 = arrayBufferToBase64(bytes);
+    const contentBlock =
+      contentType === "application/pdf"
+        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+        : { type: "image", source: { type: "base64", media_type: contentType, data: base64 } };
+
+    // Same AbortController/timeout/never-throws contract as sender.ts/
+    // slack.ts/sms.ts/teams.ts's own outbound fetch calls -- a stuck
+    // upstream call must not hang the upload response indefinitely. The
+    // certificate is already saved by this point, so a timeout here only
+    // costs "no auto-fill," never the upload itself.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CPE_EXTRACTION_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-5-5",
+          max_tokens: 300,
+          messages: [{ role: "user", content: [contentBlock, { type: "text", text: CPE_EXTRACTION_PROMPT }] }],
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!res.ok) return CPE_EXTRACTION_DRAFT_EMPTY;
+
+    const body = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
+    const text = body.content?.find((block) => block.type === "text")?.text;
+    if (!text) return CPE_EXTRACTION_DRAFT_EMPTY;
+
+    return parseCpeExtractionResponseText(text);
+  } catch {
+    return CPE_EXTRACTION_DRAFT_EMPTY;
+  }
+}
+
+/** POST /firm/licenses/:id/documents/extract -- roadmap #96/#157/#115
+ * (2026-10-13). Uploads a certificate through the EXACT SAME path as
+ * handleDocumentUpload() above (same auth/entitlement/CSRF/file-type/size/
+ * quota checks, same R2-then-D1 write order, same 'cpe' kind) -- this
+ * endpoint is a strict superset of that one, never a separate storage
+ * path -- then, only if ANTHROPIC_API_KEY is configured, asks Claude to
+ * propose a draft entry from it. The draft is NEVER written to cpe_entries
+ * here; it's returned for the client to pre-fill the SAME editable
+ * "Log completed hours" form a hand-typed entry already uses, and the
+ * eventual POST /firm/cpe re-validates every field from scratch -- this
+ * handler has no authority to create or authoritatively assert a CPE
+ * entry, only to save time filling one in that a human still reviews.
+ *
+ * Dark by default: with ANTHROPIC_API_KEY unset (the deliberate prod
+ * default until Devin explicitly authorizes the live per-call spend --
+ * guardrail 2/6), the upload still succeeds exactly as it does today and
+ * `extraction_available: false` is returned -- nothing about storing the
+ * file depends on the key being present. */
+async function handleDocumentExtract(request: Request, env: Env, subscriberId: string): Promise<Response> {
+  const session = await requireFirmRole(request, env, "partner", "office_manager");
+  if (session instanceof Response) return session;
+
+  // Same paid-tier gate as handleDocumentUpload -- see its own comment.
+  const valueLineDenial = valueLineDenialResponse(session.firm);
+  if (valueLineDenial) return valueLineDenial;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
+  // Both limits apply, checked independently: the plain-upload ceiling
+  // (this writes the same R2 object + documents row handleDocumentUpload
+  // does) AND the tighter extraction-specific ceiling (this also spends on
+  // one real paid API call) -- so this route can't be used to exceed
+  // either limit on its own.
+  const uploadAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_upload", RATE_LIMIT_FIRM_DOCUMENT_UPLOAD);
+  if (!uploadAllowed) {
+    return jsonResponse(429, { error: "Too many uploads today. Please try again in 24 hours." });
+  }
+  const extractAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_extract", RATE_LIMIT_FIRM_DOCUMENT_EXTRACT);
+  if (!extractAllowed) {
+    return jsonResponse(429, { error: "Too many auto-fill attempts today. Please try again in 24 hours, or enter the details manually." });
+  }
+
+  const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return jsonResponse(400, { error: "Couldn't read that upload. Please try again." });
+  }
+
+  const rawFile = formData.get("file");
+  if (typeof rawFile !== "object" || rawFile === null) {
+    return jsonResponse(400, { error: "No file was attached." });
+  }
+  const file = rawFile as unknown as File;
+
+  if (!store.DOCUMENT_ALLOWED_CONTENT_TYPES.includes(file.type)) {
+    return jsonResponse(400, { error: "Only PDF, JPG, or PNG files are supported." });
+  }
+
+  if (file.size <= 0 || file.size > store.DOCUMENT_MAX_FILE_BYTES) {
+    return jsonResponse(400, { error: "That file is too large -- the limit is 2MB." });
+  }
+
+  const currentTotal = await store.sumFirmDocumentBytes(env.DB, session.firmId);
+  if (currentTotal + file.size > store.DOCUMENT_MAX_FIRM_TOTAL_BYTES) {
+    return jsonResponse(400, {
+      error:
+        "Your firm has reached its document storage limit. Some of that space may be held by " +
+        "documents belonging to staff no longer on your roster. Remove a document from an active " +
+        "staff member to free up space.",
+    });
+  }
+
+  const filename = sanitizeDocumentFilename(file.name || "document");
+  const r2Key = `${session.firmId}/${subscriberId}/${store.newToken()}`;
+  const bytes = await file.arrayBuffer();
+  await env.DOCUMENTS.put(r2Key, bytes, { httpMetadata: { contentType: file.type } });
+
+  const doc = await store.createDocument(env.DB, {
+    firmId: session.firmId,
+    subscriberId,
+    kind: "cpe",
+    r2Key,
+    filename,
+    contentType: file.type,
+    sizeBytes: file.size,
+  });
+  if (!doc) {
+    await env.DOCUMENTS.delete(r2Key);
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // The storage write above is the same DEMO-3 "data-playground mutation"
+  // handleDocumentUpload's own allowlist entry already covers (doesn't
+  // alter the roster or its permissions, rate-limited). The paid API call
+  // below is a DIFFERENT cost profile that allowlist was never about: the
+  // shared public demo account has no signup and one firm_id, so its
+  // RATE_LIMIT_FIRM_DOCUMENT_EXTRACT bucket is shared across every visitor
+  // -- real spend an anonymous visitor could trigger repeatedly, not a
+  // roster/permission concern. Demo firms get the exact same response
+  // shape as an unconfigured key (upload succeeds, extraction skipped)
+  // rather than a separate "not available in demo" message, so a demo
+  // visitor can't use this endpoint to probe whether a live key exists.
+  if (!env.ANTHROPIC_API_KEY || session.firm.demo_locked) {
+    return jsonResponse(201, { document: toDocumentJson(doc), extraction_available: false, draft: null });
+  }
+
+  const draft = await extractCpeCertificateFields(env.ANTHROPIC_API_KEY, bytes, file.type);
+  return jsonResponse(201, { document: toDocumentJson(doc), extraction_available: true, draft });
+}
+
 /** GET /firm/licenses/:id/documents -- metadata only (never the bytes) for
  * every non-deleted document attached to one staff member. */
 async function handleDocumentList(request: Request, env: Env, subscriberId: string): Promise<Response> {
@@ -10376,6 +10580,10 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
     const subscriberDocumentsMatch = /^\/firm\/licenses\/([^/]+)\/documents$/.exec(url.pathname);
     const documentDownloadMatch = /^\/firm\/documents\/([^/]+)\/download$/.exec(url.pathname);
     const documentIdMatch = /^\/firm\/documents\/([^/]+)$/.exec(url.pathname);
+    // Roadmap #96/#157/#115 (2026-10-13): a distinct trailing segment, not
+    // ambiguous with subscriberDocumentsMatch above (that one has no
+    // trailing /extract).
+    const subscriberDocumentsExtractMatch = /^\/firm\/licenses\/([^/]+)\/documents\/extract$/.exec(url.pathname);
 
     // /firm/licenses/:id/checklist and /firm/checklist/:id -- roadmap #303
     // (2026-08-31), same up-front parsing pattern as the documents routes
@@ -10843,6 +11051,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (subscriberDocumentsMatch) {
         try {
           return await handleDocumentUpload(request, env, subscriberDocumentsMatch[1] as string);
+        } catch {
+          return jsonResponse(400, { error: "Something went wrong processing that request." });
+        }
+      }
+
+      if (subscriberDocumentsExtractMatch) {
+        try {
+          return await handleDocumentExtract(request, env, subscriberDocumentsExtractMatch[1] as string);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }

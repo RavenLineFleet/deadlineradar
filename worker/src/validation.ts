@@ -592,6 +592,15 @@ export const RATE_LIMIT_CPE_ENTRY_CREATE: RateLimit = { max: 100, windowSeconds:
 // a firm uploading a full roster's worth of certificates in one sitting.
 export const RATE_LIMIT_FIRM_DOCUMENT_UPLOAD: RateLimit = { max: 60, windowSeconds: 86400 };
 
+// POST /firm/licenses/:id/documents/extract (roadmap #96/#157/#115,
+// 2026-10-13) -- keyed on firm id, same reasoning as RATE_LIMIT_FIRM_
+// DOCUMENT_UPLOAD above, but deliberately tighter: on top of the same R2
+// PUT + D1 insert, a successful call also makes one real paid external API
+// call (Claude). This bounds the firm's own worst-case spend exposure, not
+// just write load -- a much lower ceiling than the plain-upload limit is
+// the point, not an oversight.
+export const RATE_LIMIT_FIRM_DOCUMENT_EXTRACT: RateLimit = { max: 20, windowSeconds: 86400 };
+
 // PATCH /firm/peer-review (roadmap #6, 2026-08-07) -- a single admin-entered
 // firm-level date field, same modest cap as other low-risk single-field
 // setters on this list (not a mail primitive, not a bulk-write path).
@@ -1173,4 +1182,73 @@ export async function verifyTurnstile(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// CPE certificate auto-fill (roadmap #96/#157/#115, 2026-10-13). See
+// index.ts's handleDocumentExtract()/extractCpeCertificateFields() for the
+// endpoint and the actual Claude API call -- this half is the pure,
+// no-network parsing/validation of whatever text comes back, kept here
+// (not index.ts, which has no other direct test-only exports) so it can be
+// unit-tested the same way every other field validator in this file is,
+// with crafted input text and no fetch-mocking involved.
+
+/** The pre-filled fields a certificate-extraction call proposes for one CPE
+ * entry. Never persisted directly -- only ever handed back to the client
+ * to pre-fill the SAME "Log completed hours" form a hand-typed entry goes
+ * through; the eventual POST /firm/cpe re-validates every field from
+ * scratch. A null field means the model's answer for that field didn't
+ * cleanly validate (or wasn't given at all) -- the UI must leave that
+ * field for the human to fill in, never substitute a guess of its own. */
+export interface CpeExtractionDraft {
+  entry_date: string | null;
+  hours: number | null;
+  category: "general" | "ethics" | "other" | null;
+  description: string | null;
+}
+
+export const CPE_EXTRACTION_DRAFT_EMPTY: CpeExtractionDraft = { entry_date: null, hours: null, category: null, description: null };
+
+/** Parses and validates a Claude API text response for the CPE-extraction
+ * prompt. The model is asked for JSON-only but never TRUSTED as JSON-only
+ * -- a response with fenced markdown or leading/trailing prose is handled
+ * by extracting the first brace-delimited span rather than assuming the
+ * whole string parses directly. Every field is then re-run through the
+ * EXACT SAME validators (parseStrictIsoDate/parseStrictCpeHours/
+ * isValidCpeCategory/sanitizeFreeText) a hand-typed entry goes through --
+ * this function has no more authority over what counts as a valid CPE
+ * entry than the manual form does. Never throws -- a field (or the whole
+ * response) that doesn't cleanly validate comes back null, never a
+ * best-effort guess. */
+export function parseCpeExtractionResponseText(text: string): CpeExtractionDraft {
+  const jsonMatch = /\{[\s\S]*\}/.exec(text);
+  if (!jsonMatch) return CPE_EXTRACTION_DRAFT_EMPTY;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    return CPE_EXTRACTION_DRAFT_EMPTY;
+  }
+  if (typeof parsed !== "object" || parsed === null) return CPE_EXTRACTION_DRAFT_EMPTY;
+  const obj = parsed as Record<string, unknown>;
+
+  let entryDate: string | null = null;
+  if (typeof obj.entry_date === "string" && parseStrictIsoDate(obj.entry_date)) {
+    entryDate = obj.entry_date.trim();
+  }
+
+  let hours: number | null = null;
+  if (typeof obj.hours === "number" && Number.isFinite(obj.hours)) {
+    hours = parseStrictCpeHours(String(obj.hours));
+  } else if (typeof obj.hours === "string") {
+    hours = parseStrictCpeHours(obj.hours);
+  }
+
+  let category: "general" | "ethics" | "other" | null = null;
+  if (typeof obj.category === "string" && isValidCpeCategory(obj.category)) {
+    category = obj.category;
+  }
+
+  const description = typeof obj.description === "string" ? sanitizeFreeText(obj.description, MAX_CPE_DESCRIPTION_LEN) : null;
+
+  return { entry_date: entryDate, hours, category, description };
 }

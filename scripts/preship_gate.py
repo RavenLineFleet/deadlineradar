@@ -4770,12 +4770,15 @@ def check_document_size_limit_sync(repo_root: Path) -> list[str]:
     starts means a raised DOCUMENT_MAX_FILE_BYTES would leave the client
     hard-blocking files the server would accept, telling the customer a
     limit that is simply false. One authority (store.ts's
-    DOCUMENT_MAX_FILE_BYTES), six restatements in generate.py: two numeric
+    DOCUMENT_MAX_FILE_BYTES), restated in generate.py: three numeric
     `.size > N * 1024 * 1024` checks (drSubmitDocumentUpload,
-    drSubmitCpeEntry's certificate step) and four "up to NMB" prose
-    sentences beside the three file inputs. Same CPE-4/UX-9 shape as this
-    file's other decay gates -- assert every restatement still equals the
-    real constant, converted to MB."""
+    drSubmitCpeEntry's certificate step, and roadmap #96/#157/#115's
+    drAutoFillCpeFromCertificate -- a separate upload path, same client-
+    side guard before it starts) and five "up to NMB" prose sentences
+    beside the three file inputs plus drAutoFillCpeFromCertificate's own
+    oversized-file error message. Same CPE-4/UX-9 shape as this file's
+    other decay gates -- assert every restatement still equals the real
+    constant, converted to MB."""
     store_ts = repo_root / "worker" / "src" / "store.ts"
     generate_py = repo_root / "generate.py"
     if not store_ts.exists() or not generate_py.exists():
@@ -4793,12 +4796,13 @@ def check_document_size_limit_sync(repo_root: Path) -> list[str]:
     errors = []
 
     numeric_matches = re.findall(r"\.size\s*>\s*(\d+)\s*\*\s*1024\s*\*\s*1024", py_text)
-    if len(numeric_matches) != 2:
+    if len(numeric_matches) != 3:
         errors.append(
-            f"[DOC-SIZE-LIMIT] expected exactly 2 client-side `.size > N * 1024 * 1024` checks in "
-            f"generate.py (drSubmitDocumentUpload's and drSubmitCpeEntry's certificate step), found "
-            f"{len(numeric_matches)} -- either one was removed (this gate needs narrowing) or a new "
-            "file input gained its own size check (this gate needs widening to cover it)."
+            f"[DOC-SIZE-LIMIT] expected exactly 3 client-side `.size > N * 1024 * 1024` checks in "
+            f"generate.py (drSubmitDocumentUpload's, drSubmitCpeEntry's certificate step, and "
+            f"drAutoFillCpeFromCertificate's), found {len(numeric_matches)} -- either one was removed "
+            "(this gate needs narrowing) or a new file input gained its own size check (this gate "
+            "needs widening to cover it)."
         )
     else:
         for mb in numeric_matches:
@@ -4810,12 +4814,13 @@ def check_document_size_limit_sync(repo_root: Path) -> list[str]:
                 )
 
     prose_matches = re.findall(r"up to (\d+)MB", py_text)
-    if len(prose_matches) != 4:
+    if len(prose_matches) != 5:
         errors.append(
-            f"[DOC-SIZE-LIMIT] expected exactly 4 'up to NMB' prose sentences in generate.py (beside "
-            f"#dr-documents-file, #dr-cpe-certificate, and their two modal hints), found "
-            f"{len(prose_matches)} -- either one was reworded away from this pattern (this gate needs "
-            "updating) or a new disclosure was added (this gate needs widening)."
+            f"[DOC-SIZE-LIMIT] expected exactly 5 'up to NMB' prose sentences in generate.py (beside "
+            f"#dr-documents-file, #dr-cpe-certificate, their two modal hints, and "
+            f"drAutoFillCpeFromCertificate's oversized-file error message), found {len(prose_matches)} "
+            "-- either one was reworded away from this pattern (this gate needs updating) or a new "
+            "disclosure was added (this gate needs widening)."
         )
     else:
         for mb in prose_matches:
