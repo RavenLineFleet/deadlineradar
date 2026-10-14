@@ -106,8 +106,28 @@ describe("parseCpeExtractionResponseText() -- the untrusted-input half", () => {
     });
   });
 
-  it("returns an all-null draft when the top-level JSON value is an array, not an object", () => {
+  it("returns an all-null draft for a brace-free array (no { } for the regex to match at all)", () => {
     expect(parseCpeExtractionResponseText("[1, 2, 3]")).toEqual({ entry_date: null, hours: null, category: null, description: null });
+  });
+
+  // AuditLab + SecurityLab (independently, 2026-10-14): the test above
+  // passes for the WRONG reason -- it has no braces, so the brace-matching
+  // regex fails before the `typeof parsed !== "object"` guard is ever
+  // reached, not because that guard rejected an array. This test exercises
+  // the guard's REAL behavior: a top-level array containing an object
+  // never reaches the guard as an array either -- the greedy
+  // `/\{[\s\S]*\}/` lifts just the innermost brace-delimited span out of
+  // the array wrapper, so JSON.parse sees (and the guard receives) the
+  // INNER OBJECT, not the array. SecurityLab executed this exact input and
+  // confirmed it returns the lifted object's own validated fields, not an
+  // empty draft. Not a vulnerability either way -- a lifted field still
+  // clears every validator before it's returned -- but the array-shaped
+  // `typeof` guard is effectively unreachable given this regex strategy,
+  // and this test is what would catch a future regex change that made it
+  // reachable (or made this stop being true).
+  it("a top-level array WRAPPING an object lifts the inner object out, rather than being rejected as an array", () => {
+    const draft = parseCpeExtractionResponseText('[{"hours":8}]');
+    expect(draft).toEqual({ entry_date: null, hours: 8, category: null, description: null });
   });
 
   it("rejects an invalid calendar date field (null, not coerced)", () => {

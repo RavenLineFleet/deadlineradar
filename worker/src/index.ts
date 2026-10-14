@@ -9564,21 +9564,36 @@ async function handleDocumentExtract(request: Request, env: Env, subscriberId: s
     return jsonResponse(201, { document: toDocumentJson(doc), extraction_available: false, draft: null });
   }
 
-  // AuditLab (ocr-cert-extract review, 2026-10-14): the uploaded file is
-  // attacker-controlled content reaching a model, so a crafted certificate
-  // can make the model propose arbitrary field values. Blast radius is
-  // near-zero ONLY because all three of these stay true -- if any one
-  // changes later, containment collapses silently, invisibly from the
-  // field names alone: (a) `draft` is never persisted here or anywhere
-  // else -- it is returned, not written; (b) every field in it already
-  // passed through parseStrictIsoDate/parseStrictCpeHours/isValidCpeCategory/
-  // sanitizeFreeText inside parseCpeExtractionResponseText (validation.ts)
-  // -- a field that didn't cleanly validate is null, never a raw model
-  // value; (c) the client treats this purely as editable form pre-fill a
-  // human reviews before the real POST /firm/cpe re-validates everything
-  // from scratch. Do not add a path that auto-submits this draft, persists
-  // it directly, or trusts `description` anywhere that isn't
-  // sanitizeFreeText'd.
+  // AuditLab + SecurityLab (ocr-cert-extract review, 2026-10-14): the
+  // uploaded file is attacker-controlled content reaching a model, so a
+  // crafted certificate can make the model propose arbitrary field values.
+  // Blast radius is near-zero ONLY because all of these stay true -- if
+  // any one changes later, containment collapses silently, invisibly from
+  // the field names alone:
+  //   (a) `draft` is never persisted here or anywhere else -- it is
+  //       returned, not written;
+  //   (b) hours/category/entry_date are re-validated through
+  //       parseStrictCpeHours/isValidCpeCategory/parseStrictIsoDate in
+  //       parseCpeExtractionResponseText (validation.ts) -- a value that
+  //       doesn't cleanly validate is null, never a raw model value;
+  //   (c) `description` is sanitizeFreeText'd, which strips control
+  //       characters and CSV-formula prefixes but does NOT HTML-escape --
+  //       confirmed by SecurityLab execution that `<script>`, an
+  //       unquoted-attribute breakout, and bidi/zero-width characters all
+  //       survive it verbatim. It is safe ONLY because every current
+  //       render sink is safe on its own terms (drEscapeHtml on the CPE
+  //       row's innerHTML interpolation, `.value` on the form fields) --
+  //       SAFE BECAUSE OF THE SINKS, NOT THE SANITIZER. A certificate is a
+  //       delivery path for an attacker-chosen 200-char string into this
+  //       field; the day `description` reaches an unescaped sink anywhere
+  //       (a PDF/export template, an email, a different innerHTML site),
+  //       this feature is the route in;
+  //   (d) the client treats the whole draft purely as editable form
+  //       pre-fill a human reviews before the real POST /firm/cpe
+  //       re-validates everything from scratch.
+  // Do not add a path that auto-submits this draft, persists it directly,
+  // or renders `description` anywhere that isn't either escaped at the
+  // sink or `.value`-assigned.
   const draft = await extractCpeCertificateFields(env.ANTHROPIC_API_KEY, bytes, file.type);
   return jsonResponse(201, { document: toDocumentJson(doc), extraction_available: true, draft });
 }

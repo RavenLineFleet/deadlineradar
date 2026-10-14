@@ -1231,15 +1231,19 @@ export function parseCpeExtractionResponseText(text: string): CpeExtractionDraft
   if (typeof parsed !== "object" || parsed === null) return CPE_EXTRACTION_DRAFT_EMPTY;
   const obj = parsed as Record<string, unknown>;
 
-  // AuditLab nit (ocr-cert-extract review, 2026-10-14): validate the SAME
-  // value that gets stored, not the raw one -- trim first, then validate
-  // the trimmed string. Inert today (a strict ISO date has no surrounding
-  // whitespace to trim), but "the value stored is the value validated" is
-  // the invariant worth keeping regardless.
+  // AuditLab + SecurityLab (ocr-cert-extract review, 2026-10-14): validate
+  // the RAW string, store the TRIMMED one. Not cosmetic -- parseStrictIsoDate
+  // trims internally before matching, so its tolerance is whitespace-only;
+  // the `.trim()` below is the ONLY thing normalizing a whitespace-padded
+  // value (e.g. `" 2026-01-15 "`, confirmed accepted) to exactly what that
+  // tolerance allows before it's stored. An earlier version of this
+  // comment suggested trimming first and validating the trimmed string --
+  // SecurityLab proved by execution that the validator's own internal trim
+  // makes that an equivalent no-op change, not a fix, and AuditLab
+  // retracted the suggestion. Left as originally written.
   let entryDate: string | null = null;
-  if (typeof obj.entry_date === "string") {
-    const trimmedDate = obj.entry_date.trim();
-    if (parseStrictIsoDate(trimmedDate)) entryDate = trimmedDate;
+  if (typeof obj.entry_date === "string" && parseStrictIsoDate(obj.entry_date)) {
+    entryDate = obj.entry_date.trim();
   }
 
   let hours: number | null = null;
