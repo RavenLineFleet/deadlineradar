@@ -453,14 +453,16 @@ EN: dict[str, str] = {
     "pricing.h1": "Pricing",
     "pricing.intro": (
         "Roster, calendar, CPE-hours tracking, and individual Practice Privilege Check are "
-        "<strong>free for any firm, up to 3 staff</strong>, no card required, no time limit. Paid "
-        "firm plans add the multistate map and the firm-level registration check — every paid "
-        "tier has the identical feature set, priced only by how many staff it covers; nothing is "
-        "held back on a cheaper plan. A person licensed in several states counts once toward the "
-        "staff limit, and your firm's own permit and registration lines don't count toward it. "
-        "Your firm's own permit or registration renewal date is just another roster line, the same on every "
-        "plan: it uses no staff seat (up to 2 per state, 25 in total). The paid firm-level registration check is a "
-        "different feature: it looks up whether other states require your firm to register to practice there."
+        "<strong>free for any firm, up to 3 staff</strong>, no card required, no time limit. A "
+        "one-person account also gets the multistate map and firm-level registration check free "
+        "(see the table below); paid firm plans add those two for a firm with more than one "
+        "person — every paid tier has the identical feature set, priced only by how many staff it "
+        "covers; nothing is held back on a cheaper plan. A person licensed in several states "
+        "counts once toward the staff limit, and your firm's own permit and registration lines "
+        "don't count toward it. Your firm's own permit or registration renewal date is just "
+        "another roster line, the same on every plan: it uses no staff seat (up to 2 per state, 25 "
+        "in total). The paid firm-level registration check is a different feature: it looks up "
+        "whether other states require your firm to register to practice there."
     ),
     "pricing.freshness_stat": (
         "dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, "
@@ -535,8 +537,9 @@ EN: dict[str, str] = {
     "pricing.card_individual_price": "Free",
     "pricing.card_individual_detail": (
         "Roster, Calendar, CPE-hour tracking and Practice Privilege Check — free for any firm, "
-        "up to 3 staff, no card and no time limit. Just want free renewal reminders? "
-        "{signup_link} — no account needed."
+        "up to 3 staff, no card and no time limit. A one-person account also gets the Multistate "
+        "Map and firm-level registration check free (see the comparison table below). Just want "
+        "free renewal reminders? {signup_link} — no account needed."
     ),
     "pricing.signup_free_link_text": "Sign up free",
     "pricing.card_individual_cta": "Create a free account",
