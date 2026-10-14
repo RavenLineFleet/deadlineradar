@@ -16850,7 +16850,13 @@ function drAutoFillCpeFromCertificate() {
       }
       drAutoFillCpeStatus(
         filledAny
-          ? 'Auto-filled from your certificate -- this is a best guess, please check every field before logging.'
+          // AuditLab (ocr-cert-extract review, 2026-10-14): category is
+          // only ever general/ethics/other -- a state that distinguishes
+          // A&A or tax hours will still auto-fill as general/other, and an
+          // auto-filled guess reads as more authoritative than a blank
+          // field a human has to think about. Called out by name, not just
+          // folded into "every field".
+          ? 'Auto-filled from your certificate -- this is a best guess, please check every field (especially the category, which we can only guess as general, ethics, or other) before logging.'
           : 'Certificate saved, but we couldn’t confidently read any details from it -- please enter them yourself.',
         false
       );

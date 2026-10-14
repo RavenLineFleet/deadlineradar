@@ -1231,9 +1231,15 @@ export function parseCpeExtractionResponseText(text: string): CpeExtractionDraft
   if (typeof parsed !== "object" || parsed === null) return CPE_EXTRACTION_DRAFT_EMPTY;
   const obj = parsed as Record<string, unknown>;
 
+  // AuditLab nit (ocr-cert-extract review, 2026-10-14): validate the SAME
+  // value that gets stored, not the raw one -- trim first, then validate
+  // the trimmed string. Inert today (a strict ISO date has no surrounding
+  // whitespace to trim), but "the value stored is the value validated" is
+  // the invariant worth keeping regardless.
   let entryDate: string | null = null;
-  if (typeof obj.entry_date === "string" && parseStrictIsoDate(obj.entry_date)) {
-    entryDate = obj.entry_date.trim();
+  if (typeof obj.entry_date === "string") {
+    const trimmedDate = obj.entry_date.trim();
+    if (parseStrictIsoDate(trimmedDate)) entryDate = trimmedDate;
   }
 
   let hours: number | null = null;
