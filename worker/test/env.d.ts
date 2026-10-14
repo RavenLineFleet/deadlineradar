@@ -15,5 +15,11 @@ declare namespace Cloudflare {
     // 2026-08-07, document storage) -- same hand-written-mirror convention
     // as DB above.
     DOCUMENTS: R2Bucket;
+    // Mirrors src/env.ts's own field (roadmap #96/#157/#115, 2026-10-13) --
+    // same hand-written-mirror convention as DB/DOCUMENTS above. Left
+    // unset in every test environment deliberately: with no key configured,
+    // cpe-extraction.spec.ts exercises the real prod-default "dark" path
+    // (upload succeeds, extraction unavailable) rather than a mocked one.
+    ANTHROPIC_API_KEY?: string;
   }
 }

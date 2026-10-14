@@ -12930,6 +12930,12 @@ var DR_STATUS_CLASSES = {
 };
 
 var drLicenses = [];
+// Roadmap #96/#157/#115 (2026-10-13): set only right after a successful
+// auto-fill call, cleared on any file-input change, form reset, or failed
+// auto-fill -- so a stale document id from a PREVIOUS file can never get
+// silently reused for a DIFFERENT file the user selects afterward.
+var drCpeExtractedDocumentId = null;
+var drCpeExtractedForFile = null;
 var drEditModalId = null;
 var drEditModalTriggerBtn = null;
 var drDeleteAccountModalTriggerBtn = null;
@@ -16747,6 +16753,123 @@ function drCollectCpeAlso() {
   return out;
 }
 
+// Roadmap #96/#157/#115 (2026-10-13): reads the selected certificate and
+// pre-fills the (still fully editable) form above -- never submits
+// anything on its own. The eventual "Log hours" click goes through
+// drSubmitCpeEntry() exactly as a hand-typed entry would, with no
+// shortcut around its own validation.
+function drAutoFillCpeStatus(text, isError) {
+  var el = document.getElementById('dr-cpe-autofill-status');
+  if (!el) return;
+  if (!text) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.textContent = text;
+  el.style.color = isError ? '#c33737' : '';
+}
+
+function drUpdateCpeAutofillButtonState() {
+  var btn = document.getElementById('dr-cpe-autofill-btn');
+  var staffSel = document.getElementById('dr-cpe-staff-select');
+  var fileInput = document.getElementById('dr-cpe-certificate');
+  if (!btn) return;
+  // The server already refuses extraction for a demo_locked firm
+  // regardless of what the client sends (real per-call spend an anonymous
+  // demo visitor could otherwise trigger repeatedly) -- this is purely a
+  // clearer-UX disable, not the actual control.
+  if (drBilling && drBilling.demoLocked) {
+    btn.disabled = true;
+    return;
+  }
+  var hasFile = !!(fileInput && fileInput.files && fileInput.files[0]);
+  var hasStaff = !!(staffSel && staffSel.value);
+  btn.disabled = !(hasFile && hasStaff);
+}
+
+function drAutoFillCpeFromCertificate() {
+  var btn = document.getElementById('dr-cpe-autofill-btn');
+  var staffSel = document.getElementById('dr-cpe-staff-select');
+  var fileInput = document.getElementById('dr-cpe-certificate');
+  var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+  var staffId = staffSel ? staffSel.value : '';
+  if (!file || !staffId) return;
+
+  // Same 2MB client-side check as the plain-upload path (worker/src/
+  // store.ts's DOCUMENT_MAX_FILE_BYTES is the real enforcement).
+  if (file.size > 2 * 1024 * 1024) {
+    drAutoFillCpeStatus('That certificate file is too large -- PDF, JPG, or PNG, up to 2MB.', true);
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  drAutoFillCpeStatus('Reading your certificate…', false);
+
+  var fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/firm/licenses/' + encodeURIComponent(staffId) + '/documents/extract', {
+    method: 'POST', credentials: 'include', body: fd
+  }).then(function(res) {
+    if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
+    return drReadJsonSafe(res).then(function(data) {
+      if (!res.ok) {
+        drCpeExtractedDocumentId = null;
+        drCpeExtractedForFile = null;
+        drAutoFillCpeStatus((data && data.error) ? data.error : 'Could not read that certificate. Please try again.', true);
+        return;
+      }
+      // The certificate is saved either way (this endpoint is a superset
+      // of the plain upload) -- remember its id so the eventual "Log
+      // hours" submit doesn't upload the SAME file a second time.
+      drCpeExtractedDocumentId = (data && data.document) ? data.document.id : null;
+      drCpeExtractedForFile = file;
+
+      var draft = data && data.draft;
+      if (!data || !data.extraction_available) {
+        drAutoFillCpeStatus('Certificate saved. Automatic reading isn’t available right now -- please enter the details yourself.', false);
+        return;
+      }
+      if (!draft) {
+        drAutoFillCpeStatus('Certificate saved, but we couldn’t confidently read any details from it -- please enter them yourself.', false);
+        return;
+      }
+      var filledAny = false;
+      if (draft.entry_date) {
+        var dateEl = document.getElementById('dr-cpe-entry-date');
+        if (dateEl) { dateEl.value = draft.entry_date; filledAny = true; }
+      }
+      if (draft.hours !== null) {
+        var hoursEl = document.getElementById('dr-cpe-hours');
+        if (hoursEl) { hoursEl.value = draft.hours; filledAny = true; }
+      }
+      if (draft.category) {
+        var catEl = document.getElementById('dr-cpe-category');
+        if (catEl) { catEl.value = draft.category; filledAny = true; }
+      }
+      if (draft.description) {
+        var descEl = document.getElementById('dr-cpe-description');
+        if (descEl) { descEl.value = draft.description; filledAny = true; }
+      }
+      drAutoFillCpeStatus(
+        filledAny
+          // AuditLab (ocr-cert-extract review, 2026-10-14): category is
+          // only ever general/ethics/other -- a state that distinguishes
+          // A&A or tax hours will still auto-fill as general/other, and an
+          // auto-filled guess reads as more authoritative than a blank
+          // field a human has to think about. Called out by name, not just
+          // folded into "every field".
+          ? 'Auto-filled from your certificate -- this is a best guess, please check every field (especially the category, which we can only guess as general, ethics, or other) before logging.'
+          : 'Certificate saved, but we couldn’t confidently read any details from it -- please enter them yourself.',
+        false
+      );
+    });
+  }).catch(function() {
+    drCpeExtractedDocumentId = null;
+    drCpeExtractedForFile = null;
+    drAutoFillCpeStatus('Could not reach the server. Please try again.', true);
+  }).then(function() {
+    drUpdateCpeAutofillButtonState();
+  });
+}
+
 function drSubmitCpeEntry(form) {
   // AuditLab IDEM-1 (MEDIUM, 2026-08-04): two concurrent submits of this
   // form (a double-click, or a slow network making a first click look like
@@ -16788,12 +16911,22 @@ function drSubmitCpeEntry(form) {
     return;
   }
 
-  // Roadmap #1/#2 (2026-08-07): if a certificate was attached, upload it
-  // FIRST (as a 'cpe' document for the same staff member) and link the
-  // resulting document_id into the CPE entry -- if the upload itself fails,
-  // the whole submission is blocked with a clear error rather than silently
-  // creating an entry with no certificate the user explicitly attached one for.
-  var uploadStep = certificateFile
+  // Roadmap #96/#157/#115 (2026-10-13): if "Auto-fill from this
+  // certificate" already uploaded THIS SAME file (reference equality --
+  // changing the file input at all, even back to a file picked earlier,
+  // re-triggers a File object the browser treats as distinct), reuse that
+  // upload rather than sending the same bytes to the server twice.
+  var alreadyExtractedThisFile = certificateFile && certificateFile === drCpeExtractedForFile && drCpeExtractedDocumentId;
+
+  // Roadmap #1/#2 (2026-08-07): otherwise, if a certificate was attached,
+  // upload it FIRST (as a 'cpe' document for the same staff member) and
+  // link the resulting document_id into the CPE entry -- if the upload
+  // itself fails, the whole submission is blocked with a clear error
+  // rather than silently creating an entry with no certificate the user
+  // explicitly attached one for.
+  var uploadStep = alreadyExtractedThisFile
+    ? Promise.resolve(drCpeExtractedDocumentId)
+    : certificateFile
     ? (function() {
         var uploadForm = new FormData();
         uploadForm.append('file', certificateFile);
@@ -16834,6 +16967,14 @@ function drSubmitCpeEntry(form) {
       var staffSel = document.getElementById('dr-cpe-staff-select');
       if (staffSel) staffSel.value = keepStaffId;
       drRenderCpeAlso();
+      // Roadmap #96/#157/#115: form.reset() clears the file input too, so
+      // any extracted-document state from THIS entry is stale for the next
+      // one -- clear it explicitly rather than rely on the reference-
+      // equality check alone.
+      drCpeExtractedDocumentId = null;
+      drCpeExtractedForFile = null;
+      drAutoFillCpeStatus(null, false);
+      drUpdateCpeAutofillButtonState();
       if (submitBtn) submitBtn.disabled = false;
       drLoadCpeEntries();
     });
@@ -19547,7 +19688,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   var cpeStaffSelect = document.getElementById('dr-cpe-staff-select');
-  if (cpeStaffSelect) cpeStaffSelect.addEventListener('change', drRenderCpeAlso);
+  if (cpeStaffSelect) {
+    cpeStaffSelect.addEventListener('change', drRenderCpeAlso);
+    cpeStaffSelect.addEventListener('change', drUpdateCpeAutofillButtonState);
+  }
+  // Roadmap #96/#157/#115 (2026-10-13): a NEW file selection always
+  // invalidates any previously-extracted document (even re-selecting the
+  // same filename produces a new File object the browser treats as
+  // distinct) -- clear the stale state and status message up front, then
+  // let drUpdateCpeAutofillButtonState() decide if the button should be
+  // enabled for the newly-selected file.
+  var cpeCertificateInput = document.getElementById('dr-cpe-certificate');
+  if (cpeCertificateInput) {
+    cpeCertificateInput.addEventListener('change', function() {
+      drCpeExtractedDocumentId = null;
+      drCpeExtractedForFile = null;
+      drAutoFillCpeStatus(null, false);
+      drUpdateCpeAutofillButtonState();
+    });
+  }
+  var cpeAutofillBtn = document.getElementById('dr-cpe-autofill-btn');
+  if (cpeAutofillBtn) cpeAutofillBtn.addEventListener('click', drAutoFillCpeFromCertificate);
   var cpeRecentBody = document.getElementById('dr-cpe-recent-body');
   if (cpeRecentBody) {
     cpeRecentBody.addEventListener('click', function(ev) {
@@ -22211,6 +22372,8 @@ def build_firm_dashboard_page(
           <label for="dr-cpe-certificate">Completion certificate (optional)</label>
           <input type="file" id="dr-cpe-certificate" accept="application/pdf,image/jpeg,image/png">
           <p class="field-hint">PDF, JPG, or PNG, up to 2MB. Saved to this staff member&rsquo;s Documents.</p>
+          <button type="button" class="dr-btn-edit" id="dr-cpe-autofill-btn" disabled>Auto-fill from this certificate</button>
+          <p class="field-hint" id="dr-cpe-autofill-status" hidden></p>
           <button type="submit">Log hours</button>
         </form>
         <p id="dr-cpe-log-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>

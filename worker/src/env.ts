@@ -161,6 +161,20 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string;
   RESEND_API_KEY?: string;
   /**
+   * `ANTHROPIC_API_KEY` is OPTIONAL -- a wrangler secret, never hardcoded,
+   * never committed, same convention as RESEND_API_KEY/TURNSTILE_SECRET_KEY.
+   * Roadmap #96/#157/#115 (2026-10-13): when present, POST /firm/licenses/
+   * :id/documents/extract calls the Claude API to pre-fill a CPE entry's
+   * date/hours/category/course from an uploaded certificate. When absent,
+   * the certificate still uploads and saves normally -- extraction is
+   * skipped and the handler returns `extraction_available: false` -- so an
+   * unset/missing key degrades to "upload only, no auto-fill" rather than
+   * erroring. Deliberately NOT set in prod until Devin explicitly
+   * authorizes the live per-call spend (guardrail 2/6) -- see
+   * handleDocumentExtract()'s own comment.
+   */
+  ANTHROPIC_API_KEY?: string;
+  /**
    * SecurityLab (2026-08-29, corroborated by AuditLab): without this, every
    * control this Worker enforces (originAllowed(), the 100/hr/IP
    * RATE_LIMIT_ASSISTANT_CHAT) is bypassable by hitting the droplet's own
