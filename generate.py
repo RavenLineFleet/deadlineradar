@@ -4436,7 +4436,8 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     # cited link on the page can actually support the claim this callout
     # makes, structurally, for every state this callout fires on -- not
     # just Arizona.
-    citation_text = e.get("citation") or "the citation"
+    _raw_citation_text = e.get("citation")
+    citation_text = _raw_citation_text if isinstance(_raw_citation_text, str) and _raw_citation_text else "the citation"
     citation_link_html = f' <a href="{esc(safe_citation_url)}">See {esc(citation_text)}</a>.' if safe_citation_url else ""
     topic = e.get("topic") or "regulatory"
     # AuditLab COPY-13 (2026-08-26): DiffLab's topic strings already end in
