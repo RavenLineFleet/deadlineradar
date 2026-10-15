@@ -4425,7 +4425,19 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     safe_citation_url = (
         citation_url if isinstance(citation_url, str) and citation_url.startswith(("http://", "https://")) else None
     )
-    citation_link_html = f' <a href="{esc(safe_citation_url)}">See the citation</a>.' if safe_citation_url else ""
+    # AuditLab SRC-45 (2026-10-15): this used to hardcode the link text as
+    # "See the citation" regardless of what e["citation"] actually says --
+    # so a remedy that puts a claim's supporting attribution (e.g. "as
+    # amended by Laws 2026, Ch. 17") into the citation TEXT, matching how
+    # /rule-changes/'s own card renders it (rc-cite), could never reach this
+    # callout: the state page's only link showed a generic label no matter
+    # what the record's citation field said. Rendering the real citation
+    # text here (same field /rule-changes/ already trusts) means the one
+    # cited link on the page can actually support the claim this callout
+    # makes, structurally, for every state this callout fires on -- not
+    # just Arizona.
+    citation_text = e.get("citation") or "the citation"
+    citation_link_html = f' <a href="{esc(safe_citation_url)}">See {esc(citation_text)}</a>.' if safe_citation_url else ""
     topic = e.get("topic") or "regulatory"
     # AuditLab COPY-13 (2026-08-26): DiffLab's topic strings already end in
     # "change" ("CPA regulatory/statutory change"), so unconditionally
