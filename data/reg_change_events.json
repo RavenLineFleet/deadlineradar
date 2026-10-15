@@ -242,7 +242,7 @@
       "citation_url": "https://www.azleg.gov/ars/32/00725.htm",
       "secondary_url": "https://www.azaccountancy.gov/General/Mobility.aspx",
       "verified_date": "2026-09-12",
-      "confidence": "dual_source",
+      "confidence": "single_source",
       "summary_public": "Arizona is changing how it decides whether an out-of-state CPA qualifies for its limited reciprocity privilege, effective January 1, 2027 under Laws 2026, Ch. 17 (SB 1181, Certified Public Accounting Act of 2026). The qualification test currently in force looks at whether the CPA's own licensing jurisdiction requires 150 semester hours, a baccalaureate degree, passage of the CPA exam, and one year of verified experience (A.R.S. § 32-725(B)(4)), with an individual-criteria fallback under § 32-721(C). Starting January 1, 2027, that test is replaced with the individual's own qualifications: either they personally meet the criteria in A.R.S. § 32-721(A) or § 32-4302, or they held a valid active CPA registration, certificate, or license from any jurisdiction as of December 31, 2024 (a grandfather clause). This is one of several cumulative conditions for the privilege -- the statute's other requirements (an out-of-state principal place of business, no Arizona office, no license suspension or revocation) are unaffected by this change.",
       "kind": "rule_change",
       "effective_date": "2027-01-01",
