@@ -8946,11 +8946,16 @@ _SECURITY_HEADER_LAYERS = (
         "expected": {
             "x-content-type-options": "nosniff",
             "x-frame-options": "SAMEORIGIN",
-            # EXPECTED to change once CSP-1 (a real script-src/base-uri/
-            # form-action policy) lands -- update this value deliberately
-            # as part of that commit; it is not a literal to "fix" when
-            # the gate goes red for an unrelated reason.
-            "content-security-policy": "frame-ancestors 'self'",
+            # AuditLab CSP-1 (2026-09-23, cost measured 2026-10-16): base-uri/
+            # form-action/object-src added here -- a zero-cost narrowing that
+            # needs no nonces (confirmed 0 <base>/<object>/<embed> tags and no
+            # cross-origin form actions site-wide). script-src is the real
+            # substance of CSP-1 and STILL NOT HERE -- it needs 20 inline
+            # <script> nonces + removing 2 inline on* handlers + allow-listing
+            # Turnstile, a generate.py change, not a header change. Update
+            # this value deliberately when that lands; it is not a literal to
+            # "fix" when the gate goes red for an unrelated reason.
+            "content-security-policy": "frame-ancestors 'self'; base-uri 'none'; form-action 'self'; object-src 'none'",
         },
     },
     {
