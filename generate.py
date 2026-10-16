@@ -25934,6 +25934,40 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: Georgia individual CPA licenses expire December 31 of odd-numbered years (next: 2027) for $100, with 80 CPE hours per cycle, at least 40 of them technical. Firms renew on a separate June 30, even-year calendar, with their own rules for in-state and out-of-state offices. Miss the individual deadline and a four-month window lets you renew for $200 total; after that it's a $300 reinstatement plus up to 160 hours of catch-up CPE. <a href="../../georgia/">Set a reminder for your own Georgia deadline here</a> so a two-year cycle doesn't slip past you.</p>
 ''',
     },
+    {
+        "slug": "alabama-cpa-license-renewal-guide",
+        "published": "2026-10-16",
+        "title": "Alabama CPA License Renewal: Permits Expire September 30, but the Filing Deadline Is December 31",
+        "seo_title": "Alabama CPA Renewal: Sept 30 vs. Dec 31",
+        "meta_description": (
+            "Alabama CPA permits expire September 30; the renewal application and fee are due December 31. Fees, late penalties, 40 CPE hours, and the six-month rule."
+        ),
+        "body_html": '''
+<p class="intro">Alabama CPA permits expire on <strong>the last day of September</strong> every year, but the application, fee, and CPE statement to renew are not due until <strong>the last day of December</strong>. For the permit year that just ended on September 30, 2026, the filing deadline is <strong>December 31, 2026</strong>. Those are two different dates, and mixing them up is the easiest way to misread Alabama's rule.</p>
+
+<h2>Two dates, three months apart</h2>
+<p>The Alabama State Board of Public Accountancy's rule on controls and reporting, 30-X-5-.05(1), begins: "Annual permits to practice expire on the last day of September of each year." It continues: "Applications and fees for renewal of annual permits shall be submitted to the Board no later than the last day of December of each year." Chapter 30-X-3 repeats the December date for the fee: it is to be paid "no later than December 31 following expiration of the permit of each year."</p>
+<p>So the permit itself expires September 30, and the paperwork to renew it is due by December 31. The application includes a signed statement, under penalty of perjury, that you have met the CPE requirements. We found no rule text that says whether you may keep practicing between September 30 and the day you file, so if you are in that gap, ask the Board rather than assume.</p>
+<p><a href="../../alabama/">Check your Alabama dates here</a>.</p>
+
+<h2>What it costs</h2>
+<p>The annual permit fee is <strong>$100</strong> for an individual and <strong>$130</strong> for a firm. File after December 31 and a late penalty applies on top of the fee: <strong>$100</strong> if you file from January 1 through the last day of February, <strong>$500</strong> if you file from March 1 through March 31. The rule says the penalty is "in addition to all other fees and penalties," and that the Board may waive all or part of it "upon petition and for good cause or hardship shown." The Board's fee page lists the same amounts.</p>
+<p><a href="../../alabama-cpa-firm-renewal/">Firm renewal details here</a>.</p>
+
+<h2>CPE: 40 hours, counted by fiscal year</h2>
+<p>Alabama counts CPE by fiscal year ending September 30, not by a multi-year cycle. Under 30-X-5-.02(1), each person must complete <strong>40 hours</strong> each fiscal year, with at least <strong>8</strong> in accounting and auditing, at least <strong>2</strong> in a qualifying ethics course, and no more than <strong>12</strong> of the 40 from personal-development courses (workplace behaviors such as time management or leadership).</p>
+<p><a href="../../alabama-cpa-cpe-requirements/">The full Alabama CPE breakdown is here</a>.</p>
+
+<h2>If you miss it: the six-month rule</h2>
+<p>Missing December 31 is expensive but still renewable, as the penalty schedule above shows. The harder line is in the statute, Code of Alabama section 34-1-11(d): if a CPA fails to apply for a permit, or for inactive status, within six months of the expiration date, they may not simply apply any more, and the failure is grounds for revocation or suspension unless the Board finds it was due to reasonable cause. In that case the Board may impose a reinstatement fee of up to $100, plus the registration fees and late penalties you would have paid. For a September 30 expiration, six months lands around the end of March; confirm the exact cutoff with the Board before you rely on it.</p>
+<p><a href="../../alabama-cpa-license-reinstatement/">Alabama reinstatement details here</a>.</p>
+
+<h2>What changed on October 1, 2026</h2>
+<p>An Alabama act known as the Pathways to CPA Act (Act 2026-16, HB59) took effect on October 1, 2026 and amended section 34-1-11 along with several other sections of the accountancy statute. We read the enrolled text: the September 30 expiration, the December 31 filing date, the $100 cap on the reinstatement fee, and the six-month window all carried over. None of this changed the fees or CPE hours described above: chapter 30-X-3's own amendment, effective October 15, 2026, is about a different rule in the same chapter: a separate practice privilege nonresident CPAs can hold in Alabama. That amendment adds a baccalaureate-degree requirement for CPAs licensed after December 31, 2024. The renewal fees, deadlines, and CPE hours on this page are unaffected either way, but if that nonresident-privilege question applies to you, check the Board's page before you rely on it.</p>
+
+<p><strong>Bottom line</strong>: Alabama CPA permits expire September 30 every year. The renewal application, $100 fee ($130 for firms), and CPE statement are due by December 31, with a $100 late penalty through February and $500 in March. CPE is 40 hours per fiscal year ending September 30. Wait past six months from the expiration and you move from renewing to a Board-discretion reinstatement.</p>
+''',
+    },
 ]
 
 

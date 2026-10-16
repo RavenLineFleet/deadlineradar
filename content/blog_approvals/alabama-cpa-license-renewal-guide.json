@@ -1,0 +1,17 @@
+{
+  "slug": "alabama-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "38683ea29652a57ed3eb138be2e366493b0f7abc8f70f698a4e428fa07907a04",
+      "verdict_file": "auditlab_20261016_blog_APPROVED_alabama-cpa-license-renewal-guide_r3b.md",
+      "sent": "2026-10-16 11:10 MDT"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "38683ea29652a57ed3eb138be2e366493b0f7abc8f70f698a4e428fa07907a04",
+      "verdict_file": "orchestrator_20261016_blog_APPROVED_alabama-cpa-license-renewal-guide_r3b.md",
+      "sent": "2026-10-16 11:50 MDT"
+    }
+  ]
+}
