@@ -8938,18 +8938,18 @@ def _health_body_shape_ok(body: bytes) -> bool:
 
 
 # AuditLab GATE-53 (LOW, 2026-10-16): the live security headers for the whole static surface are set
-# by an OFF-REPO Cloudflare zone Transform Rule (ruleset dcd5fcc7069c41fbb5a59d0d6e377a6f, rule
-# "SEC-HDR-1", deadline-radar.com zone) -- a dashboard setting with no diff, no review, no history the
-# fleet can read. `docs/_headers` used to sit in the repo looking like the mechanism and WAS NOT ONE
-# (GitHub Pages doesn't read it; it was published as dead cargo at /_headers) -- deleted for exactly
-# that reason. This block is now the ONE declared intent: it is in the repo, it shows up in diffs, and
-# `check_security_header_layers()` below checks it against what the live site actually serves.
-# ORDER OF OPERATIONS when a header changes: edit the Transform Rule FIRST (Cloudflare dashboard, or
-# PUT .../zones/<DEADLINE_RADAR_COM_ZONE_ID>/rulesets/dcd5fcc7069c41fbb5a59d0d6e377a6f, token in
-# AssetLab/.secrets/cloudflare.env), THEN update `expected` below to match, then re-run this gate. Doing
-# it the other way round makes the gate correctly red in between -- that's the system working, but only
-# if someone actually runs it before reporting the change as shipped (CSP-1 partial, 2026-10-16, was
-# "live" for 86 minutes without being live -- the gate would have caught it had it been run first).
+# by an OFF-REPO Cloudflare zone Transform Rule named "SEC-HDR-1" on the deadline-radar.com zone --
+# a dashboard setting with no diff, no review, no history the fleet can read. `docs/_headers` used to
+# sit in the repo looking like the mechanism and WAS NOT ONE (GitHub Pages doesn't read it; it was
+# published as dead cargo at /_headers) -- deleted for exactly that reason. This block is now the ONE
+# declared intent: it is in the repo, it shows up in diffs, and `check_security_header_layers()` below
+# checks it against what the live site actually serves.
+# ORDER OF OPERATIONS when a header changes: edit the Transform Rule FIRST (ruleset id and token
+# location in AssetLab's ops notes -- deliberately not repeated here, this is a public repo), THEN
+# update `expected` below to match, then re-run this gate. Doing it the other way round makes the gate
+# correctly red in between -- that's the system working, but only if someone actually runs it before
+# reporting the change as shipped (CSP-1 partial, 2026-10-16, was "live" for 86 minutes without being
+# live -- the gate would have caught it had it been run first).
 _SECURITY_HEADER_LAYERS = (
     {
         "name": "static",
