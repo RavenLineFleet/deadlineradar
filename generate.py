@@ -6195,7 +6195,11 @@ _DATE_SEMANTICS = {
     "al-all": {
         "label": "Renewal fee + CPE statement due",
         "note": "Permits expire each September 30; this is the filing deadline that follows.",
-        "meta": "{state} CPA permits expire each September 30; the renewal fee and CPE statement are due {date}. See the renewal cycle details and the official state board source to confirm it.",
+        # SEO wave 2 (2026-10-16, Orchestrator GSC-driven length audit): the
+        # prior wording ran 187 chars with a real year filled in, past the
+        # ~155-char SERP truncation point -- trimmed the boilerplate tail,
+        # not either fact.
+        "meta": "{state} CPA permits expire each September 30; the renewal fee and CPE statement are due {date}. See the official state board source.",
     },
     # Colorado firm registrations: the board-wide date is August 31 every three years, but WHICH year
     # applies depends on each firm's own last-renewed date (the state register had firms due 2026-08-31
