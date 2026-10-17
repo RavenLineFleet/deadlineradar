@@ -41,16 +41,16 @@
       "citation": "Colo. Rev. Stat. (2026 Colo. Sess. Laws ch. 81 / SB26-076, signed 2026-05-04, eff. 2026-08-12)",
       "citation_url": "https://dpo.colorado.gov/Accountancy",
       "secondary_url": "https://leg.colorado.gov/bills/sb26-076",
-      "verified_date": "2026-08-28",
-      "confidence": "single_source",
-      "summary_public": "Colorado SB26-076 creates 3 new bachelor's-degree-based education/experience pathways to CPA certification (bachelor's + 2 yrs experience + ethics course + exam; bachelor's + 30 additional semester hours + 1 yr experience + ethics + exam; or post-baccalaureate degree + 1 yr experience + ethics + exam), available to applicants starting January 1, 2027. Separately, effective now (Aug 12, 2026), it grants automatic practice-privilege mobility in Colorado to out-of-state CPAs who passed the uniform CPA exam and hold a baccalaureate degree, with no Colorado notice, fee, or registration required, and preserves privileges for out-of-state CPAs who already held them as of Dec 31, 2024.",
+      "verified_date": "2026-10-16",
+      "confidence": "dual_source",
+      "summary_public": "Colorado SB26-076 creates 3 new bachelor's-degree-based education/experience pathways to CPA certification (bachelor's + 2 yrs experience + ethics course + exam; bachelor's + 30 additional semester hours + 1 yr experience + ethics + exam; or post-baccalaureate degree + 1 yr experience + ethics + exam), available to applicants starting January 1, 2027. Separately, effective now (Aug 12, 2026), it grants practice-privilege mobility in Colorado, without the need to obtain a Colorado certificate, to an out-of-state CPA: an individual licensed or certified in good standing in another state or jurisdiction of the United States whose principal place of business is in that other state or jurisdiction, and who was required at initial licensure or certification there to pass the uniform CPA exam and hold a baccalaureate degree from an accredited college or university. The board may not require an out-of-state CPA to provide a notice, fee, or other submission as a condition of exercising these privileges, and privileges already held by out-of-state CPAs as of December 31, 2024 continue.",
       "kind": "rule_change",
       "effective_date": "2026-08-12",
       "status": "ENACTED",
-      "status_evidence": "The act expands the ways in which individuals may become eligible for certification as a certified public accountant (CPA) in Colorado by creating 3 new education and experience pathways... Section 4 establishes that an individual CPA who is licensed or certified in good standing in another state... has all the same practice privileges as Colorado certificate holders, without the need to obtain a Colorado certificate... (Note: This summary applies to this bill as enacted.) [leg.colorado.gov bill status: Status=Became Law, Governor Signed 05/04/2026, Session law eff. 08/12/2026, Chapter 81] [dpo.colorado.gov board notice: 'Colorado State Board of Accountancy – Stakeholder Meeting – September 9, 2026 ... to implement Colorado Senate Bill 26-076']",
+      "status_evidence": "\"The act expands the ways in which individuals may become eligible for certification as a certified public accountant (CPA) in Colorado by creating 3 new education and experience pathways\"; \"an individual CPA who is licensed or certified in good standing in another state or jurisdiction of the United States and whose principle place of business is located in another state or jurisdiction of the United States (out-of-state CPA) has all the same practice privileges as Colorado certificate holders, without the need to obtain a Colorado certificate\"; \"if the individual was required at their initial licensure or certification in the other state or jurisdiction of the United States to pass the uniform CPA examination and obtain a baccalaureate degree conferred by an accredited college or university\"; \"the board shall not require an out-of-state CPA to provide a notice, fee, or other submission\" as a condition of exercising such practice privileges; \"the act continues the practice privileges of out-of-state CPAs who held practice privileges in Colorado\" as of December 31, 2024. (Note: this summary applies to this bill as enacted.) [leg.colorado.gov bill status, re-fetched 2026-10-16: Status=Became Law, Governor Signed 05/04/2026, Session law eff. 08/12/2026, Chapter 81] [dpo.colorado.gov, re-fetched 2026-10-16: 'Colorado State Board of Accountancy – Permanent Rulemaking Hearing – October 21, 2026 ... to implement Colorado Senate Bill 26-076' -- supersedes the prior Sept 9, 2026 stakeholder-meeting notice, no longer on the live page]",
       "status_source_url": "https://dpo.colorado.gov/Accountancy",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -62,7 +62,7 @@
       "citation_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.283",
       "secondary_url": "https://www.cfodive.com/news/missouri-governor-signs-cpa-licensing-legislation-effective-next-month-accounting-shortage/825225/",
       "verified_date": "2026-08-28",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "Missouri SB1233 (signed by Gov. Kehoe, effective today Aug 28, 2026) amends §326.283 to preserve/restate automatic out-of-state CPA reciprocity: an out-of-state CPA licensee in good standing has all the privileges of a Missouri licensee without needing a Missouri license, notice, registration, or fee, if their initial licensure required the uniform CPA exam plus one of three education/experience combinations (bachelor's+2yr exp, bachelor's+30 add'l hours+1yr exp, or post-bacc+1yr exp). Out-of-state CPAs who already held Missouri practice privileges as of Dec 31, 2024 continue to have them.",
       "kind": "rule_change",
       "effective_date": "2026-08-28",
@@ -82,7 +82,7 @@
       "citation_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.289",
       "secondary_url": "https://pr.mo.gov/accountancy.asp",
       "verified_date": "2026-08-05",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "A new enactment of the CPA firm permit issuance-and-renewal statute takes effect, replacing the version in effect since 2020. The board may grant or renew permits to practice as a certified public accounting firm to applicants meeting the qualifications in this chapter.",
       "kind": "rule_change",
       "effective_date": "2026-08-28",
@@ -90,7 +90,7 @@
       "status_evidence": "Effective - 28 Aug 2026, 6 histories ... 326.289 8/28/2026 [Effective, no End date] ... The board may grant or renew permits to practice as a certified public accounting firm to applicants that demonstrate their qualifications in accordance with this chapter.",
       "status_source_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.289",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -102,7 +102,7 @@
       "citation_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.283",
       "secondary_url": "https://pr.mo.gov/accountancy.asp",
       "verified_date": "2026-08-05",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "A new enactment of the individual out-of-state CPA reciprocity/practice-privilege statute takes effect, replacing the version in effect since 2017. Under the new version, an individual with a valid, unrestricted CPA license from any state may practice in Missouri without obtaining a Missouri license, notifying the board, or paying a fee, provided the individual met qualifying education/experience requirements at initial licensure (or held qualifying practice privileges as of 2024-12-31 under a grandfather provision).",
       "kind": "rule_change",
       "effective_date": "2026-08-28",
@@ -110,7 +110,7 @@
       "status_evidence": "Effective - 28 Aug 2026, 5 histories ... 326.283 8/28/2026 [Effective, no End date] ... An individual whose principal place of business, domicile, or residency is not in this state and who holds a valid and unrestricted license in good standing to practice public accounting from any state shall have all the privileges of licensees of this state without the need to obtain a license",
       "status_source_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.283",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -122,7 +122,7 @@
       "citation_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.289",
       "secondary_url": "https://senate.mo.gov/26info/pdf-bill/perf/SB1233.pdf",
       "verified_date": "2026-10-05",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "A 2026 amendment to Mo. Rev. Stat. § 326.289 adds a new exemption: a sole practitioner or single-member LLC using \"certified public accountant(s)\", \"CPA\", or a similar abbreviation in its business name may request exemption from the CPA firm-permit requirement by submitting a written request to the board affirming the business performs no attest services or other services subject to peer review. The amendment also updates peer-review equivalence/oversight-fee wording from \"substantially equivalent\" to \"comparable\".",
       "kind": "rule_change",
       "effective_date": "2026-08-28",
@@ -130,7 +130,7 @@
       "status_evidence": "New subdivision (5), effective 28 Aug 2026: \"A sole practitioner or single member limited liability company (LLC) using the title of 'certified public accountant(s)', 'CPA', or similar abbreviation in their business name may request exemption from the firm permit requirements of paragraph (b) of subdivision (1) of this subsection by submitting a written request to the board that affirms the business does not offer nor perform attest services nor other services subject to peer review.\" (S.B. 1233, 103rd General Assembly; corroborated word-for-word by senate.mo.gov/26info/pdf-bill/perf/SB1233.pdf)",
       "status_source_url": "https://revisor.mo.gov/main/OneSection.aspx?section=326.289",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -170,7 +170,7 @@
       "status_evidence": "Effective Date: [-10/26/2023-] [+9/30/2026+] ... Final 61H1-33.003 Continuing Professional Education 31362348 Effective: 09/30/2026 ... Proposed 61H1-33.003 The Board proposes rule amendments to update and clarify the rule language regarding (CPE) renewals. 31229846 8/10/2026",
       "status_source_url": "https://flrules.org/gateway/ruleno.asp?id=61H1-33.003",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -181,7 +181,7 @@
       "citation": "Ala. Admin. Code r. 30-X-3-.04",
       "citation_url": "https://admincode.legislature.state.al.us/api/rule/30-X-3-.04",
       "secondary_url": null,
-      "verified_date": "2026-10-15",
+      "verified_date": "2026-10-16",
       "confidence": "single_source",
       "summary_public": "Amends the Alabama Board of Public Accountancy rule on practice privileges for nonresident certified public accountants. The practice privilege now applies to a person who holds a valid active license in good standing as a CPA in another state, and for licenses issued after December 31, 2024, the person must also hold a minimum of a baccalaureate degree. The amendment is listed as effective October 15, 2026.",
       "kind": "rule_change",
@@ -190,7 +190,7 @@
       "status_evidence": "\"holds a valid active license in good standing\"; \"who holds a minimum of a baccalaureate degree, if licensed after December 31, 2024, and\"; \"Amended: Published August 31, 2026; effective October 15, 2026.\"",
       "status_source_url": "https://admincode.legislature.state.al.us/api/rule/30-X-3-.04",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -201,7 +201,7 @@
       "citation": "Ala. Admin. Code 30-X-5-.02",
       "citation_url": "https://admincode.legislature.state.al.us/api/rule/30-X-5-.02",
       "secondary_url": null,
-      "verified_date": "2026-10-15",
+      "verified_date": "2026-10-16",
       "confidence": "single_source",
       "summary_public": "For licensees returning to practice after inactive status, or who have never elected active status and have been inactive more than five years, the CPE required to obtain an annual permit to practice now includes five percent of the hours in ethics courses. Accounting and auditing courses remain at twenty percent, and all hours must still be obtained within the three-year period before the permit request.",
       "kind": "rule_change",
@@ -210,7 +210,7 @@
       "status_evidence": "\"Amended: Published August 31, 2026; effective October 15, 2026.\"; \"five percent obtained in ethics courses, and\"",
       "status_source_url": "https://admincode.legislature.state.al.us/api/rule/30-X-5-.02",
       "upcoming": false,
-      "needs_reverification": true,
+      "needs_reverification": false,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -230,7 +230,7 @@
       "status_evidence": "Approved by Governor 2026-05-05 per the Oklahoma Legislature's own bill-status page for HB4317 (2026 session); the Accountancy Board's official Rule Impact Statement (oklahoma.gov/oab) independently states HB4317 'takes effect November 1, 2026' and describes the statutory amendment in detail. The Board's implementing rules themselves are EMERGENCY (not yet permanent) as of this verification.",
       "status_source_url": "https://www.oklegislature.gov/BillInfo.aspx?Bill=hb4317&Session=2600",
       "upcoming": true,
-      "needs_reverification": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -262,7 +262,7 @@
       "citation_url": "https://www.legis.la.gov/legis/ViewDocument.aspx?d=1480576",
       "secondary_url": "https://www.legis.la.gov/legis/BillInfo.aspx?s=26rs&b=HB548&sbi=y",
       "verified_date": "2026-09-03",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "Louisiana Act 653 (HB548), signed by the Governor and effective Jan 1, 2027 per the bill's own Resume Digest (the bill-status page's general \"Effective date: 08/01/2026\" line covers the Act's enactment, not this substantive provision), overhauls CPA licensure and mobility. Fetched and read the actual Resume Digest PDF directly (not just the bill-status page). Key changes: (1) replaces the prior single-pathway CPA education requirement with 3 new pathways -- bacc+30 add'l semester hours, post-bacc degree, or bacc alone (all requiring an accounting concentration), each with a different experience requirement (1-2 years depending on pathway); (2) applicants must complete a pathway within 5 years of passing the exam or their scores void; (3) repeals the statutory \"substantial equivalency\" definition/standard throughout the CPA Act and replaces it with a \"mobility\"/\"comparable\" standard for practice privileges, foreign-designation reciprocity, and board enforcement power; (4) grandfathers any out-of-state CPA already holding LA practice privileges as of Dec 31, 2024, with no notice/fee required going forward, and repeals the substantial-equivalency notice fee outright; (5) adds a board-composition requirement that members be drawn from diverse practice areas (tax, audit, education). The Act itself was signed and its general provisions took effect 08/01/2026 -- this is the CPA-Evolution/mobility-model reform pattern also seen in Colorado, Missouri, Idaho, and Oklahoma this year.",
       "kind": "rule_change",
       "effective_date": "2027-01-01",
@@ -282,7 +282,7 @@
       "citation_url": "https://proddfmmainsa.blob.core.windows.net/dfm-admin-website/bulletin/2026/08.pdf",
       "secondary_url": "https://legislature.idaho.gov/sessioninfo/2026/legislation/H0563/",
       "verified_date": "2026-08-29",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "Idaho Board of Accountancy posted Version 3 (08/27/2026, now labeled \"Pending Rules\") of its IDAPA 24.30.01 rulemaking package under Docket No. 24-3001-2601, the proposed rule published in the Aug 5, 2026 Idaho Administrative Bulletin implementing HB563 (2026). Confirmed via direct PDF diff against the prior Version 2 (05/14/2026) that Version 3 makes 3 substantive changes beyond V1/V2's already-known HB563 licensure-pathway conforming edits: (1) Rule 211 firm registration filing frequency changes from annual to biennial (\"annually\" -> \"biennially file a firm registration no later than September 30\"); (2) Rule 400 adds a new sentence \"Fees may be aggregated for biennial licensure\"; (3) Rule 108 confirms license renewal switches from a fixed June 30 annual expiration to a birthdate-based renewal during the second year of a two-year term, beginning January 1, 2028. Public hearing was held Aug 13, 2026; written comment period closed Aug 26, 2026 -- Version 3 is the post-comment-period draft. Rule has not yet been adopted (still in Idaho's IDAPA proposed/pending-rule review process, ordinarily finalized via the following legislative session), so nothing is enforceable yet, but the biennial-registration and birthdate-renewal provisions are dated and specific enough to flag now.",
       "kind": "rule_change",
       "effective_date": "2028-01-01",
@@ -339,7 +339,7 @@
       "citation_url": "https://proddfmmainsa.blob.core.windows.net/dfm-admin-website/bulletin/2026/08.pdf",
       "secondary_url": null,
       "verified_date": "2026-08-07",
-      "confidence": "single_source",
+      "confidence": "dual_source",
       "summary_public": "A proposed rulemaking would: (1) create a new pathway to licensure for candidates and make minor adjustments to accommodate statutory changes in line with HB 563 from 2026; (2) transition renewal dates from a fixed June 30 date to birthdate-based renewals with an expanded window to accommodate peak tax season; and (3) remove outdated rule language. Outcome is not yet settled -- a public hearing is scheduled, not yet adopted.",
       "kind": "rule_change",
       "effective_date": null,

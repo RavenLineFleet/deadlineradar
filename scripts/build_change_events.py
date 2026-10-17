@@ -199,6 +199,17 @@ def _http(url: object) -> str | None:
     return None
 
 
+def _parses_as_date(value: object) -> bool:
+    """SRC-58: a producer's needs_reverification=False claim is only trustworthy when paired with a
+    real date saying WHEN it was re-verified -- an unparseable or missing verified_date means the
+    claim has no evidence behind it, and callers fall back to the date-comparison default instead."""
+    try:
+        date.fromisoformat(str(value))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def build(today: date) -> tuple[list[dict], list[str]]:
     rules = json.loads(RULES.read_text(encoding="utf-8"))["records"]
     valid_slugs = {
@@ -471,10 +482,15 @@ def load_difflab_events(today: date) -> tuple[list[dict], list[str]]:
             "citation_url": citation_url,
             "secondary_url": _http(raw.get("secondary_url")),
             "verified_date": raw.get("verified_date"),
-            # This pipeline is single-source by construction (one monitored
-            # page diffed against its own prior capture) -- never upgraded to
-            # dual_source here even if the input claims otherwise.
-            "confidence": "single_source",
+            # SRC-57b (AuditLab, 2026-10-16) / DiffLab's own policy answer the same day: this used to
+            # hardcode "single_source" on the premise that the pipeline is single-source by
+            # construction -- wrong for a record DiffLab genuinely re-sources from two independent
+            # hosts (dual_source is only ever set upstream, in DiffLab's own reg_change_interpret.py,
+            # when a real secondary_url is present -- never inferred, never from re-fetching the same
+            # URL twice). Trust the producer's own field now; still never let a missing/invalid value
+            # silently claim the STRONGEST sourcing (CONF-2's same fail-safe direction) -- defaults to
+            # the weakest label, not the dict's own fallback below.
+            "confidence": raw.get("confidence") if raw.get("confidence") in VALID_CONFIDENCE_VALUES else "single_source",
             "summary_public": summary_public,
             "kind": KIND_CHANGE,
             "effective_date": parsed.isoformat() if parsed else None,
@@ -482,7 +498,18 @@ def load_difflab_events(today: date) -> tuple[list[dict], list[str]]:
             "status_evidence": raw.get("status_evidence"),
             "status_source_url": _http(raw.get("status_source_url")) or citation_url,
             "upcoming": bool(parsed and parsed > today),
-            "needs_reverification": bool(parsed and parsed <= today),
+            # SRC-58 (AuditLab, 2026-10-16): this used to derive needs_reverification from "has the
+            # effective date passed?" ALONE, discarding the producer's own needs_reverification/
+            # verified_date entirely -- a one-way door where no amount of DiffLab re-verification
+            # could ever clear the flag once the date passed, re-ingesting forever included. Now
+            # honours an explicit producer claim, but only when it is paired with a verified_date that
+            # actually parses (an unexplained "trust me, re-verified" with no date behind it falls back
+            # to the same conservative default as before, never to the charter's weaker posture).
+            "needs_reverification": (
+                bool(raw.get("needs_reverification"))
+                if isinstance(raw.get("needs_reverification"), bool) and _parses_as_date(raw.get("verified_date"))
+                else bool(parsed and parsed <= today)
+            ),
             "source": "difflab_reg_change_engine",
         })
     return events, rejected
@@ -726,8 +753,76 @@ def _selftest_rc17_no_conflict_without_authored_field() -> None:
     )
 
 
+def _selftest_src57b_src58_confidence_and_reverification_from_producer() -> None:
+    """SRC-57b/SRC-58 (AuditLab, 2026-10-16): load_difflab_events() used to hardcode confidence to
+    single_source and derive needs_reverification from the effective date ALONE, discarding both of
+    the producer's own claims. Runs load_difflab_events() against synthetic event files (not the real
+    DiffLab directory) so this is a real exercise of the function, not a restatement of its own
+    condition. Runs unconditionally at the top of main(), same posture as RC-17's own selftest above.
+    """
+    import tempfile
+
+    def _write(dirpath: pathlib.Path, name: str, record: dict) -> None:
+        (dirpath / name).write_text(json.dumps(record), encoding="utf-8")
+
+    base = {
+        "jurisdiction_slug": "test-src58",
+        "citation": "Test Code SS 1",
+        "citation_url": "https://example.test/primary",
+        "status": "ENACTED",
+        "summary_public": "A test change.",
+        "effective_date": "2020-01-01",  # always in the past, every scenario below
+    }
+    today = date(2026, 10, 16)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = pathlib.Path(tmp)
+        # 1. A genuine dual_source claim must survive ingestion (SRC-57b: it used to be clobbered to
+        #    single_source unconditionally).
+        _write(tmp_path, "event_dual.json", {**base, "jurisdiction_slug": "test-dual", "confidence": "dual_source", "secondary_url": "https://example.test/secondary"})
+        # 2. A garbage/missing confidence must default to the WEAKEST label, never silently upgrade
+        #    (CONF-2's fail-safe direction, still honoured).
+        _write(tmp_path, "event_garbage_conf.json", {**base, "jurisdiction_slug": "test-garbage-conf", "confidence": "extremely_confident"})
+        # 3. A past-dated record the producer asserts is re-verified, WITH a real verified_date, must
+        #    clear needs_reverification (SRC-58's exact bug: this used to be a one-way door).
+        _write(tmp_path, "event_reverified.json", {**base, "jurisdiction_slug": "test-reverified", "confidence": "single_source", "needs_reverification": False, "verified_date": "2026-10-16"})
+        # 4. The same False claim with NO verified_date behind it must NOT be trusted -- falls back to
+        #    the conservative date-comparison default (still needs_reverification=True, past-dated).
+        _write(tmp_path, "event_unevidenced.json", {**base, "jurisdiction_slug": "test-unevidenced", "confidence": "single_source", "needs_reverification": False})
+
+        global DIFFLAB_EVENTS_DIR, DEADLINES
+        real_dir = DIFFLAB_EVENTS_DIR
+        real_deadlines = DEADLINES
+        deadlines_path = tmp_path / "cpa_deadlines.json"
+        deadlines_path.write_text(json.dumps({"records": [
+            {"state_slug": s} for s in ("test-dual", "test-garbage-conf", "test-reverified", "test-unevidenced")
+        ]}), encoding="utf-8")
+        DIFFLAB_EVENTS_DIR, DEADLINES = tmp_path, deadlines_path
+        try:
+            events, rejected = load_difflab_events(today)
+        finally:
+            DIFFLAB_EVENTS_DIR, DEADLINES = real_dir, real_deadlines
+
+    by_slug = {e["jurisdiction_slug"]: e for e in events}
+    assert not rejected, f"synthetic fixtures should all ingest cleanly: {rejected}"
+    assert by_slug["test-dual"]["confidence"] == "dual_source", (
+        "SRC-57b REGRESSION: a genuine dual_source claim with a real secondary_url was downgraded to single_source"
+    )
+    assert by_slug["test-garbage-conf"]["confidence"] == "single_source", (
+        "CONF-2 REGRESSION: an invalid confidence value must default to the weakest label, not pass through or upgrade"
+    )
+    assert by_slug["test-reverified"]["needs_reverification"] is False, (
+        "SRC-58 REGRESSION: a producer's needs_reverification=False, backed by a real verified_date, must be honoured"
+    )
+    assert by_slug["test-unevidenced"]["needs_reverification"] is True, (
+        "SRC-58 REGRESSION: needs_reverification=False with no verified_date behind it must NOT be trusted -- "
+        "falls back to the conservative past-effective-date default"
+    )
+
+
 def main() -> int:
     _selftest_rc17_no_conflict_without_authored_field()
+    _selftest_src57b_src58_confidence_and_reverification_from_producer()
     today = date.today()
     mobility_events, rejected, _ = build(today)
     difflab_events, difflab_rejected = load_difflab_events(today)
