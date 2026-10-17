@@ -9909,6 +9909,17 @@ def build_rule_changes_page() -> str:
     undated_enacted = [e for e in undated if e.get("status") in ("ENACTED", "ADOPTED_RULE")]
     undated_proposed = [e for e in undated if e not in undated_enacted]
     recent = [e for e in changes if not _is_still_upcoming(e) and e.get("effective_date")]
+    # AuditLab FAIL-3-followup (2026-10-16): this bucket's own section note makes a first-person
+    # claim -- "we do not assume a law took effect just because its start date arrived" -- that used
+    # to be true of every member by coincidence (every past-dated record also carried
+    # needs_reverification: True, because that flag was DERIVED from the same date test this bucket
+    # uses). SRC-58's fix (build_change_events.py) decoupled the two: a record can now be past-dated
+    # AND genuinely re-verified. Left as one bucket, the page would say "we do not assume" directly
+    # above a card that has, correctly, assumed exactly that. Split on the flag, same pattern as the
+    # undated_enacted/undated_proposed split above -- a re-verified record keeps its accurate,
+    # unhedged card text, but now also sits under an accurate section claim instead of someone else's.
+    recent_pending = [e for e in recent if e.get("needs_reverification")]
+    recent_verified = [e for e in recent if not e.get("needs_reverification")]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
     upcoming_html = (
@@ -9918,11 +9929,12 @@ def build_rule_changes_page() -> str:
     )
     undated_enacted_html = "\n".join(_rule_change_card_html(e) for e in undated_enacted)
     undated_proposed_html = "\n".join(_rule_change_card_html(e) for e in undated_proposed)
-    recent_html = (
-        "\n".join(_rule_change_card_html(e) for e in recent)
-        if recent
+    recent_pending_html = (
+        "\n".join(_rule_change_card_html(e) for e in recent_pending)
+        if recent_pending
         else '<p class="rc-empty">No recent changes pending re-verification right now.</p>'
     )
+    recent_verified_html = "\n".join(_rule_change_card_html(e) for e in recent_verified)
     conflict_html = "\n".join(_rule_conflict_card_html(e) for e in conflicts) if conflicts else ""
 
     if monitoring_count:
@@ -10015,11 +10027,17 @@ set yet -- we move it to Upcoming the moment one is pinned.</p>
 date -- we move it to Upcoming the moment one is set.</p>
 {undated_proposed_html}
 ''' if undated_proposed else ""}
-<h2>Recently changed, pending re-verification ({len(recent)})</h2>
+<h2>Recently changed, pending re-verification ({len(recent_pending)})</h2>
 <p class="rc-section-note">The effective date has passed. We re-verify against the primary source
 before treating a post-change rule as settled &mdash; we do not assume a law took effect just
 because its start date arrived.</p>
-{recent_html}
+{recent_pending_html}
+{f'''
+<h2>Recently changed, confirmed ({len(recent_verified)})</h2>
+<p class="rc-section-note">The effective date has passed and we have since confirmed it against the
+primary source &mdash; these are settled, not assumed.</p>
+{recent_verified_html}
+''' if recent_verified else ""}
 """
     if conflicts:
         # Devin, live, 2026-08-28: "We need to be positive in what we tell people and a IDK
