@@ -5601,9 +5601,13 @@ NOINDEX_REINSTATEMENT_SLUG_SHA256 = "39d1c3ff763d4d45a37e4f5348b6b68563dbb665388
 # index.html directory page, noindexed for yet another distinct reason
 # (nothing should ever rank a 404) -- included now that _noindex_paths
 # covers non-index.html files.
+#
+# /roadmap/ (Devin, 2026-10-16): the public roadmap voting page was
+# retired; this path now serves a redirect stub pointing at /for-firms/,
+# noindexed so a stale index entry doesn't outlive the page it described.
 NOINDEX_APP_AUTH_ALLOWLIST: frozenset[str] = frozenset({
     "/firm-dashboard/", "/firm-login/2fa/", "/firm-mobility/", "/my/", "/set-password/",
-    "/404.html",
+    "/404.html", "/roadmap/",
 })
 
 
@@ -6476,7 +6480,6 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     # name -> reason the recipient is NOT attacker/demo-visitor-controlled.
     allowlisted = {
         "handleSubscribe": "public /subscribe form -- no firm session exists at all (anonymous signup)",
-        "handleRoadmapNotifySignup": "public /roadmap/ voting page -- no firm session exists at all (anonymous)",
         "handleUnsubscribe": "sends only to firm.admin_email (the firm's own address), not an attacker-suppliable one",
         "handleRenewed": "sends only to the subscriber's OWN address, keyed by a token minted for that same address",
         "handleFirmSignOutOtherDevices": "sends only to firm.admin_email (the firm's own address)",
@@ -7905,10 +7908,6 @@ PUBLIC_READ_HANDLERS = {
     # callback is what CREATES the session, so it cannot itself require one.
     "handleOauthStart": "pre-auth",
     "handleOauthCallback": "pre-auth",
-    # Public feature-idea roadmap listing (1) -- keyed only by an anonymous
-    # voter cookie (ROADMAP_VOTER_COOKIE_NAME), no tenant/session data of
-    # any kind in the query or the response.
-    "handleRoadmapData": "public-no-tenant-data",
     # GATE-25 (AuditLab, 2026-09-10): the /assistant/* routes (6) -- newly
     # visible once _HANDLER_DISPATCH_RE started matching the non-`await`
     # `return handleX(url)` dispatch form these use. Each is

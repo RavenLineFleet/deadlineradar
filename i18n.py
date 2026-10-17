@@ -68,7 +68,6 @@ EN: dict[str, str] = {
     "footer.link_pricing": "Pricing",
     "footer.link_deadline_calculator": "Deadline Calculator",
     "footer.link_cpe_vs_license": "CPE vs. License Renewal",
-    "footer.link_roadmap": "Roadmap",
     "footer.heading_company": "Company",
     "footer.link_contact": "Contact",
     "footer.link_security": "Security",
@@ -936,11 +935,6 @@ ES: dict[str, dict] = {
     'footer.link_privacy': {
         "text": 'Privacidad',
         "en_hash": '54a57c3147c49f33',
-        "reviewed": True,
-    },
-    'footer.link_roadmap': {
-        "text": 'Hoja de ruta',
-        "en_hash": '92375f997ffe65ab',
         "reviewed": True,
     },
     'footer.link_security': {

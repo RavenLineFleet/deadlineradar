@@ -1,39 +1,20 @@
 /**
  * Task #19 (2026-08-06, migration 0029): post-signup feature-request
- * questionnaire (private, per-firm) + the public /roadmap/ voting page.
- * See that migration's own docstring for the full design reasoning:
- * anonymous cookie-based voting, a separate confirm-clicked "notify me
- * when this ships" opt-in, an operator-curated idea list.
+ * questionnaire (private, per-firm) + what's left of the public /roadmap/
+ * voting page after Devin retired it 2026-10-16 (near-zero engagement --
+ * max vote_count 1). Voting (GET /roadmap-data, POST /roadmap/vote) and the
+ * signup entry point (POST /roadmap/notify-signup) are gone; this file now
+ * only tests the confirm/unsubscribe half that stays live for anyone who
+ * already signed up, seeded directly via store.createFeatureIdeaNotifySignup
+ * rather than through the retired HTTP route. See migration 0029's own
+ * docstring for the full original design reasoning.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 
 const BASE = "https://deadline-radar.com";
 const SEEDED_IDEA_ID = "idea-sms-reminders";
-
-function testExecutionContext(): ExecutionContext {
-  return {
-    waitUntil() {},
-    passThroughOnException() {},
-    props: {},
-  } as unknown as ExecutionContext;
-}
-
-async function workerFetch(request: Request, envOverrides: Record<string, unknown> = {}): Promise<Response> {
-  const worker = (await import("../src/index")).default;
-  return worker.fetch(request, { ...env, ...envOverrides } as never, testExecutionContext());
-}
-
-function okResponse(): Response {
-  return new Response("{}", { status: 202 });
-}
-
-function cookieValue(setCookieHeader: string | null, name: string): string | null {
-  if (!setCookieHeader) return null;
-  const match = new RegExp(`${name}=([^;]+)`).exec(setCookieHeader);
-  return match && match[1] ? decodeURIComponent(match[1]) : null;
-}
 
 async function createFirmWithSession(name: string, adminEmail: string): Promise<{ firmId: string; cookie: string }> {
   const firm = await store.createFirm(env.DB, { name, adminEmail });
@@ -41,150 +22,7 @@ async function createFirmWithSession(name: string, adminEmail: string): Promise<
   return { firmId: firm.id, cookie: `dr_firm_session=${rawSessionToken}` };
 }
 
-describe("GET /roadmap-data", () => {
-  it("lists the seeded ideas with zero votes and voted_by_me:false for a fresh visitor", async () => {
-    const resp = await SELF.fetch(`${BASE}/roadmap-data`);
-    expect(resp.status).toBe(200);
-    const body = (await resp.json()) as { ideas: { id: string; vote_count: number; voted_by_me: boolean; status: string }[] };
-    const idea = body.ideas.find((i) => i.id === SEEDED_IDEA_ID);
-    expect(idea).toBeTruthy();
-    expect(idea!.voted_by_me).toBe(false);
-    expect(idea!.status).toBe("open");
-  });
-});
-
-describe("POST /roadmap/vote", () => {
-  it("records a vote, mints a voter cookie, and reflects voted_by_me:true on that browser", async () => {
-    const resp = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.10" },
-        body: JSON.stringify({ idea_id: SEEDED_IDEA_ID }),
-      })
-    );
-    expect(resp.status).toBe(200);
-    const setCookie = resp.headers.get("set-cookie");
-    const voterId = cookieValue(setCookie, "dr_roadmap_voter");
-    expect(voterId).toBeTruthy();
-
-    const dataResp = await SELF.fetch(`${BASE}/roadmap-data`, { headers: { Cookie: `dr_roadmap_voter=${voterId}` } });
-    const body = (await dataResp.json()) as { ideas: { id: string; voted_by_me: boolean }[] };
-    expect(body.ideas.find((i) => i.id === SEEDED_IDEA_ID)!.voted_by_me).toBe(true);
-  });
-
-  it("does not double-count a repeat vote from the same voter cookie", async () => {
-    const ideaId = "idea-api-access";
-    const first = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.11" },
-        body: JSON.stringify({ idea_id: ideaId }),
-      })
-    );
-    const voterId = cookieValue(first.headers.get("set-cookie"), "dr_roadmap_voter");
-    const firstBody = (await first.json()) as { vote_count: number };
-
-    const second = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "cf-connecting-ip": "203.0.113.11",
-          Cookie: `dr_roadmap_voter=${voterId}`,
-        },
-        body: JSON.stringify({ idea_id: ideaId }),
-      })
-    );
-    expect(second.status).toBe(200);
-    const secondBody = (await second.json()) as { vote_count: number };
-    expect(secondBody.vote_count).toBe(firstBody.vote_count);
-  });
-
-  it("404s for an unknown idea_id", async () => {
-    const resp = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.12" },
-        body: JSON.stringify({ idea_id: "not-a-real-idea" }),
-      })
-    );
-    expect(resp.status).toBe(404);
-  });
-
-  // VOTE-1 (AuditLab, 2026-08-21, orchestrator-approved): this route used
-  // to pass allowMissingToken=true to verifyTurnstile(), inherited from the
-  // other roadmap route without being re-decided -- unlike those, a public
-  // vote has no secondary "must click a real emailed link" gate to fall
-  // back on, so a token-less request let a scripted client re-mint the
-  // voter cookie and inflate the public count for free. Needs
-  // TURNSTILE_SECRET_KEY set (the default test env has none) so this
-  // actually exercises the strict/permissive branch -- see
-  // action-send-budget.spec.ts's own comment on why that matters.
-  it("VOTE-1: rejects a vote with no Turnstile token when a secret is configured (was previously allowed)", async () => {
-    const resp = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.13" },
-        body: JSON.stringify({ idea_id: SEEDED_IDEA_ID }),
-      }),
-      { TURNSTILE_SECRET_KEY: "test-secret-not-real" }
-    );
-    expect(resp.status).toBe(400);
-    // TS-4 (AuditLab, 2026-08-21): VOTE-1's own strict-mode switch made an
-    // absent token (the common ad-blocked-visitor shape) the thing that
-    // trips this branch -- the bare "please try again" string is a
-    // retry-loop dead end for that visitor (same class TS-2 fixed on
-    // /firm-login/), since retrying without changing anything fails again.
-    const body = (await resp.json()) as { error: string };
-    expect(body.error).toContain("ad blocker");
-    expect(body.error).not.toBe("Verification failed -- please try again.");
-  });
-
-  it("VOTE-1: still records a vote normally with no Turnstile configured at all (the real default env)", async () => {
-    const resp = await workerFetch(
-      new Request(`${BASE}/roadmap/vote`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.14" },
-        body: JSON.stringify({ idea_id: SEEDED_IDEA_ID }),
-      })
-    );
-    expect(resp.status).toBe(200);
-  });
-});
-
-describe("POST /roadmap/notify-signup + GET/POST /roadmap/notify-confirm", () => {
-  it("sends a real confirm email and stores an unconfirmed row", async () => {
-    const email = `roadmapnotify-${Date.now()}@example.com`;
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse());
-    try {
-      const signupResp = await workerFetch(
-        new Request(`${BASE}/roadmap/notify-signup`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.20" },
-          body: JSON.stringify({ idea_id: SEEDED_IDEA_ID, email }),
-        }),
-        { RESEND_API_KEY: "test-key-not-real" }
-      );
-      expect(signupResp.status).toBe(200);
-      const signupBody = (await signupResp.json()) as { ok: boolean; sent: boolean };
-      expect(signupBody.sent).toBe(true);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [, resendCallInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentBody = JSON.parse(String(resendCallInit.body));
-      expect(sentBody.to[0]).toBe(email);
-
-      const row = await env.DB.prepare(
-        "SELECT confirmed_at, confirm_token FROM feature_idea_notify_signups WHERE idea_id = ?1 AND email = ?2"
-      )
-        .bind(SEEDED_IDEA_ID, email.toLowerCase())
-        .first<{ confirmed_at: string | null; confirm_token: string | null }>();
-      expect(row?.confirmed_at).toBeNull();
-      expect(row?.confirm_token).toBeTruthy();
-    } finally {
-      fetchSpy.mockRestore();
-    }
-  });
-
+describe("GET/POST /roadmap/notify-confirm", () => {
   it("confirms a real signup end-to-end through the actual HTTP action route", async () => {
     const email = `roadmapconfirm-${Date.now()}@example.com`;
     const signup = await store.createFeatureIdeaNotifySignup(env.DB, SEEDED_IDEA_ID, email);
@@ -492,7 +330,7 @@ describe("store.setFeatureIdeaStatus", () => {
     const row = await env.DB.prepare("SELECT status FROM feature_ideas WHERE id = ?1").bind("idea-white-label").first<{ status: string }>();
     expect(row?.status).toBe("in_progress");
 
-    // Revert so this test is order-independent of the roadmap-data test above.
+    // Revert so this test is order-independent of anything else reading this idea's status.
     await store.setFeatureIdeaStatus(env.DB, "idea-white-label", "open");
 
     const bad = await store.setFeatureIdeaStatus(env.DB, "idea-white-label", "not-a-real-status" as never);

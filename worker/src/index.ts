@@ -114,8 +114,6 @@ import {
   RATE_LIMIT_SUBSCRIBER_PTIN_SET,
   RATE_LIMIT_FIRM_STAFF_CPE_REMINDER,
   RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY,
-  RATE_LIMIT_ROADMAP_VOTE,
-  RATE_LIMIT_ROADMAP_NOTIFY_SIGNUP,
   RATE_LIMIT_FIRM_LEAD,
   RATE_LIMIT_MOBILITY_CHECK,
   RATE_LIMIT_FIRM_MOBILITY_CHECK,
@@ -6129,28 +6127,6 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   });
 }
 
-// ---------------------------------------------------------------------------
-// Public /roadmap/ voting (Task #19, 2026-08-06). See migration 0029's own
-// docstring for the full design reasoning: anonymous cookie-based voting
-// (no account, no email required), a separate opt-in "notify me when this
-// ships" that DOES require a confirm-click, an operator-curated idea list
-// (no free-form submission -- zero moderation surface to build).
-// ---------------------------------------------------------------------------
-
-const ROADMAP_VOTER_COOKIE_NAME = "dr_roadmap_voter";
-// A year -- long enough that a real repeat visitor's vote still "sticks"
-// without them re-voting, short enough that this isn't presented as a
-// permanent identifier. Not a security boundary (see migration 0029's own
-// docstring on why voting is deliberately low-friction, not high-assurance).
-const ROADMAP_VOTER_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
-
-function roadmapVoterCookieHeader(voterId: string, env: Env): string {
-  return (
-    `${ROADMAP_VOTER_COOKIE_NAME}=${encodeURIComponent(voterId)}; HttpOnly; Secure; ` +
-    `SameSite=${firmSessionCookieSameSite(env)}; Path=/; Max-Age=${ROADMAP_VOTER_COOKIE_MAX_AGE_SECONDS}`
-  );
-}
-
 /** Shared by every /assistant/* handler below: a `state` query param that
  * doesn't resolve to a real jurisdiction is a 400, never a silent empty
  * result that reads to a caller (or the LLM behind it) as "this state has
@@ -6790,154 +6766,13 @@ async function handleAttrSummary(request: Request, env: Env, ip: string): Promis
   return jsonResponse(200, { rows: result.results ?? [] });
 }
 
-/** GET /roadmap-data -- public, no session. Returns every active idea with
- * its live vote count and whether THIS browser (by cookie) already voted
- * for it. No cookie yet (first-ever visit) reads as "voted nothing", never
- * an error -- an anonymous GET has nothing to mint a cookie FOR until a
- * real vote happens. */
-async function handleRoadmapData(request: Request, env: Env): Promise<Response> {
-  const voterId = getCookie(request, ROADMAP_VOTER_COOKIE_NAME) ?? "";
-  const ideas = await store.listActiveFeatureIdeasWithVotes(env.DB, voterId);
-  return jsonResponse(200, {
-    ideas: ideas.map((i) => ({
-      id: i.id,
-      title: i.title,
-      description: i.description,
-      status: i.status,
-      vote_count: i.vote_count,
-      voted_by_me: i.voted_by_me,
-    })),
-  });
-}
-
-/** POST /roadmap/vote -- body: `idea_id`. Public, no session -- see this
- * section's own header comment for the full anti-abuse layering (IP rate
- * limit + Turnstile here, UNIQUE(idea_id, voter_id) at the DB layer doing
- * the actual dedup work). Mints a voter cookie on first-ever vote if the
- * request didn't already carry one. */
-async function handleRoadmapVote(request: Request, env: Env, ip: string): Promise<Response> {
-  if (!originAllowed(request, env)) {
-    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
-  }
-
-  const allowed = await checkRateLimit(env.DB, ip, "roadmap_vote", RATE_LIMIT_ROADMAP_VOTE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many votes from this address. Please try again later." });
-  }
-
-  const parsed = await readFirmLicenseJsonBody(request); // generic despite the name -- see that function's own signature
-  if (parsed instanceof Response) return parsed;
-  const form = stringFieldsOf(parsed);
-  const ideaId = (form.idea_id ?? "").trim();
-  if (!ideaId || hasControlChars(ideaId)) {
-    return jsonResponse(400, { error: "Missing idea_id." });
-  }
-
-  // VOTE-1 (AuditLab, 2026-08-21, orchestrator-approved): the permissive
-  // allowMissingToken=true default was inherited from the other roadmap
-  // route (handleRoadmapNotifySignup) without being re-decided for this
-  // one. Those other permissive routes fall back on a real email-click
-  // gate; a public vote has no such secondary control, so an absent token
-  // let a scripted client re-mint the voter cookie and inflate the public
-  // count for free. The widget lives on our own /roadmap/ page, so a real
-  // browser visiting normally already carries a token -- strict costs
-  // legitimate voters nothing.
-  const turnstileOk = await verifyTurnstile(form["cf-turnstile-response"], env.TURNSTILE_SECRET_KEY);
-  if (!turnstileOk) {
-    // TS-4 (AuditLab, 2026-08-21): VOTE-1's own strict-mode switch just
-    // above made an absent token the COMMON failure shape here (an
-    // ad-blocked visitor), reintroducing the exact retry-loop dead end
-    // TS-2 fixed on /firm-login/ -- "please try again" cannot succeed on
-    // retry if the same blocker is still active. Like handleFirmSignup
-    // (the other strict route with no alternate action to offer), the
-    // fallback here is a clear explanation, not a bypass.
-    return jsonResponse(400, {
-      error:
-        "Verification failed. If you use an ad blocker or privacy extension, allow " +
-        "challenges.cloudflare.com for this page and try again.",
-    });
-  }
-
-  if (!(await store.ideaExists(env.DB, ideaId))) {
-    return jsonResponse(404, { error: "Not found." });
-  }
-
-  let voterId = getCookie(request, ROADMAP_VOTER_COOKIE_NAME);
-  const mintedNewVoterId = !voterId;
-  if (!voterId) voterId = store.newToken();
-
-  await store.recordFeatureIdeaVote(env.DB, ideaId, voterId);
-  const ideas = await store.listActiveFeatureIdeasWithVotes(env.DB, voterId);
-  const updated = ideas.find((i) => i.id === ideaId);
-
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (mintedNewVoterId) headers["Set-Cookie"] = roadmapVoterCookieHeader(voterId, env);
-  return new Response(JSON.stringify({ vote_count: updated?.vote_count ?? 0, voted_by_me: true }), { status: 200, headers });
-}
-
-/** POST /roadmap/notify-signup -- body: `idea_id`, `email`. Public, no
- * session. Sends a confirm-click email (nothing is stored as confirmed
- * until that's clicked -- see store.createFeatureIdeaNotifySignup()'s own
- * docstring). Reuses the same email-blocklist gate signup uses (Task #7)
- * and Turnstile the same way every other public form here does. */
-async function handleRoadmapNotifySignup(request: Request, env: Env, ip: string): Promise<Response> {
-  if (!originAllowed(request, env)) {
-    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
-  }
-
-  const allowed = await checkRateLimit(env.DB, ip, "roadmap_notify_signup", RATE_LIMIT_ROADMAP_NOTIFY_SIGNUP);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many requests from this address. Please try again later." });
-  }
-
-  const parsed = await readFirmLicenseJsonBody(request);
-  if (parsed instanceof Response) return parsed;
-  const form = stringFieldsOf(parsed);
-  const ideaId = (form.idea_id ?? "").trim();
-  const email = (form.email ?? "").trim();
-  if (!ideaId || hasControlChars(ideaId)) {
-    return jsonResponse(400, { error: "Missing idea_id." });
-  }
-  if (!isValidEmail(email)) {
-    return jsonResponse(400, { error: "That doesn't look like a valid email address." });
-  }
-  if (await store.isEmailBlocklisted(env.DB, email)) {
-    return jsonResponse(400, { error: "We're not able to use that address right now." });
-  }
-
-  const turnstileOk = await verifyTurnstile(form["cf-turnstile-response"], env.TURNSTILE_SECRET_KEY, true);
-  if (!turnstileOk) {
-    return jsonResponse(400, { error: "Verification failed -- please try again." });
-  }
-
-  const idea = (await store.listActiveFeatureIdeasWithVotes(env.DB, "")).find((i) => i.id === ideaId);
-  if (!idea) {
-    return jsonResponse(404, { error: "Not found." });
-  }
-
-  let sent = false;
-  if (env.RESEND_API_KEY) {
-    const signup = await store.createFeatureIdeaNotifySignup(env.DB, ideaId, email);
-    if (signup) {
-      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
-      if (underCap) {
-        const confirmUrl = `${actionBaseUrl(env)}/roadmap/notify-confirm?token=${encodeURIComponent(signup.rawToken)}`;
-        const built = buildFeatureIdeaNotifyConfirmEmail(idea.title, confirmUrl);
-        sent = await sendEmail(env.RESEND_API_KEY, email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
-      }
-    } else {
-      // Already confirmed for this idea -- nothing to (re-)send, but this
-      // is success from the caller's perspective (they're already on the list).
-      sent = true;
-    }
-  }
-
-  // Same anti-enumeration posture as every other public form here: no
-  // distinction in the response between "sent", "already confirmed", and
-  // "SendGrid not configured" -- a generic acknowledgement either way.
-  return jsonResponse(200, { ok: true, sent });
-}
-
+/** GET/POST-act confirm link for a feature-idea "notify me when this ships"
+ * opt-in -- signup itself retired alongside the public /roadmap/ voting page
+ * (Devin, 2026-10-16), but this handler stays live so an existing confirm
+ * link already sitting in someone's inbox from before that change still
+ * works (and /unsubscribe/feature-idea stays live for the same reason: any
+ * already-confirmed signup still needs a working opt-out if an idea is ever
+ * manually marked shipped and notified via store.ts's own functions). */
 async function handleRoadmapNotifyConfirm(env: Env, token: string | null): Promise<Response> {
   if (!token) return errorPage(400, "Missing confirmation link.");
   const confirmed = await store.confirmFeatureIdeaNotifySignup(env.DB, token);
@@ -10678,14 +10513,6 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
-      if (url.pathname === "/roadmap-data") {
-        try {
-          return await handleRoadmapData(request, env);
-        } catch {
-          return jsonResponse(400, { error: "Something went wrong processing that request." });
-        }
-      }
-
       if (url.pathname === "/subscriber/licenses") {
         try {
           return await handleSubscriberLicensesList(request, env);
@@ -11466,14 +11293,6 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         }
       }
 
-      if (url.pathname === "/roadmap/vote") {
-        try {
-          return await handleRoadmapVote(request, env, ip);
-        } catch {
-          return jsonResponse(400, { error: "Something went wrong processing that request." });
-        }
-      }
-
       if (url.pathname === "/attr") {
         try {
           return await handleAttrBeacon(request, env, ip);
@@ -11493,14 +11312,6 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/assistant/ticket") {
         try {
           return await handleAssistantTicket(request, env, ip);
-        } catch {
-          return jsonResponse(400, { error: "Something went wrong processing that request." });
-        }
-      }
-
-      if (url.pathname === "/roadmap/notify-signup") {
-        try {
-          return await handleRoadmapNotifySignup(request, env, ip);
         } catch {
           return jsonResponse(400, { error: "Something went wrong processing that request." });
         }
@@ -11743,11 +11554,13 @@ async function handleFirmPasswordLogin(request: Request, env: Env, ip: string): 
 
   // 2026-08-05: this route grants direct access on success (a password
   // check, not a magic-link email), so it deliberately does NOT pass
-  // allowMissingToken -- unlike the other 6 verifyTurnstile() call sites
+  // allowMissingToken -- unlike the other 5 verifyTurnstile() call sites
   // that stay permissive (VOTE-1, 2026-08-21: was 5, corrected after
   // handleRoadmapVote's permissive default was found un-re-decided and
-  // switched to strict, leaving 6 permissive call sites, all covered by a
-  // real "must click a real emailed link" or double-opt-in gate), there is
+  // switched to strict, leaving 6 permissive call sites; one of those,
+  // handleRoadmapNotifySignup, was itself removed 2026-10-16 alongside the
+  // public roadmap page, leaving 5 -- all still covered by a real "must
+  // click a real emailed link" or double-opt-in gate), there is
   // no secondary fallback here. Relaxing it would mean a password-guessing
   // bot no longer needs to solve Turnstile at all, which is a real
   // regression on the one route that grants access directly -- so this

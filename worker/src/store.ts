@@ -6174,70 +6174,19 @@ export async function listSubscriberLicenses(
 }
 
 // ---------------------------------------------------------------------------
-// Feature requests: post-signup questionnaire (private, per-firm) + the
-// public /roadmap/ voting page (Task #19, 2026-08-06, migration 0029). See
-// that migration's own docstring for the full design reasoning.
+// Feature requests: post-signup questionnaire (private, per-firm) + what's
+// left of the public /roadmap/ voting page (Task #19, 2026-08-06, migration
+// 0029) after Devin retired it 2026-10-16 (near-zero engagement). Voting and
+// the signup ENTRY POINT are gone (no live route creates a new row here
+// anymore) -- what remains is the confirm/unsubscribe half, kept live so an
+// existing confirmed/pending signup from before the retirement still works,
+// plus the ops-only "mark an idea shipped and notify" path a fleet operator
+// can still drive by hand. See that migration's own docstring for the full
+// original design reasoning.
 // ---------------------------------------------------------------------------
 
 export type FeatureIdeaStatus = "open" | "in_progress" | "shipped";
 const FEATURE_IDEA_STATUSES: ReadonlySet<string> = new Set(["open", "in_progress", "shipped"]);
-
-export interface FeatureIdeaRow {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  active: number;
-  created_at: string;
-}
-
-export interface FeatureIdeaWithVotes extends FeatureIdeaRow {
-  vote_count: number;
-  voted_by_me: boolean;
-}
-
-/**
- * voterId is the caller's own anonymous cookie value (empty string if this
- * browser has never voted) -- passed straight into a LEFT JOIN's ON clause
- * rather than a second query per idea, so "did I already vote for this
- * one" comes back in the same round trip as the public counts.
- */
-export async function listActiveFeatureIdeasWithVotes(db: D1Database, voterId: string): Promise<FeatureIdeaWithVotes[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT fi.*,
-              COUNT(v.id) AS vote_count,
-              MAX(CASE WHEN v.voter_id = ?1 THEN 1 ELSE 0 END) AS voted_by_me
-         FROM feature_ideas fi
-         LEFT JOIN feature_idea_votes v ON v.idea_id = fi.id
-        WHERE fi.active = 1
-        GROUP BY fi.id
-        ORDER BY vote_count DESC, fi.created_at ASC`
-    )
-    .bind(voterId)
-    .all<FeatureIdeaRow & { vote_count: number; voted_by_me: number }>();
-  return (results ?? []).map((r) => ({ ...r, voted_by_me: r.voted_by_me === 1 }));
-}
-
-/**
- * Idempotent by design (UNIQUE(idea_id, voter_id), migration 0029) -- a
- * retried or double-fired click can never double-count. Returns whether
- * this call is what actually recorded the vote (false for an already-
- * voted repeat), purely for the caller's own response shape, not a
- * meaningful security signal on its own.
- */
-export async function recordFeatureIdeaVote(db: D1Database, ideaId: string, voterId: string): Promise<boolean> {
-  const result = await db
-    .prepare(`INSERT OR IGNORE INTO feature_idea_votes (id, idea_id, voter_id, created_at) VALUES (?1,?2,?3,?4)`)
-    .bind(newToken(), ideaId, voterId, nowIso())
-    .run();
-  return (result.meta.changes ?? 0) > 0;
-}
-
-export async function ideaExists(db: D1Database, ideaId: string): Promise<boolean> {
-  const row = await db.prepare(`SELECT 1 FROM feature_ideas WHERE id = ?1 AND active = 1`).bind(ideaId).first();
-  return row !== null;
-}
 
 /**
  * Queues (or re-queues) a "notify me when this ships" signup -- NOT yet
@@ -6246,6 +6195,12 @@ export async function ideaExists(db: D1Database, ideaId: string): Promise<boolea
  * row, so a lost confirmation email can always be re-requested. Returns
  * null if this email/domain is already confirmed for this idea (nothing
  * to re-send, avoids burning a send on a no-op).
+ *
+ * Ops-only, no HTTP route since the public signup entry point (the old
+ * POST /roadmap/notify-signup) was retired 2026-10-16 alongside the voting
+ * page -- kept for a fleet operator to drive by hand (same posture as
+ * setFeatureIdeaStatus below) and as the real seed path this file's own
+ * tests use for the confirm/unsubscribe flows that are still live.
  */
 export async function createFeatureIdeaNotifySignup(
   db: D1Database,

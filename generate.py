@@ -2733,56 +2733,6 @@ PAGE_CSS = """
     content: "\\2713"; position: absolute; left: 0; color: var(--verified-green); font-weight: 700;
   }
 
-  /* Public roadmap (Task #19, 2026-08-06). */
-  .dr-roadmap-list { display: flex; flex-direction: column; gap: 0.9rem; margin: 1.4rem 0; }
-  .dr-roadmap-idea {
-    background: var(--card-bg); border: 1px solid var(--border-strong); border-radius: 12px;
-    padding: 1.1rem 1.2rem; display: flex; flex-wrap: wrap; align-items: center;
-    justify-content: space-between; gap: 1rem;
-  }
-  .dr-roadmap-idea-info { flex: 1 1 260px; min-width: 0; }
-  .dr-roadmap-idea-info h2 { font-size: 1.02rem; margin: 0 0 0.25rem; font-family: var(--font-display); }
-  .dr-roadmap-idea-info p { margin: 0; color: var(--muted); font-size: 0.88rem; }
-  .dr-roadmap-status {
-    display: inline-block; margin-left: 0.6rem; font-size: 0.7rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.03em; padding: 0.15rem 0.5rem; border-radius: 999px;
-    vertical-align: middle;
-  }
-  .dr-roadmap-status--in_progress { background: var(--gold-bg); color: var(--gold); }
-  .dr-roadmap-status--shipped { background: rgba(31, 158, 92, 0.15); color: var(--verified-green); }
-  .dr-roadmap-idea-actions { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
-  .dr-roadmap-vote-form { margin: 0; }
-  .dr-roadmap-vote-btn {
-    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
-    border-radius: 999px; font-weight: 700; cursor: pointer; padding: 0.45rem 1rem; font-size: 0.88rem;
-    font-family: inherit; white-space: nowrap;
-  }
-  .dr-roadmap-vote-btn:disabled { opacity: 0.65; cursor: default; background: var(--muted); border-color: var(--muted); }
-  .dr-roadmap-notify-toggle {
-    background: transparent; border: none; color: var(--muted); font-size: 0.78rem; cursor: pointer;
-    text-decoration: underline; padding: 0; font-family: inherit;
-  }
-  /* [hidden] override required (2026-08-06, caught live): an unconditional
-     `display: flex` here beats the browser's own [hidden] UA rule, same
-     class of bug as .dr-view[hidden] elsewhere in this file already guards
-     against -- the form was visible by default despite hidden="true". */
-  .dr-roadmap-notify-form { margin: 0; display: flex; gap: 0.4rem; align-items: center; }
-  .dr-roadmap-notify-form[hidden] { display: none; }
-  .dr-roadmap-notify-form input[type=email] {
-    font-size: 0.85rem; padding: 0.35rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: inherit; width: 190px; max-width: 40vw;
-  }
-  .dr-roadmap-notify-form button {
-    font-size: 0.85rem; padding: 0.35rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: transparent; color: inherit; cursor: pointer; font-family: inherit; white-space: nowrap;
-  }
-  .dr-roadmap-notify-result { margin: 0; font-size: 0.8rem; color: var(--muted); text-align: right; }
-  @media (max-width: 560px) {
-    .dr-roadmap-idea { flex-direction: column; align-items: stretch; }
-    .dr-roadmap-idea-actions { align-items: stretch; }
-    .dr-roadmap-notify-form input[type=email] { width: auto; max-width: none; flex: 1; }
-  }
-
   @media (max-width: 860px) {
     /* Stacked cards. Each cell carries its own label via data-label, so the
        header row can be hidden without losing what each value means. */
@@ -3734,7 +3684,6 @@ def site_footer(lang: str = "en") -> str:
       <a href="/deadline-calculator/">{esc(_t("footer.link_deadline_calculator", lang))}</a>
       <a href="/blog/">{esc(_t("nav.guides", lang))}</a>
       <a href="/blog/cpe-vs-license-renewal/">{esc(_t("footer.link_cpe_vs_license", lang))}</a>
-      <a href="/roadmap/">{esc(_t("footer.link_roadmap", lang))}</a>
     </div>
     <div class="foot-col">
       <h3>{esc(_t("footer.heading_company", lang))}</h3>
@@ -4171,12 +4120,10 @@ def _turnstile_shared_widget_html(context: str) -> str:
     every page this widget serves, but that was only ever true for 1 of the
     4 forms across the two pages that actually ship it (index.ts's
     handleFirmLogin magic-link route passes allowMissingToken=true;
-    handleFirmSignup, handleFirmPasswordLogin, and handleRoadmapVote all
-    reject a missing token). `context` picks the per-page truth instead of
-    one shared, mostly-false sentence -- "firm-login" points a blocked
-    visitor at the one form that genuinely still works without a token
-    (Email me a sign-in link); "roadmap" drops the false clause entirely,
-    since none of that page's paths are permissive.
+    handleFirmSignup and handleFirmPasswordLogin reject a missing token).
+    `context` picks the per-page truth instead of one shared, mostly-false
+    sentence -- "firm-login" points a blocked visitor at the one form that
+    genuinely still works without a token (Email me a sign-in link).
     """
     if not TURNSTILE_SITE_KEY:
         return ""
@@ -4197,11 +4144,6 @@ def _turnstile_shared_widget_html(context: str) -> str:
         # survives any future reordering of the card, which is what
         # produced the wrong direction here in the first place.
         notice = base_notice + " You can still use the <b>Email me a sign-in link</b> option on this page without it."
-    elif context == "roadmap":
-        # No permissive route on this page -- the old shared sentence's
-        # "you can still submit either way" clause is simply dropped, not
-        # replaced with another claim.
-        notice = base_notice
     else:
         raise ValueError(f"_turnstile_shared_widget_html: unknown context {context!r}")
     return f"""<div class="dr-turnstile-slot">
@@ -9220,200 +9162,45 @@ MYCPE_ONE_FACTS = _competitor_prices_data["mycpe_one"]
 COMPETITOR_COMPARE_PAGES: list[dict] = []
 
 
-def build_roadmap_page() -> str:
-    """Task #19 (2026-08-06): public roadmap voting. Design settled with
-    Devin across several rounds -- see migration 0029's own docstring for
-    the full reasoning. Voting is anonymous (a cookie, no account); "notify
-    me when this ships" is a separate, optional, email-confirmed opt-in.
+def build_roadmap_redirect_page() -> str:
+    """Devin, 2026-10-16: the public roadmap voting page is dead (12 ideas, max vote_count 1,
+    shipped items mixed into the open-voting list) -- taken down site-wide, not just pruned.
 
-    The idea list and vote counts are NOT baked in at build time -- they're
-    live (GET /roadmap-data), same reasoning /firm-mobility/'s roster
-    dropdown fetches live rather than being static. One shared Turnstile
-    widget (shared_widget=True forms) covers both the vote buttons and the
-    notify-signup forms, matching /firm-login/'s own multi-form pattern --
-    a widget per idea would be visually loud on a page meant to be quick to
-    use.
+    This replaces build_roadmap_page() at the same URL rather than letting it 404: the page was
+    listed in GrowthLab's seo_indexing_queue.md and is "Discovered -- currently not indexed" per
+    GSC (not yet crawled, but known to Google), so a bare 404 risks a future crawl recording it as
+    an error rather than a moved page.
+
+    NOT a server-side 301: deadline-radar.com's static pages are served by GitHub Pages behind
+    Cloudflare (see reference_deadlineradar_static_site_architecture), and the Cloudflare API token
+    available to this repo's ops has no Redirect Rules permission (confirmed: `rulesets` list
+    includes an `http_request_dynamic_redirect` ruleset, but both the ruleset-by-id and the phase
+    entrypoint reads return "request is not authorized", unlike the header-transform ruleset this
+    same token edits successfully for CSP-1). A meta-refresh + an immediate JS replace() covers
+    real visitors and any well-behaved crawler; `noindex` (NOINDEX_APP_AUTH_ALLOWLIST in
+    preship_gate.py) tells search engines this URL does not want to be kept. If a true 301 is ever
+    wanted, it needs either a broader-scoped Cloudflare token (Redirect Rules permission) or a
+    Worker route added for this one path.
+
+    Built with page_shell(), not a bare HTML string: check_legal_safety() requires the
+    non-affiliation disclaimer (via site_footer()) on every single page with no exemption -- even
+    404.html carries it -- and the STYLE check requires every page to link styles.css. A retired
+    page is not an excuse to skip either.
     """
-    body = f"""<h1>Roadmap</h1>
-<p class="intro">Vote on what we build next. No account needed &mdash; one click per idea, and you can
-change your mind later. Want an email when something ships? Say so after you vote.</p>
-
-{_turnstile_shared_widget_html("roadmap")}
-
-<div id="dr-roadmap-error" role="alert" class="field-hint" style="color:#c33737;" hidden></div>
-<div id="dr-roadmap-list" class="dr-roadmap-list"><p class="dr-panel-empty">Loading&hellip;</p></div>
-
-<p class="backlink">Have an idea that's not listed? <a href="mailto:{esc(CONTACT_EMAIL)}?subject=Roadmap%20idea">Tell us</a> &mdash;
-new ideas get added by hand, not submitted directly, to keep this list something worth actually
-looking at.</p>
+    dest = f"{SITE_BASE_URL}/for-firms/"
+    body = f"""<h1>Moved</h1>
+<p class="intro">The roadmap voting page has been retired. Redirecting you to <a href="{esc(dest)}">{esc(dest)}</a>&hellip;</p>
+<script>location.replace({json.dumps(dest)});</script>
 """
     return page_shell(
-        f"Roadmap — {SITE_NAME}",
-        "Vote on what Deadline-Radar builds next -- SMS reminders, practice-management integrations, "
-        "API access, and more. No account needed.",
+        f"Moved — {SITE_NAME}",
+        "This page has been retired.",
         body,
         home_href="../",
         canonical_path="/roadmap/",
+        extra_head=f'<meta http-equiv="refresh" content="0; url={esc(dest)}">\n<meta name="robots" content="noindex">',
         has_remind_anchor=False,
-    ) + _ROADMAP_JS_HTML
-
-
-# Fixed, in case the idea list ever needs a client-side label without a
-# server round trip -- kept as documentation of what ships server-side in
-# migration 0029's seed data, not read by the JS below (which always
-# renders whatever GET /roadmap-data actually returns, live).
-_ROADMAP_HONEYPOT_TURNSTILE_HIDDEN_HTML = (
-    f'<div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;">'
-    f'<input type="text" name="{_HONEYPOT_FIELD_NAME}" tabindex="-1" autocomplete="off"></div>'
-    f'<input type="hidden" name="cf-turnstile-response" value="">'
-)
-
-_ROADMAP_JS_HTML = f"""<script>
-(function() {{
-  var API = "{REMINDER_BACKEND_BASE_URL}";
-  var listEl = document.getElementById('dr-roadmap-list');
-  var errEl = document.getElementById('dr-roadmap-error');
-  if (!listEl) return;
-
-  function esc(s) {{
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }}
-
-  var hiddenFieldsHtml = {json.dumps(_ROADMAP_HONEYPOT_TURNSTILE_HIDDEN_HTML)};
-
-  var STATUS_LABELS = {{in_progress: 'In progress', shipped: 'Shipped'}};
-
-  function render(ideas) {{
-    listEl.innerHTML = ideas.map(function(idea) {{
-      var statusLabel = STATUS_LABELS[idea.status];
-      var statusBadge = statusLabel
-        ? '<span class="dr-roadmap-status dr-roadmap-status--' + esc(idea.status) + '">' + statusLabel + '</span>'
-        : '';
-      var shipped = idea.status === 'shipped';
-      // Voting stays open for 'open' and 'in_progress' -- shipped is the
-      // one state where a vote button stops making sense (nothing left to
-      // decide). Notify-me still shows for a shipped idea in the rare case
-      // someone's landing on this page for the first time after it went
-      // live -- no reason to hide the option just because it's already true.
-      var voteHtml = shipped
-        ? ''
-        : '<form class="dr-roadmap-vote-form" data-idea-id="' + esc(idea.id) + '">' + hiddenFieldsHtml +
-          '<button type="submit" class="dr-roadmap-vote-btn"' + (idea.voted_by_me ? ' disabled' : '') + '>' +
-          (idea.voted_by_me ? '&check; Voted' : '&#9650; Vote') +
-          ' <span class="dr-roadmap-vote-count">' + esc(idea.vote_count) + '</span></button></form>';
-      return '<div class="dr-roadmap-idea">' +
-        '<div class="dr-roadmap-idea-info"><h2>' + esc(idea.title) + statusBadge + '</h2>' +
-        (idea.description ? '<p>' + esc(idea.description) + '</p>' : '') + '</div>' +
-        '<div class="dr-roadmap-idea-actions">' +
-        voteHtml +
-        '<button type="button" class="dr-roadmap-notify-toggle">Notify me when this ships</button>' +
-        '<form class="dr-roadmap-notify-form" data-idea-id="' + esc(idea.id) + '" hidden>' + hiddenFieldsHtml +
-        // A placeholder is not a valid accessible name (WCAG 4.1.2)
-        // and disappears once typed into (3.3.2) -- only visible once this
-        // control is checked in its actually-revealed state (after "Notify
-        // me when this ships" is clicked), which a static-HTML sweep can't
-        // see since this whole form is assembled by JS at render() time,
-        // not present in the built page source at all.
-        '<input type="email" class="dr-roadmap-notify-email" placeholder="you@example.com" required autocomplete="email" aria-label="' + esc('Email address for ' + idea.title + ' ship notification') + '">' +
-        '<button type="submit">Notify me</button></form>' +
-        '<p class="dr-roadmap-notify-result" hidden></p>' +
-        '</div></div>';
-    }}).join('');
-  }}
-
-  function loadIdeas() {{
-    fetch(API + '/roadmap-data', {{credentials: 'include'}})
-      .then(function(res) {{ return res.ok ? res.json() : null; }})
-      .then(function(data) {{
-        if (!data || !data.ideas) {{
-          if (errEl) {{ errEl.hidden = false; errEl.textContent = 'Something went wrong loading the roadmap. Please try again.'; }}
-          return;
-        }}
-        render(data.ideas);
-      }})
-      .catch(function() {{
-        if (errEl) {{ errEl.hidden = false; errEl.textContent = 'Something went wrong loading the roadmap. Please try again.'; }}
-      }});
-  }}
-
-  listEl.addEventListener('submit', function(ev) {{
-    var form = ev.target;
-    if (form.classList.contains('dr-roadmap-vote-form')) {{
-      ev.preventDefault();
-      var btn = form.querySelector('.dr-roadmap-vote-btn');
-      var ideaId = form.getAttribute('data-idea-id');
-      var turnstileToken = form.querySelector('input[name="cf-turnstile-response"]').value;
-      if (btn) btn.disabled = true;
-      fetch(API + '/roadmap/vote', {{
-        method: 'POST', credentials: 'include',
-        headers: {{'Content-Type': 'application/json'}},
-        body: JSON.stringify({{idea_id: ideaId, 'cf-turnstile-response': turnstileToken}})
-      }}).then(function(res) {{
-        return res.json().then(function(data) {{ return {{ok: res.ok, data: data}}; }});
-      }}).then(function(result) {{
-        if (!result.ok) {{
-          if (btn) btn.disabled = false;
-          if (errEl) {{ errEl.hidden = false; errEl.textContent = (result.data && result.data.error) || 'Something went wrong. Please try again.'; }}
-          return;
-        }}
-        var countEl = form.querySelector('.dr-roadmap-vote-count');
-        if (countEl) countEl.textContent = result.data.vote_count;
-        if (btn) btn.innerHTML = '&check; Voted <span class="dr-roadmap-vote-count">' + result.data.vote_count + '</span>';
-      }}).catch(function() {{
-        if (btn) btn.disabled = false;
-        if (errEl) {{ errEl.hidden = false; errEl.textContent = 'Something went wrong. Please try again.'; }}
-      }});
-      return;
-    }}
-    if (form.classList.contains('dr-roadmap-notify-form')) {{
-      ev.preventDefault();
-      var ideaId2 = form.getAttribute('data-idea-id');
-      var emailEl = form.querySelector('.dr-roadmap-notify-email');
-      var turnstileToken2 = form.querySelector('input[name="cf-turnstile-response"]').value;
-      var resultEl = form.parentElement.querySelector('.dr-roadmap-notify-result');
-      var submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.disabled = true;
-      fetch(API + '/roadmap/notify-signup', {{
-        method: 'POST', credentials: 'include',
-        headers: {{'Content-Type': 'application/json'}},
-        body: JSON.stringify({{idea_id: ideaId2, email: emailEl.value, 'cf-turnstile-response': turnstileToken2}})
-      }}).then(function(res) {{
-        return res.json().then(function(data) {{ return {{ok: res.ok, data: data}}; }});
-      }}).then(function(result) {{
-        if (submitBtn) submitBtn.disabled = false;
-        if (resultEl) {{
-          resultEl.hidden = false;
-          resultEl.textContent = result.ok
-            ? 'Check your inbox to confirm.'
-            : ((result.data && result.data.error) || 'Something went wrong. Please try again.');
-        }}
-        if (result.ok) {{ form.hidden = true; }}
-      }}).catch(function() {{
-        if (submitBtn) submitBtn.disabled = false;
-        if (resultEl) {{ resultEl.hidden = false; resultEl.textContent = 'Something went wrong. Please try again.'; }}
-      }});
-      return;
-    }}
-  }});
-
-  listEl.addEventListener('click', function(ev) {{
-    var toggle = ev.target.closest ? ev.target.closest('.dr-roadmap-notify-toggle') : null;
-    if (!toggle) return;
-    var form = toggle.parentElement.querySelector('.dr-roadmap-notify-form');
-    if (form) {{
-      form.hidden = !form.hidden;
-      if (!form.hidden) {{
-        var emailInput = form.querySelector('.dr-roadmap-notify-email');
-        if (emailInput) emailInput.focus();
-      }}
-    }}
-  }});
-
-  loadIdeas();
-}})();
-</script>"""
+    )
 
 
 def build_privacy_page(updated: date) -> str:
@@ -26228,9 +26015,6 @@ def build_sitemap(
         _translated_page_sitemap_urls("multi-state-firms", as_of, es_ready.get("multi-state-firms", False)),
         _translated_page_sitemap_urls("deadline-calculator", as_of, es_ready.get("deadline-calculator", False)),
         f"""  <url>
-    <loc>{SITE_BASE_URL}/roadmap/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
-  </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/firm-login/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""", f"""  <url>
@@ -26748,8 +26532,8 @@ def main() -> None:
 
     roadmap_dir = SITE_DIR / "roadmap"
     roadmap_dir.mkdir(parents=True, exist_ok=True)
-    (roadmap_dir / "index.html").write_text(build_roadmap_page(), encoding="utf-8")
-    print(f"wrote {SITE_DIR.name}/roadmap/index.html")
+    (roadmap_dir / "index.html").write_text(build_roadmap_redirect_page(), encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/roadmap/index.html (redirect stub, Devin 2026-10-16: page removed)")
 
     founding_dir = SITE_DIR / "founding-firms"
     founding_dir.mkdir(parents=True, exist_ok=True)

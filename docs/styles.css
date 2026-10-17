@@ -1415,53 +1415,6 @@
     content: "✓"; position: absolute; left: 0; color: var(--verified-green); font-weight: 700;
   }
 
-  
-  .dr-roadmap-list { display: flex; flex-direction: column; gap: 0.9rem; margin: 1.4rem 0; }
-  .dr-roadmap-idea {
-    background: var(--card-bg); border: 1px solid var(--border-strong); border-radius: 12px;
-    padding: 1.1rem 1.2rem; display: flex; flex-wrap: wrap; align-items: center;
-    justify-content: space-between; gap: 1rem;
-  }
-  .dr-roadmap-idea-info { flex: 1 1 260px; min-width: 0; }
-  .dr-roadmap-idea-info h2 { font-size: 1.02rem; margin: 0 0 0.25rem; font-family: var(--font-display); }
-  .dr-roadmap-idea-info p { margin: 0; color: var(--muted); font-size: 0.88rem; }
-  .dr-roadmap-status {
-    display: inline-block; margin-left: 0.6rem; font-size: 0.7rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.03em; padding: 0.15rem 0.5rem; border-radius: 999px;
-    vertical-align: middle;
-  }
-  .dr-roadmap-status--in_progress { background: var(--gold-bg); color: var(--gold); }
-  .dr-roadmap-status--shipped { background: rgba(31, 158, 92, 0.15); color: var(--verified-green); }
-  .dr-roadmap-idea-actions { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
-  .dr-roadmap-vote-form { margin: 0; }
-  .dr-roadmap-vote-btn {
-    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
-    border-radius: 999px; font-weight: 700; cursor: pointer; padding: 0.45rem 1rem; font-size: 0.88rem;
-    font-family: inherit; white-space: nowrap;
-  }
-  .dr-roadmap-vote-btn:disabled { opacity: 0.65; cursor: default; background: var(--muted); border-color: var(--muted); }
-  .dr-roadmap-notify-toggle {
-    background: transparent; border: none; color: var(--muted); font-size: 0.78rem; cursor: pointer;
-    text-decoration: underline; padding: 0; font-family: inherit;
-  }
-  
-  .dr-roadmap-notify-form { margin: 0; display: flex; gap: 0.4rem; align-items: center; }
-  .dr-roadmap-notify-form[hidden] { display: none; }
-  .dr-roadmap-notify-form input[type=email] {
-    font-size: 0.85rem; padding: 0.35rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: inherit; width: 190px; max-width: 40vw;
-  }
-  .dr-roadmap-notify-form button {
-    font-size: 0.85rem; padding: 0.35rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: transparent; color: inherit; cursor: pointer; font-family: inherit; white-space: nowrap;
-  }
-  .dr-roadmap-notify-result { margin: 0; font-size: 0.8rem; color: var(--muted); text-align: right; }
-  @media (max-width: 560px) {
-    .dr-roadmap-idea { flex-direction: column; align-items: stretch; }
-    .dr-roadmap-idea-actions { align-items: stretch; }
-    .dr-roadmap-notify-form input[type=email] { width: auto; max-width: none; flex: 1; }
-  }
-
   @media (max-width: 860px) {
     
     

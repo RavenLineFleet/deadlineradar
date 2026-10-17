@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roadmap — Deadline-Radar</title>
-<meta name="description" content="Vote on what Deadline-Radar builds next -- SMS reminders, practice-management integrations, API access, and more. No account needed.">
+<title>Moved — Deadline-Radar</title>
+<meta name="description" content="This page has been retired.">
 <link rel="canonical" href="https://deadline-radar.com/roadmap/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<meta property="og:title" content="Roadmap — Deadline-Radar">
-<meta property="og:description" content="Vote on what Deadline-Radar builds next -- SMS reminders, practice-management integrations, API access, and more. No account needed.">
+<meta property="og:title" content="Moved — Deadline-Radar">
+<meta property="og:description" content="This page has been retired.">
 <meta property="og:url" content="https://deadline-radar.com/roadmap/">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Deadline-Radar">
@@ -16,13 +16,14 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Roadmap — Deadline-Radar">
-<meta name="twitter:description" content="Vote on what Deadline-Radar builds next -- SMS reminders, practice-management integrations, API access, and more. No account needed.">
+<meta name="twitter:title" content="Moved — Deadline-Radar">
+<meta name="twitter:description" content="This page has been retired.">
 <meta name="twitter:image" content="https://deadline-radar.com/og-image.png">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
-
-<link rel="stylesheet" href="/styles.css?v=23ec76cd41">
+<meta http-equiv="refresh" content="0; url=https://deadline-radar.com/for-firms/">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/styles.css?v=686a4c66d0">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -61,26 +62,9 @@
   <div class="tagline">CPA license renewal deadlines by state — verified and kept current</div>
 </header>
 <main id="main" tabindex="-1">
-<h1>Roadmap</h1>
-<p class="intro">Vote on what we build next. No account needed &mdash; one click per idea, and you can
-change your mind later. Want an email when something ships? Say so after you vote.</p>
-
-<div class="dr-turnstile-slot">
-  <div class="cf-turnstile" data-sitekey="0x4AAAAAADvxskBA78YAubz_"
-       data-appearance="interaction-only" data-callback="drTurnstileDone"
-       data-expired-callback="drTurnstileExpired" data-error-callback="drTurnstileExpired"></div>
-  <p id="dr-turnstile-blocked-notice" role="status" hidden style="font-size:0.85rem; color:var(--muted); margin-top:0.5rem;">
-    Having trouble? If you use an ad blocker or privacy extension, try allowing <code>challenges.cloudflare.com</code> for this page.
-  </p>
-</div>
-<script>(function(){var drTurnstileToken="";var drTurnstileWaiters=[];window.drTurnstileDone=function(token){drTurnstileToken=token||"";if(drTurnstileToken){var waiters=drTurnstileWaiters;drTurnstileWaiters=[];waiters.forEach(function(fn){fn()})}};window.drTurnstileExpired=function(){drTurnstileToken=""};setTimeout(function(){if(drTurnstileToken)return;var notice=document.getElementById("dr-turnstile-blocked-notice");if(notice)notice.hidden=false},4e3);window.drTurnstileRecover=function(cb){drTurnstileToken="";if(window.turnstile&&typeof window.turnstile.reset==="function"){try{window.turnstile.reset()}catch(err){}}var done=false;function finish(){if(done)return;done=true;cb()}drTurnstileWaiters.push(finish);setTimeout(finish,8e3)};document.addEventListener("submit",function(e){var f=e.target;if(!f||f.tagName!=="FORM")return;var field=f.querySelector('input[name="cf-turnstile-response"]');if(field)field.value=drTurnstileToken},true)})();</script>
-
-<div id="dr-roadmap-error" role="alert" class="field-hint" style="color:#c33737;" hidden></div>
-<div id="dr-roadmap-list" class="dr-roadmap-list"><p class="dr-panel-empty">Loading&hellip;</p></div>
-
-<p class="backlink">Have an idea that's not listed? <a href="mailto:support@deadline-radar.com?subject=Roadmap%20idea">Tell us</a> &mdash;
-new ideas get added by hand, not submitted directly, to keep this list something worth actually
-looking at.</p>
+<h1>Moved</h1>
+<p class="intro">The roadmap voting page has been retired. Redirecting you to <a href="https://deadline-radar.com/for-firms/">https://deadline-radar.com/for-firms/</a>&hellip;</p>
+<script>location.replace("https://deadline-radar.com/for-firms/");</script>
 
 </main>
 </div>
@@ -116,7 +100,6 @@ looking at.</p>
       <a href="/deadline-calculator/">Deadline Calculator</a>
       <a href="/blog/">Guides</a>
       <a href="/blog/cpe-vs-license-renewal/">CPE vs. License Renewal</a>
-      <a href="/roadmap/">Roadmap</a>
     </div>
     <div class="foot-col">
       <h3>Company</h3>
@@ -146,149 +129,3 @@ looking at.</p>
 <script>(function(){var ALLOWED=Object.create(null);"em-w1,em-b2,li,bs,ma,x,blog,rd".split(",").forEach(function(t){ALLOWED[t]=true});var STORAGE_KEY="dr_src";function getStoredSrc(){try{return window.localStorage.getItem(STORAGE_KEY)}catch(err){return null}}try{var params=new URLSearchParams(window.location.search);var src=params.get("src");if(src&&ALLOWED[src]){try{var body=JSON.stringify({src:src});if(navigator.sendBeacon){navigator.sendBeacon("/api/attr",new Blob([body],{type:"application/json"}))}else{fetch("/api/attr",{method:"POST",headers:{"Content-Type":"application/json"},body:body,keepalive:true})}}catch(err){}try{if(!window.localStorage.getItem(STORAGE_KEY)){window.localStorage.setItem(STORAGE_KEY,src)}}catch(err){}}}catch(err){}document.addEventListener("submit",function(e){var f=e.target;if(!f||f.tagName!=="FORM")return;var field=f.querySelector(".dr-src-field");if(!field)return;var stored=getStoredSrc();field.value=stored&&ALLOWED[stored]?stored:""},true)})();</script>
 </body>
 </html>
-<script>
-(function() {
-  var API = "/api";
-  var listEl = document.getElementById('dr-roadmap-list');
-  var errEl = document.getElementById('dr-roadmap-error');
-  if (!listEl) return;
-
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
-  var hiddenFieldsHtml = "<div aria-hidden=\"true\" style=\"position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;\"><input type=\"text\" name=\"hp_website\" tabindex=\"-1\" autocomplete=\"off\"></div><input type=\"hidden\" name=\"cf-turnstile-response\" value=\"\">";
-
-  var STATUS_LABELS = {in_progress: 'In progress', shipped: 'Shipped'};
-
-  function render(ideas) {
-    listEl.innerHTML = ideas.map(function(idea) {
-      var statusLabel = STATUS_LABELS[idea.status];
-      var statusBadge = statusLabel
-        ? '<span class="dr-roadmap-status dr-roadmap-status--' + esc(idea.status) + '">' + statusLabel + '</span>'
-        : '';
-      var shipped = idea.status === 'shipped';
-      // Voting stays open for 'open' and 'in_progress' -- shipped is the
-      // one state where a vote button stops making sense (nothing left to
-      // decide). Notify-me still shows for a shipped idea in the rare case
-      // someone's landing on this page for the first time after it went
-      // live -- no reason to hide the option just because it's already true.
-      var voteHtml = shipped
-        ? ''
-        : '<form class="dr-roadmap-vote-form" data-idea-id="' + esc(idea.id) + '">' + hiddenFieldsHtml +
-          '<button type="submit" class="dr-roadmap-vote-btn"' + (idea.voted_by_me ? ' disabled' : '') + '>' +
-          (idea.voted_by_me ? '&check; Voted' : '&#9650; Vote') +
-          ' <span class="dr-roadmap-vote-count">' + esc(idea.vote_count) + '</span></button></form>';
-      return '<div class="dr-roadmap-idea">' +
-        '<div class="dr-roadmap-idea-info"><h2>' + esc(idea.title) + statusBadge + '</h2>' +
-        (idea.description ? '<p>' + esc(idea.description) + '</p>' : '') + '</div>' +
-        '<div class="dr-roadmap-idea-actions">' +
-        voteHtml +
-        '<button type="button" class="dr-roadmap-notify-toggle">Notify me when this ships</button>' +
-        '<form class="dr-roadmap-notify-form" data-idea-id="' + esc(idea.id) + '" hidden>' + hiddenFieldsHtml +
-        // A placeholder is not a valid accessible name (WCAG 4.1.2)
-        // and disappears once typed into (3.3.2) -- only visible once this
-        // control is checked in its actually-revealed state (after "Notify
-        // me when this ships" is clicked), which a static-HTML sweep can't
-        // see since this whole form is assembled by JS at render() time,
-        // not present in the built page source at all.
-        '<input type="email" class="dr-roadmap-notify-email" placeholder="you@example.com" required autocomplete="email" aria-label="' + esc('Email address for ' + idea.title + ' ship notification') + '">' +
-        '<button type="submit">Notify me</button></form>' +
-        '<p class="dr-roadmap-notify-result" hidden></p>' +
-        '</div></div>';
-    }).join('');
-  }
-
-  function loadIdeas() {
-    fetch(API + '/roadmap-data', {credentials: 'include'})
-      .then(function(res) { return res.ok ? res.json() : null; })
-      .then(function(data) {
-        if (!data || !data.ideas) {
-          if (errEl) { errEl.hidden = false; errEl.textContent = 'Something went wrong loading the roadmap. Please try again.'; }
-          return;
-        }
-        render(data.ideas);
-      })
-      .catch(function() {
-        if (errEl) { errEl.hidden = false; errEl.textContent = 'Something went wrong loading the roadmap. Please try again.'; }
-      });
-  }
-
-  listEl.addEventListener('submit', function(ev) {
-    var form = ev.target;
-    if (form.classList.contains('dr-roadmap-vote-form')) {
-      ev.preventDefault();
-      var btn = form.querySelector('.dr-roadmap-vote-btn');
-      var ideaId = form.getAttribute('data-idea-id');
-      var turnstileToken = form.querySelector('input[name="cf-turnstile-response"]').value;
-      if (btn) btn.disabled = true;
-      fetch(API + '/roadmap/vote', {
-        method: 'POST', credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({idea_id: ideaId, 'cf-turnstile-response': turnstileToken})
-      }).then(function(res) {
-        return res.json().then(function(data) { return {ok: res.ok, data: data}; });
-      }).then(function(result) {
-        if (!result.ok) {
-          if (btn) btn.disabled = false;
-          if (errEl) { errEl.hidden = false; errEl.textContent = (result.data && result.data.error) || 'Something went wrong. Please try again.'; }
-          return;
-        }
-        var countEl = form.querySelector('.dr-roadmap-vote-count');
-        if (countEl) countEl.textContent = result.data.vote_count;
-        if (btn) btn.innerHTML = '&check; Voted <span class="dr-roadmap-vote-count">' + result.data.vote_count + '</span>';
-      }).catch(function() {
-        if (btn) btn.disabled = false;
-        if (errEl) { errEl.hidden = false; errEl.textContent = 'Something went wrong. Please try again.'; }
-      });
-      return;
-    }
-    if (form.classList.contains('dr-roadmap-notify-form')) {
-      ev.preventDefault();
-      var ideaId2 = form.getAttribute('data-idea-id');
-      var emailEl = form.querySelector('.dr-roadmap-notify-email');
-      var turnstileToken2 = form.querySelector('input[name="cf-turnstile-response"]').value;
-      var resultEl = form.parentElement.querySelector('.dr-roadmap-notify-result');
-      var submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.disabled = true;
-      fetch(API + '/roadmap/notify-signup', {
-        method: 'POST', credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({idea_id: ideaId2, email: emailEl.value, 'cf-turnstile-response': turnstileToken2})
-      }).then(function(res) {
-        return res.json().then(function(data) { return {ok: res.ok, data: data}; });
-      }).then(function(result) {
-        if (submitBtn) submitBtn.disabled = false;
-        if (resultEl) {
-          resultEl.hidden = false;
-          resultEl.textContent = result.ok
-            ? 'Check your inbox to confirm.'
-            : ((result.data && result.data.error) || 'Something went wrong. Please try again.');
-        }
-        if (result.ok) { form.hidden = true; }
-      }).catch(function() {
-        if (submitBtn) submitBtn.disabled = false;
-        if (resultEl) { resultEl.hidden = false; resultEl.textContent = 'Something went wrong. Please try again.'; }
-      });
-      return;
-    }
-  });
-
-  listEl.addEventListener('click', function(ev) {
-    var toggle = ev.target.closest ? ev.target.closest('.dr-roadmap-notify-toggle') : null;
-    if (!toggle) return;
-    var form = toggle.parentElement.querySelector('.dr-roadmap-notify-form');
-    if (form) {
-      form.hidden = !form.hidden;
-      if (!form.hidden) {
-        var emailInput = form.querySelector('.dr-roadmap-notify-email');
-        if (emailInput) emailInput.focus();
-      }
-    }
-  });
-
-  loadIdeas();
-})();
-</script>
