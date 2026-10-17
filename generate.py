@@ -154,12 +154,6 @@ GUIDE_REVIEWS_PATH = ROOT / "data" / "guide_reviews.json"
 # overwriting the real, committed, production docs/ tree.
 SITE_DIR = ROOT / os.environ.get("DR_SITE_DIR", "docs")
 
-# Self-hosted display font (2026-07-10 visual-trust redesign). Copied verbatim into
-# docs/fonts/ at build time, referenced by an absolute /fonts/... URL in PAGE_CSS so
-# every page shares one cached file instead of each page embedding its own copy --
-# see assets/fonts/LICENSE.txt for the font's license (SIL OFL, embedding permitted).
-FONT_ASSETS_DIR = ROOT / "assets" / "fonts"
-
 # Placeholder only. No domain has been purchased, nothing here is deployed yet.
 # Swap this single constant for the real https://<user>.github.io/<repo> URL
 # (or a real domain later) once publishing is explicitly decided -- do not
@@ -607,6 +601,10 @@ FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 <rect x="13" y="17" width="6" height="6" rx="1.2" fill="#ffffff"/>
 </svg>
 """
+# Mobile LCP fix (2026-10-16): content-hash query string, same pattern as
+# PAGE_CSS_VERSION below -- lets the Cloudflare Transform Rule cache this
+# immutably for a year without risking a stale icon if it's ever redrawn.
+FAVICON_SVG_VERSION = hashlib.sha256(FAVICON_SVG.encode("utf-8")).hexdigest()[:10]
 
 # ---------------------------------------------------------------------------
 # 2026-07-31 CARD LAYOUT BUGFIX -- rationale kept HERE, in Python, deliberately.
@@ -637,14 +635,17 @@ FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 # wraps; and citations over _CITATION_CHIP_MAX_CHARS render as their own
 # full-width row instead of a right-aligned pill.
 
+# Mobile LCP fix (2026-10-16, Orchestrator CWV directive): the @font-face
+# declaration for Fraunces that used to open this block was dead weight --
+# nothing in PAGE_CSS sets font-family to 'Fraunces' (--font-display resolves
+# to the Georgia/serif stack below; cpe_hours_draft/'s old templates are the
+# only place that variable still names Fraunces, and that folder isn't part
+# of the live build). The font file itself is unused by the live site; it's
+# kept at assets/fonts/ only because make_og_image.py's own docstring
+# explains why it ISN'T used there either (Pillow can't load woff2). Removed
+# the @font-face rule and the docs/fonts/ copy step in build() below so
+# nothing ships a reference to it.
 PAGE_CSS = """
-  @font-face {
-    font-family: 'Fraunces';
-    font-style: normal;
-    font-weight: 300 900;
-    font-display: swap;
-    src: url('/fonts/fraunces-variable.woff2') format('woff2');
-  }
   :root {
     color-scheme: light dark;
     /* Tokens match the approved design concept exactly. */
@@ -5639,7 +5640,7 @@ def page_shell(
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(meta_description)}">
 <link rel="canonical" href="{esc(canonical_url)}">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.svg?v={FAVICON_SVG_VERSION}" type="image/svg+xml">
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(meta_description)}">
 <meta property="og:url" content="{esc(canonical_url)}">
@@ -26318,12 +26319,6 @@ def main() -> None:
         }
 
     SITE_DIR.mkdir(parents=True, exist_ok=True)
-
-    fonts_dir = SITE_DIR / "fonts"
-    fonts_dir.mkdir(parents=True, exist_ok=True)
-    font_src = FONT_ASSETS_DIR / "fraunces-variable.woff2"
-    (fonts_dir / "fraunces-variable.woff2").write_bytes(font_src.read_bytes())
-    print(f"wrote {SITE_DIR.name}/fonts/fraunces-variable.woff2")
 
     # AuditLab SEO-3r (LOW, 2026-08-04): completes SEO-3 -- every og:/twitter:
     # tag except og:image was already correct; this was the one static asset
