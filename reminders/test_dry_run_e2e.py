@@ -85,10 +85,21 @@ def read_dry_run_log() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def test_core_escalation_logic() -> None:
-    print("\n== Part 1: signup -> confirm -> escalating reminders (Michigan, fixed date) ==")
+    # Swapped from Michigan to Delaware (2026-10-19): Michigan's mi-individual
+    # record was discovered to have no determinable renewal year within its
+    # 2-year cycle (data_gap_note, terminal_disclosure=true) and its
+    # next_deadline_computed is correctly now null -- the same "test pins a
+    # live, mutable dataset" fragility as the rule-change-alerts.spec.ts
+    # REAL_EVENT_ID swaps, just discovered via an unguarded `result is not
+    # None` check that crashed the whole suite instead of failing one line
+    # (see the `if result:` guard added below, matching the Florida test's
+    # already-safe pattern). Delaware (de-all) is single-record,
+    # fixed_calendar, no computation/roll-forward complexity, no extra
+    # deadline_fields needed -- same shape Michigan originally had.
+    print("\n== Part 1: signup -> confirm -> escalating reminders (Delaware, fixed date) ==")
     reset_storage()
 
-    sub = store.add_pending("test1@example.invalid", "michigan", {})
+    sub = store.add_pending("test1@example.invalid", "delaware", {})
     check("subscriber created as pending", sub["status"] == store.STATUS_PENDING)
 
     confirmed = store.confirm(sub["confirm_token"])
@@ -98,9 +109,11 @@ def test_core_escalation_logic() -> None:
     check("confirming twice is idempotent, not an error", again is not None and again["status"] == store.STATUS_CONFIRMED)
 
     result = scheduler.compute_subscriber_deadline(confirmed, date(2026, 7, 3))
-    check("deadline computable for Michigan (no extra fields needed)", result is not None)
+    check("deadline computable for Delaware (no extra fields needed)", result is not None)
+    if not result:
+        return
     deadline_date, state_name = result
-    check("Michigan deadline matches the site's own data (2027-07-31)", deadline_date == date(2027, 7, 31),
+    check("Delaware deadline matches the site's own data (2027-06-30)", deadline_date == date(2027, 6, 30),
           f"got {deadline_date}")
 
     # Walk the clock through each threshold and confirm exactly the right
@@ -206,7 +219,7 @@ def test_non_aligned_signup_shows_true_days_remaining() -> None:
     threshold number that happened to fire."""
     print("\n== Part 8 (regression): non-aligned signup shows the real day count, not the threshold ==")
     reset_storage()
-    sub = store.add_pending("test10@example.invalid", "michigan", {})
+    sub = store.add_pending("test10@example.invalid", "delaware", {})
     store.confirm(sub["confirm_token"])
     result = scheduler.compute_subscriber_deadline(sub, date(2026, 7, 3))
     deadline_date, _ = result
@@ -231,7 +244,7 @@ def test_scheduler_gap_never_regresses_to_less_urgent_tier() -> None:
     LESS urgent reminder after a MORE urgent one already went out."""
     print("\n== Part 9 (regression): a scheduler gap must not cause out-of-order reminders ==")
     reset_storage()
-    sub = store.add_pending("test11@example.invalid", "michigan", {})
+    sub = store.add_pending("test11@example.invalid", "delaware", {})
     store.confirm(sub["confirm_token"])
     result = scheduler.compute_subscriber_deadline(sub, date(2026, 7, 3))
     deadline_date, _ = result
@@ -255,7 +268,7 @@ def test_scheduler_gap_never_regresses_to_less_urgent_tier() -> None:
               "in 7 days" in tone_order_fired[0], tone_order_fired[0])
         check("second fire (after the gap) jumped straight to the 1-day tier's subject "
               "(overdue by the time it fired, correctly says so), skipping stale 3-day",
-              "your Michigan CPA license renewal is due" in tone_order_fired[1]
+              "your Delaware CPA license renewal is due" in tone_order_fired[1]
               and "Overdue" in tone_order_fired[1],
               tone_order_fired[1])
         check("the STALE 3-day tier's subject never fired at all across the gap",
@@ -276,7 +289,7 @@ def test_never_notified_catchup_not_silent() -> None:
     catch-up window. Beyond that window, it's correctly abandoned."""
     print("\n== Part 10 (regression): never-notified-past-deadline gets one catch-up, not silence ==")
     reset_storage()
-    sub = store.add_pending("test12@example.invalid", "michigan", {})
+    sub = store.add_pending("test12@example.invalid", "delaware", {})
     store.confirm(sub["confirm_token"])
     result = scheduler.compute_subscriber_deadline(sub, date(2026, 7, 3))
     deadline_date, _ = result
@@ -294,7 +307,7 @@ def test_never_notified_catchup_not_silent() -> None:
     # A SEPARATE subscriber, never notified, but 30 days past deadline --
     # beyond the catch-up window. This one is genuinely abandoned.
     reset_storage()
-    sub2 = store.add_pending("test13@example.invalid", "michigan", {})
+    sub2 = store.add_pending("test13@example.invalid", "delaware", {})
     store.confirm(sub2["confirm_token"])
     summary2 = scheduler.run_once(as_of=deadline_date + timedelta(days=30), sender=test_sender)
     check("a never-notified subscriber 30 days past deadline (beyond the catch-up window) is correctly skipped",
@@ -335,12 +348,69 @@ def test_florida_multi_record_license_type() -> None:
     result_missing = scheduler.compute_subscriber_deadline(no_field_sub, date(2026, 7, 3))
     check("Florida WITHOUT a license_type_id returns None, not a guess", result_missing is None)
 
-    with_field_sub = store.add_pending("test9@example.invalid", "florida", {"license_type_id": "fl-individual-odd"})
+    # Swapped from "fl-individual-odd" (2026-10-19): that record id no longer
+    # exists -- Florida's individual record is now a single "fl-individual"
+    # needing its own anchor_date (certificate-date math, DATA-11), not an
+    # odd/even cohort split. "fl-firm" is the simpler still-current id and
+    # happens to carry the same expected date this test already asserted.
+    with_field_sub = store.add_pending("test9@example.invalid", "florida", {"license_type_id": "fl-firm"})
     result_ok = scheduler.compute_subscriber_deadline(with_field_sub, date(2026, 7, 3))
     check("Florida WITH the right license_type_id resolves correctly", result_ok is not None)
     if result_ok:
         d, _ = result_ok
-        check("matches the site's own odd-cohort date (2027-12-31)", d == date(2027, 12, 31), f"got {d}")
+        check("matches the site's own fl-firm date (2027-12-31)", d == date(2027, 12, 31), f"got {d}")
+
+
+def test_src61_stale_recurring_date_rolls_forward() -> None:
+    # AuditLab SRC-61 (2026-10-18): generate.py rolls a computation-tagged
+    # record's stored next_deadline_computed forward once it elapses (so the
+    # static site never shows a lapsed date); compute_subscriber_deadline()
+    # read the raw stored value directly and never did the same roll. A
+    # subscriber on me-all (Maine, single-record, annual Sept 30) evaluated
+    # after the stored 2026-09-30 had already elapsed would get a date far
+    # in the past instead of the site's own rolled-forward 2027-09-30 --
+    # exactly the silent-skip SRC-61 describes. Real data, not a fixture:
+    # proves the fix against what's actually stored today.
+    print("\n== SRC-61: compute_subscriber_deadline() rolls a stale recurring date forward ==")
+    reset_storage()
+    import json as _json
+    with open(scheduler.DATA_PATH, "r", encoding="utf-8") as f:
+        real_records = _json.load(f)["records"]
+    me_all = next(r for r in real_records if r["id"] == "me-all")
+    check(
+        "me-all's stored next_deadline_computed is the known-stale 2026-09-30 fixture value",
+        me_all["next_deadline_computed"] == "2026-09-30",
+        f"got {me_all['next_deadline_computed']} -- if this moved, the test's premise needs updating",
+    )
+    sub = store.add_pending("test-src61@example.invalid", "maine", {})
+    result = scheduler.compute_subscriber_deadline(sub, date(2026, 10, 18))
+    check("Maine resolves to a date, not None", result is not None)
+    if result:
+        d, _ = result
+        check(
+            "rolled forward past the elapsed 2026-09-30 to 2027-09-30 (annual, period_years=1), not stuck in the past",
+            d == date(2027, 9, 30),
+            f"got {d}",
+        )
+
+    # co-firm: multi-year period (3) -- proves the roll advances by whole
+    # periods, not just +1 year, and still lands on a date >= as_of.
+    co_firm = next(r for r in real_records if r["id"] == "co-firm")
+    check(
+        "co-firm's stored next_deadline_computed is the known-stale 2026-08-31 fixture value",
+        co_firm["next_deadline_computed"] == "2026-08-31",
+        f"got {co_firm['next_deadline_computed']} -- if this moved, the test's premise needs updating",
+    )
+    co_sub = store.add_pending("test-src61b@example.invalid", "colorado", {"license_type_id": "co-firm"})
+    co_result = scheduler.compute_subscriber_deadline(co_sub, date(2026, 10, 18))
+    check("Colorado firm resolves to a date, not None", co_result is not None)
+    if co_result:
+        d, _ = co_result
+        check(
+            "rolled forward a full 3-year period past 2026-08-31 to 2029-08-31, not 2027-08-31",
+            d == date(2029, 8, 31),
+            f"got {d}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -422,7 +492,7 @@ def test_rate_limit_blocks_ip_hammering() -> None:
         max_allowed, _ = server_module.RATE_LIMIT_SUBSCRIBE
         statuses = []
         for i in range(max_allowed + 5):
-            form_data = urllib.parse.urlencode({"email": f"hammer{i}@example.invalid", "state": "michigan"}).encode()
+            form_data = urllib.parse.urlencode({"email": f"hammer{i}@example.invalid", "state": "north-carolina"}).encode()
             req = urllib.request.Request(f"{base}/subscribe", data=form_data, method="POST")
             try:
                 with urllib.request.urlopen(req, timeout=3) as resp:
@@ -467,7 +537,7 @@ def test_permanent_suppression_survives_a_status_bug() -> None:
     depth, not reliant on the status field alone."""
     print("\n== Part 15 (abuse-hardening row 5): suppression holds even if status gets corrupted ==")
     reset_storage()
-    sub = store.add_pending("stopped-victim@example.invalid", "michigan", {})
+    sub = store.add_pending("stopped-victim@example.invalid", "delaware", {})
     store.confirm(sub["confirm_token"])
     result = scheduler.compute_subscriber_deadline(sub, date(2026, 7, 3))
     deadline_date, _ = result
@@ -608,7 +678,7 @@ def test_pending_subscriber_cannot_bypass_double_optin() -> None:
     time.sleep(0.3)
     base = f"http://127.0.0.1:{TEST_HTTP_PORT + 4}"
     try:
-        form_data = urllib.parse.urlencode({"email": "pending-victim@example.invalid", "state": "michigan"}).encode()
+        form_data = urllib.parse.urlencode({"email": "pending-victim@example.invalid", "state": "north-carolina"}).encode()
         req = urllib.request.Request(f"{base}/subscribe", data=form_data, method="POST")
         urllib.request.urlopen(req, timeout=3).read()
         subs = json.loads(TEST_STORE_PATH.read_text(encoding="utf-8"))
@@ -783,17 +853,24 @@ def test_http_server_smoke() -> None:
         with urllib.request.urlopen(f"{base}/health", timeout=3) as resp:
             check("GET /health returns 200", resp.status == 200)
 
-        form_data = urllib.parse.urlencode({"email": "http-test@example.invalid", "state": "michigan"}).encode()
+        # Swapped from "michigan" (2026-10-19): mi-individual's deadline is
+        # now correctly null (genuine data gap, terminal_disclosure=true),
+        # and /subscribe validates a deadline is actually computable before
+        # accepting a signup -- so this exact request now 400s, correctly.
+        # "north-carolina" (nc-all) is single-record, no extra fields
+        # needed, same shape Michigan originally had, still in
+        # SUPPORTED_STATE_SLUGS.
+        form_data = urllib.parse.urlencode({"email": "http-test@example.invalid", "state": "north-carolina"}).encode()
         req = urllib.request.Request(f"{base}/subscribe", data=form_data, method="POST")
         with urllib.request.urlopen(req, timeout=3) as resp:
-            check("POST /subscribe (valid Michigan signup) returns 200", resp.status == 200)
+            check("POST /subscribe (valid North Carolina signup) returns 200", resp.status == 200)
 
         subs = json.loads(TEST_STORE_PATH.read_text(encoding="utf-8"))
         matching = [s for s in subs if s["email"] == "http-test@example.invalid"]
         check("subscriber actually persisted by the real HTTP request", len(matching) == 1)
         confirm_token = matching[0]["confirm_token"] if matching else None
 
-        bad_data = urllib.parse.urlencode({"email": "not-an-email", "state": "michigan"}).encode()
+        bad_data = urllib.parse.urlencode({"email": "not-an-email", "state": "north-carolina"}).encode()
         bad_req = urllib.request.Request(f"{base}/subscribe", data=bad_data, method="POST")
         try:
             urllib.request.urlopen(bad_req, timeout=3)
@@ -983,7 +1060,7 @@ def test_server_first_name_and_address_precheck_http() -> None:
 
     try:
         form_data = urllib.parse.urlencode({
-            "email": "namehttp-test@example.invalid", "state": "michigan", "first_name": "  Alex  ",
+            "email": "namehttp-test@example.invalid", "state": "north-carolina", "first_name": "  Alex  ",
         }).encode()
         req = urllib.request.Request(f"{base}/subscribe", data=form_data, method="POST")
         with urllib.request.urlopen(req, timeout=3) as resp:
@@ -995,7 +1072,7 @@ def test_server_first_name_and_address_precheck_http() -> None:
             len(matching) == 1 and matching[0].get("first_name") == "Alex",
         )
 
-        form_data2 = urllib.parse.urlencode({"email": "nonamehttp-test@example.invalid", "state": "michigan"}).encode()
+        form_data2 = urllib.parse.urlencode({"email": "nonamehttp-test@example.invalid", "state": "north-carolina"}).encode()
         req2 = urllib.request.Request(f"{base}/subscribe", data=form_data2, method="POST")
         with urllib.request.urlopen(req2, timeout=3) as resp2:
             check("POST /subscribe with NO first_name still returns 200 (it's optional)", resp2.status == 200)
@@ -1080,9 +1157,9 @@ def test_degenerate_address_rejected_and_override_caller_restricted() -> None:
 def test_scheduler_one_bad_subscriber_does_not_abort_the_batch() -> None:
     print("\n== Part 29 (v2 regression): a mid-batch email-build failure doesn't crash the whole scheduler run ==")
     reset_storage()
-    sub_a = store.add_pending("batch-a@example.invalid", "michigan", {})
+    sub_a = store.add_pending("batch-a@example.invalid", "delaware", {})
     store.confirm(sub_a["confirm_token"])
-    sub_b = store.add_pending("batch-b@example.invalid", "michigan", {})
+    sub_b = store.add_pending("batch-b@example.invalid", "delaware", {})
     store.confirm(sub_b["confirm_token"])
 
     result = scheduler.compute_subscriber_deadline(sub_a, date(2026, 7, 3))
@@ -1235,6 +1312,7 @@ def main() -> None:
         test_new_york_unsupported()
         test_birth_month_states()
         test_florida_multi_record_license_type()
+        test_src61_stale_recurring_date_rolls_forward()
         test_non_aligned_signup_shows_true_days_remaining()
         test_scheduler_gap_never_regresses_to_less_urgent_tier()
         test_never_notified_catchup_not_silent()

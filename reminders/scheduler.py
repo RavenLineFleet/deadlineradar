@@ -37,6 +37,7 @@ from generate import (  # noqa: E402
     next_certificate_date_initial_term,
     fmt_date,
     STALENESS_THRESHOLD_DAYS,
+    _roll_forward_recurring_deadline,
 )
 
 from . import store
@@ -63,10 +64,31 @@ GRACE_PERIOD_PAST_DEADLINE_DAYS = 3
 NEVER_NOTIFIED_CATCHUP_WINDOW_DAYS = 14
 
 
-def _load_cpa_records() -> list[dict]:
+def _load_cpa_records(real_today: date | None = None) -> list[dict]:
+    """SRC-61 (AuditLab, 2026-10-18): generate.py rolls a `computation`-tagged
+    record's `next_deadline_computed` forward once it elapses (so the static
+    site never shows a lapsed date); this loader never did the same, so the
+    scheduler read the raw, possibly-stale stored value directly -- a
+    subscriber on a record whose stored date had elapsed got silently
+    skipped as a grace-period case forever, while the page they signed up
+    from kept advertising the correct, rolled-forward date. Reusing
+    generate.py's own `_roll_forward_recurring_deadline()` (not
+    re-implementing it) so the two can never silently disagree, same
+    posture as every other date function this module already shares with
+    generate.py. `real_today` is optional and defaults to skipping the roll
+    (check_data_freshness() below only needs `as_of_date`, not a rolled
+    view) -- compute_subscriber_deadline() passes its own `as_of` through so
+    tests simulating a specific date stay deterministic."""
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return data["records"], date.fromisoformat(data["as_of_date"])
+    records = data["records"]
+    if real_today is not None:
+        for r in records:
+            if r.get("next_deadline_computed"):
+                r["next_deadline_computed"] = _roll_forward_recurring_deadline(
+                    r["next_deadline_computed"], r.get("computation"), real_today
+                )
+    return records, date.fromisoformat(data["as_of_date"])
 
 
 def check_data_freshness(real_today: date) -> None:
@@ -90,7 +112,7 @@ def compute_subscriber_deadline(subscriber: dict, as_of: date) -> tuple[date, st
     deadline_fields). Never raises on bad subscriber data -- a malformed
     record should be skipped and logged, not crash the whole scheduler run
     for every other subscriber."""
-    records, _ = _load_cpa_records()
+    records, _ = _load_cpa_records(real_today=as_of)
     state_slug = subscriber["state_slug"]
     fields = subscriber.get("deadline_fields", {})
     state_records = [r for r in records if r["state_slug"] == state_slug]
