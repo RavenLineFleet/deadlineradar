@@ -2599,10 +2599,14 @@ async function finishFirmLoginVerify(
   // AuditLab DEMO-1 (LOW, 2026-08-06): the demo_locked tightening pass gated
   // setFirmPassword's other two call sites but missed this one. Inert today
   // (a demo firm has a password by the nature of the feature, so
-  // !firm.password_hash is false) -- but demo_locked is a raw DB column with
+  // !member.password_hash is false) -- but demo_locked is a raw DB column with
   // no ordering guarantee against password_hash, and the invariant Devin
   // stated ("no self-serve password path AT ALL, even inbox-proving ones")
   // applies identically here.
+  // AuditLab STALE-58 (LOW, 2026-10-19): comment corrected to member.password_hash
+  // -- the condition this parenthetical describes reads member.password_hash
+  // (:2611), not firm.password_hash; firms.password_hash has had zero
+  // production writers since migration 0045 (see SEC-34). No behavior change.
   if (
     result.purpose === "login" &&
     typeof optionalNewPassword === "string" &&
