@@ -1807,7 +1807,11 @@ PAGE_CSS = """
   }
   @media (max-width: 620px) { .foot-columns { grid-template-columns: 1fr; } }
   .foot-col { display: flex; flex-direction: column; gap: 0.4rem; }
-  .foot-col h3 {
+  /* AuditLab UX-19 (2026-10-18): these were <h3> with no <h2> above them in
+     the body, a skipped heading level on every page with no body <h2> (112
+     of 259) -- renamed to <h2>, selector follows so the footer's visual
+     size is unchanged. */
+  .foot-col h2 {
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
     color: var(--faint); margin: 0 0 0.2rem;
   }
@@ -3670,7 +3674,7 @@ def site_footer(lang: str = "en") -> str:
        exist for us). -->
   <div class="foot-columns">
     <div class="foot-col">
-      <h3>{esc(_t("footer.heading_data_method", lang))}</h3>
+      <h2>{esc(_t("footer.heading_data_method", lang))}</h2>
       <a href="/methodology/">{esc(_t("nav.how_we_verify", lang))}</a>
       <a href="/rule-changes/">{esc(_t("footer.link_mobility_rule_changes", lang))}</a>
       <a href="/practice-privilege-check/">{esc(_t("footer.link_practice_privilege_check", lang))}</a>
@@ -3678,7 +3682,7 @@ def site_footer(lang: str = "en") -> str:
       <a href="/compliance-reports/">{esc(_t("footer.link_compliance_reports", lang))}</a>
     </div>
     <div class="foot-col">
-      <h3>{esc(_t("footer.heading_product", lang))}</h3>
+      <h2>{esc(_t("footer.heading_product", lang))}</h2>
       <a href="/">{esc(_t("footer.link_all_jurisdictions", lang, count=JURISDICTION_COUNT))}</a>
       <a href="/for-firms/">{esc(_t("nav.for_firms", lang))}</a>
       <a href="/pricing/">{esc(_t("footer.link_pricing", lang))}</a>
@@ -3687,7 +3691,7 @@ def site_footer(lang: str = "en") -> str:
       <a href="/blog/cpe-vs-license-renewal/">{esc(_t("footer.link_cpe_vs_license", lang))}</a>
     </div>
     <div class="foot-col">
-      <h3>{esc(_t("footer.heading_company", lang))}</h3>
+      <h2>{esc(_t("footer.heading_company", lang))}</h2>
       <a href="/contact/">{esc(_t("footer.link_contact", lang))}</a>
       <a href="/security/">{esc(_t("footer.link_security", lang))}</a>
       <a href="/status/">{esc(_t("footer.link_status", lang))}</a>
@@ -20515,6 +20519,11 @@ def build_firm_mobility_page(by_slug: dict[str, list[dict]]) -> str:
     )
 
     sidebar_html = _dashboard_sidebar_html("mobility", tabs_live_here=False)
+    # AuditLab UX-20 (2026-10-18): the "Does your firm need to register here?"
+    # section below used to be a second visible <h1> on this page -- two
+    # document titles confuse heading-navigation. It's explicitly a
+    # subordinate question to the individual check above, so <h2> is the
+    # accurate level.
     body = f"""<div class="dr-dash-shell">
   {sidebar_html}
 
@@ -20660,7 +20669,7 @@ instead of picking each person one at a time above.</p>
 
 <hr style="margin:2.5rem 0;">
 
-<h1>Does your firm need to register here?</h1>
+<h2>Does your firm need to register here?</h2>
 <p class="subhead">A different question from the check above: does your FIRM itself need to register
 in a state where it has no office, for attest work you're doing there? Firms sometimes assume that if
 the individual CPA has practice privilege, the firm is covered too &mdash; the firm often still has its

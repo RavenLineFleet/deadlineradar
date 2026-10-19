@@ -839,7 +839,8 @@
   }
   @media (max-width: 620px) { .foot-columns { grid-template-columns: 1fr; } }
   .foot-col { display: flex; flex-direction: column; gap: 0.4rem; }
-  .foot-col h3 {
+  
+  .foot-col h2 {
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
     color: var(--faint); margin: 0 0 0.2rem;
   }
