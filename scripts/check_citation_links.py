@@ -306,13 +306,22 @@ def _looks_like_empty_spa_shell(body: bytes | None) -> bool:
 # ever verify a Utah citation link. A human browser read is the only evidence,
 # so it is recorded per URL with a date and ages out (re-raised after
 # BROWSER_VERIFIED_MAX_AGE_DAYS) rather than clearing the entry forever.
+#
+# SRC-59 (AuditLab, 2026-10-18): the Office of Administrative Rules relaunched
+# its entire eRules platform on 2026-10-16 (rules.utah.gov's own "New eRules
+# Launch" notice) -- every adminrules.utah.gov/public/rule/... path now 404s
+# to a real browser too ("No results were found"), and the site's full-text
+# search returns zero results for ANY query, confirmed independently by
+# AuditLab and AssetLab. Both entries below were removed rather than aged
+# out: they asserted a human verified the page RENDERS, which is no longer
+# true regardless of date. citation_url/monitor_urls for the 3 affected
+# records (ut-all, ut-cpe, utah-reinstatement) were repointed to their
+# already-on-file Cornell LII mirrors, confirmed live. If Utah's new
+# platform gets a working rule viewer again, re-add entries here (and
+# reconsider repointing citation_url back) rather than assume this one
+# stays empty forever.
 BROWSER_VERIFIED_MAX_AGE_DAYS = 180
-BROWSER_VERIFIED = {
-    "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules":
-        ("2026-10-12", "real Chrome, renders 96,972 chars incl. 'C.P.A. Firm December 31 even years'"),
-    "https://adminrules.utah.gov/public/rule/R156-26a/Current%20Rules":
-        ("2026-10-12", "real Chrome, renders 35,667 chars, effective 07/08/2026, incl. the 80-hour two-year sentence"),
-}
+BROWSER_VERIFIED = {}
 
 
 def browser_verified_note(url: str, today=None):

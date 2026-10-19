@@ -87,9 +87,17 @@ def test_shell_signatures_are_detected():
     assert not ccl._looks_like_empty_spa_shell(b'<div id="root"><p>real content</p></div>')
 
 
-def test_browser_verified_entry_clears_then_ages_out():
+def test_browser_verified_entry_clears_then_ages_out(monkeypatch):
+    # SRC-59 (AuditLab, 2026-10-18): this used to assert against the real
+    # production entries for adminrules.utah.gov, which is wrong on two
+    # counts -- a mechanism test shouldn't depend on live data staying true,
+    # and those specific entries were removed because the platform they
+    # verified a human could read has since 404'd entirely. Synthetic entry,
+    # tests the same aging mechanism without claiming anything about a real
+    # URL's current status.
     import datetime as dt
-    u = "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules"
+    u = "https://example.gov/some-rule-page"
+    monkeypatch.setitem(ccl.BROWSER_VERIFIED, u, ("2026-10-13", "real Chrome, renders the cited text"))
     assert "human-verified" in ccl.browser_verified_note(u, today=dt.date(2026, 10, 13))
     assert ccl.browser_verified_note(u, today=dt.date(2027, 4, 20)) is None  # >180d: back to the queue
-    assert ccl.browser_verified_note("https://adminrules.utah.gov/api/public/getfile/x.pdf", today=dt.date(2026, 10, 13)) is None
+    assert ccl.browser_verified_note("https://example.gov/never-recorded.pdf", today=dt.date(2026, 10, 13)) is None

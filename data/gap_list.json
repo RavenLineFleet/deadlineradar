@@ -4,12 +4,12 @@
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
   "total_records": 246,
-  "gap_record_count": 0,
+  "gap_record_count": 2,
   "terminal_disclosure_count": 36,
-  "note_bearing_record_count": 36,
+  "note_bearing_record_count": 38,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 32
+    "data_gap_note": 34
   },
   "block_claim_count": 0,
   "entries": [
@@ -115,6 +115,16 @@
     },
     {
       "dataset": "cpa_deadlines.json",
+      "id": "ut-all",
+      "state": "Utah",
+      "state_slug": "utah",
+      "field": "data_gap_note",
+      "note": "The official Utah rule-lookup website has been down site-wide since a platform relaunch on October 16, 2026 (confirmed October 18, 2026), so the citation link above points to a reputable third-party legal-reference mirror (Cornell Law School's Legal Information Institute) instead of the state's own page for now. The underlying fact (December 31, even years, for both license types) is independently confirmed on that mirror and unchanged. We will switch the link back to the state's own page once it is working again.",
+      "is_block_claim": false,
+      "terminal_disclosure": false
+    },
+    {
+      "dataset": "cpa_deadlines.json",
       "id": "ak-individual",
       "state": "Alaska",
       "state_slug": "alaska",
@@ -172,6 +182,16 @@
       "note": "The 120-hour/3-year total is confirmed in both SDCL 36-20B-27's statutory text (\"120 hours of continuing education in each three-year renewal period\") and the board's own FAQ. The 20-hour annual minimum appears only on the board's FAQ -- it is not stated in the statute or anywhere in the administrative rule chapter governing continuing education (ARSD 20:75:04). That chapter's only annual-hour schedules apply to certificate holders phasing in during their first three-year cycle (20:75:04:07) or returning after a lapsed certificate (20:75:04:08), not to ordinary ongoing renewal. It comes from the board itself, so plan to report at least 20 hours each year; the gap here is that we can't point to codified text for it, not that it's optional.",
       "is_block_claim": false,
       "terminal_disclosure": true
+    },
+    {
+      "dataset": "cpe_hours.json",
+      "id": "ut-cpe",
+      "state": "Utah",
+      "state_slug": "utah",
+      "field": "data_gap_note",
+      "note": "The official Utah rule-lookup website has been down site-wide since a platform relaunch on October 16, 2026 (confirmed October 18, 2026), so the citation link above points to a reputable third-party legal-reference mirror (Cornell Law School's Legal Information Institute) instead of the state's own page for now. The underlying fact (80 hours per 2-year cycle, 3 ethics hours plus 1 Utah-law hour) is independently confirmed on that mirror and unchanged. We will switch the link back to the state's own page once it is working again.",
+      "is_block_claim": false,
+      "terminal_disclosure": false
     },
     {
       "dataset": "reinstatement.json",
@@ -289,7 +309,7 @@
       "state": "Utah",
       "state_slug": "utah",
       "field": "data_gap_note",
-      "note": "Utah sets reinstatement fees administratively rather than codifying them in rule -- R156-26a contains no dollar figures anywhere in its text. The $113 total (and the $85 alternate for licenses expired more than two years with no unlicensed practice) comes directly from DOPL's own reinstatement application document, which is the fee's actual source of truth under this system. Because DOPL can revise that application without a rule filing, confirm the figure on the current application before paying.",
+      "note": "Utah sets reinstatement fees administratively rather than codifying them in rule -- R156-26a contains no dollar figures anywhere in its text. The $113 total (and the $85 alternate for licenses expired more than two years with no unlicensed practice) comes directly from DOPL's own reinstatement application document, which is the fee's actual source of truth under this system. Because DOPL can revise that application without a rule filing, confirm the figure on the current application before paying. Separately: the official Utah rule-lookup website has been down site-wide since a platform relaunch on October 16, 2026 (confirmed October 18, 2026), so the citation link above points to a reputable third-party legal-reference mirror (Cornell Law School's Legal Information Institute) instead of the state's own page for now. We will switch the link back to the state's own page once it is working again.",
       "is_block_claim": false,
       "terminal_disclosure": true
     },

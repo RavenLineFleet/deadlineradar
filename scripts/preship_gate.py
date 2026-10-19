@@ -3499,7 +3499,22 @@ _MIRROR_HOST_RE = re.compile(
 # mechanism did its job (blocked a bare swap with no disclosure), and the
 # retirement comment it required is why this got re-tested and closed
 # within hours instead of quietly becoming permanent.
-_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {}
+# 2026-10-18 (SRC-59, AuditLab + AssetLab): ut-all/ut-cpe/utah-reinstatement
+# granted. The Office of Administrative Rules relaunched its entire eRules
+# platform 2026-10-16 (rules.utah.gov's own announcement); every
+# adminrules.utah.gov/public/rule/... path now 404s to a real browser
+# ("No results were found") and the site's full-text search returns zero
+# results for ANY query -- a platform-wide outage, not a dead link specific
+# to these 3 rules, so there is currently no reachable official host for
+# any Utah CPA citation. Retire these the same way tx-cpe/nj-individual/
+# nebraska-reinstatement were retired above: re-check adminrules.utah.gov
+# periodically, and the moment it serves real content again, repoint
+# citation_url back and demote the Cornell mirror to secondary_source_url.
+_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
+    "ut-all": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
+    "ut-cpe": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
+    "utah-reinstatement": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
+}
 
 
 def check_citations_are_primary(repo_root: Path) -> list[str]:
