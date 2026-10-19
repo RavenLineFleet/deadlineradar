@@ -5344,7 +5344,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     if not tiers_match:
         return ["[SYNC] worker/src/tiers.ts's FIRM_TIERS literal not found -- can't verify generate.py's pricing copy against it"]
     tier_rows = re.findall(
-        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?monthlyPriceUsd:\s*(\d+(?:\.\d+)?).*?seatCap:\s*(\d+)',
+        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+(?:\.\d+)?).*?monthlyPriceUsd:\s*(\d+(?:\.\d+)?).*?seatCap:\s*(\d+)',
         tiers_match.group(1),
     )
     if not tier_rows:
@@ -5354,8 +5354,10 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         # (float), not int -- an integer-only capture truncates a real non-integer
         # charge (e.g. $19.50) to $19, so a gate meant to catch an advertised-vs-
         # charged drift would instead manufacture a false match against the
-        # truncated value. priceUsd/seatCap have no non-integer use today, left as int.
-        pt: {"label": label, "priceUsd": int(price), "monthlyPriceUsd": float(monthly), "seatCap": int(cap)}
+        # truncated value. GATE-58 (AuditLab, 2026-10-18): priceUsd (annual) had
+        # the identical hole -- widened the same way. seatCap has no non-integer
+        # use today, left as int.
+        pt: {"label": label, "priceUsd": float(price), "monthlyPriceUsd": float(monthly), "seatCap": int(cap)}
         for pt, label, price, monthly, cap in tier_rows
     }
     by_label = {v["label"]: v for v in by_plan_tier.values()}
@@ -5381,7 +5383,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # assumption" principle the original two checks used, extended to cover
     # monthlyPriceUsd (neither existed before PR6).
     dashboard_rows = re.findall(
-        r"\{tier:\s*'([a-z_]+)',\s*label:\s*'([^']+)',\s*seatCap:\s*(\d+),\s*annualUsd:\s*(\d+),\s*monthlyUsd:\s*(\d+(?:\.\d+)?)\}",
+        r"\{tier:\s*'([a-z_]+)',\s*label:\s*'([^']+)',\s*seatCap:\s*(\d+),\s*annualUsd:\s*(\d+(?:\.\d+)?),\s*monthlyUsd:\s*(\d+(?:\.\d+)?)\}",
         py_text,
     )
     if not dashboard_rows:
@@ -5406,17 +5408,17 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s DR_BILLING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
+        if float(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
             errors.append(
                 f'[SYNC] generate.py\'s dashboard DR_BILLING_TIERS entry for "{plan_tier}" shows '
                 f"label=\"{label_str}\", ${annual_str}/year, ${monthly_str}/month, seatCap={seat_cap_str}, but "
-                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']}/year, "
+                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']:g}/year, "
                 f"${tier['monthlyPriceUsd']:g}/month, {tier['seatCap']} seats for it -- the dashboard and the "
                 f"actual seat-cap gate/checkout would disagree."
             )
 
     pricing_rows = re.findall(
-        r'\{"tier":\s*"([a-z_]+)",\s*"label":\s*"([^"]+)",\s*"seat_cap":\s*(\d+),\s*"annual_usd":\s*(\d+),\s*"monthly_usd":\s*(\d+(?:\.\d+)?)\}',
+        r'\{"tier":\s*"([a-z_]+)",\s*"label":\s*"([^"]+)",\s*"seat_cap":\s*(\d+),\s*"annual_usd":\s*(\d+(?:\.\d+)?),\s*"monthly_usd":\s*(\d+(?:\.\d+)?)\}',
         py_text,
     )
     if not pricing_rows:
@@ -5438,11 +5440,11 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s _PRICING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
+        if float(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
             errors.append(
                 f'[SYNC] generate.py\'s /pricing/ page _PRICING_TIERS entry for "{plan_tier}" shows '
                 f"label=\"{label_str}\", ${annual_str}/year, ${monthly_str}/month, seat_cap={seat_cap_str}, but "
-                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']}/year, "
+                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']:g}/year, "
                 f"${tier['monthlyPriceUsd']:g}/month, {tier['seatCap']} seats for it -- the pricing page and "
                 f"the actual seat-cap gate/checkout would disagree."
             )
@@ -5475,12 +5477,24 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # copy in i18n.py (which this check never even opened before). A gate
     # that passes having verified only 2 of 6 surfaces is worse than an
     # honest gap -- it actively certifies a still-wrong price as checked.
+    # GATE-58 (AuditLab, 2026-10-18): the annual captures here were int-only too --
+    # same truncation hole GATE-57 closed for monthlyPriceUsd. Widened so a decimal
+    # annual price in the advertised prose doesn't fail to match this pattern at
+    # all, which would drop the surface from the comparison silently rather than
+    # flag it.
     bounds_pat = re.compile(
-        r"\$(\d+)/year(?: or \$(\d+)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)\s*to\s*\$(\d+)/year(?: or \$(\d+)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)"
+        r"\$(\d+(?:\.\d+)?)/year(?: or \$(\d+(?:\.\d+)?)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)\s*to\s*"
+        r"\$(\d+(?:\.\d+)?)/year(?: or \$(\d+(?:\.\d+)?)/month)?\s*\((?:up to\s+)?(\d+)\s+staff\)"
     )
     bounds_matches = list(bounds_pat.finditer(py_text))
     for m in bounds_matches:
-        lo_price, lo_mo, lo_cap, hi_price, hi_mo, hi_cap = (int(g) if g is not None else None for g in m.groups())
+        lo_price_g, lo_mo_g, lo_cap_g, hi_price_g, hi_mo_g, hi_cap_g = m.groups()
+        lo_price = float(lo_price_g) if lo_price_g is not None else None
+        lo_mo = float(lo_mo_g) if lo_mo_g is not None else None
+        lo_cap = int(lo_cap_g) if lo_cap_g is not None else None
+        hi_price = float(hi_price_g) if hi_price_g is not None else None
+        hi_mo = float(hi_mo_g) if hi_mo_g is not None else None
+        hi_cap = int(hi_cap_g) if hi_cap_g is not None else None
         # Monthly billing (2026-10-07): when the prose also states the monthly
         # price it must match the tier's monthlyPriceUsd (annual-only prose is
         # still accepted so a page can legitimately omit it).
@@ -5493,10 +5507,10 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         if (lo_price, lo_cap) != (lowest_tier["priceUsd"], lowest_tier["seatCap"]) or \
            (hi_price, hi_cap) != (highest_tier["priceUsd"], highest_tier["seatCap"]):
             errors.append(
-                f"[SYNC] generate.py has bounds prose reading \"${lo_price}/year ({lo_cap} staff) to "
-                f"${hi_price}/year ({hi_cap} staff)\", but worker/src/tiers.ts's FIRM_TIERS lowest/"
-                f"highest tiers are ${lowest_tier['priceUsd']}/year ({lowest_tier['seatCap']} staff) / "
-                f"${highest_tier['priceUsd']}/year ({highest_tier['seatCap']} staff)."
+                f"[SYNC] generate.py has bounds prose reading \"${lo_price:g}/year ({lo_cap} staff) to "
+                f"${hi_price:g}/year ({hi_cap} staff)\", but worker/src/tiers.ts's FIRM_TIERS lowest/"
+                f"highest tiers are ${lowest_tier['priceUsd']:g}/year ({lowest_tier['seatCap']} staff) / "
+                f"${highest_tier['priceUsd']:g}/year ({highest_tier['seatCap']} staff)."
             )
 
     segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year(?: or \$(\d+)/month)?\.</div>')
@@ -5508,7 +5522,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         if int(price_str) != tier["priceUsd"]:
             errors.append(
                 f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${price_str}/year, but '
-                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']}/year for it."
+                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']:g}/year for it."
             )
         if monthly_str and int(monthly_str) != tier["monthlyPriceUsd"]:
             errors.append(
@@ -5548,8 +5562,8 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 errors.append(
                     f"[SYNC] i18n.py has pricing bounds prose reading \"${lo_price}/year for up to {lo_cap} "
                     f"staff, up to ${hi_price}/year for up to {hi_cap}\", but worker/src/tiers.ts's "
-                    f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']}/year "
-                    f"({lowest_tier['seatCap']} staff) / ${highest_tier['priceUsd']}/year "
+                    f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']:g}/year "
+                    f"({lowest_tier['seatCap']} staff) / ${highest_tier['priceUsd']:g}/year "
                     f"({highest_tier['seatCap']} staff)."
                 )
 
