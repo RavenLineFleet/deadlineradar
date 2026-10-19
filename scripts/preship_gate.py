@@ -5344,13 +5344,18 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     if not tiers_match:
         return ["[SYNC] worker/src/tiers.ts's FIRM_TIERS literal not found -- can't verify generate.py's pricing copy against it"]
     tier_rows = re.findall(
-        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?monthlyPriceUsd:\s*(\d+).*?seatCap:\s*(\d+)',
+        r'planTier:\s*"([a-z_]+)".*?label:\s*"([^"]+)".*?priceUsd:\s*(\d+).*?monthlyPriceUsd:\s*(\d+(?:\.\d+)?).*?seatCap:\s*(\d+)',
         tiers_match.group(1),
     )
     if not tier_rows:
         return ["[SYNC] Could not parse individual tier entries out of worker/src/tiers.ts's FIRM_TIERS -- check monthlyPriceUsd (PR6, 2026-10-02) is still present"]
     by_plan_tier = {
-        pt: {"label": label, "priceUsd": int(price), "monthlyPriceUsd": int(monthly), "seatCap": int(cap)}
+        # GATE-57 (AuditLab, 2026-10-18): monthlyPriceUsd must stay decimal-tolerant
+        # (float), not int -- an integer-only capture truncates a real non-integer
+        # charge (e.g. $19.50) to $19, so a gate meant to catch an advertised-vs-
+        # charged drift would instead manufacture a false match against the
+        # truncated value. priceUsd/seatCap have no non-integer use today, left as int.
+        pt: {"label": label, "priceUsd": int(price), "monthlyPriceUsd": float(monthly), "seatCap": int(cap)}
         for pt, label, price, monthly, cap in tier_rows
     }
     by_label = {v["label"]: v for v in by_plan_tier.values()}
@@ -5376,43 +5381,70 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # assumption" principle the original two checks used, extended to cover
     # monthlyPriceUsd (neither existed before PR6).
     dashboard_rows = re.findall(
-        r"\{tier:\s*'([a-z_]+)',\s*label:\s*'[^']+',\s*seatCap:\s*(\d+),\s*annualUsd:\s*(\d+),\s*monthlyUsd:\s*(\d+)\}",
+        r"\{tier:\s*'([a-z_]+)',\s*label:\s*'([^']+)',\s*seatCap:\s*(\d+),\s*annualUsd:\s*(\d+),\s*monthlyUsd:\s*(\d+(?:\.\d+)?)\}",
         py_text,
     )
     if not dashboard_rows:
         errors.append("[SYNC] Could not find the dashboard's DR_BILLING_TIERS table in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
-    for plan_tier, seat_cap_str, annual_str, monthly_str in dashboard_rows:
+    # GATE-57 (AuditLab, 2026-10-18, mode A): a row whose monthlyUsd fails this
+    # regex's own capture (e.g. a shape this check doesn't anticipate) silently
+    # drops out of `dashboard_rows` instead of raising -- `found` being truthy
+    # from the OTHER rows let that pass as if nothing were missing. Assert the
+    # population explicitly so a dropped row is never silent.
+    found_dashboard_tiers = {row[0] for row in dashboard_rows}
+    if dashboard_rows and found_dashboard_tiers != set(by_plan_tier.keys()):
+        missing = sorted(set(by_plan_tier.keys()) - found_dashboard_tiers)
+        extra = sorted(found_dashboard_tiers - set(by_plan_tier.keys()))
+        errors.append(
+            f"[SYNC] generate.py's dashboard DR_BILLING_TIERS table doesn't cover the same tiers as "
+            f"worker/src/tiers.ts's FIRM_TIERS -- missing: {missing or 'none'}, unexpected: {extra or 'none'}. "
+            f"A row that fails to match this check's own regex shape drops out of the comparison silently "
+            f"otherwise."
+        )
+    for plan_tier, label_str, seat_cap_str, annual_str, monthly_str in dashboard_rows:
         tier = by_plan_tier.get(plan_tier)
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s DR_BILLING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(annual_str) != tier["priceUsd"] or int(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"]:
+        if int(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
             errors.append(
                 f'[SYNC] generate.py\'s dashboard DR_BILLING_TIERS entry for "{plan_tier}" shows '
-                f"${annual_str}/year, ${monthly_str}/month, seatCap={seat_cap_str}, but worker/src/tiers.ts's "
-                f"FIRM_TIERS says ${tier['priceUsd']}/year, ${tier['monthlyPriceUsd']}/month, "
-                f"{tier['seatCap']} seats for it -- the dashboard and the actual seat-cap gate/checkout "
-                f"would disagree."
+                f"label=\"{label_str}\", ${annual_str}/year, ${monthly_str}/month, seatCap={seat_cap_str}, but "
+                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']}/year, "
+                f"${tier['monthlyPriceUsd']:g}/month, {tier['seatCap']} seats for it -- the dashboard and the "
+                f"actual seat-cap gate/checkout would disagree."
             )
 
     pricing_rows = re.findall(
-        r'\{"tier":\s*"([a-z_]+)",\s*"label":\s*"[^"]+",\s*"seat_cap":\s*(\d+),\s*"annual_usd":\s*(\d+),\s*"monthly_usd":\s*(\d+)\}',
+        r'\{"tier":\s*"([a-z_]+)",\s*"label":\s*"([^"]+)",\s*"seat_cap":\s*(\d+),\s*"annual_usd":\s*(\d+),\s*"monthly_usd":\s*(\d+(?:\.\d+)?)\}',
         py_text,
     )
     if not pricing_rows:
         errors.append("[SYNC] Could not find /pricing/ page's _PRICING_TIERS table in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
-    for plan_tier, seat_cap_str, annual_str, monthly_str in pricing_rows:
+    # GATE-57 (AuditLab, 2026-10-18, mode A) -- same population-loss risk as
+    # DR_BILLING_TIERS above, asserted the same way.
+    found_pricing_tiers = {row[0] for row in pricing_rows}
+    if pricing_rows and found_pricing_tiers != set(by_plan_tier.keys()):
+        missing = sorted(set(by_plan_tier.keys()) - found_pricing_tiers)
+        extra = sorted(found_pricing_tiers - set(by_plan_tier.keys()))
+        errors.append(
+            f"[SYNC] generate.py's /pricing/ page _PRICING_TIERS table doesn't cover the same tiers as "
+            f"worker/src/tiers.ts's FIRM_TIERS -- missing: {missing or 'none'}, unexpected: {extra or 'none'}. "
+            f"A row that fails to match this check's own regex shape drops out of the comparison silently "
+            f"otherwise."
+        )
+    for plan_tier, label_str, seat_cap_str, annual_str, monthly_str in pricing_rows:
         tier = by_plan_tier.get(plan_tier)
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s _PRICING_TIERS references tier "{plan_tier}", which is not in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(annual_str) != tier["priceUsd"] or int(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"]:
+        if int(annual_str) != tier["priceUsd"] or float(monthly_str) != tier["monthlyPriceUsd"] or int(seat_cap_str) != tier["seatCap"] or label_str != tier["label"]:
             errors.append(
                 f'[SYNC] generate.py\'s /pricing/ page _PRICING_TIERS entry for "{plan_tier}" shows '
-                f"${annual_str}/year, ${monthly_str}/month, seat_cap={seat_cap_str}, but worker/src/tiers.ts's "
-                f"FIRM_TIERS says ${tier['priceUsd']}/year, ${tier['monthlyPriceUsd']}/month, "
-                f"{tier['seatCap']} seats for it -- the pricing page and the actual seat-cap gate/checkout "
-                f"would disagree."
+                f"label=\"{label_str}\", ${annual_str}/year, ${monthly_str}/month, seat_cap={seat_cap_str}, but "
+                f"worker/src/tiers.ts's FIRM_TIERS says label=\"{tier['label']}\", ${tier['priceUsd']}/year, "
+                f"${tier['monthlyPriceUsd']:g}/month, {tier['seatCap']} seats for it -- the pricing page and "
+                f"the actual seat-cap gate/checkout would disagree."
             )
 
     if per_seat_annual_match and per_seat_monthly_match:
