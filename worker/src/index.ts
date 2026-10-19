@@ -3079,11 +3079,11 @@ async function requireFirmSessionWithFirm(
 /**
  * migration 0045 (roadmap #11/#13/#14): requireFirmSessionWithFirm() plus a
  * role check. Billing, account deletion, and member management are
- * Partner-only per the role table this feature shipped with; every other
- * roster/CPE/calendar/report route stays open to all three roles for
- * reads, with a narrower Staff-write-gate applied separately at each
- * mutating route (Staff is read-only there, not locked out entirely the
- * way this function's callers are for non-listed roles).
+ * Partner-only per the role table this feature shipped with. The mutating
+ * roster/CPE/document/checklist/report routes call this function with
+ * ("partner", "office_manager") and so lock Staff out of writes entirely —
+ * there is no separate per-route Staff-write-gate. Staff keeps read access
+ * to those routes only where a route doesn't call this function at all.
  */
 async function requireFirmRole(
   request: Request,
