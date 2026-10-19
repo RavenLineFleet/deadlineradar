@@ -3994,15 +3994,30 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
   // verify against, and a session that just redeemed a password-RESET
   // link already proved control of the account's own inbox -- stronger
   // evidence than the password this check would otherwise demand).
-  if (firm.password_hash && !session.passwordResetAuthorized) {
+  //
+  // AuditLab SEC-34 (HIGH, 2026-10-19): this gate read firm.password_hash,
+  // which migration 0045 (2026-08-07, one day after DELETE-1 shipped)
+  // stopped writing -- a password is now set on the SIGNED-IN MEMBER, not
+  // the firm, same as handleFirmPasswordSet's own comment states. For
+  // every firm created on or after 0045 (and any firm that never had a
+  // password pre-0045), firm.password_hash is NULL, the gate skipped
+  // silently, and deletion proceeded on a session cookie alone -- the
+  // exact gap DELETE-1 was meant to close, reopened by a column that
+  // stopped being written. Fixed by reading the member row, same as the
+  // three sibling step-up sites (password set, 2FA enroll, change email).
+  const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
+  if (!member) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+  if (member.password_hash && !session.passwordResetAuthorized) {
     const currentOk = await verifyPassword(
       currentPassword,
       {
-        algo: firm.password_algo ?? undefined,
-        salt: firm.password_salt ?? undefined,
-        iterations: firm.password_iterations ?? undefined,
-        rounds: firm.password_rounds ?? undefined,
-        hash: firm.password_hash,
+        algo: member.password_algo ?? undefined,
+        salt: member.password_salt ?? undefined,
+        iterations: member.password_iterations ?? undefined,
+        rounds: member.password_rounds ?? undefined,
+        hash: member.password_hash,
       },
       env.PASSWORD_PEPPER
     );

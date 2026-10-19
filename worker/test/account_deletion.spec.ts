@@ -128,6 +128,38 @@ describe("POST /firm/account/delete", () => {
     expect(firm?.status).not.toBe(store.FIRM_STATUS_DELETED);
   });
 
+  // AuditLab SEC-34 (HIGH, 2026-10-19): the test above sets the password
+  // the way ONLY `setFirmPassword()` (test-only since migration 0045) does
+  // -- it mirrors into the primary member row too, so it cannot tell
+  // "gate reads firm.password_hash" apart from "gate reads member.
+  // password_hash". Production sets a password on the MEMBER only
+  // (setFirmMemberPassword()), leaving firm.password_hash NULL -- this is
+  // the discriminating case: it fails against the pre-fix gate (which
+  // read the firm row, saw NULL, and skipped the check) and passes
+  // against the fix (which reads the member row).
+  it("400s a firm whose password was set the PRODUCTION way (member row only, firm.password_hash stays NULL)", async () => {
+    const email = `deletepwmemberonly-${Date.now()}@example.com`;
+    const { id: firmId, memberId } = await store.createFirm(env.DB, { name: "Delete Member-Only Password Firm", adminEmail: email });
+    await store.setFirmMemberPassword(env.DB, memberId, await hashPassword("the-real-password"));
+    const firmRow = await store.getFirmById(env.DB, firmId);
+    expect(firmRow?.password_hash).toBeNull();
+    const { rawSessionToken } = await store.createSession(env.DB, firmId, memberId);
+    const cookie = `dr_firm_session=${rawSessionToken}`;
+
+    const missing = await deleteAccount(cookie);
+    expect(missing.status).toBe(400);
+    const wrong = await deleteAccount(cookie, { current_password: "definitely-not-it" });
+    expect(wrong.status).toBe(400);
+
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.status).not.toBe(store.FIRM_STATUS_DELETED);
+
+    const right = await deleteAccount(cookie, { current_password: "the-real-password" });
+    expect(right.status).toBe(200);
+    const deletedFirm = await store.getFirmById(env.DB, firmId);
+    expect(deletedFirm?.status).toBe(store.FIRM_STATUS_DELETED);
+  });
+
   it("deletes successfully for a firm WITH a password when current_password is correct", async () => {
     const email = `deletepwright-${Date.now()}@example.com`;
     const { id: firmId } = await store.createFirm(env.DB, { name: "Delete Password Right Firm", adminEmail: email });
