@@ -200,13 +200,21 @@ async function secondsSinceFirstSeenTodayForCode(db: D1Database, code: string, n
  * nothing logged); logging failures are swallowed so a DB hiccup can never
  * turn into a broken redirect for a real visitor, same posture as the
  * existing /go/mtcpa handler (index.ts).
+ *
+ * AuditLab LOW-5 (2026-10-18): an unknown code used to 302 to a bare "/",
+ * indistinguishable from a working link to whoever typed it -- a mistyped
+ * code (e.g. "/r/linkedin" for "/r/li") silently lost attribution. Tagged
+ * with a fixed "?src=unknown" marker instead so the miss is observable.
+ * Still never reflects the requested `code` itself into the response --
+ * the allowlist above exists specifically so nothing request-controlled
+ * reaches the Location header.
  */
 export async function handleTrackedLink(url: URL, request: Request, env: Env): Promise<Response> {
   const code = url.pathname.slice("/r/".length);
 
   const externalDestination = EXTERNAL_TRACKED_LINK_DESTINATIONS.get(code);
   if (!TRACKED_LINK_CODES.has(code) && externalDestination === undefined) {
-    return new Response(null, { status: 302, headers: { Location: "https://deadline-radar.com/" } });
+    return new Response(null, { status: 302, headers: { Location: "https://deadline-radar.com/?src=unknown" } });
   }
   const destination = TRACKED_LINK_CODES.get(code) ?? "/";
   const srcParam = url.searchParams.get("src");

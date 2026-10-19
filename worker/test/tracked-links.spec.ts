@@ -72,11 +72,11 @@ describe("GET /r/:code -- tracked outreach short links", () => {
     expect((await latestClick()).code).toBe("survey");
   });
 
-  it("an unknown code 302s to / and logs NO row", async () => {
+  it("an unknown code 302s to /?src=unknown (AuditLab LOW-5: observable, not a bare redirect) and logs NO row", async () => {
     const before = await countClicks();
     const resp = await SELF.fetch("https://deadline-radar.com/r/not-a-real-code", { redirect: "manual" });
     expect(resp.status).toBe(302);
-    expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/");
+    expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/?src=unknown");
     expect(await countClicks()).toBe(before);
   });
 
@@ -87,7 +87,7 @@ describe("GET /r/:code -- tracked outreach short links", () => {
       { redirect: "manual" }
     );
     expect(resp.status).toBe(302);
-    expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/");
+    expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/?src=unknown");
     expect(await countClicks()).toBe(before);
   });
 
@@ -116,7 +116,7 @@ describe("GET /r/:code -- tracked outreach short links", () => {
       const before = await countClicks();
       const resp = await SELF.fetch(`https://deadline-radar.com/r/${encodeURIComponent(key)}`, { redirect: "manual" });
       expect(resp.status).toBe(302);
-      expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/");
+      expect(resp.headers.get("Location")).toBe("https://deadline-radar.com/?src=unknown");
       expect(await countClicks()).toBe(before);
     }
   });
