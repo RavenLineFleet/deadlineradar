@@ -47,8 +47,21 @@ async function sessionCookieFor(firmId: string, memberId: string): Promise<strin
 // again; there is no synthetic-event injection path in
 // runRuleChangeAlertPass() to test against instead (send() is the only
 // override RunReminderOptions exposes).
-const REAL_EVENT_ID = "oklahoma-regwatch-ff8bf9c424be";
-const REAL_EVENT_STATE = "oklahoma";
+//
+// SWAPPED AGAIN (2026-10-19): the Oklahoma event above went stale the same
+// way -- its live `needs_reverification` flipped true->false->true again
+// since 2026-08-26 (per isEmailableRuleChangeEvent()'s ALERT-1 gate below),
+// so `upcomingRuleChangeEvents()` silently stopped returning it and this
+// whole describe block's firmsChecked/eventsChecked dropped to 0 -- found
+// incidentally while verifying an unrelated LOW-5 fix, confirmed by
+// stashing that fix out and reproducing the same 6 failures unchanged.
+// Swapped to louisiana-regwatch-e607d2e5b164 (ENACTED, needs_reverification:
+// false, effective 2027-01-01 -- same "furthest-out, most runway" choice;
+// its status went the OTHER direction since the "exact Louisiana shape"
+// comment below was written against it as the negative example). Still no
+// synthetic-event injection path -- the real fix that lasts.
+const REAL_EVENT_ID = "louisiana-regwatch-e607d2e5b164";
+const REAL_EVENT_STATE = "louisiana";
 
 describe("store.findFirmsEligibleForRuleChangeAlert()", () => {
   it("includes a firm with alerts enabled and an active roster license in the event's state", async () => {
@@ -319,7 +332,7 @@ describe("isEmailableRuleChangeEvent() -- AuditLab ALERT-1", () => {
     expect(isEmailableRuleChangeEvent(baseEvent(), FIXED_TODAY)).toBe(true);
   });
 
-  it("does NOT email a future event flagged needs_reverification -- the exact Louisiana shape, but upcoming", async () => {
+  it("does NOT email a future event flagged needs_reverification -- the exact shape Louisiana HAD as of 2026-08-26 (it's since resolved and is the live REAL_EVENT_ID above instead), but upcoming", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
     expect(isEmailableRuleChangeEvent(baseEvent({ needs_reverification: true }), FIXED_TODAY)).toBe(false);
   });
