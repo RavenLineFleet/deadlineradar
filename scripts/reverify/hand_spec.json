@@ -1062,7 +1062,16 @@
   ]
  },
  "ma-firm": {
-  "manual": "NOT YET AUTOMATED: June 30 firm cycle is on mass.gov (robots.txt disallows) and an eLicensing JS tool; MGL 112 s.87B1/2 text has no date"
+  "derivation": "MGL ch. 112 s.87B1/2(a)'s biennial term, verified at the record's own citation_url (STALE-63, AuditLab 2026-10-20: the old manual note named mass.gov, which disallows, but that is not this record's citation_url -- malegislature.gov allows all UAs; the statute states the cycle in words, not the literal phrase 'June 30')",
+  "checks": [
+   {
+    "url": "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B%201~2",
+    "kind": "text",
+    "anchor": "Licenses shall be issued initially, and renewed, for periods of",
+    "window": 80,
+    "expect_text": "two years but in any event expiring on the last day of June"
+   }
+  ]
  },
  "maryland-reinstatement": {
   "keep_auto": false,
