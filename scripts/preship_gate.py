@@ -5567,19 +5567,81 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     i18n_path = repo_root / "i18n.py"
     if i18n_path.exists():
         i18n_text = i18n_path.read_text(encoding="utf-8")
+        # BILL-43 (AuditLab, 2026-10-20): this arm's pattern used to match
+        # i18n.py's old "$X/year for up to N staff, up to $Y/year for up to
+        # M." bounds prose, but db8ec6c9b (2026-10-02) rewrote that copy to
+        # "firm plans from $X to $Y/year (or $X to $Y/month)" without
+        # touching this check -- the pattern then matched nothing, forever,
+        # with no assertion to say so, so the arm silently verified nothing
+        # for 18 days. Repointed at the current text (pricing.meta_description,
+        # i18n.py's only remaining bounds-prose surface) and given the same
+        # "could not find" assertion its sibling arms already have.
         i18n_bounds_pat = re.compile(
-            r"\$(\d+)/year for up to (\d+) staff, up to \$(\d+)/year for up to (\d+)\."
+            r"firm plans from \$(\d+) to \$(\d+)/year \(or \$(\d+) to \$(\d+)/month\)"
         )
-        for lo_price_str, lo_cap_str, hi_price_str, hi_cap_str in i18n_bounds_pat.findall(i18n_text):
-            lo_price, lo_cap, hi_price, hi_cap = int(lo_price_str), int(lo_cap_str), int(hi_price_str), int(hi_cap_str)
-            if (lo_price, lo_cap) != (lowest_tier["priceUsd"], lowest_tier["seatCap"]) or \
-               (hi_price, hi_cap) != (highest_tier["priceUsd"], highest_tier["seatCap"]):
+        i18n_bounds_matches = list(i18n_bounds_pat.finditer(i18n_text))
+        for m in i18n_bounds_matches:
+            lo_price_str, hi_price_str, lo_mo_str, hi_mo_str = m.groups()
+            lo_price, hi_price = int(lo_price_str), int(hi_price_str)
+            lo_mo, hi_mo = int(lo_mo_str), int(hi_mo_str)
+            if (lo_price, hi_price) != (lowest_tier["priceUsd"], highest_tier["priceUsd"]) or \
+               (lo_mo, hi_mo) != (lowest_tier["monthlyPriceUsd"], highest_tier["monthlyPriceUsd"]):
                 errors.append(
-                    f"[SYNC] i18n.py has pricing bounds prose reading \"${lo_price}/year for up to {lo_cap} "
-                    f"staff, up to ${hi_price}/year for up to {hi_cap}\", but worker/src/tiers.ts's "
-                    f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']:g}/year "
-                    f"({lowest_tier['seatCap']} staff) / ${highest_tier['priceUsd']:g}/year "
-                    f"({highest_tier['seatCap']} staff)."
+                    f"[SYNC] i18n.py's pricing.meta_description reads \"firm plans from ${lo_price} to "
+                    f"${hi_price}/year (or ${lo_mo} to ${hi_mo}/month)\", but worker/src/tiers.ts's "
+                    f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']:g}/${highest_tier['priceUsd']:g}/year, "
+                    f"${lowest_tier['monthlyPriceUsd']:g}/${highest_tier['monthlyPriceUsd']:g}/month."
+                )
+        if not i18n_bounds_matches:
+            errors.append(
+                "[SYNC] Could not find i18n.py's pricing.meta_description bounds prose "
+                "(\"firm plans from $X to $Y/year (or $X to $Y/month)\") -- markup shape may have "
+                "changed; update check_pricing_matches_tiers()'s i18n_bounds_pat"
+            )
+
+        # BILL-43 (AuditLab, 2026-10-20): two more structurally-identifiable
+        # surfaces this check never read. /founding-firms/'s only dollar
+        # amount is the Growth plan's annual price by name ("normally $N a
+        # year"); matched by key, same idiom as the DR_BILLING_TIERS/
+        # _PRICING_TIERS tables above, since the prose doesn't carry the
+        # tier's seat cap or monthly price to cross-check.
+        founding_pat = re.compile(r"Growth plan, normally \$(\d+) a year")
+        founding_matches = founding_pat.findall(py_text)
+        growth_tier = by_label.get("Growth")
+        if not founding_matches:
+            errors.append(
+                "[SYNC] Could not find /founding-firms/'s \"Growth plan, normally $N a year\" prose in "
+                "generate.py -- markup shape may have changed; update check_pricing_matches_tiers()"
+            )
+        elif growth_tier is None:
+            errors.append("[SYNC] generate.py's /founding-firms/ prose names a \"Growth\" plan, but worker/src/tiers.ts's FIRM_TIERS has no tier labelled \"Growth\"")
+        else:
+            for price_str in founding_matches:
+                if int(price_str) != growth_tier["priceUsd"]:
+                    errors.append(
+                        f"[SYNC] generate.py's /founding-firms/ page says the Growth plan is \"normally "
+                        f"${price_str} a year\", but worker/src/tiers.ts's FIRM_TIERS says ${growth_tier['priceUsd']:g}/year for it."
+                    )
+
+        # /for-firms/'s meta description (rendered into <meta name="description">,
+        # og:description, and twitter:description -- 3 live occurrences from one
+        # source literal) states the lowest tier's bounds in prose.
+        for_firms_meta_pat = re.compile(
+            r"from \$(\d+(?:\.\d+)?)/year or \$(\d+(?:\.\d+)?)/month\."
+        )
+        for_firms_meta_matches = for_firms_meta_pat.findall(py_text)
+        if not for_firms_meta_matches:
+            errors.append(
+                "[SYNC] Could not find /for-firms/'s meta-description pricing prose "
+                "(\"from $X/year or $Y/month.\") in generate.py -- markup shape may have changed; "
+                "update check_pricing_matches_tiers()"
+            )
+        for annual_str, monthly_str in for_firms_meta_matches:
+            if float(annual_str) != lowest_tier["priceUsd"] or float(monthly_str) != lowest_tier["monthlyPriceUsd"]:
+                errors.append(
+                    f"[SYNC] generate.py's /for-firms/ meta description says \"from ${annual_str}/year or "
+                    f"${monthly_str}/month.\", but worker/src/tiers.ts's FIRM_TIERS lowest tier is "
+                    f"${lowest_tier['priceUsd']:g}/year / ${lowest_tier['monthlyPriceUsd']:g}/month."
                 )
 
     # AuditLab (2026-10-07, LOW): the customer-facing per-seat prose is the
