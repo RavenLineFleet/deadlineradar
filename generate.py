@@ -341,11 +341,12 @@ def fmt_date_iso(d: date) -> str:
 # computation.type is fixed_calendar_recurring_no_anchor. This needs no new
 # anchor -- the currently-published, human-verified date IS the anchor -- and
 # it only ever advances a date that has already passed, never invents one.
-# Closes co-firm's actual stale-in-place risk permanently (and now covers
-# id-firm/me-all too, once they gained computation blocks). 32 records still
-# need a computation block added (a real per-record research task:
-# confirming each one's period_years) before they get the same protection --
-# tracked as follow-up, not done here.
+# Closes co-firm's actual stale-in-place risk permanently. Now covers the 26
+# records tagged fixed_calendar_recurring_no_anchor; 3 of them have already
+# elapsed and are being rolled today (co-firm, id-firm, me-all). 32 of the 58
+# dated records still need a computation block added (a real per-record
+# research task: confirming each one's period_years) before they get the
+# same protection -- tracked as follow-up, not done here.
 def _roll_forward_recurring_deadline(computed: str, computation: dict | None, real_today: date) -> str:
     if not computation or computation.get("type") != "fixed_calendar_recurring_no_anchor":
         return computed

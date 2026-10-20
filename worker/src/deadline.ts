@@ -45,10 +45,12 @@ export interface CpaRecord {
   // ("all" covers both on one shared deadline, safe to assign to a person).
   license_type?: string | null;
   next_deadline_computed: string | null;
-  // AuditLab DATE-3 (2026-08-21): present only on records generate.py's
-  // DATE-2 fix knows how to roll forward once next_deadline_computed
-  // elapses (today: co-firm, id-firm, me-all). See
-  // rollForwardRecurringDeadline() below.
+  // AuditLab DATE-3 (2026-08-21), corrected STALE-60 (2026-10-20): present
+  // on records carrying a `computation` block of any type (46 of 89 at
+  // 2026-10-20); rollForwardRecurringDeadline() acts only on
+  // type: fixed_calendar_recurring_no_anchor (26, all dated). The other 20
+  // have next_deadline_computed: null. See rollForwardRecurringDeadline()
+  // below.
   computation?: { type?: string; period_years?: number } | null;
   cohort_groups?: { group: string; years: number[]; next_deadline: string }[];
   last_verified: string;
