@@ -36,6 +36,23 @@ WORKER_COPIES = {f: "worker/src/" + os.path.basename(f) for f in DATA_FILES}
 # MON-3 (2026-10-05): resynced each run so a stale capture can never block this job's own gate --
 # a fleet-wide pause stops ordinary ships, but this unattended job runs regardless (not throttle-gated).
 COVERAGE_STATS_FILE = "data/rule_change_coverage_stats.json"
+# DROP-1 re-opened (2026-10-20): the scheduled task's own environment never carries these, so
+# preship_gate.py's silent-drop advisory could never execute from this job -- only a skip line.
+CLOUDFLARE_ENV_FILE = os.environ.get("REVERIFY_CLOUDFLARE_ENV_FILE", r"C:\Users\Devin\AssetLab\.secrets\cloudflare.env")
+
+
+def _load_cloudflare_env():
+    if os.environ.get("CLOUDFLARE_API_TOKEN") and os.environ.get("CLOUDFLARE_ACCOUNT_ID"):
+        return
+    if not os.path.isfile(CLOUDFLARE_ENV_FILE):
+        return
+    with open(CLOUDFLARE_ENV_FILE, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
 
 
 def log(msg):
@@ -220,6 +237,7 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "daily"
     push = "--no-push" not in sys.argv
     os.makedirs(STATE_DIR, exist_ok=True)
+    _load_cloudflare_env()
     try:
         fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.close(fd)
