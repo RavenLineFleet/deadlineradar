@@ -5599,50 +5599,54 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 "changed; update check_pricing_matches_tiers()'s i18n_bounds_pat"
             )
 
-        # BILL-43 (AuditLab, 2026-10-20): two more structurally-identifiable
-        # surfaces this check never read. /founding-firms/'s only dollar
-        # amount is the Growth plan's annual price by name ("normally $N a
-        # year"); matched by key, same idiom as the DR_BILLING_TIERS/
-        # _PRICING_TIERS tables above, since the prose doesn't carry the
-        # tier's seat cap or monthly price to cross-check.
-        founding_pat = re.compile(r"Growth plan, normally \$(\d+) a year")
-        founding_matches = founding_pat.findall(py_text)
-        growth_tier = by_label.get("Growth")
-        if not founding_matches:
-            errors.append(
-                "[SYNC] Could not find /founding-firms/'s \"Growth plan, normally $N a year\" prose in "
-                "generate.py -- markup shape may have changed; update check_pricing_matches_tiers()"
-            )
-        elif growth_tier is None:
-            errors.append("[SYNC] generate.py's /founding-firms/ prose names a \"Growth\" plan, but worker/src/tiers.ts's FIRM_TIERS has no tier labelled \"Growth\"")
-        else:
-            for price_str in founding_matches:
-                if int(price_str) != growth_tier["priceUsd"]:
-                    errors.append(
-                        f"[SYNC] generate.py's /founding-firms/ page says the Growth plan is \"normally "
-                        f"${price_str} a year\", but worker/src/tiers.ts's FIRM_TIERS says ${growth_tier['priceUsd']:g}/year for it."
-                    )
-
-        # /for-firms/'s meta description (rendered into <meta name="description">,
-        # og:description, and twitter:description -- 3 live occurrences from one
-        # source literal) states the lowest tier's bounds in prose.
-        for_firms_meta_pat = re.compile(
-            r"from \$(\d+(?:\.\d+)?)/year or \$(\d+(?:\.\d+)?)/month\."
+    # BILL-43 (AuditLab, 2026-10-20): two more structurally-identifiable
+    # surfaces this check never read. /founding-firms/'s only dollar
+    # amount is the Growth plan's annual price by name ("normally $N a
+    # year"); matched by key, same idiom as the DR_BILLING_TIERS/
+    # _PRICING_TIERS tables above, since the prose doesn't carry the
+    # tier's seat cap or monthly price to cross-check.
+    # AuditLab (2026-10-20, LOW): these two arms check py_text (generate.py),
+    # not i18n_text, so they were wrongly nested under `if i18n_path.exists():`
+    # -- moved to the same indent as the other py_text arms above so they
+    # cannot silently stop verifying if i18n.py is ever removed or renamed.
+    founding_pat = re.compile(r"Growth plan, normally \$(\d+) a year")
+    founding_matches = founding_pat.findall(py_text)
+    growth_tier = by_label.get("Growth")
+    if not founding_matches:
+        errors.append(
+            "[SYNC] Could not find /founding-firms/'s \"Growth plan, normally $N a year\" prose in "
+            "generate.py -- markup shape may have changed; update check_pricing_matches_tiers()"
         )
-        for_firms_meta_matches = for_firms_meta_pat.findall(py_text)
-        if not for_firms_meta_matches:
-            errors.append(
-                "[SYNC] Could not find /for-firms/'s meta-description pricing prose "
-                "(\"from $X/year or $Y/month.\") in generate.py -- markup shape may have changed; "
-                "update check_pricing_matches_tiers()"
-            )
-        for annual_str, monthly_str in for_firms_meta_matches:
-            if float(annual_str) != lowest_tier["priceUsd"] or float(monthly_str) != lowest_tier["monthlyPriceUsd"]:
+    elif growth_tier is None:
+        errors.append("[SYNC] generate.py's /founding-firms/ prose names a \"Growth\" plan, but worker/src/tiers.ts's FIRM_TIERS has no tier labelled \"Growth\"")
+    else:
+        for price_str in founding_matches:
+            if int(price_str) != growth_tier["priceUsd"]:
                 errors.append(
-                    f"[SYNC] generate.py's /for-firms/ meta description says \"from ${annual_str}/year or "
-                    f"${monthly_str}/month.\", but worker/src/tiers.ts's FIRM_TIERS lowest tier is "
-                    f"${lowest_tier['priceUsd']:g}/year / ${lowest_tier['monthlyPriceUsd']:g}/month."
+                    f"[SYNC] generate.py's /founding-firms/ page says the Growth plan is \"normally "
+                    f"${price_str} a year\", but worker/src/tiers.ts's FIRM_TIERS says ${growth_tier['priceUsd']:g}/year for it."
                 )
+
+    # /for-firms/'s meta description (rendered into <meta name="description">,
+    # og:description, and twitter:description -- 3 live occurrences from one
+    # source literal) states the lowest tier's bounds in prose.
+    for_firms_meta_pat = re.compile(
+        r"from \$(\d+(?:\.\d+)?)/year or \$(\d+(?:\.\d+)?)/month\."
+    )
+    for_firms_meta_matches = for_firms_meta_pat.findall(py_text)
+    if not for_firms_meta_matches:
+        errors.append(
+            "[SYNC] Could not find /for-firms/'s meta-description pricing prose "
+            "(\"from $X/year or $Y/month.\") in generate.py -- markup shape may have changed; "
+            "update check_pricing_matches_tiers()"
+        )
+    for annual_str, monthly_str in for_firms_meta_matches:
+        if float(annual_str) != lowest_tier["priceUsd"] or float(monthly_str) != lowest_tier["monthlyPriceUsd"]:
+            errors.append(
+                f"[SYNC] generate.py's /for-firms/ meta description says \"from ${annual_str}/year or "
+                f"${monthly_str}/month.\", but worker/src/tiers.ts's FIRM_TIERS lowest tier is "
+                f"${lowest_tier['priceUsd']:g}/year / ${lowest_tier['monthlyPriceUsd']:g}/month."
+            )
 
     # AuditLab (2026-10-07, LOW): the customer-facing per-seat prose is the
     # one price literal the constants check above never reaches -- i18n.py's
