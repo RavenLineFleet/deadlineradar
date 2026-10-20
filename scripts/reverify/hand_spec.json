@@ -1175,7 +1175,15 @@
   "manual": "NOT YET AUTOMATED: $175 is on the Board's renewal portal (glsuite, robots.txt disallows); NAC 628 sets no amount"
  },
  "nh-all": {
-  "manual": "NOT YET AUTOMATED: per-license biennial cycle (RSA 310:8, 309-B:7) only on oplc.nh.gov (robots.txt disallows)"
+  "derivation": "RSA 310:8, II's per-license 2-year term, verified at the record's own citation_url (STALE-62, AuditLab 2026-10-20: the old manual note named oplc.nh.gov, which disallows, but that is not this record's citation_url -- gc.nh.gov allows general UAs, crawl-delay 11, only AhrefsBot disallowed)",
+  "checks": [
+   {
+    "url": "https://gc.nh.gov/rsa/html/XXX/310/310-8.htm",
+    "kind": "text",
+    "anchor": "Licenses issued by the office shall be valid for",
+    "expect_text": "2 years from the date of issuance"
+   }
+  ]
  },
  "nh-cpe": {
   "manual": "NOT YET AUTOMATED: Ac 403.01 adopted text and OPLC CE page both on oplc.nh.gov (robots.txt disallows); LII URL guess returned an index page"

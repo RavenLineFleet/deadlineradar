@@ -3469,12 +3469,22 @@
  },
  "nh-all": {
   "dataset": "cpa_deadlines",
-  "manual": "NOT YET AUTOMATED: per-license biennial cycle (RSA 310:8, 309-B:7) only on oplc.nh.gov (robots.txt disallows)",
+  "manual": null,
   "combine": "each",
   "field": null,
-  "derivation": null,
-  "provenance": "hand 2026-10-02",
-  "checks": []
+  "derivation": "RSA 310:8, II's per-license 2-year term, verified at the record's own citation_url (STALE-62, AuditLab 2026-10-20: the old manual note named oplc.nh.gov, which disallows, but that is not this record's citation_url -- gc.nh.gov allows general UAs, crawl-delay 11, only AhrefsBot disallowed)",
+  "provenance": "auto 2026-10-20 (converted from manual per STALE-62)",
+  "checks": [
+   {
+    "url": "https://gc.nh.gov/rsa/html/XXX/310/310-8.htm",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "Licenses issued by the office shall be valid for",
+    "window": 50,
+    "pattern": null,
+    "expect_text": "2 years from the date of issuance"
+   }
+  ]
  },
  "nh-cpe": {
   "dataset": "cpe_hours",
