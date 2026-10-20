@@ -8576,22 +8576,10 @@ def print_dual_credential_citation_advisory(repo_root: Path) -> None:
         print(f"  [{r['id']}] {r['state']} -- \"{r['license_type_label']}\" -- {flag}")
 
 
-def print_flux_blocked_pending_reverification_advisory(repo_root: Path) -> None:
-    """AuditLab FLUX-3 (MEDIUM, 2026-08-22): fluxHasSettled()'s fix (FLUX-2)
-    is correctly fail-closed, but that means every pending flux row goes
-    silently `not_verified` the moment its `rule_changes_on` passes, unless
-    someone already re-verified it (post-hoc) or explicitly forward-updated
-    it for that exact date (`forward_updated_for_change_on`) -- and nothing
-    surfaced which rows are in that state or since when. This is SILENT-2's
-    shape again: a permanent state with no observability. Advisory only --
-    the gate can't decide whether a row SHOULD be forward-updated yet
-    (research takes time), it can only say which ones already need it."""
-    data_path = repo_root / "worker" / "src" / "mobility_rules.json"
-    if not data_path.exists():
-        print("  (skipping flux-blocked-pending-reverification advisory -- worker/src/mobility_rules.json not present in this checkout)")
-        return
-    data = json.loads(data_path.read_text(encoding="utf-8"))
-    today = date.today()
+def _collect_flux_blocked_rows(data: dict, today: date) -> list[tuple[str, str, int]]:
+    """Shared by print_flux_blocked_pending_reverification_advisory() (display) and
+    check_mobility_flux_settled() (GATE-60 hard gate) so the two can never drift apart
+    on what counts as blocked."""
     blocked = []
     for r in data["records"]:
         if not r.get("rule_in_flux") or not r.get("rule_changes_on"):
@@ -8612,13 +8600,65 @@ def print_flux_blocked_pending_reverification_advisory(repo_root: Path) -> None:
         settled_forward = r.get("forward_updated_for_change_on") == r["rule_changes_on"]
         if not settled_post_hoc and not settled_forward:
             blocked.append((r["state"], r["rule_changes_on"], (today - changes_on).days))
-    print("\n--- flux-blocked-pending-reverification advisory (does not affect gate exit code) ---")
+    return blocked
+
+
+def print_flux_blocked_pending_reverification_advisory(repo_root: Path) -> None:
+    """AuditLab FLUX-3 (MEDIUM, 2026-08-22): fluxHasSettled()'s fix (FLUX-2)
+    is correctly fail-closed, but that means every pending flux row goes
+    silently `not_verified` the moment its `rule_changes_on` passes, unless
+    someone already re-verified it (post-hoc) or explicitly forward-updated
+    it for that exact date (`forward_updated_for_change_on`) -- and nothing
+    surfaced which rows are in that state or since when. This is SILENT-2's
+    shape again: a permanent state with no observability. Advisory only --
+    the gate can't decide whether a row SHOULD be forward-updated yet
+    (research takes time), it can only say which ones already need it.
+
+    GATE-60 (AuditLab, 2026-10-19): this printout alone has no consumer and
+    cannot block a ship (it sat inside _run_advisories(), which swallows
+    every exception so no advisory can affect the verdict) -- that's the gap
+    SRC-63/SRC-64 shipped through for 18 days. check_mobility_flux_settled()
+    below is the hard-gate twin that actually enforces this; this function
+    stays only for the human-readable printout during a run."""
+    data_path = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not data_path.exists():
+        print("  (skipping flux-blocked-pending-reverification advisory -- worker/src/mobility_rules.json not present in this checkout)")
+        return
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    blocked = _collect_flux_blocked_rows(data, date.today())
+    print("\n--- flux-blocked-pending-reverification advisory (informational; check_mobility_flux_settled enforces this as a hard gate) ---")
     if not blocked:
         print("  PASS -- no flux row is past its rule_changes_on without being settled.")
         return
     print(f"  {len(blocked)} row(s) past their change date, blocked (honestly) pending re-verification:")
     for state, changes_on, days in sorted(blocked, key=lambda x: -x[2]):
         print(f"    {state} -- changed {changes_on}, blocked {days}d")
+
+
+def check_mobility_flux_settled(repo_root: Path, today: date | None = None) -> list[str]:
+    """GATE-60 (AuditLab, 2026-10-19): print_flux_blocked_pending_reverification_advisory()
+    (FLUX-3, 2026-08-22) correctly identified the Alabama SRC-63/SRC-64 record as past its
+    rule_changes_on for 18 consecutive days, but as a pure advisory inside _run_advisories()
+    -- which swallows SystemExit and every other Exception so no advisory can ever change the
+    gate verdict -- it had no path to block a ship, and nothing else reads its stdout either.
+    This is the hard-gate twin: a flux row past its rule_changes_on without a settling
+    verified_date or forward_updated_for_change_on now fails the gate, same treatment as every
+    other dataset's currency check (check_cpe_hours_currency et al.)."""
+    path = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    today = today or date.today()
+    errors: list[str] = []
+    for state, changes_on, days in _collect_flux_blocked_rows(data, today):
+        errors.append(
+            f"[GATE-60][{state}] rule_in_flux row changed {changes_on}, blocked {days}d pending "
+            "re-verification -- neither verified_date nor forward_updated_for_change_on settles "
+            "it. Re-verify what the rule now says and either set forward_updated_for_change_on to "
+            "this exact date, or bump verified_date on/after it once the change is confirmed "
+            "handled."
+        )
+    return errors
 
 
 def print_cpe_hours_staleness_advisory(repo_root: Path) -> None:
@@ -9230,6 +9270,7 @@ def main():
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_mobility_sunset_field(repo_root)
+    all_errors += check_mobility_flux_settled(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_clock_kind_consistency(repo_root)
