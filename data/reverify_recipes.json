@@ -542,7 +542,7 @@
  },
  "co-firm": {
   "dataset": "cpa_deadlines",
-  "manual": "NOT YET AUTOMATED: Aug 31 triennial date comes from a data.colorado.gov register and dpo.colorado.gov (robots.txt disallows); 3 CCR 705-1 has no expiry date",
+  "manual": "NOT YET AUTOMATED (STALE-64, 2026-10-20): citation_url (data.colorado.gov/d/7s5z-vewr) is reachable, not robots-blocked -- it resolves to a Socrata dataset schema page (/about_data); the Aug 31 triennial date lives in per-licensee data rows (licenseExpirationDate), not in the page text, so no single page carries the board-wide date. A board-wide aggregate from that column is exactly the cohort-dependent derivation this record must avoid; 3 CCR 705-1 has no expiry date either.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -551,7 +551,7 @@
  },
  "co-individual": {
   "dataset": "cpa_deadlines",
-  "manual": "NOT YET AUTOMATED: Nov 30 odd-year date is on dpo.colorado.gov only (robots.txt disallows); data.colorado.gov page is a 267-char JS shell",
+  "manual": "NOT YET AUTOMATED (STALE-64, 2026-10-20): citation_url (data.colorado.gov/d/jzq6-fyp7) is reachable, not robots-blocked -- it resolves to a Socrata dataset schema page (/about_data); the Nov 30 odd-year date lives in per-licensee data rows (licenselastreneweddate), not in the page text, so no single page carries the board-wide date. A board-wide aggregate from that column is exactly the cohort-dependent derivation this record must avoid.",
   "combine": "each",
   "field": null,
   "derivation": null,

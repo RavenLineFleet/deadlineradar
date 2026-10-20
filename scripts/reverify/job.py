@@ -70,6 +70,20 @@ def sh(*cmd, cwd=None, check=True, env=None):
     return r
 
 
+def _extract_advisory_stanza(stdout, marker):
+    """Pull one `--- <marker>... ---` advisory section out of a gate's stdout, up to the next
+    `\\n---` header (print_*_advisory() functions in preship_gate.py each open with one) or end of
+    output. DROP-7 (2026-10-20): on a PASSING preship_gate.py run this text was never read at all
+    (only the failure branch below reads g.stdout), so the silent-drop advisory's live counts --
+    the only human-facing read of the silent_drop_log table -- evaporated on every run that mattered
+    most: the one actually proving whether the DROP-1 fix works in the real Task Scheduler context."""
+    start = stdout.find(f"--- {marker}")
+    if start == -1:
+        return None
+    end = stdout.find("\n---", start + 4)
+    return stdout[start:end if end != -1 else len(stdout)].strip()
+
+
 def note(title, body):
     os.makedirs(ASSETLAB_INBOX, exist_ok=True)
     p = os.path.join(ASSETLAB_INBOX, f"reverify_{datetime.now():%Y%m%d_%H%M%S}_{title}.md")
@@ -221,6 +235,10 @@ def _gate_commit(mode, py, push):
                 _publish_status(False, f"gate failed: {' '.join(gate[1:])}")
             return 2
         log(f"gate ok: {' '.join(gate[1:])}")
+        if gate[-1] == "scripts/preship_gate.py":
+            advisory = _extract_advisory_stanza(g.stdout, "silent-drop advisory")
+            if advisory:
+                log(f"silent-drop advisory:\n{advisory}")
     sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), COVERAGE_STATS_FILE, "docs")
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",

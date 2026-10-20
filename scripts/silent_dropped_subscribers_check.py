@@ -102,6 +102,15 @@ def fetch_confirmed_subscribers() -> list[dict]:
     )
 
 
+def fetch_all_subscriber_ids() -> set[str]:
+    """All subscriber ids, any status -- used only to tell an open silent_drop_log row apart from
+    one whose subscriber has since been deleted outright (DROP-6: resolveSilentDrop() runs inside
+    runReminderPass()'s per-subscriber loop, so it can never reach a row for a subscriber who no
+    longer exists; that row would otherwise read 'open' forever, indistinguishable from a live,
+    still-broken one)."""
+    return {row["id"] for row in _run_d1_query("SELECT id FROM subscribers")}
+
+
 def fetch_silent_drop_log() -> list[dict]:
     """The durable table runReminderPass() (worker/src/scheduler.ts,
     migration 0067) upserts on every real production cron run -- the
@@ -127,11 +136,18 @@ def main() -> None:
             dropped.append(row)
 
     open_log_rows = fetch_silent_drop_log()
+    all_subscriber_ids = fetch_all_subscriber_ids()
+    # DROP-6: a row whose subscriber was deleted outright can never be resolved by the real cron --
+    # count and list it apart from a still-live subscriber who is genuinely still dropped, rather
+    # than let it inflate "open" forever.
+    orphaned_rows = [r for r in open_log_rows if r["subscriber_id"] not in all_subscriber_ids]
+    still_open_rows = [r for r in open_log_rows if r["subscriber_id"] in all_subscriber_ids]
 
     print(f"silent-dropped-subscribers-check @ {today.isoformat()}")
     print(f"  confirmed subscribers checked (live, right now): {len(subscribers)}")
     print(f"  resolve to NO computable deadline (live, right now): {len(dropped)}")
-    print(f"  open in silent_drop_log (persisted, per the real cron's own runs): {len(open_log_rows)}")
+    print(f"  open in silent_drop_log (persisted, still-live subscriber): {len(still_open_rows)}")
+    print(f"  orphaned in silent_drop_log (subscriber deleted, cannot self-resolve): {len(orphaned_rows)}")
 
     if dropped:
         print()
@@ -144,15 +160,24 @@ def main() -> None:
             print(f"    - {row['email']}  state={row['state_slug']}  "
                   f"fields={row.get('deadline_fields')}  confirmed_at={row.get('confirmed_at')}")
 
-    if open_log_rows:
+    if still_open_rows:
         print()
         print("  PERSISTED HISTORY -- open since the real cron first saw each one:")
         print()
-        for row in open_log_rows:
+        for row in still_open_rows:
             print(f"    - {row['email']}  state={row['state_slug']}  reason={row['reason']}  "
                   f"first_detected_at={row['first_detected_at']}  last_seen_at={row['last_seen_at']}")
 
-    sys.exit(1 if (dropped or open_log_rows) else 0)
+    if orphaned_rows:
+        print()
+        print("  ORPHANED -- subscriber no longer exists; resolveSilentDrop() can never reach these,")
+        print("  so they will never get a resolved_at. Not counted above, not a live defect.")
+        print()
+        for row in orphaned_rows:
+            print(f"    - {row['subscriber_id']}  {row['email']}  state={row['state_slug']}  reason={row['reason']}  "
+                  f"first_detected_at={row['first_detected_at']}  last_seen_at={row['last_seen_at']}")
+
+    sys.exit(1 if (dropped or still_open_rows) else 0)
 
 
 if __name__ == "__main__":
