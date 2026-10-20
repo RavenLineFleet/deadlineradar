@@ -47,7 +47,8 @@ export interface CpaRecord {
   next_deadline_computed: string | null;
   // AuditLab DATE-3 (2026-08-21): present only on records generate.py's
   // DATE-2 fix knows how to roll forward once next_deadline_computed
-  // elapses (today: co-firm only). See rollForwardRecurringDeadline() below.
+  // elapses (today: co-firm, id-firm, me-all). See
+  // rollForwardRecurringDeadline() below.
   computation?: { type?: string; period_years?: number } | null;
   cohort_groups?: { group: string; years: number[]; next_deadline: string }[];
   last_verified: string;
