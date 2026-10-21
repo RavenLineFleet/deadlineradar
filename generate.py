@@ -1282,9 +1282,9 @@ PAGE_CSS = """
      an absolutely-positioned child (.dr-seal keeps position:relative from the base rule)
      so it doesn't add to the circle's own box height. flow-root on .dr-headwrap (no
      overflow:hidden) lets it render outside the circle's box with no clipping. */
-  .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; color: inherit; }
-  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: #4b5a4e; text-align: right; white-space: nowrap; }
-  .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { text-decoration: underline; }
+  .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; }
+  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: nowrap; }
+  .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
@@ -1929,6 +1929,11 @@ PAGE_CSS = """
   .signup-form--compact .signup-form-compact-label { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.5rem; display: block; }
   .signup-form--compact .signup-form-row input { flex: 1 1 auto; }
   .signup-form--compact .signup-form-row button { flex: 0 0 auto; margin-top: 0; }
+  /* Devin (2026-10-21): the button's own div has no label above it, so with
+     .signup-form-row's default align-items:stretch it sat flush at the TOP of
+     the row -- level with the sibling field's LABEL text, not its select/input.
+     Anchor it to the row's bottom instead, level with the field it belongs to. */
+  .signup-form--compact .signup-form-row > div:last-child { align-self: flex-end; }
   @media (max-width: 480px) {
     .site-header { flex-direction: column; align-items: flex-start; }
     h1 { font-size: 1.7rem; }
@@ -5839,6 +5844,10 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     codified -- still gets the single sourcing_claim below unchanged, since
     naming each record separately would just repeat the same claim twice
     for no honesty gain)."""
+    # Devin (2026-10-21): the raw ISO string read like a database timestamp next to the
+    # page's own human-formatted dates (e.g. the birth-month table's "January 31, 2027").
+    # data-verified stays ISO (the runtime staleness JS parses it); only the visible text changes.
+    last_verified_human = fmt_date(date.fromisoformat(last_verified))
     if records:
         statuses = {_record_citation_status(r) for r in records}
         if len(statuses) > 1:
@@ -5848,7 +5857,7 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
                 for r in records
             )
             return f"""<div class="trust-line">
-  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified)}</strong> &middot; {per_record} &mdash;
+  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong> &middot; {per_record} &mdash;
   <a href="/methodology/">see how we verify every deadline</a>. Always confirm with the
   <a href="{http_href(source_url)}">official state board</a> before relying on this date. License
   requirements and deadlines can change.
@@ -5873,7 +5882,7 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
             '(<a href="/methodology/">see how we verify every deadline</a>)'
         )
     return f"""<div class="trust-line">
-  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified)}</strong> &middot; {sourcing_claim}. Always confirm with the
+  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong> &middot; {sourcing_claim}. Always confirm with the
   <a href="{http_href(source_url)}">official state board</a> before relying on this date. License
   requirements and deadlines can change.
 </div>"""
@@ -6230,7 +6239,7 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         # Devin (2026-10-21): the seal on its own reads as disconnected from
         # the data it's vouching for -- name what it verifies and date it,
         # then make the whole thing a link through to the methodology page.
-        caption_html = f'<p class="dr-seal-caption">Texas renewal dates &mdash; verified {esc(last_verified)} &rarr;</p>'
+        caption_html = f'<p class="dr-seal-caption">Texas renewal dates &mdash; verified {esc(fmt_date(date.fromisoformat(last_verified)))} &rarr;</p>'
     seal_div = (
         f'<div class="{cls}"{dv} role="img" aria-label="{label}"{hid}>'
         + inner

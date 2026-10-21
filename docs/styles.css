@@ -408,9 +408,9 @@
   
   .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
   
-  .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; color: inherit; }
-  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: #4b5a4e; text-align: right; white-space: nowrap; }
-  .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { text-decoration: underline; }
+  .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; }
+  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: nowrap; }
+  .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
@@ -906,6 +906,8 @@
   .signup-form--compact .signup-form-compact-label { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.5rem; display: block; }
   .signup-form--compact .signup-form-row input { flex: 1 1 auto; }
   .signup-form--compact .signup-form-row button { flex: 0 0 auto; margin-top: 0; }
+  
+  .signup-form--compact .signup-form-row > div:last-child { align-self: flex-end; }
   @media (max-width: 480px) {
     .site-header { flex-direction: column; align-items: flex-start; }
     h1 { font-size: 1.7rem; }
