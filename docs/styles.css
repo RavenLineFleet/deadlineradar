@@ -127,6 +127,14 @@
   h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.005em; }
   .subhead { color: var(--muted); margin: 0 0 1.5rem; }
   .intro { margin: 0 0 1.25rem; }
+  .founder-photo {
+    max-width: 220px; width: 45%; height: auto; border-radius: 8px; border: 1px solid var(--border);
+    float: right; margin: 0 0 1rem 1.25rem;
+  }
+  .founder-photo + p.intro { margin-top: 0; }
+  @media (max-width: 640px) {
+    .founder-photo { float: none; width: 55%; max-width: 180px; margin: 0 auto 1.25rem; display: block; }
+  }
   .callout {
     position: relative;
     border: 1px solid var(--border); border-left: 4px solid var(--gold-line); border-radius: 8px;

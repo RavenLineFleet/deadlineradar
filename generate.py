@@ -843,6 +843,14 @@ PAGE_CSS = """
   h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.005em; }
   .subhead { color: var(--muted); margin: 0 0 1.5rem; }
   .intro { margin: 0 0 1.25rem; }
+  .founder-photo {
+    max-width: 220px; width: 45%; height: auto; border-radius: 8px; border: 1px solid var(--border);
+    float: right; margin: 0 0 1rem 1.25rem;
+  }
+  .founder-photo + p.intro { margin-top: 0; }
+  @media (max-width: 640px) {
+    .founder-photo { float: none; width: 55%; max-width: 180px; margin: 0 auto 1.25rem; display: block; }
+  }
   .callout {
     position: relative;
     border: 1px solid var(--border); border-left: 4px solid var(--gold-line); border-radius: 8px;
@@ -3747,6 +3755,7 @@ def site_footer(lang: str = "en") -> str:
     </div>
     <div class="foot-col">
       <h2>{esc(_t("footer.heading_company", lang))}</h2>
+      <a href="/about/">About</a>
       <a href="/contact/">{esc(_t("footer.link_contact", lang))}</a>
       <a href="/security/">{esc(_t("footer.link_security", lang))}</a>
       <a href="/status/">{esc(_t("footer.link_status", lang))}</a>
@@ -9664,6 +9673,46 @@ href="https://www.rfc-editor.org/rfc/rfc9116">RFC&nbsp;9116</a>.</p>
         body,
         home_href="../",
         canonical_path="/security/",
+    )
+
+
+def build_about_page() -> str:
+    """/about/ -- the founder-voice block. Text is the exact, AuditLab-PASSED
+    copy (R2 + one free wording tweak, see Orchestrator/outbox/assetlab.md
+    2026-10-16T17:05:00-06:00): FAIL 1 (absolute sourcing claim) fixed with
+    AuditLab's own supplied sentence verbatim, FAIL 2 (CPE wrongly bundled
+    into the "nearly empty" finding) fixed by dropping CPE, FAIL 3 (false
+    course-vendor/practice-management dichotomy, self-contradicted two
+    sentences later) fixed by cutting the dichotomy sentence outright --
+    AuditLab re-ran the standing legislation/vote/date/credential-claim
+    checks on this exact text and got 0 hits on all four. Devin approved
+    shipping this byte-for-byte (Orchestrator, 2026-10-21 16:38 MDT) -- do
+    not redraft or paraphrase it here. Photo (assets/founder/devin-hall.jpg)
+    independently re-confirmed EXIF/GPS/XMP-free before this page shipped it
+    (see HANDOFF 2026-10-21); Devin separately cleared it for publication."""
+    body = """<h1>About Deadline-Radar</h1>
+<img class="founder-photo" src="/img/founder/devin-hall.jpg" alt="Devin Hall, founder of Deadline-Radar" width="900" height="1550" loading="lazy">
+<p class="intro">Deadline-Radar didn't come from me personally missing a renewal date -- it came from
+a market-research question: where's a niche real people clearly need solved that nobody's building
+properly yet? I set four parallel AI research agents loose on real candidate niches -- grant
+deadlines, conference CFPs, business compliance filings, license renewals -- looking for genuine
+buyer intent with no funded incumbent already locked in. License renewal came back with the clearest
+signal of the four -- we narrowed that to CPA. A follow-up check weeks later independently confirmed
+the lane was still nearly empty -- though that's changed since; a funded competitor acquired the
+other independent player in the space not long after. That gap is why this site is built the way it
+is: every date checked against two independent sources where both exist, and clearly labeled when
+only the board page confirms it.</p>
+
+<p class="how-it-works">See how that sourcing standard works in practice on our
+<a href="/methodology/">methodology page</a>, or <a href="/contact/">get in touch</a> directly.</p>
+"""
+    return page_shell(
+        f"About — {SITE_NAME}",
+        "Why Deadline-Radar exists: a market-research question about an underserved compliance "
+        "niche, not a personal pain point -- and the sourcing standard that came out of it.",
+        body,
+        home_href="../",
+        canonical_path="/about/",
     )
 
 
@@ -26256,6 +26305,9 @@ def build_sitemap(
     <loc>{SITE_BASE_URL}/founding-firms/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""", f"""  <url>
+    <loc>{SITE_BASE_URL}/about/</loc>
+    <lastmod>{as_of.isoformat()}</lastmod>
+  </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/compliance-reports/</loc>
     <lastmod>{as_of.isoformat()}</lastmod>
   </url>""",
@@ -26688,6 +26740,19 @@ def main() -> None:
     status_dir.mkdir(parents=True, exist_ok=True)
     (status_dir / "index.html").write_text(build_status_page(), encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/status/index.html")
+
+    # /about/ founder-voice block (Devin go, 2026-10-21) -- photo copied
+    # verbatim, same pattern as og-image.png above.
+    founder_photo_src = ROOT / "assets" / "founder" / "devin-hall.jpg"
+    founder_img_dir = SITE_DIR / "img" / "founder"
+    founder_img_dir.mkdir(parents=True, exist_ok=True)
+    (founder_img_dir / "devin-hall.jpg").write_bytes(founder_photo_src.read_bytes())
+    print(f"wrote {SITE_DIR.name}/img/founder/devin-hall.jpg")
+
+    about_dir = SITE_DIR / "about"
+    about_dir.mkdir(parents=True, exist_ok=True)
+    (about_dir / "index.html").write_text(build_about_page(), encoding="utf-8")
+    print(f"wrote {SITE_DIR.name}/about/index.html")
 
     # P5 (ValueLab pricing/billing report, ruled 2026-08-20): pricing never
     # got migrated to ES-2's publish_es gate -- see build_pricing_page()'s
