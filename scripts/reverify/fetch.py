@@ -36,6 +36,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from source_check import _extract_docx, _extract_html, _extract_pdf  # noqa: E402
 
 UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandraven.com)"
+# SRC-66 (AuditLab, 2026-10-21): www.maine.gov's CloudFront WAF 403s this honest UA host-wide,
+# including /robots.txt itself -- which urllib.robotparser then reads as a blanket disallow (RFC
+# 9309's 401/403-on-robots.txt-means-disallow rule), even though the host has no real policy
+# against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
+# ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
+# override so every other host keeps the honest, self-identifying UA.
+UA_HOST_OVERRIDES = {
+    "www.maine.gov": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+}
 TIMEOUT_S = 30
 MIN_INTERVAL_S = 1.0
 RETRIABLE_HTTP_CODES = {403, 429, 503}
@@ -49,6 +59,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def _ua_for(host: str) -> str:
+    return UA_HOST_OVERRIDES.get(host, UA)
 
 
 class BlockedAddress(OSError):
@@ -184,7 +198,7 @@ class Fetcher:
         target = f"{scheme}://{host}/robots.txt"
         try:
             for _ in range(MAX_REDIRECTS + 1):
-                req = urllib.request.Request(target, headers={"User-Agent": UA})
+                req = urllib.request.Request(target, headers={"User-Agent": _ua_for(urlparse(target).netloc)})
                 self._throttle(urlparse(target).netloc)
                 try:
                     with self._open(req, timeout=TIMEOUT_S) as r:
@@ -210,7 +224,7 @@ class Fetcher:
         p = urlparse(url)
         if p.netloc not in self._robots:
             self._robots[p.netloc] = self._robots_loader(p.scheme, p.netloc)
-        return self._robots[p.netloc].can_fetch(UA, url)
+        return self._robots[p.netloc].can_fetch(_ua_for(p.netloc), url)
 
     # ---- fetch ----
     def get(self, url: str, method: str = "http") -> Fetched:
@@ -222,7 +236,7 @@ class Fetcher:
             if not self.allowed(cur):
                 return Fetched(url, False, None, "robots_disallow", None, None, cur)
             host = urlparse(cur).netloc
-            req = urllib.request.Request(cur, headers={"User-Agent": UA, "Accept": "*/*"})
+            req = urllib.request.Request(cur, headers={"User-Agent": _ua_for(host), "Accept": "*/*"})
             status, body, ctype, moved = None, None, "", None
             for attempt in range(2):
                 try:
@@ -290,7 +304,7 @@ class Fetcher:
             with sync_playwright() as pw:
                 b = pw.chromium.launch()
                 try:
-                    page = b.new_page(user_agent=UA)
+                    page = b.new_page(user_agent=_ua_for(urlparse(url).netloc))
 
                     def guard(route, request):
                         u = request.url

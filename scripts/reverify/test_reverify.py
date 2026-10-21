@@ -429,6 +429,23 @@ def test_honest_user_agent_and_rate_limit():
     assert sleeps and abs(sum(sleeps) - 2.0) < 1e-9     # robots + 2 pages on one host => two 1s waits
 
 
+def test_maine_gov_uses_browser_ua_override_other_hosts_stay_honest():
+    """SRC-66 (AuditLab, 2026-10-21): www.maine.gov's WAF 403s the honest UA host-wide,
+    including /robots.txt, so Fetcher must send a browser UA to that one host and keep
+    the honest UA everywhere else."""
+    seen = []
+
+    def h(req):
+        seen.append((req.full_url, req.get_header("User-agent")))
+        return Resp(b"<p>hello</p>")
+    f, _ = make_fetcher(h)
+    f.get("https://www.maine.gov/x")
+    f.get("https://b.gov/x")
+    by_host = dict(seen)
+    assert "Mozilla" in by_host["https://www.maine.gov/x"]
+    assert "DeadlineRadar-Reverify" in by_host["https://b.gov/x"] and "Mozilla" not in by_host["https://b.gov/x"]
+
+
 def test_robots_disallow_is_failed_fetch():
     f, _ = make_fetcher(lambda req: Resp(b"x"), robots="User-agent: *\nDisallow: /")
     r = f.get("https://b.gov/private")
