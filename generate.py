@@ -15156,7 +15156,7 @@ function drRenderStalenessBanner(dataAsOf, dataStale) {
   if (!dataStale) { el.hidden = true; el.textContent = ''; return; }
   el.textContent = 'Heads up: our reference data was last verified ' + dataAsOf +
     ' and is due for re-verification. Dates below may be out of date, and adding new staff, ' +
-    'editing a license state/deadline, sending reminder emails, and starting a billing checkout ' +
+    'editing a license state/deadline, and starting a billing checkout ' +
     'are all temporarily paused until we re-verify.';
   el.hidden = false;
 }

@@ -1871,13 +1871,17 @@ const SSO_FAILED_MESSAGE = "We couldn't complete that sign-in. Please try again.
 // rather than replace it with a different guess -- errorPage() already
 // links every 503 to /contact/ for anyone who wants a real answer.
 // STALE-68 (AuditLab, 2026-10-21): used to name only "signups and account
-// changes" -- never mentioned that reminder sends also stop (scheduler.ts's
-// 7 checkDataFreshness() passes), the one thing a paying firm most needs to
-// know before buying. Reworded rather than appending a clause, so it reads
-// as one sentence at every call site (signup, license writes, billing
-// checkout) instead of a patched-on afterthought.
+// changes" -- but STALE-71 (AuditLab, 2026-10-21) found the "reminder
+// emails" clause overclaimed: it read as covering the on-demand per-staff
+// reminder button too, which this message is never shown on and which
+// isn't freshness-gated (handleFirmStaffCpeReminder has no
+// checkDataFreshness() call, unlike the 4 call sites below). Scheduled
+// reminder sends are still genuinely paused (scheduler.ts's 7
+// checkDataFreshness() passes) but that isn't a customer-facing action on
+// any page this message appears on, so it's dropped here rather than left
+// to imply a pause this message's own call sites don't enforce.
 const STALE_DATA_CUSTOMER_MESSAGE =
-  "Signups, account changes, and reminder emails are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back soon.";
+  "Signups and account changes are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back soon.";
 
 const SSO_UNVERIFIED_EMAIL_MESSAGE =
   "Your provider didn't confirm that email address is verified, so we can't connect it to a Deadline-Radar account. Please verify the address with your provider and try again.";
