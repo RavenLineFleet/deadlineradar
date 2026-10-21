@@ -1275,9 +1275,19 @@ PAGE_CSS = """
      288-72=216px=13.5rem), mobile 8.75rem (160-120=40, half=20, 160-20=140px=8.75rem). Verified
      clean at these sizes (no H1/subtitle/callout overlap desktop; no mid-word H1 break on a 390px
      mobile viewport). */
-  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; }
+  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
+  /* Devin follow-up (2026-10-21): name what the seal verifies + link it to /methodology/,
+     so it isn't a disconnected icon. .dr-seal-link takes over the float the plain .dr-seal
+     rule above carries, so the seal + its caption move as one block; the caption itself is
+     an absolutely-positioned child (.dr-seal keeps position:relative from the base rule)
+     so it doesn't add to the circle's own box height. flow-root on .dr-headwrap (no
+     overflow:hidden) lets it render outside the circle's box with no clipping. */
+  .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; color: inherit; }
+  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: #4b5a4e; text-align: right; white-space: nowrap; }
+  .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { text-decoration: underline; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
+  @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   /* Both tracks are minmax(0,...) on purpose: a grid track's automatic minimum
@@ -6215,11 +6225,21 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         )
     else:
         inner = _seal_svg("ok", date_text, uid) + _seal_svg("stale", date_text, uid)
-    return (
+    caption_html = ""
+    if is_seal_test and last_verified:
+        # Devin (2026-10-21): the seal on its own reads as disconnected from
+        # the data it's vouching for -- name what it verifies and date it,
+        # then make the whole thing a link through to the methodology page.
+        caption_html = f'<p class="dr-seal-caption">Texas renewal dates &mdash; verified {esc(last_verified)} &rarr;</p>'
+    seal_div = (
         f'<div class="{cls}"{dv} role="img" aria-label="{label}"{hid}>'
         + inner
+        + caption_html
         + '</div>'
     )
+    if is_seal_test:
+        return f'<a href="/methodology/" class="dr-seal-link" aria-label="How Deadline-Radar verifies Texas renewal dates">{seal_div}</a>'
+    return seal_div
 
 
 _SEAL_RUNTIME_JS = """<script>
