@@ -1248,7 +1248,7 @@ PAGE_CSS = """
      per-state template variants it is) then starts below the seal's true
      bottom, no per-card-class patching required. */
   .dr-headwrap { display: flow-root; }
-  .dr-seal { position: relative; float: right; width: 8.25rem; height: 8.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
+  .dr-seal { position: relative; float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
   .dr-seal svg { width: 100%; height: 100%; display: block; position: relative; }
   /* Per-state seal #31 (2026-10-20): the ring+chevron background sits behind
      the SVG overlay (arc text / state shape / date plate) as a plain <img>,
@@ -1269,7 +1269,7 @@ PAGE_CSS = """
   .dr-seal.is-stale .dr-seal-ok { display: none; }
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
-  @media (max-width: 640px) { .dr-seal { width: 6.75rem; height: 6.75rem; margin-left: 0.8rem; } }
+  @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   /* Both tracks are minmax(0,...) on purpose: a grid track's automatic minimum
@@ -6135,7 +6135,7 @@ def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str, acti
         f'<feDropShadow dx="0" dy="0.4" stdDeviation="0.5" flood-color="#000" flood-opacity="0.7"/></filter>'
         f'<clipPath id="ring{uid}{kind}"><circle cx="50" cy="50" r="{_SEAL31_RING_R}"/></clipPath>'
         f'</defs>'
-        f'<text font-family="Georgia, \'Times New Roman\', serif" font-size="7.6" font-weight="700" '
+        f'<text font-family="Georgia, \'Times New Roman\', serif" font-size="5.6" font-weight="700" '
         f'fill="{text_color}" filter="url(#txt{uid}{kind})">'
         f'<textPath href="#sT{uid}{kind}" startOffset="50%" text-anchor="middle" textLength="48" '
         f'lengthAdjust="spacingAndGlyphs">{arc_text}</textPath></text>'
@@ -6144,7 +6144,7 @@ def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str, acti
         f'<rect x="{50 - dw / 2}" y="{_SEAL31_DATE_Y0}" width="{dw}" height="{_SEAL31_DATE_H}" '
         f'rx="{_SEAL31_DATE_H / 2}" fill="{plate_fill}" opacity="0.9" stroke="#e4c36e" stroke-width="0.4"/>'
         f'<text x="50" y="{_SEAL31_DATE_Y0 + _SEAL31_DATE_H / 2 + 1.6}" '
-        f'font-family="Georgia, \'Times New Roman\', serif" font-size="6.0" font-weight="700" fill="#fdfaf2" '
+        f'font-family="Georgia, \'Times New Roman\', serif" font-size="4.6" font-weight="700" fill="#fdfaf2" '
         f'text-anchor="middle" font-variant-numeric="tabular-nums" class="dr-seal-date" '
         f'textLength="{dw * 0.82}" lengthAdjust="spacingAndGlyphs">{esc(date_text)}</text>'
         f'</svg>'
