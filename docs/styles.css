@@ -406,7 +406,7 @@
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
   
-  .dr-seal--test-v2 { width: 13.5rem; height: 13.5rem; }
+  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }

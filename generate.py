@@ -1275,7 +1275,7 @@ PAGE_CSS = """
      288-72=216px=13.5rem), mobile 8.75rem (160-120=40, half=20, 160-20=140px=8.75rem). Verified
      clean at these sizes (no H1/subtitle/callout overlap desktop; no mid-word H1 break on a 390px
      mobile viewport). */
-  .dr-seal--test-v2 { width: 13.5rem; height: 13.5rem; }
+  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
