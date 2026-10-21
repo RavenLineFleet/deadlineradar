@@ -69,6 +69,7 @@ EN: dict[str, str] = {
     "footer.link_deadline_calculator": "Deadline Calculator",
     "footer.link_cpe_vs_license": "CPE vs. License Renewal",
     "footer.heading_company": "Company",
+    "footer.link_about": "About",
     "footer.link_contact": "Contact",
     "footer.link_security": "Security",
     "footer.link_status": "Status",

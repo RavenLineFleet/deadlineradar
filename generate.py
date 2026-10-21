@@ -3755,7 +3755,7 @@ def site_footer(lang: str = "en") -> str:
     </div>
     <div class="foot-col">
       <h2>{esc(_t("footer.heading_company", lang))}</h2>
-      <a href="/about/">About</a>
+      <a href="/about/">{esc(_t("footer.link_about", lang))}</a>
       <a href="/contact/">{esc(_t("footer.link_contact", lang))}</a>
       <a href="/security/">{esc(_t("footer.link_security", lang))}</a>
       <a href="/status/">{esc(_t("footer.link_status", lang))}</a>
@@ -9677,17 +9677,22 @@ href="https://www.rfc-editor.org/rfc/rfc9116">RFC&nbsp;9116</a>.</p>
 
 
 def build_about_page() -> str:
-    """/about/ -- the founder-voice block. Text is the exact, AuditLab-PASSED
-    copy (R2 + one free wording tweak, see Orchestrator/outbox/assetlab.md
-    2026-10-16T17:05:00-06:00): FAIL 1 (absolute sourcing claim) fixed with
-    AuditLab's own supplied sentence verbatim, FAIL 2 (CPE wrongly bundled
-    into the "nearly empty" finding) fixed by dropping CPE, FAIL 3 (false
-    course-vendor/practice-management dichotomy, self-contradicted two
-    sentences later) fixed by cutting the dichotomy sentence outright --
-    AuditLab re-ran the standing legislation/vote/date/credential-claim
-    checks on this exact text and got 0 hits on all four. Devin approved
-    shipping this byte-for-byte (Orchestrator, 2026-10-21 16:38 MDT) -- do
-    not redraft or paraphrase it here. Photo (assets/founder/devin-hall.jpg)
+    """/about/ -- the founder-voice block. Text is the AuditLab-PASSED copy
+    (R2 + one free wording tweak, AuditLab's own passes at
+    auditlab_20261016_1540_founder_block_REJECTED_... and
+    auditlab_20261016_1550_founder_R2_PASSES_..., 15:40/15:50 MDT 2026-10-16
+    -- NOT the 17:05 timestamp, which is assetlab's own report-of-the-round
+    in Orchestrator/outbox/assetlab.md): FAIL 1 (absolute sourcing claim)
+    fixed with AuditLab's own supplied sentence verbatim, FAIL 2 (CPE
+    wrongly bundled into the "nearly empty" finding) fixed by dropping CPE,
+    FAIL 3 (false course-vendor/practice-management dichotomy,
+    self-contradicted two sentences later) fixed by cutting the dichotomy
+    sentence outright -- AuditLab re-ran the standing legislation/vote/
+    date/credential-claim checks on this exact text and got 0 hits on all
+    four. Devin approved SHIPPING this text (Orchestrator, 2026-10-21
+    16:38 MDT) -- he did not say "byte-for-byte", so a future correction
+    that preserves these 3 fixes and re-clears AuditLab is fine; don't
+    treat this block as frozen. Photo (assets/founder/devin-hall.jpg)
     independently re-confirmed EXIF/GPS/XMP-free before this page shipped it
     (see HANDOFF 2026-10-21); Devin separately cleared it for publication."""
     body = """<h1>About Deadline-Radar</h1>
