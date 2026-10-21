@@ -1269,7 +1269,10 @@ PAGE_CSS = """
   .dr-seal.is-stale .dr-seal-ok { display: none; }
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
+  /* TEMP staged test (Devin-approved 2026-10-21): TX-only larger container, see _SEAL_TEST_STATES. */
+  .dr-seal--test-v2 { width: 9rem; height: 9rem; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
+  @media (max-width: 640px) { .dr-seal--test-v2 { width: 7.5rem; height: 7.5rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   /* Both tracks are minmax(0,...) on purpose: a grid track's automatic minimum
@@ -6050,6 +6053,14 @@ _SEAL31_DATE_Y0 = _SEAL31_DATE_BOTTOM - _SEAL31_DATE_H
 _SEAL31_DATE_W = 52.0 * 0.48
 _SEAL31_RING_R = 29.5
 
+# TEMP staged test (Devin-approved 2026-10-21): Texas-only dimension/transparency test before a
+# wider 55-state rollout. Scopes the flood-filled, fully-transparent ring background (replaces the
+# old uniform-radius mask, which cut into the ring's real scalloped/chevron edge at some angles
+# while leaving gray halo at others) and a larger 9rem container to TX alone via a filename suffix
+# + dedicated CSS class. Do not generalize to other states without a fresh go-ahead -- tracked in
+# Orchestrator/HANDOFF.md.
+_SEAL_TEST_STATES = {"TX"}
+
 
 def _seal_date_text(iso_date: str) -> str:
     """'2026-08-13' -> 'AUG 13 2026', the approved seal's date format."""
@@ -6176,7 +6187,9 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         date_text = ""
         dv = ' data-verified=""'
         label = "Verification seal"
-    cls = "dr-seal" + (" is-stale" if stale else "") + ((" " + extra_class) if extra_class else "")
+    is_seal_test = bool(state_abbr) and state_abbr in _SEAL_TEST_STATES
+    test_cls = " dr-seal--test-v2" if is_seal_test else ""
+    cls = "dr-seal" + (" is-stale" if stale else "") + test_cls + ((" " + extra_class) if extra_class else "")
     hid = " hidden" if hidden else ""
     if state_abbr and state_abbr in _SEAL_LOCKED_BOXES:
         # PERF-3 (AuditLab 2026-10-21): 155KB/page measured in-browser --
@@ -6188,9 +6201,10 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         # view-time re-evaluation ever flips which face is active.
         ok_attr = "src" if not stale else "data-src"
         stale_attr = "src" if stale else "data-src"
+        bg_suffix = "_v2" if is_seal_test else ""
         inner = (
-            f'<img class="dr-seal-bg dr-seal-ok" {ok_attr}="/img/seals/seal31_bg_pass.png" alt="" aria-hidden="true">'
-            f'<img class="dr-seal-bg dr-seal-stale" {stale_attr}="/img/seals/seal31_bg_fail.png" alt="" aria-hidden="true">'
+            f'<img class="dr-seal-bg dr-seal-ok" {ok_attr}="/img/seals/seal31_bg_pass{bg_suffix}.png" alt="" aria-hidden="true">'
+            f'<img class="dr-seal-bg dr-seal-stale" {stale_attr}="/img/seals/seal31_bg_fail{bg_suffix}.png" alt="" aria-hidden="true">'
             + _seal_state_overlay_svg(state_abbr, "ok", date_text, uid, active=not stale)
             + _seal_state_overlay_svg(state_abbr, "stale", date_text, uid, active=stale)
         )
