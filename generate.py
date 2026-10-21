@@ -1248,8 +1248,23 @@ PAGE_CSS = """
      per-state template variants it is) then starts below the seal's true
      bottom, no per-card-class patching required. */
   .dr-headwrap { display: flow-root; }
-  .dr-seal { float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
-  .dr-seal svg { width: 100%; height: 100%; display: block; }
+  .dr-seal { position: relative; float: right; width: 7.25rem; height: 7.25rem; margin: 0.2rem 0.15rem 0.6rem 1.2rem; }
+  .dr-seal svg { width: 100%; height: 100%; display: block; position: relative; }
+  /* Per-state seal #31 (2026-10-20): the ring+chevron background sits behind
+     the SVG overlay (arc text / state shape / date plate) as a plain <img>,
+     absolutely positioned so it doesn't push the normal-flow SVG down.
+     border-radius clips its own square source frame to the circle -- same
+     clip the Devin-approved reference HTML uses. No `display` set here on
+     purpose: the is-stale toggle below must stay the only thing deciding
+     visibility, and position:absolute already forces the used display to
+     block regardless. The svg rule above now also sets position:relative --
+     without it, a position:static box paints BEFORE this absolutely
+     positioned bg image regardless of DOM order (CSS2.1 painting order),
+     so the overlay was invisibly painted first and the bg image fully
+     covered it. position:relative moves the svg into the same
+     "positioned, z-index:auto" paint layer as the bg images, where DOM
+     order (svg after img) decides -- svg on top, as intended. */
+  .dr-seal img.dr-seal-bg { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
   .dr-seal .dr-seal-stale { display: none; }
   .dr-seal.is-stale .dr-seal-ok { display: none; }
   .dr-seal.is-stale .dr-seal-stale { display: block; }
@@ -1344,6 +1359,21 @@ PAGE_CSS = """
   .nav-quiet { color: var(--faint); }
   .trust-footnote { margin-top: 1rem; font-size: 0.82rem; color: var(--faint); line-height: 1.5; max-width: 46ch; }
   @media (max-width: 620px) { .trust-row { grid-template-columns: 1fr 1fr; } }
+
+  /* Orchestrator go-ahead 2026-10-20 (Devin's pick off the 10-16 options
+     memo's #3): the homepage verification stats get more visual weight as
+     their own section instead of a thin text row. Scoped to .home-stats
+     (not .trust-row itself) so the /deadline-calculator/ page's own
+     trust-row -- a lighter supporting strip there, not a hero claim --
+     keeps its original presentation; same markup shape (.item/.n/.lbl),
+     just a heavier container on the homepage only. */
+  .home-stats .trust-row { margin-top: 1.5rem; }
+  .home-stats .trust-row .item {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.1rem 1.15rem; gap: 0.3rem;
+  }
+  .home-stats .trust-row .n { font-size: 2rem; }
+  .home-stats .trust-footnote { margin-top: 1.3rem; }
 
   /* Roadmap #325 (2026-08-10, ValueLab design-pattern-mining #4): intent
      chips directly under the hero -- pure routing, same pill shape as
@@ -4310,6 +4340,10 @@ _STATE_ABBR = {
     "Tennessee": "TN", "Texas": "TX", "U.S. Virgin Islands": "VI",
     "US Virgin Islands": "VI", "Utah": "UT", "Vermont": "VT", "Virginia": "VA",
     "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY",
+    "American Samoa": "AS",  # not yet a tracked jurisdiction (no cpa_deadlines.json
+    # record), but the seal art is already built+approved for it -- see
+    # assets/seal_states/seal_review_scores.md -- so the abbr is here ready for
+    # whenever that page exists, same as the other 5 territories above.
 }
 
 
@@ -5997,6 +6031,25 @@ def _last_checked_suffix_html(verified_date: str | None, data_gap_note: str | No
 
 _seal_uid_counter = [0]
 
+# Per-state seal #31 art (2026-10-20 go-ahead, all 56 states+DC+territories
+# individually PASSed by Devin -- assets/seal_states/seal_review_scores.md).
+# Locked box geometry is in SVG viewBox units (0-100), never pixels, and is
+# read verbatim per state -- a later global formula/constant change must
+# never silently move an already-passed state. Loaded once at module import,
+# same pattern as every other static JSON data file below.
+_SEAL_LOCKED_BOXES = json.loads(
+    (ROOT / "assets" / "seal_states" / "seal_locked_boxes.json").read_text(encoding="utf-8")
+)
+
+# Fixed geometry, copied verbatim from the approved reference
+# (assets/seal_states/build_seal31_full.py) -- arc text and date plate never
+# move or resize for any state; only the state shape's own box varies.
+_SEAL31_DATE_H = 5.8
+_SEAL31_DATE_BOTTOM = 77.4
+_SEAL31_DATE_Y0 = _SEAL31_DATE_BOTTOM - _SEAL31_DATE_H
+_SEAL31_DATE_W = 52.0 * 0.48
+_SEAL31_RING_R = 29.5
+
 
 def _seal_date_text(iso_date: str) -> str:
     """'2026-08-13' -> 'AUG 13 2026', the approved seal's date format."""
@@ -6051,12 +6104,57 @@ def _seal_svg(kind: str, date_text: str, uid: str) -> str:
     )
 
 
-def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = False) -> str:
+def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str) -> str:
+    """One face of the per-state seal #31 overlay: arc text + the state's own
+    enamel-fill shape (clipped to the ring) + date plate. Ported verbatim
+    from the Devin-approved assets/seal_states/build_seal31_full.py -- the
+    SVG structure and every fixed constant are unchanged, only the enclosing
+    page/CSS integration differs. `abbr` must be a key in
+    _SEAL_LOCKED_BOXES; callers check this before calling."""
+    box = _SEAL_LOCKED_BOXES[abbr]
+    x0, y0, gw, gh = box["x0"], box["y0"], box["gw"], box["gh"]
+    stale = kind == "stale"
+    arc_text = "RE-VERIFY NEEDED" if stale else "VERIFIED SOURCE"
+    text_color = "#3a1416" if stale else "#163a24"
+    plate_fill = "#2a0c0e" if stale else "#0c2a1c"
+    gem_file = f"/img/seals/enamel_{abbr}_{'red' if stale else 'green'}.png"
+    dw = _SEAL31_DATE_W
+    return (
+        f'<svg viewBox="0 0 100 100" class="dr-seal-{kind}" aria-hidden="true">'
+        f'<defs>'
+        f'<path id="sT{uid}{kind}" d="M 25.2 50 A 24.8 24.8 0 0 1 74.8 50" fill="none"/>'
+        f'<filter id="txt{uid}{kind}" x="-40%" y="-40%" width="180%" height="180%">'
+        f'<feDropShadow dx="0" dy="0.4" stdDeviation="0.5" flood-color="#000" flood-opacity="0.7"/></filter>'
+        f'<clipPath id="ring{uid}{kind}"><circle cx="50" cy="50" r="{_SEAL31_RING_R}"/></clipPath>'
+        f'</defs>'
+        f'<text font-family="Georgia, \'Times New Roman\', serif" font-size="5.6" font-weight="700" '
+        f'fill="{text_color}" filter="url(#txt{uid}{kind})">'
+        f'<textPath href="#sT{uid}{kind}" startOffset="50%" text-anchor="middle" textLength="48" '
+        f'lengthAdjust="spacingAndGlyphs">{arc_text}</textPath></text>'
+        f'<image href="{gem_file}" x="{x0}" y="{y0}" width="{gw}" height="{gh}" '
+        f'preserveAspectRatio="none" clip-path="url(#ring{uid}{kind})"/>'
+        f'<rect x="{50 - dw / 2}" y="{_SEAL31_DATE_Y0}" width="{dw}" height="{_SEAL31_DATE_H}" '
+        f'rx="{_SEAL31_DATE_H / 2}" fill="{plate_fill}" opacity="0.9" stroke="#e4c36e" stroke-width="0.4"/>'
+        f'<text x="50" y="{_SEAL31_DATE_Y0 + _SEAL31_DATE_H / 2 + 1.6}" '
+        f'font-family="Georgia, \'Times New Roman\', serif" font-size="4.6" font-weight="700" fill="#fdfaf2" '
+        f'text-anchor="middle" font-variant-numeric="tabular-nums" class="dr-seal-date" '
+        f'textLength="{dw * 0.82}" lengthAdjust="spacingAndGlyphs">{esc(date_text)}</text>'
+        f'</svg>'
+    )
+
+
+def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = False, state_abbr: str | None = None) -> str:
     """The engraved verification seal. Emits BOTH faces; the container class
     (server-set from build-date age, then re-evaluated at view time by
     _SEAL_RUNTIME_JS) decides which one shows. last_verified None -> the
     dashboard's runtime-fed variant: emitted hidden with no date, stamped
-    and revealed by the dashboard JS once data_as_of arrives."""
+    and revealed by the dashboard JS once data_as_of arrives.
+
+    state_abbr: a per-state page passes its 2-letter abbr to get the real
+    seal #31 art (ring background + that state's own enamel shape). A firm
+    dashboard report has no single state (a roster can span several), so it
+    stays on the original generic ring design -- state_abbr is left None
+    there, same as before this per-state art existed."""
     _seal_uid_counter[0] += 1
     uid = str(_seal_uid_counter[0])
     if last_verified:
@@ -6072,10 +6170,18 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         label = "Verification seal"
     cls = "dr-seal" + (" is-stale" if stale else "") + ((" " + extra_class) if extra_class else "")
     hid = " hidden" if hidden else ""
+    if state_abbr and state_abbr in _SEAL_LOCKED_BOXES:
+        inner = (
+            '<img class="dr-seal-bg dr-seal-ok" src="/img/seals/seal31_bg_pass.png" alt="" aria-hidden="true">'
+            '<img class="dr-seal-bg dr-seal-stale" src="/img/seals/seal31_bg_fail.png" alt="" aria-hidden="true">'
+            + _seal_state_overlay_svg(state_abbr, "ok", date_text, uid)
+            + _seal_state_overlay_svg(state_abbr, "stale", date_text, uid)
+        )
+    else:
+        inner = _seal_svg("ok", date_text, uid) + _seal_svg("stale", date_text, uid)
     return (
         f'<div class="{cls}"{dv} role="img" aria-label="{label}"{hid}>'
-        + _seal_svg("ok", date_text, uid)
-        + _seal_svg("stale", date_text, uid)
+        + inner
         + '</div>'
     )
 
@@ -7606,7 +7712,7 @@ def build_state_page(
         firm_landing_slugs_by_state.get(state_slug) if firm_landing_slugs_by_state else None,
         renewal_fees_by_slug.get(state_slug) if renewal_fees_by_slug else None,
     )
-    body = f"""<div class="dr-headwrap">{_seal_html(last_verified)}<h1>{esc(title)}</h1>
+    body = f"""<div class="dr-headwrap">{_seal_html(last_verified, state_abbr=_STATE_ABBR.get(state_name))}<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
 {trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records)}
@@ -8592,7 +8698,9 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # then reads as leftover from THAT stat instead. Named the footnote's
     # subject explicitly so it's correct regardless of render order or which
     # counts coincide, rather than relying on proximity.
-    stats_band_html = f"""<section class="band-section band-section--alt dr-reveal">
+    stats_band_html = f"""<section class="band-section band-section--alt dr-reveal home-stats">
+  <p class="eyebrow">Where this site stands right now</p>
+  <h2>A live snapshot of coverage, and how recently each figure was checked.</h2>
   <div class="trust-row">
     <div class="item"><span class="n">{_cov["total"]}</span><span class="lbl">jurisdictions listed</span></div>
     <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
@@ -26341,6 +26449,19 @@ def main() -> None:
     og_image_src = ROOT / "assets" / "og-image.png"
     (SITE_DIR / "og-image.png").write_bytes(og_image_src.read_bytes())
     print(f"wrote {SITE_DIR.name}/og-image.png")
+
+    # Per-state seal #31 art (2026-10-20 go-ahead): pre-resized web copies
+    # (assets/seal_states/resize_for_web.py) of the Devin-approved 56-state
+    # set, copied verbatim into the build output -- same pattern as
+    # og-image.png just above. Referenced by _seal_state_overlay_svg()/
+    # _seal_html() via root-relative /img/seals/ paths.
+    _seal_web_dir = ROOT / "assets" / "seal_states" / "web"
+    _seal_out_dir = SITE_DIR / "img" / "seals"
+    _seal_out_dir.mkdir(parents=True, exist_ok=True)
+    _seal_files = sorted(_seal_web_dir.glob("*.png"))
+    for _f in _seal_files:
+        (_seal_out_dir / _f.name).write_bytes(_f.read_bytes())
+    print(f"wrote {len(_seal_files)} seal art files to {_seal_out_dir}")
 
     # Roadmap #323 (2026-08-10, ValueLab design-pattern-mining #3): real
     # screenshots of the live demo firm's own dashboard, for the /for-firms/
