@@ -4,6 +4,9 @@
 
 ALERT if:
   - the daily job hasn't finished an --apply run in the last 30 hours (or never ran);
+  - the last run's own status says it did not deploy (gate failure etc. -- MON-23: previously
+    invisible until a record aged past STALE_DAYS, ~7 days later; a status file predating this
+    field has no `deployed` key and `.get(..., True)` treats that as no-alert, not a false alarm);
   - ANY record's verified date is more than 25 days old -- automated or MANUAL (Devin's bar via
     Orchestrator 2026-10-02 12:48: every record gets checked). Ages are computed now from the
     verified_dates snapshot in the status file, so a stalled job still ages its records. MANUAL records
@@ -40,6 +43,8 @@ def check(status, now: datetime):
     silent_h = (now - datetime.fromisoformat(status["finished"])).total_seconds() / 3600
     if silent_h > MAX_SILENCE_H:
         return False, f"ALERT reverify: last daily run finished {silent_h:.0f}h ago (> {MAX_SILENCE_H}h)"
+    if not status.get("deployed", True):
+        return False, f"ALERT reverify: last run did not deploy ({status.get('deploy_blocked_reason', '?')})"
     today = now.astimezone().date()
     stale = []
     for rid, v in status.get("verified_dates", {}).items():

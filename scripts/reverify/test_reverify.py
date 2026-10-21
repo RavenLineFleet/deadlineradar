@@ -479,6 +479,22 @@ def test_watchdog_alerts():
     assert wd.check(dict(st, mode="dry-run"), now)[0] is False                          # dry run != daily job
 
 
+def test_watchdog_alerts_on_undeployed_run():
+    """MON-23 (AuditLab, 2026-10-21): a gate-blocked night still has mode=apply and a fresh
+    `finished`, so it was invisible here until a record aged past STALE_DAYS (~7 days later).
+    `deployed: False` must alert the next morning instead, and a status predating the field
+    (no `deployed` key at all) must NOT false-alarm."""
+    import watchdog_check as wd
+    from datetime import datetime as D, timezone as TZ
+    now = D(2026, 10, 20, 15, 0, tzinfo=TZ.utc)
+    st = {"mode": "apply", "finished": "2026-10-20T08:02:00+00:00",
+          "verified_dates": {"a": "2026-10-01", "b": "2026-09-25"}}
+    ok, msg = wd.check(dict(st, deployed=False, deploy_blocked_reason="gate failed: preship_gate.py"), now)
+    assert ok is False and "did not deploy" in msg and "preship_gate.py" in msg
+    assert wd.check(dict(st, deployed=True), now)[0] is True                 # explicit True: no alert
+    assert wd.check(st, now)[0] is True                                      # key absent (pre-MON-23 status): no alert
+
+
 def _ls(d):
     return os.listdir(d) if d.exists() else []
 
