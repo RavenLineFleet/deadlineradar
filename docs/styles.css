@@ -406,9 +406,9 @@
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
   
-  .dr-seal--test-v2 { width: 9rem; height: 9rem; }
+  .dr-seal--test-v2 { width: 18rem; height: 18rem; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
-  @media (max-width: 640px) { .dr-seal--test-v2 { width: 7.5rem; height: 7.5rem; } }
+  @media (max-width: 640px) { .dr-seal--test-v2 { width: 10rem; height: 10rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   

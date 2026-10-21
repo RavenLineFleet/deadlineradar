@@ -1269,10 +1269,14 @@ PAGE_CSS = """
   .dr-seal.is-stale .dr-seal-ok { display: none; }
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
-  /* TEMP staged test (Devin-approved 2026-10-21): TX-only larger container, see _SEAL_TEST_STATES. */
-  .dr-seal--test-v2 { width: 9rem; height: 9rem; }
+  /* TEMP staged test (Devin-approved 2026-10-21): TX-only larger container, see _SEAL_TEST_STATES.
+     Bumped to 2x desktop (Devin: "still difficult to see... make it 2 times bigger") -- verified
+     at 18rem clean (no overlap with H1/subtitle/callout box). Mobile NOT scaled the same 2x ratio:
+     a literal 15rem on a 390px viewport broke the H1 mid-word; 10rem keeps the H1 wrapping naturally
+     while still noticeably bigger than the original 7.5rem. */
+  .dr-seal--test-v2 { width: 18rem; height: 18rem; }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
-  @media (max-width: 640px) { .dr-seal--test-v2 { width: 7.5rem; height: 7.5rem; } }
+  @media (max-width: 640px) { .dr-seal--test-v2 { width: 10rem; height: 10rem; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   /* Both tracks are minmax(0,...) on purpose: a grid track's automatic minimum
