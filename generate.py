@@ -6104,13 +6104,20 @@ def _seal_svg(kind: str, date_text: str, uid: str) -> str:
     )
 
 
-def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str) -> str:
+def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str, active: bool = True) -> str:
     """One face of the per-state seal #31 overlay: arc text + the state's own
     enamel-fill shape (clipped to the ring) + date plate. Ported verbatim
     from the Devin-approved assets/seal_states/build_seal31_full.py -- the
     SVG structure and every fixed constant are unchanged, only the enclosing
     page/CSS integration differs. `abbr` must be a key in
-    _SEAL_LOCKED_BOXES; callers check this before calling."""
+    _SEAL_LOCKED_BOXES; callers check this before calling.
+
+    active=False (PERF-3, AuditLab 2026-10-21): the face CSS hides via
+    display:none still gets its enamel PNG fetched+decoded by the browser --
+    display:none suppresses rendering, never the fetch triggered by a present
+    href. The inactive face gets data-href instead of href (no fetch at all);
+    _SEAL_RUNTIME_JS promotes it to a real href only if/when the page's view-
+    time re-evaluation flips which face is shown."""
     box = _SEAL_LOCKED_BOXES[abbr]
     x0, y0, gw, gh = box["x0"], box["y0"], box["gw"], box["gh"]
     stale = kind == "stale"
@@ -6118,6 +6125,7 @@ def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str) -> s
     text_color = "#3a1416" if stale else "#163a24"
     plate_fill = "#2a0c0e" if stale else "#0c2a1c"
     gem_file = f"/img/seals/enamel_{abbr}_{'red' if stale else 'green'}.png"
+    gem_attr = f'href="{gem_file}"' if active else f'data-href="{gem_file}"'
     dw = _SEAL31_DATE_W
     return (
         f'<svg viewBox="0 0 100 100" class="dr-seal-{kind}" aria-hidden="true">'
@@ -6131,7 +6139,7 @@ def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str) -> s
         f'fill="{text_color}" filter="url(#txt{uid}{kind})">'
         f'<textPath href="#sT{uid}{kind}" startOffset="50%" text-anchor="middle" textLength="48" '
         f'lengthAdjust="spacingAndGlyphs">{arc_text}</textPath></text>'
-        f'<image href="{gem_file}" x="{x0}" y="{y0}" width="{gw}" height="{gh}" '
+        f'<image {gem_attr} x="{x0}" y="{y0}" width="{gw}" height="{gh}" '
         f'preserveAspectRatio="none" clip-path="url(#ring{uid}{kind})"/>'
         f'<rect x="{50 - dw / 2}" y="{_SEAL31_DATE_Y0}" width="{dw}" height="{_SEAL31_DATE_H}" '
         f'rx="{_SEAL31_DATE_H / 2}" fill="{plate_fill}" opacity="0.9" stroke="#e4c36e" stroke-width="0.4"/>'
@@ -6171,11 +6179,20 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
     cls = "dr-seal" + (" is-stale" if stale else "") + ((" " + extra_class) if extra_class else "")
     hid = " hidden" if hidden else ""
     if state_abbr and state_abbr in _SEAL_LOCKED_BOXES:
+        # PERF-3 (AuditLab 2026-10-21): 155KB/page measured in-browser --
+        # the face CSS hides (display:none) was still being fetched+decoded
+        # because <img src> and svg <image href> trigger a fetch on presence
+        # alone. Only the face actually shown at build time gets a real
+        # src/href; the hidden face gets data-src/data-href instead (no
+        # fetch), promoted to real attributes by _SEAL_RUNTIME_JS only if
+        # view-time re-evaluation ever flips which face is active.
+        ok_attr = "src" if not stale else "data-src"
+        stale_attr = "src" if stale else "data-src"
         inner = (
-            '<img class="dr-seal-bg dr-seal-ok" src="/img/seals/seal31_bg_pass.png" alt="" aria-hidden="true">'
-            '<img class="dr-seal-bg dr-seal-stale" src="/img/seals/seal31_bg_fail.png" alt="" aria-hidden="true">'
-            + _seal_state_overlay_svg(state_abbr, "ok", date_text, uid)
-            + _seal_state_overlay_svg(state_abbr, "stale", date_text, uid)
+            f'<img class="dr-seal-bg dr-seal-ok" {ok_attr}="/img/seals/seal31_bg_pass.png" alt="" aria-hidden="true">'
+            f'<img class="dr-seal-bg dr-seal-stale" {stale_attr}="/img/seals/seal31_bg_fail.png" alt="" aria-hidden="true">'
+            + _seal_state_overlay_svg(state_abbr, "ok", date_text, uid, active=not stale)
+            + _seal_state_overlay_svg(state_abbr, "stale", date_text, uid, active=stale)
         )
     else:
         inner = _seal_svg("ok", date_text, uid) + _seal_svg("stale", date_text, uid)
@@ -6217,9 +6234,26 @@ _SEAL_RUNTIME_JS = """<script>
       var stale = days > SEAL_STALE_DAYS;
       if (stale !== el.classList.contains('is-stale')) {
         el.classList.toggle('is-stale', stale);
+        drSealActivate(el, stale ? 'stale' : 'ok');
         el.setAttribute('aria-label',
           (stale ? 'Data re-verification needed - last verified ' : 'Verified source - last verified ') + iso);
       }
+    }
+  }
+  // PERF-3 (AuditLab 2026-10-21): promotes the newly-shown face's deferred
+  // data-src/data-href (set because that face was hidden at build time, so
+  // its art was never fetched) to a real src/href, one time, the first time
+  // view-time re-evaluation makes that face the active one.
+  function drSealActivate(el, kind) {
+    var withSrc = el.querySelectorAll('.dr-seal-' + kind + '[data-src]');
+    for (var j = 0; j < withSrc.length; j++) {
+      withSrc[j].setAttribute('src', withSrc[j].getAttribute('data-src'));
+      withSrc[j].removeAttribute('data-src');
+    }
+    var withHref = el.querySelectorAll('svg.dr-seal-' + kind + ' image[data-href]');
+    for (var k = 0; k < withHref.length; k++) {
+      withHref[k].setAttribute('href', withHref[k].getAttribute('data-href'));
+      withHref[k].removeAttribute('data-href');
     }
   }
   window.drSealEvaluate = drSealEvaluate;
@@ -8700,7 +8734,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # counts coincide, rather than relying on proximity.
     stats_band_html = f"""<section class="band-section band-section--alt dr-reveal home-stats">
   <p class="eyebrow">Where this site stands right now</p>
-  <h2>A live snapshot of coverage, and how recently each figure was checked.</h2>
+  <h2>A live snapshot of coverage, and how recently we keep it checked.</h2>
   <div class="trust-row">
     <div class="item"><span class="n">{_cov["total"]}</span><span class="lbl">jurisdictions listed</span></div>
     <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
