@@ -1870,8 +1870,14 @@ const SSO_FAILED_MESSAGE = "We couldn't complete that sign-in. Please try again.
 // "check back in a few hours" for 14+ days straight. Dropped the interval
 // rather than replace it with a different guess -- errorPage() already
 // links every 503 to /contact/ for anyone who wants a real answer.
+// STALE-68 (AuditLab, 2026-10-21): used to name only "signups and account
+// changes" -- never mentioned that reminder sends also stop (scheduler.ts's
+// 7 checkDataFreshness() passes), the one thing a paying firm most needs to
+// know before buying. Reworded rather than appending a clause, so it reads
+// as one sentence at every call site (signup, license writes, billing
+// checkout) instead of a patched-on afterthought.
 const STALE_DATA_CUSTOMER_MESSAGE =
-  "Signups and account changes are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back soon.";
+  "Signups, account changes, and reminder emails are temporarily paused while we re-verify our reference data, to make sure the date we give you is right. Please check back soon.";
 
 const SSO_UNVERIFIED_EMAIL_MESSAGE =
   "Your provider didn't confirm that email address is verified, so we can't connect it to a Deadline-Radar account. Please verify the address with your provider and try again.";
@@ -3610,6 +3616,21 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
     return jsonResponse(400, { error: "Monthly billing is coming soon -- please choose Annual for now." });
   }
   const interval: "annual" | "monthly" = requestedIntervalRaw;
+
+  // STALE-68 (AuditLab, 2026-10-21): the only one of the 4 mutating customer
+  // actions (signup, license create, license edit, billing checkout) that
+  // never checked this. Without it a firm could mint a Stripe Checkout
+  // Session -- and start an annual charge -- for a deliverable (reminder
+  // sends; see scheduler.ts's 7 checkDataFreshness() passes) that's already
+  // paused at the wall. Same catch/503 shape as the other 3 sites.
+  try {
+    checkDataFreshness(new Date());
+  } catch (err) {
+    if (err instanceof StaleDataError) {
+      return jsonResponse(503, { error: STALE_DATA_CUSTOMER_MESSAGE });
+    }
+    throw err;
+  }
 
   const firm = await store.getFirmById(env.DB, session.firmId);
   if (!firm) return jsonResponse(404, { error: "Not found." });

@@ -4850,6 +4850,39 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
     }
   });
 
+  // STALE-68 (AuditLab, 2026-10-21): the one mutating customer action this
+  // describe block didn't cover -- POST /firm/billing/checkout had no
+  // checkDataFreshness() call at all, so a firm could mint a real Stripe
+  // Checkout Session (start an annual charge) for a deliverable already
+  // paused at the wall. workerFetchWithEnv mirrors billing.spec.ts's own
+  // workerFetch helper (SELF.fetch can't inject STRIPE_SECRET_KEY per-test).
+  it("STALE-68: POST /firm/billing/checkout also returns the same plain-language 503, no operator jargon, once data is stale", async () => {
+    async function workerFetchWithEnv(request: Request, envOverrides: Record<string, unknown>): Promise<Response> {
+      const worker = (await import("../src/index")).default;
+      return worker.fetch(request, { ...env, ...envOverrides } as never, testExecutionContext());
+    }
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(FRESH_MOCK_DATE);
+      const { cookie } = await createFirmWithSession("Stale Guard Checkout Firm", `staleguardcheckout-${Date.now()}@example.com`);
+      vi.setSystemTime(STALE_MOCK_DATE);
+      const resp = await workerFetchWithEnv(
+        new Request("https://deadline-radar.com/firm/billing/checkout", {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tier: "firm_starter" }),
+        }),
+        { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_x" }
+      );
+      expect(resp.status).toBe(503);
+      const body = (await resp.json()) as { error: string };
+      expect(body.error).toContain("temporarily paused");
+      assertNoLeakedStalenessJargon(body.error);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not persist a subscriber row when the staleness guard refuses the signup", async () => {
     vi.useFakeTimers();
     try {

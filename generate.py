@@ -21984,7 +21984,12 @@ def build_firm_dashboard_page(
     One click resumes the exact checkout they started; dismissible so a
     signup for an unrelated reason doesn't get nagged forever. -->
     <div id="dr-resume-checkout-banner" class="callout" style="border-left-color:var(--accent);" role="status" hidden></div>
-    <div id="dr-staleness-banner" class="callout" style="border-left-color:#b8860b;" hidden></div>
+    <!-- STALE-69 (AuditLab, 2026-10-21): every other dynamically-revealed
+    callout in this block (dr-dash-error/success/warning, the resume-checkout
+    and demo/sample-mode banners just above/below) already carries role=
+    status/alert; this was the only one shipped with none, so un-hiding it
+    at runtime never announced the pause to a screen reader. -->
+    <div id="dr-staleness-banner" class="callout" style="border-left-color:#b8860b;" role="status" hidden></div>
     <div id="dr-demo-banner" class="callout" style="border-left-color:var(--accent);" role="status" hidden>
       You&rsquo;re signed in to the <strong>shared live demo</strong> firm &mdash; this is real data
       other visitors also see, not a private account. <a href="/for-firms/#firm-signup">Create your
