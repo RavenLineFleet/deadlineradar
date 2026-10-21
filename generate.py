@@ -8495,10 +8495,26 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     live_conflict_proof_html = ""
     if _live_conflicts:
         _c = _live_conflicts[0]
-        _c_summary = _c.get("summary_public") or (
-            f"Our two primary sources for {_c.get('jurisdiction', 'this jurisdiction')} don't "
-            f"agree on this rule. Rather than guess, we're showing you exactly where they conflict."
+        # Deliberately NOT _c.get("summary_public") -- that field is authored
+        # for build_rule_changes_page(), where the cited sources really do
+        # render "below" it. Transplanted here verbatim it told homepage
+        # readers to "read both citations yourself" on a page with none
+        # (AuditLab COPY-26, 2026-10-21). This sentence is referent-free by
+        # construction; the trailing link is the only "go look" pointer.
+        _c_summary = (
+            f"{_c.get('jurisdiction', 'This jurisdiction')}'s own primary legal sources don't "
+            f"agree on this rule. Rather than guess, we're flagging it for you to review."
         )
+        if not _rule_change_monitoring_fresh():
+            # AuditLab MON-22 (2026-10-21): this was the one monitor-fed
+            # surface with neither the hero strip's suppression (above) nor
+            # build_rule_changes_page()'s caveat -- a present-tense "Right
+            # now:" claim with no freshness signal. Same caveat sentence
+            # build_rule_changes_page() already uses when stale.
+            _c_summary += (
+                " (Day-to-day monitoring has been paused for a while; this comes from our "
+                "batch legal research in the meantime.)"
+            )
         live_conflict_proof_html = (
             f'<p class="mcard-proof"><strong>Right now:</strong> {esc(_c_summary)} '
             f'<a href="/rule-changes/">See all {len(_live_conflicts)} &rarr;</a></p>'
