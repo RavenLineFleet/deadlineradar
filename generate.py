@@ -6475,7 +6475,10 @@ def render_simple_deadline_records(records: list[dict]) -> str:
         d = date.fromisoformat(r["next_deadline_computed"])
         has_citation = _record_fully_cited(r)
         stamp_class = "stamp" if has_citation else "stamp stamp--unconfirmed"
-        stamp_text = f"Last verified {esc(r['last_verified'])}" if r.get("last_verified") else "Not independently verified"
+        stamp_text = (
+            f"Last verified {esc(fmt_date(date.fromisoformat(r['last_verified'])))}"
+            if r.get("last_verified") else "Not independently verified"
+        )
         verified_text = "Confirmed via official records" if _is_operational_record(r) else "Confirmed at source"
         verified_line = (
             f'<div class="verified">{_VERIFIED_ICON_SVG}{verified_text}</div>' if has_citation else ""

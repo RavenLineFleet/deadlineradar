@@ -28,7 +28,10 @@ MULTI_DATE = {s: rs for s, rs in BY_SLUG.items() if len({r["last_verified"] for 
 def _page_dates(slug, recs):
     _title, html = generate.build_state_page(slug, recs, AS_OF, BY_SLUG)
     seal = re.search(r'class="dr-seal" data-verified="([0-9-]{10})"', html)
-    trust = re.search(r'<strong data-verified="([0-9-]{10})">Last verified: ([0-9-]{10})</strong>', html)
+    # STALE-73 (AuditLab, 2026-10-21): the visible trust-line text is humanized
+    # ("Last verified: October 14, 2026") since c5e865990 -- data-verified stays
+    # ISO (runtime staleness JS parses it), only the visible capture changed shape.
+    trust = re.search(r'<strong data-verified="([0-9-]{10})">Last verified: ([A-Za-z]+ \d{1,2}, \d{4})</strong>', html)
     assert seal and trust, slug
     return seal.group(1), trust.group(1), trust.group(2)
 
@@ -40,5 +43,6 @@ def test_there_are_multi_date_states_to_exercise():
 def test_page_date_is_the_oldest_record_in_either_order():
     for slug, recs in MULTI_DATE.items():
         oldest = min(r["last_verified"] for r in recs)
+        oldest_human = generate.fmt_date(date.fromisoformat(oldest))
         for order in (recs, list(reversed(recs))):
-            assert _page_dates(slug, order) == (oldest, oldest, oldest), (slug, [r["last_verified"] for r in order])
+            assert _page_dates(slug, order) == (oldest, oldest, oldest_human), (slug, [r["last_verified"] for r in order])
