@@ -5934,6 +5934,38 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
 </div>"""
 
 
+def _state_data_gap_disclosure_html(records: list[dict]) -> str:
+    """SRC-73 (AuditLab, 2026-10-22): trust_line()'s sourcing_claim ("checked
+    against the state's codified statute or administrative rule... if we can't
+    verify a date against primary law, we say so instead of guessing") is
+    self-refuting on a record whose own data_gap_note already discloses a
+    sourcing substitution -- ut-all's citation_url points at a Cornell LII
+    mirror (the state's own rule-lookup site has been down since an October
+    2026 platform relaunch) while the state page never rendered that
+    disclosure. build_cpe_hours_page()/build_reinstatement_page() already
+    render this exact `<p class="disclosure">Sourcing note:` markup for their
+    own single-record pages; the per-state page (1-2 records) had no
+    equivalent path at all. Reuses _last_checked_suffix_html() for the same
+    trust/freshness split those two builders use. Only fires for a genuine
+    sourcing-substitution note (data_gap_note populated) -- most data_gap_note
+    records on this site are corroboration/explanation notes, not sourcing
+    substitutions, and are already handled fine by the unqualified trust_line
+    claim; this only renders the extra disclosure where one exists. Labels by
+    license_type_label when the page has more than one record, so a reader on
+    a mixed individual/firm page knows which one the note is about."""
+    gapped = [r for r in records if r.get("data_gap_note")]
+    if not gapped:
+        return ""
+    multi = len(records) > 1
+    parts = []
+    for r in gapped:
+        note = r["data_gap_note"]
+        suffix = _last_checked_suffix_html(r.get("last_verified"), note)
+        prefix = f"{esc(r.get('license_type_label') or 'This record')}: " if multi else ""
+        parts.append(f'<p class="disclosure">Sourcing note: {prefix}{esc(note)}{suffix}</p>')
+    return "\n".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # Per-state page builders
 # ---------------------------------------------------------------------------
@@ -7852,6 +7884,7 @@ def build_state_page(
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
 {trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records)}
+{_state_data_gap_disclosure_html(records)}
 {_flag_wrong_html(state_name, state_slug)}
 {signup_form_for_state(state_slug, state_name, records, as_of)}
 {_firm_product_cta_html()}
@@ -23141,6 +23174,17 @@ def build_firm_landing_page(state_slug: str, record: dict) -> tuple[str, str, st
         f"{state_name} CPA firm registration/permit renewal -- when it's due, what's required, sourced "
         f"to the codified rule, for whoever owns the firm's filing."
     )
+    # SRC-73 (AuditLab, 2026-10-22): same gap this finding flagged on the main
+    # state page -- a data_gap_note record (sourcing substitution, e.g.
+    # ut-all's Cornell LII mirror) still showed the unconditional "Verified"
+    # badge and trust_line() claim with no disclosure at all. This page type
+    # wasn't named in the finding but shares the exact same record and the
+    # exact same unqualified claim, so it gets the same BADGE-2-style
+    # suppression + disclosure build_cpe_hours_page()/build_reinstatement_page()
+    # already use, via _state_data_gap_disclosure_html() (built for a list so
+    # it reads fine with this function's single `record` too).
+    _flp_gap_note = record.get("data_gap_note")
+    _flp_verified_badge_html = "" if _flp_gap_note else _verified_badge_html(record)
     body = f"""<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} firm registration/permit &mdash; not individual license renewal</p>
 <p class="intro">A CPA firm's own registration or permit to practice renews separately from any
@@ -23148,13 +23192,14 @@ individual staff CPA's license &mdash; and it's usually the filing that falls th
 because it belongs to whoever handles firm admin, not to a specific licensee tracking their own
 renewal. Here's exactly when {esc(state_name)}'s firm-level filing is due.</p>
 <div class="callout">
-  {_verified_badge_html(record)}
+  {_flp_verified_badge_html}
   <div class="label">{esc(record['license_type_label'])}</div>
   <div class="date">{esc(_date_value(record, date.fromisoformat(record['next_deadline_computed'])))}</div>
   <p class="rule">{esc(_date_note_prefix(record) + record['cycle_description'])}</p>
   {_source_cite_html(record)}
 </div>
 {trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record))}
+{_state_data_gap_disclosure_html([record])}
 
 <div class="firm-cta">
 <h2>Tracking this for more than one firm, or want someone else watching it?</h2>
