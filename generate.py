@@ -7757,6 +7757,7 @@ def build_state_page(
     guide_slugs_by_state: dict[str, str] | None = None,
     firm_landing_slugs_by_state: dict[str, str] | None = None,
     renewal_fees_by_slug: dict[str, dict] | None = None,
+    year_end_cohort_slugs: set[str] | None = None,
 ) -> tuple[str, str]:
     """Returns (title, html_body) for a state's page."""
     state_name = records[0]["state"]
@@ -7926,6 +7927,9 @@ def build_state_page(
         _firm_landing_reverse_link_html(state_slug, state_name, firm_landing_slugs_by_state)
         if firm_landing_slugs_by_state else ""
     )
+    year_end_link_html = (
+        _year_end_reverse_link_html(state_slug, year_end_cohort_slugs) if year_end_cohort_slugs else ""
+    )
     quick_search_html = _state_quick_search_html(by_slug) if by_slug else ""
     faq_html, faq_schema = _state_faq_html_and_schema(
         state_slug, state_name, records,
@@ -7950,6 +7954,7 @@ def build_state_page(
 {reinstatement_link_html}
 {guide_link_html}
 {firm_landing_link_html}
+{year_end_link_html}
 {faq_html}
 {quick_search_html}
 <p class="backlink"><a href="../">&larr; Back to all states</a></p>
@@ -23932,6 +23937,24 @@ def _firm_landing_reverse_link_html(state_slug: str, state_name: str, firm_landi
     )
 
 
+def _year_end_reverse_link_html(state_slug: str, year_end_cohort_slugs: set[str]) -> str:
+    """Reverse cross-link (state page -> /year-end-renewals/ roundup), same
+    bidirectional-cross-link discipline as the other _X_reverse_link_html()
+    functions. UX-22 (AuditLab, 2026-10-22): the roundup page was indexable
+    and sitemap-listed with ZERO inbound internal links from anywhere on the
+    site -- only a search engine could reach it, no customer could. Keyed off
+    the exact same _year_end_dec31_rows(by_slug) query the roundup page
+    itself uses, so the two can never disagree about which states qualify;
+    the caller passes an empty set once the page has expired (noindexed),
+    so this renders nothing after that date."""
+    if state_slug not in year_end_cohort_slugs:
+        return ""
+    return (
+        f'<p class="backlink-cross">One of several deadlines landing on December 31, 2026 &mdash; '
+        f'<a href="../{YEAR_END_PAGE_SLUG}/">see every state on that date &rarr;</a></p>'
+    )
+
+
 def _state_faq_html_and_schema(
     state_slug: str, state_name: str, records: list[dict],
     cpe_record: dict | None, reinstatement_record: dict | None, firm_landing_slug: str | None,
@@ -26812,11 +26835,24 @@ def main() -> None:
         state_slug: f"{state_slug}-cpa-firm-renewal" for state_slug in firm_landing_state_slugs
     }
 
+    # UX-22 (AuditLab, 2026-10-22): precomputed here (not read off
+    # year_end_expired, which build_year_end_renewals_page() further below
+    # returns AFTER this state-page loop runs) so each qualifying state's
+    # reverse cross-link can be built in the same pass -- same ordering
+    # reason as firm_landing_slugs_by_state just above. Uses the exact same
+    # query the roundup page itself uses, so the two can never disagree
+    # about which states qualify; empty once the page has expired, so no
+    # state page keeps linking to a noindexed "deadlines have passed" page.
+    year_end_cohort_slugs = (
+        set() if real_today > YEAR_END_TARGET_DATE
+        else {r["state_slug"] for r in _year_end_dec31_rows(by_slug)}
+    )
+
     built = []
     for slug, recs in by_slug.items():
         title, page_html = build_state_page(
             slug, recs, as_of, by_slug, cpe_hours_by_slug, reinstatement_by_slug, guide_slugs_by_state,
-            firm_landing_slugs_by_state, renewal_fees_by_slug,
+            firm_landing_slugs_by_state, renewal_fees_by_slug, year_end_cohort_slugs,
         )
         state_dir = SITE_DIR / slug
         state_dir.mkdir(parents=True, exist_ok=True)
