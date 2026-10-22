@@ -2,6 +2,16 @@ __pycache__/
 *.pyc
 .DS_Store
 
+# PROC-4 (2026-10-21): ephemeral task worktrees sitting inside the main checkout
+# (the repo's own "_wt_<taskname>" convention, e.g. _wt_proc4, _wt_esabout, and
+# Claude Code's own isolation feature's .claude/worktrees/agent-*) are full nested
+# git worktrees, not secrets -- but preship_gate.py's untracked-credential-shaped-
+# path check has no way to tell the difference, and the new pre-push hook (same
+# check) would otherwise block every hand-push from a checkout that has one in
+# progress. Ignore the class; never commit one.
+_wt_*/
+.claude/worktrees/
+
 # GATE-23 follow-up (2026-09-09): the repo root's own node_modules/ (a local
 # vitest/vite cache, currently tiny) had no rule at all -- entirely
 # untracked and un-ignored, one `git add -A` away from being swept in

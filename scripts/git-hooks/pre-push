@@ -1,0 +1,25 @@
+#!/bin/sh
+# PROC-4 (Orchestrator/AuditLab, 2026-10-21/22): the commit-msg hook and the scheduled reverify job
+# both run preship_gate.py, but a hand commit+push had nothing -- the exact gap that let b58ab9aac
+# ship 259 pages with literal `<<<<<<<`/`=======`/`>>>>>>>` merge-conflict markers baked into their
+# cache-buster line. This runs the same gate on the hand-push path so it can't happen again.
+# Install: git config core.hooksPath scripts/git-hooks   (run once per clone/worktree)
+
+cat >/dev/null  # drain stdin (the pushed ref list); the gate checks repo state, not which refs moved
+
+repo_root="$(git rev-parse --show-toplevel)" || exit 1
+cd "$repo_root" || exit 1
+
+py="$(command -v python3 || command -v python)"
+if [ -z "$py" ]; then
+  echo "REJECTED: no python3/python found on PATH -- cannot run preship_gate.py (PROC-4)." >&2
+  exit 1
+fi
+
+"$py" scripts/preship_gate.py
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "REJECTED: scripts/preship_gate.py failed (rc=$rc) -- push blocked (PROC-4)." >&2
+  exit 1
+fi
+exit 0
