@@ -414,13 +414,16 @@
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
   
-  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
+  .dr-seal--v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
   
   .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; }
-  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: nowrap; }
+  
+  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: normal; }
   .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
-  @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
+  @media (max-width: 640px) { .dr-seal--v2 { width: 8.75rem; height: 8.75rem; } }
+  
+  @media (max-width: 640px) { .dr-seal-link { margin-bottom: 5rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }

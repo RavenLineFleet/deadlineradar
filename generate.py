@@ -1277,13 +1277,17 @@ PAGE_CSS = """
   .dr-seal.is-stale .dr-seal-ok { display: none; }
   .dr-seal.is-stale .dr-seal-stale { display: block; }
   .dr-seal--report { float: none; margin: 0 0 0.75rem; }
-  /* TEMP staged test (Devin-approved 2026-10-21): TX-only larger container, see _SEAL_TEST_STATES.
-     History: bumped to 2x desktop (18rem) + 10rem mobile, then Devin said "shrink about half the
-     difference" back toward the original 9rem/7.5rem -- desktop 13.5rem (288-144=144, half=72,
-     288-72=216px=13.5rem), mobile 8.75rem (160-120=40, half=20, 160-20=140px=8.75rem). Verified
-     clean at these sizes (no H1/subtitle/callout overlap desktop; no mid-word H1 break on a 390px
-     mobile viewport). */
-  .dr-seal--test-v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
+  /* Per-state seal container, rolled out to all states 2026-10-21 (started as a Texas-only test,
+     Devin-approved end to end). History: bumped to 2x desktop (18rem) + 10rem mobile, then Devin
+     said "shrink about half the difference" back toward the original 9rem/7.5rem -- desktop
+     13.5rem (288-144=144, half=72, 288-72=216px=13.5rem), then nudged to 13.7rem as the max size
+     that keeps Texas's H1 on one line. Mobile 8.75rem (160-120=40, half=20, 160-20=140px=8.75rem).
+     Verified clean at these sizes against Texas (no H1/subtitle/callout overlap desktop; no
+     mid-word H1 break on a 390px mobile viewport); re-checked against the longest state names
+     (District of Columbia, Northern Mariana Islands, U.S. Virgin Islands) before the 2026-10-21
+     all-state rollout -- see generate.py's own history for that check if a future state name
+     ever needs a per-state override. */
+  .dr-seal--v2 { width: 13.7rem; height: 13.7rem; float: none; margin: 0; }
   /* Devin follow-up (2026-10-21): name what the seal verifies + link it to /methodology/,
      so it isn't a disconnected icon. .dr-seal-link takes over the float the plain .dr-seal
      rule above carries, so the seal + its caption move as one block; the caption itself is
@@ -1291,10 +1295,25 @@ PAGE_CSS = """
      so it doesn't add to the circle's own box height. flow-root on .dr-headwrap (no
      overflow:hidden) lets it render outside the circle's box with no clipping. */
   .dr-seal-link { display: block; float: right; margin: 0.2rem 0.15rem 2.4rem 1.2rem; text-decoration: none; }
-  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: nowrap; }
+  /* white-space:nowrap at width:18rem fit Texas's caption with zero slack to spare
+     (scrollWidth 288px == 288px box) -- every other state's longer name overflows it,
+     silently clipped by <main>'s overflow-x:clip with no visible warning (found during
+     the 2026-10-21 all-state rollout). Wrap instead, same pattern already used under the
+     640px breakpoint below. */
+  .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: normal; }
   .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
-  @media (max-width: 640px) { .dr-seal--test-v2 { width: 8.75rem; height: 8.75rem; } }
+  @media (max-width: 640px) { .dr-seal--v2 { width: 8.75rem; height: 8.75rem; } }
+  /* .dr-seal-caption is a normal-flow (position:static) child of .dr-seal here, but .dr-seal
+     keeps its fixed height (8.75rem, for the circle's aspect ratio) -- the caption still renders
+     below it via plain overflow, which does NOT grow .dr-seal-link's own float box. Surrounding
+     text (h1/subhead) only wraps around that box's declared margin box, so a caption tall enough
+     to overflow past the inherited desktop margin-bottom (2.4rem) can collide with whatever
+     follows -- found on District of Columbia/Northern Mariana Islands during the 2026-10-21
+     all-state rollout (Texas's own caption happened to wrap short enough to miss it). Reserve
+     enough margin-bottom here for a realistic worst-case 3-line caption (measured ~3.7rem across
+     every state) plus buffer, rather than relying on the desktop value. */
+  @media (max-width: 640px) { .dr-seal-link { margin-bottom: 5rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
@@ -6086,13 +6105,11 @@ _SEAL31_DATE_Y0 = _SEAL31_DATE_BOTTOM - _SEAL31_DATE_H
 _SEAL31_DATE_W = 52.0 * 0.48
 _SEAL31_RING_R = 29.5
 
-# TEMP staged test (Devin-approved 2026-10-21): Texas-only dimension/transparency test before a
-# wider 55-state rollout. Scopes the flood-filled, fully-transparent ring background (replaces the
-# old uniform-radius mask, which cut into the ring's real scalloped/chevron edge at some angles
-# while leaving gray halo at others) and a larger 9rem container to TX alone via a filename suffix
-# + dedicated CSS class. Do not generalize to other states without a fresh go-ahead -- tracked in
-# Orchestrator/HANDOFF.md.
-_SEAL_TEST_STATES = {"TX"}
+# Rolled out fleet-wide 2026-10-21 (started as a Texas-only dimension/transparency test,
+# Devin-approved end to end, then approved for all 55 states+DC+territories). The flood-filled,
+# fully-transparent ring background (replaces the old uniform-radius mask, which cut into the
+# ring's real scalloped/chevron edge at some angles while leaving gray halo at others) and the
+# larger container now apply to every state with seal art -- see `has_seal_art` in _seal_html().
 
 
 def _seal_date_text(iso_date: str) -> str:
@@ -6195,7 +6212,7 @@ def _seal_state_overlay_svg(abbr: str, kind: str, date_text: str, uid: str, acti
     )
 
 
-def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = False, state_abbr: str | None = None) -> str:
+def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = False, state_abbr: str | None = None, state_name: str | None = None) -> str:
     """The engraved verification seal. Emits BOTH faces; the container class
     (server-set from build-date age, then re-evaluated at view time by
     _SEAL_RUNTIME_JS) decides which one shows. last_verified None -> the
@@ -6206,7 +6223,9 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
     seal #31 art (ring background + that state's own enamel shape). A firm
     dashboard report has no single state (a roster can span several), so it
     stays on the original generic ring design -- state_abbr is left None
-    there, same as before this per-state art existed."""
+    there, same as before this per-state art existed. state_name (the full
+    name, e.g. "Texas") names the seal's own caption and link label and
+    must be passed whenever state_abbr is -- the two travel together."""
     _seal_uid_counter[0] += 1
     uid = str(_seal_uid_counter[0])
     if last_verified:
@@ -6220,11 +6239,11 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         date_text = ""
         dv = ' data-verified=""'
         label = "Verification seal"
-    is_seal_test = bool(state_abbr) and state_abbr in _SEAL_TEST_STATES
-    test_cls = " dr-seal--test-v2" if is_seal_test else ""
-    cls = "dr-seal" + (" is-stale" if stale else "") + test_cls + ((" " + extra_class) if extra_class else "")
+    has_seal_art = bool(state_abbr) and state_abbr in _SEAL_LOCKED_BOXES
+    v2_cls = " dr-seal--v2" if has_seal_art else ""
+    cls = "dr-seal" + (" is-stale" if stale else "") + v2_cls + ((" " + extra_class) if extra_class else "")
     hid = " hidden" if hidden else ""
-    if state_abbr and state_abbr in _SEAL_LOCKED_BOXES:
+    if has_seal_art:
         # PERF-3 (AuditLab 2026-10-21): 155KB/page measured in-browser --
         # the face CSS hides (display:none) was still being fetched+decoded
         # because <img src> and svg <image href> trigger a fetch on presence
@@ -6234,29 +6253,34 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         # view-time re-evaluation ever flips which face is active.
         ok_attr = "src" if not stale else "data-src"
         stale_attr = "src" if stale else "data-src"
-        bg_suffix = "_v2" if is_seal_test else ""
         inner = (
-            f'<img class="dr-seal-bg dr-seal-ok" {ok_attr}="/img/seals/seal31_bg_pass{bg_suffix}.png" alt="" aria-hidden="true">'
-            f'<img class="dr-seal-bg dr-seal-stale" {stale_attr}="/img/seals/seal31_bg_fail{bg_suffix}.png" alt="" aria-hidden="true">'
+            f'<img class="dr-seal-bg dr-seal-ok" {ok_attr}="/img/seals/seal31_bg_pass_v2.png" alt="" aria-hidden="true">'
+            f'<img class="dr-seal-bg dr-seal-stale" {stale_attr}="/img/seals/seal31_bg_fail_v2.png" alt="" aria-hidden="true">'
             + _seal_state_overlay_svg(state_abbr, "ok", date_text, uid, active=not stale)
             + _seal_state_overlay_svg(state_abbr, "stale", date_text, uid, active=stale)
         )
     else:
         inner = _seal_svg("ok", date_text, uid) + _seal_svg("stale", date_text, uid)
     caption_html = ""
-    if is_seal_test and last_verified:
+    if has_seal_art and last_verified:
         # Devin (2026-10-21): the seal on its own reads as disconnected from
         # the data it's vouching for -- name what it verifies and date it,
         # then make the whole thing a link through to the methodology page.
-        caption_html = f'<p class="dr-seal-caption">Texas renewal dates &mdash; verified {esc(fmt_date(date.fromisoformat(last_verified)))} &rarr;</p>'
+        caption_html = (
+            f'<p class="dr-seal-caption">{esc(state_name)} renewal dates &mdash; '
+            f'verified {esc(fmt_date(date.fromisoformat(last_verified)))} &rarr;</p>'
+        )
     seal_div = (
         f'<div class="{cls}"{dv} role="img" aria-label="{label}"{hid}>'
         + inner
         + caption_html
         + '</div>'
     )
-    if is_seal_test:
-        return f'<a href="/methodology/" class="dr-seal-link" aria-label="How Deadline-Radar verifies Texas renewal dates">{seal_div}</a>'
+    if has_seal_art:
+        return (
+            f'<a href="/methodology/" class="dr-seal-link" '
+            f'aria-label="How Deadline-Radar verifies {esc(state_name)} renewal dates">{seal_div}</a>'
+        )
     return seal_div
 
 
@@ -7806,7 +7830,7 @@ def build_state_page(
         firm_landing_slugs_by_state.get(state_slug) if firm_landing_slugs_by_state else None,
         renewal_fees_by_slug.get(state_slug) if renewal_fees_by_slug else None,
     )
-    body = f"""<div class="dr-headwrap">{_seal_html(last_verified, state_abbr=_STATE_ABBR.get(state_name))}<h1>{esc(title)}</h1>
+    body = f"""<div class="dr-headwrap">{_seal_html(last_verified, state_abbr=_STATE_ABBR.get(state_name), state_name=state_name)}<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
 {trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records)}

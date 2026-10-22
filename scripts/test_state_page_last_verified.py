@@ -27,7 +27,9 @@ MULTI_DATE = {s: rs for s, rs in BY_SLUG.items() if len({r["last_verified"] for 
 
 def _page_dates(slug, recs):
     _title, html = generate.build_state_page(slug, recs, AS_OF, BY_SLUG)
-    seal = re.search(r'class="dr-seal" data-verified="([0-9-]{10})"', html)
+    # dr-seal now always carries the dr-seal--v2 modifier class too (2026-10-21
+    # all-state seal rollout), so match on the leading class token, not an exact string.
+    seal = re.search(r'class="dr-seal[^"]*" data-verified="([0-9-]{10})"', html)
     # STALE-73 (AuditLab, 2026-10-21): the visible trust-line text is humanized
     # ("Last verified: October 14, 2026") since c5e865990 -- data-verified stays
     # ISO (runtime staleness JS parses it), only the visible capture changed shape.
