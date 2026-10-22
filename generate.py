@@ -10640,7 +10640,7 @@ def _product_showcase_html() -> str:
         f'{key}: {{src: "/{esc(src)}", caption: "{esc(caption)}"}}' for key, _label, src, caption in _PRODUCT_SHOWCASE_TABS
     )
     return f"""<div class="dr-showcase dr-reveal">
-  <div class="dr-showcase-tabs" role="tablist">
+  <div class="dr-showcase-tabs">
   {tabs_html}
   </div>
   <div class="dr-showcase-frame">
@@ -20751,8 +20751,10 @@ def _dashboard_sidebar_html(active: str, tabs_live_here: bool) -> str:
     # anything: the items before mobility (roster..reports) get their own
     # role="tablist" region, mobility gets a plain (non-tablist) <ul> of its
     # own -- same .dr-nav class, so identically styled -- and the item after
-    # mobility (account) gets a third role="tablist" region. Same DOM order,
-    # same CSS, only the ARIA grouping changes.
+    # mobility (account) originally got a third role="tablist" region of its
+    # own too (superseded by the A11Y-25 fix below, which instead folds
+    # account into the first tablist via aria-owns). Same DOM order, same
+    # CSS, only the ARIA grouping changes.
     _mobility_idx = next(i for i, (v, _l) in enumerate(_NAV_ORDER) if v == "mobility")
     _before_nav_items = "\n      ".join(item(v, l) for v, l in _NAV_ORDER[:_mobility_idx])
     _mobility_nav_item = item(*_NAV_ORDER[_mobility_idx])
@@ -20802,29 +20804,32 @@ def _dashboard_sidebar_html(active: str, tabs_live_here: bool) -> str:
     # only). role="tablist"/aria-label is therefore only emitted where the
     # children genuinely are role="tab" elements.
     #
-    # TAB-3 residual (AuditLab, 2026-08-21): both tablist halves shared the
-    # identical aria-label ("Dashboard views"), so a screen-reader user met
-    # two distinct tablist regions with the same name -- one announcing 5
-    # tabs, one a single "tab 1 of 1" -- for what is conceptually one set of
-    # 6 tabs. Milder than the original defect (a naming/grouping smell, not
-    # a spec violation) but worth the one-line fix AuditLab suggested:
-    # distinct names so the two regions are at least distinguishable.
-    # "(continued)" rather than hardcoding the after-list's content (e.g.
-    # "Account") so this stays correct if _NAV_ORDER's after-mobility
-    # portion ever grows past a single item.
-    _before_tablist_attrs = ' role="tablist" aria-label="Dashboard views"' if tabs_live_here else ""
-    _after_tablist_attrs = ' role="tablist" aria-label="Dashboard views (continued)"' if tabs_live_here else ""
+    # AuditLab A11Y-25 (LOW, 2026-10-22): the two-tablist workaround above
+    # (distinct "(continued)" names) still announced the 6-panel tab group
+    # as two separate regions -- roster..reports as "1 of 5".."5 of 5", and
+    # account alone as "1 of 1" -- never conveying the real 6-tab group.
+    # Fixed per AuditLab's own suggested alternate shape ("keep the DOM and
+    # give a single tablist aria-owns over all 6 tab ids") rather than
+    # reordering the mobility link out of the sidebar's visual middle: only
+    # the before-mobility <ul> carries role="tablist" now, and its
+    # aria-owns lists all 6 real tab ids in reading order (roster..reports,
+    # then account) so AT treats account as a logical child of the one
+    # tablist despite living in a later, non-tablist <ul> in the DOM.
+    _tab_ids_in_order = " ".join(f"dr-tab-{v}" for v, _l in _NAV_ORDER if v != "mobility")
+    _tablist_attrs = (
+        f' role="tablist" aria-label="Dashboard views" aria-owns="{_tab_ids_in_order}"' if tabs_live_here else ""
+    )
     return f"""<aside class="dr-sidebar">
     {firm_name_html}
     {notification_bell_html}
-    <ul class="dr-nav"{_before_tablist_attrs}>
+    <ul class="dr-nav"{_tablist_attrs}>
       {_before_nav_items}
     </ul>
     <ul class="dr-nav">
       {_mobility_nav_item}
       {sidebar_nav_soon_items}
     </ul>
-    <ul class="dr-nav"{_after_tablist_attrs}>
+    <ul class="dr-nav">
       {_after_nav_items}
     </ul>
     <div class="dr-sidebar-foot">
@@ -20955,7 +20960,7 @@ first? Every answer is tied to the rule it came from.</p>
   Confirm with the state board before you rely on any answer here.
 </div>
 
-<div class="dr-mob-mode-toggle" role="tablist">
+<div class="dr-mob-mode-toggle">
   <button type="button" id="dr-mob-mode-individual" class="dr-mob-mode-btn dr-mob-mode-btn--active" aria-pressed="true">Check one person</button>
   <button type="button" id="dr-mob-mode-roster" class="dr-mob-mode-btn" aria-pressed="false">Check whole roster</button>
 </div>
