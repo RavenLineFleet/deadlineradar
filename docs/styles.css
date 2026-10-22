@@ -876,6 +876,8 @@
   }
   .foot-col a { color: var(--muted); text-decoration: none; }
   .foot-col a:hover { color: var(--fg); }
+  
+  .foot-lang-tag { font-size: 0.78em; color: var(--faint); }
   .foot-links { display: flex; flex-wrap: wrap; gap: 0.4rem 1.3rem; }
   .foot-links a { color: var(--muted); text-decoration: none; }
   .foot-links a:hover { color: var(--fg); }

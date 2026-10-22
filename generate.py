@@ -1894,6 +1894,12 @@ PAGE_CSS = """
   }
   .foot-col a { color: var(--muted); text-decoration: none; }
   .foot-col a:hover { color: var(--fg); }
+  /* AuditLab es_review_batch1 (2026-10-22): visible language-of-destination
+     tag, ship-coupled with footer.link_about's ES translation since /about/
+     has no es page -- a Spanish label must not silently deliver an English
+     page with no signal. Part of the link's own text, not a separate
+     element, so it travels with the accessible name. */
+  .foot-lang-tag { font-size: 0.78em; color: var(--faint); }
   .foot-links { display: flex; flex-wrap: wrap; gap: 0.4rem 1.3rem; }
   .foot-links a { color: var(--muted); text-decoration: none; }
   .foot-links a:hover { color: var(--fg); }
@@ -3739,6 +3745,18 @@ def site_header(
 def site_footer(lang: str = "en") -> str:
     disclaimer_bold = _t("footer.disclaimer_bold", lang, site_name=SITE_NAME, brand_name=BRAND_NAME)
     disclaimer_rest = _t("footer.disclaimer_rest", lang)
+    about_label = esc(_t("footer.link_about", lang))
+    if lang == "es":
+        # AuditLab es_review_batch1 (2026-10-22): the "Acerca de" ES label
+        # ships only paired with this tag -- /about/ itself has no es page,
+        # so a Spanish-labeled link must disclose it still lands on English.
+        # Checked via stale_or_missing_keys() rather than lang alone, so the
+        # tag disappears automatically if an /es/about/ page ever ships and
+        # this key's translation is withdrawn/retargeted instead.
+        import i18n as _i18n
+
+        if "footer.link_about" not in _i18n.stale_or_missing_keys():
+            about_label += ' <span class="foot-lang-tag">(EN)</span>'
     return f"""</div>
 <footer class="site-footer">
   <div class="wrap">
@@ -3774,7 +3792,7 @@ def site_footer(lang: str = "en") -> str:
     </div>
     <div class="foot-col">
       <h2>{esc(_t("footer.heading_company", lang))}</h2>
-      <a href="/about/">{esc(_t("footer.link_about", lang))}</a>
+      <a href="/about/">{about_label}</a>
       <a href="/contact/">{esc(_t("footer.link_contact", lang))}</a>
       <a href="/security/">{esc(_t("footer.link_security", lang))}</a>
       <a href="/status/">{esc(_t("footer.link_status", lang))}</a>

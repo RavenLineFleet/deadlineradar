@@ -893,6 +893,14 @@ ES: dict[str, dict] = {
         "en_hash": 'fb9ef894175c3274',
         "reviewed": True,
     },
+    'footer.link_about': {
+        # AuditLab 2026-10-22T00:52:47Z (es_review_batch1): APPROVE, ship-
+        # coupled to generate.py's site_footer() also adding a visible
+        # EN-destination tag on this link, since /about/ has no es page yet.
+        "text": 'Acerca de',
+        "en_hash": '4efca0d10c5feb8e',
+        "reviewed": True,
+    },
     'footer.link_all_jurisdictions': {
         "text": 'Las {count} jurisdicciones',
         "en_hash": '4afea1a2f22c51d4',

@@ -59,6 +59,7 @@ DRAFTS: dict[str, str] = {
     "footer.link_deadline_calculator": "Calculadora de fechas límite",
     "footer.link_cpe_vs_license": "CPE vs. renovación de licencia",
     "footer.heading_company": "Empresa",
+    "footer.link_about": "Acerca de",
     "footer.link_contact": "Contacto",
     "footer.link_security": "Seguridad",
     "footer.link_status": "Estado del servicio",
