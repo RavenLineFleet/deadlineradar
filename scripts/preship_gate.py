@@ -156,14 +156,19 @@ FORBIDDEN_ADDRESS_HINTS = []  # populated by caller if a real home/work address 
 # already-live page. Scoped to exactly this one path and exactly the devin/Devin match
 # so an accidental leak anywhere else on the site -- or any OTHER leak pattern on this
 # same page -- still hard-fails same as before.
-_FOUNDER_PAGE_PATH = ("about", "index.html")
+#
+# AuditLab (2026-10-22, FOUNDER-1 residual LOW): f.parts[-2:] matched ANY "about/
+# index.html" under docs/, not just docs/about/index.html -- so docs/es/about/
+# index.html (LOW-9's planned page) or docs/blog/about/index.html would have
+# silently inherited this exemption too. Bound to the docs-relative path instead.
+_FOUNDER_PAGE_PATH = ("docs", "about", "index.html")
 
 
 def check_copy_hygiene(html_files: list[Path]) -> list[str]:
     errors = []
     for f in html_files:
         text = f.read_text(encoding="utf-8")
-        is_founder_page = f.parts[-2:] == _FOUNDER_PAGE_PATH
+        is_founder_page = f.parts[-3:] == _FOUNDER_PAGE_PATH
         for m in LEAK_RE.finditer(text):
             if is_founder_page and m.group(0).lower() == "devin":
                 continue
