@@ -8745,7 +8745,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             confidence_html = (
                 '<div class="state-confidence" title="Sourced from the state board\'s own page; a '
                 'codified citation covers part of this claim but not all of it. See this state\'s '
-                'own page for the full disclosure.">Board-page sourced only</div>'
+                'own page for the full disclosure.">Partial citation</div>'
             )
         else:
             confidence_html = (
