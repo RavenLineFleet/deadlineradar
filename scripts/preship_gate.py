@@ -118,6 +118,12 @@ LEAK_RE = re.compile("|".join(LEAK_PATTERNS), re.IGNORECASE)
 
 EMPTY_TAG_RE = re.compile(r"<(em|p|li|strong|span|h[1-6])>\s*</\1>", re.IGNORECASE)
 
+# PROC-4 (AuditLab, 2026-10-22): b58ab9aac committed 259 docs/ pages with raw
+# unresolved merge-conflict markers (caught by a human/agent minutes later,
+# not by any gate). Anchored at line-start so a page's own prose discussing
+# git conflicts in passing can't false-positive.
+MERGE_CONFLICT_MARKER_RE = re.compile(r"^(<{7,}|={7,}|>{7,})", re.MULTILINE)
+
 DISCLAIMER_PHRASE = "affiliated with"
 # ES-1 (2026-10-02): once footer.disclaimer_bold/_rest are reviewed=True, an
 # /es/ page renders the Spanish disclaimer instead of falling back to
@@ -159,6 +165,9 @@ def check_rendering_integrity(html_files: list[Path]) -> list[str]:
         for m in EMPTY_TAG_RE.finditer(text):
             line_no = text.count("\n", 0, m.start()) + 1
             errors.append(f"[B][{f}:{line_no}] empty tag: {m.group(0)}")
+        for m in MERGE_CONFLICT_MARKER_RE.finditer(text):
+            line_no = text.count("\n", 0, m.start()) + 1
+            errors.append(f"[B][{f}:{line_no}] unresolved merge-conflict marker: {m.group(0)}")
     return errors
 
 
