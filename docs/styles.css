@@ -1815,6 +1815,10 @@
       display: none !important;
     }
     
+    .dr-paywall-tier-btn, .dr-demo-door--primary {
+      display: none !important;
+    }
+    
     .dr-sort-th { background: none !important; border: none !important; padding: 0 !important; color: inherit !important; }
     
     th { background: none !important; border-color: var(--border-strong) !important; color: inherit !important; }

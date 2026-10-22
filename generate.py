@@ -3383,6 +3383,15 @@ PAGE_CSS = """
     .dr-founding-bar {
       display: none !important;
     }
+    /* A11Y-28 (2026-10-22): .dr-paywall-tier-btn and .dr-demo-door--primary are
+       nav/upgrade CTAs rendered as <a> on 5 pages; their <button> siblings are
+       already caught by button:not(.dr-sort-th) above but the <a> variants
+       were not, leaving --accent/--on-accent (1.29:1) in print. Both are pure
+       action links with no content that needs to print, so hide rather than
+       neutralize -- same shape as .cta-button/.dr-founding-bar above. */
+    .dr-paywall-tier-btn, .dr-demo-door--primary {
+      display: none !important;
+    }
     /* Roadmap #37 (2026-08-07): sortable column-header buttons are table
        structure, not an action -- keep them (as plain header text, not a
        clickable control) when printing, unlike Edit/Remove/etc. */
