@@ -1,8 +1,10 @@
 #!/bin/sh
-# PROC-4 (Orchestrator/AuditLab, 2026-10-21/22): the commit-msg hook and the scheduled reverify job
-# both run preship_gate.py, but a hand commit+push had nothing -- the exact gap that let b58ab9aac
-# ship 259 pages with literal `<<<<<<<`/`=======`/`>>>>>>>` merge-conflict markers baked into their
-# cache-buster line. This runs the same gate on the hand-push path so it can't happen again.
+# PROC-4 (Orchestrator/AuditLab, 2026-10-21/22): only the scheduled reverify job ran
+# preship_gate.py before this -- a hand commit+push had nothing on either the commit or
+# push path, the exact gap that let b58ab9aac ship 259 pages with literal
+# `<<<<<<<`/`=======`/`>>>>>>>` merge-conflict markers baked into their cache-buster
+# line. This runs the gate on push (commit-msg only checks attribution, see ATTR-5 --
+# it does NOT run this gate, so a hand commit is still ungated until push).
 # Install: git config core.hooksPath scripts/git-hooks   (run once per clone/worktree)
 
 cat >/dev/null  # drain stdin (the pushed ref list); the gate checks repo state, not which refs moved
