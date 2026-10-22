@@ -5803,14 +5803,22 @@ def _record_fully_cited(record: dict) -> bool:
 
 
 def _record_citation_status(record: dict) -> str:
-    """One of 'operational' | 'codified' | 'boardpage' -- the same three-way
-    split trust_line()'s single-record sentence already makes, factored out
-    so the mixed-record case below can name each record's own status
-    precisely instead of collapsing them into one page-level claim."""
+    """One of 'operational' | 'codified' | 'partial' | 'boardpage'.
+
+    SRC-76 (AuditLab, 2026-10-22): 'boardpage' used to also cover a record
+    that HAS a citation to codified law but `citation_covers_full_claim` is
+    False (dc-all, de-all, us-virgin-islands-all, ma-firm) -- a genuinely
+    citation-less record and a partially-cited one rendered the identical
+    "could not independently confirm it against codified statute" sentence,
+    which is false for the partial case: there IS a codified citation, it
+    just doesn't cover the whole claim. 'partial' splits that out so the
+    caller can say the true, narrower thing."""
     if _is_operational_record(record):
         return "operational"
     if _record_fully_cited(record):
         return "codified"
+    if record.get("citation"):
+        return "partial"
     return "boardpage"
 
 
@@ -5833,6 +5841,10 @@ _TRUST_CLAIM_BY_STATUS = {
         "administrative rule text"
     ),
     "codified": "checked against the state's codified statute or administrative rule",
+    "partial": (
+        "sourced from the state board's own page, with a citation to codified statute or "
+        "administrative rule that covers part but not all of this claim"
+    ),
     "boardpage": (
         "sourced from the state board's own page, not independently confirmed against codified "
         "statute or administrative rule text"
@@ -5841,7 +5853,8 @@ _TRUST_CLAIM_BY_STATUS = {
 
 
 def trust_line(last_verified: str, source_url: str, has_citation: bool,
-                is_operational_record: bool = False, records: list[dict] | None = None) -> str:
+                is_operational_record: bool = False, records: list[dict] | None = None,
+                citation_exists: bool = False) -> str:
     """AuditLab DATA-1 (HIGH, 2026-08-04): this unconditionally asserted "checked
     against the state's codified statute or administrative rule, not just a board
     webpage" on every page, including 11 records across 9 states that have ONLY a
@@ -5889,7 +5902,16 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     single-status multi-record page -- e.g. every record on the page fully
     codified -- still gets the single sourcing_claim below unchanged, since
     naming each record separately would just repeat the same claim twice
-    for no honesty gain)."""
+    for no honesty gain).
+
+    SRC-76 (AuditLab, 2026-10-22): the non-mixed, non-codified, non-operational
+    fallback (the `else` branch below) used to say "could not independently
+    confirm it against codified statute" for every such record, even one that
+    HAS a codified citation covering only part of its claim
+    (`citation_covers_full_claim: False`, e.g. dc-all, de-all,
+    us-virgin-islands-all). `citation_exists` -- true when any record being
+    summarized here actually has a `citation` string, even an incomplete one
+    -- lets that case get its own, narrower, true sentence instead."""
     # Devin (2026-10-21): the raw ISO string read like a database timestamp next to the
     # page's own human-formatted dates (e.g. the birth-month table's "January 31, 2027").
     # data-verified stays ISO (the runtime staleness JS parses it); only the visible text changes.
@@ -5920,6 +5942,13 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
             "checked against the state's codified statute or administrative rule, not just a board "
             "webpage &mdash; if we can't verify a date against primary law, we say so instead of "
             'guessing (<a href="/methodology/">see how we verify every deadline</a>)'
+        )
+    elif citation_exists:
+        sourcing_claim = (
+            "sourced from the state board's own page; the citation below covers part of this claim "
+            "but not all of it, so we could not independently confirm the rest against codified "
+            'statute or administrative rule text (<a href="/methodology/">see how we verify every '
+            'deadline</a>)'
         )
     else:
         sourcing_claim = (
@@ -7908,7 +7937,7 @@ def build_state_page(
     body = f"""<div class="dr-headwrap">{_seal_html(last_verified, state_abbr=_STATE_ABBR.get(state_name), state_name=state_name)}<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
-{trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records)}
+{trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records, citation_exists=any(bool(r.get("citation")) for r in records))}
 {_state_data_gap_disclosure_html(records)}
 {_flag_wrong_html(state_name, state_slug)}
 {signup_form_for_state(state_slug, state_name, records, as_of)}
@@ -8701,13 +8730,29 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
         # state-card--variable already flag exceptions rather than the
         # default here.
         fully_cited = all(_record_fully_cited(r) for r in state_records)
-        confidence_html = (
-            ""
-            if fully_cited
-            else '<div class="state-confidence" title="Sourced from the state board\'s own page; '
-            'not independently confirmed against codified statute or rule text. See this state\'s '
-            'own page for the full disclosure.">Board-page sourced only</div>'
+        # SRC-76 (AuditLab, 2026-10-22): same wholesale-denial shape this finding
+        # flagged on trust_line() -- a state whose record HAS a citation that
+        # covers only part of its claim (dc-all, de-all, us-virgin-islands-all,
+        # ma-firm) is not "not independently confirmed against codified statute
+        # or rule text" the way a genuinely citation-less record is.
+        _any_partial_citation = any(
+            bool(r.get("citation")) and not r.get("citation_covers_full_claim", True)
+            for r in state_records
         )
+        if fully_cited:
+            confidence_html = ""
+        elif _any_partial_citation:
+            confidence_html = (
+                '<div class="state-confidence" title="Sourced from the state board\'s own page; a '
+                'codified citation covers part of this claim but not all of it. See this state\'s '
+                'own page for the full disclosure.">Board-page sourced only</div>'
+            )
+        else:
+            confidence_html = (
+                '<div class="state-confidence" title="Sourced from the state board\'s own page; '
+                'not independently confirmed against codified statute or rule text. See this state\'s '
+                'own page for the full disclosure.">Board-page sourced only</div>'
+            )
         cards.append(
             f'<a class="state-card{variable_class}" href="{esc(s["state_slug"])}/" data-state-name="{esc(s["state"])}">'
             f'<div class="state-name">{esc(s["state"])}</div>'
@@ -23223,7 +23268,7 @@ renewal. Here's exactly when {esc(state_name)}'s firm-level filing is due.</p>
   <p class="rule">{esc(_date_note_prefix(record) + record['cycle_description'])}</p>
   {_source_cite_html(record)}
 </div>
-{trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record))}
+{trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
 {_state_data_gap_disclosure_html([record])}
 
 <div class="firm-cta">
@@ -24150,7 +24195,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
 
 <p><strong>What triggers lapsed status:</strong> {esc(record['lapse_trigger'])}</p>
 
-{trust_line(record["last_verified"], record["source_url"], _record_fully_cited(record), _is_operational_record(record))}
+{trust_line(record["last_verified"], record["source_url"], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
 
 {_reinstatement_signup_html(record["state_slug"], state_name, renewal_records, as_of)}
 
