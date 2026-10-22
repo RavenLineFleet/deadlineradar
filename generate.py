@@ -5946,11 +5946,19 @@ def _state_data_gap_disclosure_html(records: list[dict]) -> str:
     render this exact `<p class="disclosure">Sourcing note:` markup for their
     own single-record pages; the per-state page (1-2 records) had no
     equivalent path at all. Reuses _last_checked_suffix_html() for the same
-    trust/freshness split those two builders use. Only fires for a genuine
-    sourcing-substitution note (data_gap_note populated) -- most data_gap_note
-    records on this site are corroboration/explanation notes, not sourcing
-    substitutions, and are already handled fine by the unqualified trust_line
-    claim; this only renders the extra disclosure where one exists. Labels by
+    trust/freshness split those two builders use.
+
+    PROC-5 correction (AuditLab, 2026-10-22): an earlier version of this
+    docstring claimed this "only renders ... where a sourcing substitution
+    exists." That's wrong -- the gate below is data_gap_note presence alone,
+    with no way to tell a sourcing substitution (ut-all) from a plain
+    corroboration/explanation note (the other 10 populated records on this
+    dataset). That's fine in practice: AuditLab reviewed all 11 and found 10
+    read as improvements when surfaced this way, and one (tx-individual)
+    reads oddly -- the note affirms the rule and the board agree, not a gap --
+    tracked as a LOW backlog item, not a defect here. But this function
+    cannot by itself catch a future data_gap_note that would read wrong if
+    surfaced verbatim; that has to be caught at authoring time. Labels by
     license_type_label when the page has more than one record, so a reader on
     a mixed individual/firm page knows which one the note is about."""
     gapped = [r for r in records if r.get("data_gap_note")]
@@ -6552,11 +6560,27 @@ def render_simple_deadline_records(records: list[dict]) -> str:
     """Wave 1 / plain fixed_calendar records with a single computed date each.
     Rendered as the approved concept's .sheet/.frow fact sheet (2026-07-17 CPA-trust
     redesign, deadlineradar_concept_v1_APPROVED.html) -- citation lives inline on the
-    same row as the value it backs, not a separate buried line."""
+    same row as the value it backs, not a separate buried line.
+
+    SRC-74 (AuditLab, 2026-10-22): the "Confirmed at source" trust badge used to
+    render unconditionally whenever _record_fully_cited() was true, even for a
+    record whose citation_url is a substitute mirror, not the state's own page
+    (ut-all) -- the Sourcing-note disclosure sat right next to a badge implying
+    the opposite. Can't gate this on data_gap_note presence alone the way
+    build_cpe_hours_page()/build_reinstatement_page() do: on this dataset most
+    data_gap_note records (mi-individual, tx-individual, nj-individual, nj-firm,
+    ma-individual, ma-firm, md-individual, dc-all, vt-firm, ri-all) are genuine
+    corroboration/explanation notes whose citation really is the state's own
+    source, so blanket-suppressing the badge there would be a regression, not a
+    fix (PROC-5, same AuditLab finding). citation_is_substitute_source is a
+    dedicated, explicit data field for exactly this one distinction -- set true
+    only on ut-all/ut-cpe right now -- so this stays correct without relying on
+    anyone parsing note text."""
     parts = []
     for r in records:
         d = date.fromisoformat(r["next_deadline_computed"])
         has_citation = _record_fully_cited(r)
+        is_substitute_source = bool(r.get("citation_is_substitute_source"))
         stamp_class = "stamp" if has_citation else "stamp stamp--unconfirmed"
         stamp_text = (
             f"Last verified {esc(fmt_date(date.fromisoformat(r['last_verified'])))}"
@@ -6564,7 +6588,8 @@ def render_simple_deadline_records(records: list[dict]) -> str:
         )
         verified_text = "Confirmed via official records" if _is_operational_record(r) else "Confirmed at source"
         verified_line = (
-            f'<div class="verified">{_VERIFIED_ICON_SVG}{verified_text}</div>' if has_citation else ""
+            f'<div class="verified">{_VERIFIED_ICON_SVG}{verified_text}</div>'
+            if has_citation and not is_substitute_source else ""
         )
         parts.append(f"""<div class="sheet">
   <div class="sheethead">
