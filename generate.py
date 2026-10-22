@@ -3391,6 +3391,12 @@ PAGE_CSS = """
        in print) with --on-accent (forced #000000 in print) = 1.29:1. Neutralize
        the same way .dr-sort-th already is -- table structure, not an action. */
     th { background: none !important; border-color: var(--border-strong) !important; color: inherit !important; }
+    /* A11Y-27 (2026-10-22): homepage .hfc-date-block paints --accent (kept dark
+       in print) while its children take --on-accent (forced #000000) = 1.29:1
+       on the date itself. The date must still print, so neutralize to
+       black-on-white rather than hide, same shape as the .dr-sort-th/th fixes. */
+    .hfc-date-block { background: none !important; }
+    .hfc-date-label, .hfc-date { color: inherit !important; }
     /* Roadmap #3 (2026-08-07): printing the Reports tab (the only view with a
        print button, so the only one reachable via window.print()) should show
        just the report -- none of the dashboard's own chrome around it. Each

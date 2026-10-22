@@ -1819,6 +1819,9 @@
     
     th { background: none !important; border-color: var(--border-strong) !important; color: inherit !important; }
     
+    .hfc-date-block { background: none !important; }
+    .hfc-date-label, .hfc-date { color: inherit !important; }
+    
     .dr-sidebar, .dr-onboarding-checklist, .dr-sample-mode-banner, .dr-product-tour,
     .dr-dash-shell #dr-dash-error, .dr-dash-shell #dr-dash-success,
     .dr-dash-shell #dr-dash-warning, .dr-dash-shell #dr-staleness-banner {
