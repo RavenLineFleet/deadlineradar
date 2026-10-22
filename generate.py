@@ -3379,13 +3379,18 @@ PAGE_CSS = """
       --shadow: none;
     }
     .mainnav, .site-footer, .signup-form, .remind-panel,
-    .state-search-wrap, .dr-sso-block, button:not(.dr-sort-th), .cta-button {
+    .state-search-wrap, .dr-sso-block, button:not(.dr-sort-th), .cta-button,
+    .dr-founding-bar {
       display: none !important;
     }
     /* Roadmap #37 (2026-08-07): sortable column-header buttons are table
        structure, not an action -- keep them (as plain header text, not a
        clickable control) when printing, unlike Edit/Remove/etc. */
     .dr-sort-th { background: none !important; border: none !important; padding: 0 !important; color: inherit !important; }
+    /* A11Y-26 (2026-10-22): plain th on public pages pairs --accent (kept dark
+       in print) with --on-accent (forced #000000 in print) = 1.29:1. Neutralize
+       the same way .dr-sort-th already is -- table structure, not an action. */
+    th { background: none !important; border-color: var(--border-strong) !important; color: inherit !important; }
     /* Roadmap #3 (2026-08-07): printing the Reports tab (the only view with a
        print button, so the only one reachable via window.print()) should show
        just the report -- none of the dashboard's own chrome around it. Each
