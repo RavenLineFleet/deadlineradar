@@ -147,11 +147,26 @@ MIN_SHIPPED_CSS_RULE_BLOCKS = 400
 FORBIDDEN_ADDRESS_HINTS = []  # populated by caller if a real home/work address is known
 
 
+# FOUNDER-1 (2026-10-21): the \bDevin\b pattern above was added to catch an ACCIDENTAL
+# leak of the real owner's name (a stray CSS comment, 2026-07-25). The founder /about/
+# page (generate.py:9721 build_about_page, shipped cd9ebdff0/422bbbfea, AuditLab-approved)
+# is the one INTENTIONAL, business-decided disclosure of "Devin Hall, founder of
+# Deadline-Radar" -- that's the page's whole content, not a leak, and without this
+# exemption every push (and the nightly reverify job) hard-fails on an approved,
+# already-live page. Scoped to exactly this one path and exactly the devin/Devin match
+# so an accidental leak anywhere else on the site -- or any OTHER leak pattern on this
+# same page -- still hard-fails same as before.
+_FOUNDER_PAGE_PATH = ("about", "index.html")
+
+
 def check_copy_hygiene(html_files: list[Path]) -> list[str]:
     errors = []
     for f in html_files:
         text = f.read_text(encoding="utf-8")
+        is_founder_page = f.parts[-2:] == _FOUNDER_PAGE_PATH
         for m in LEAK_RE.finditer(text):
+            if is_founder_page and m.group(0).lower() == "devin":
+                continue
             line_no = text.count("\n", 0, m.start()) + 1
             snippet = text[max(0, m.start() - 40): m.end() + 40].replace("\n", " ")
             errors.append(f"[A][{f}:{line_no}] leaked pattern '{m.group(0)}' -- ...{snippet}...")
