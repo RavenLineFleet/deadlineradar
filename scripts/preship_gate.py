@@ -7737,6 +7737,50 @@ def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_inline_script_json_breakout(repo_root: Path) -> list[str]:
+    """AuditLab XSS-2 (2026-10-23, MEDIUM, latent): rule-change event text (model output) and i18n
+    strings were interpolated into plain inline <script> blocks via bare json.dumps(), which
+    check_json_ld_script_breakout() cannot see (its regex only matches application/ld+json). Two
+    halves, both required: (1) _script_json() must actually defuse a hostile value at runtime, since
+    a no-op .replace() reads as present (the JSONLD-1 trap); (2) generate.py must carry no bare
+    '{json.dumps(' f-string interpolation left, so a new site can't skip the helper. The positive
+    control in (2) is that '{_script_json(' is present at all."""
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as generate_module
+    except Exception as e:
+        return [f"[XSS-2] generate.py could not be imported ({type(e).__name__}: {e}); this gate is measuring nothing."]
+    errors = []
+    hostile = {"summary": "Rule </script><img src=x onerror=alert(1)> and </SCRIPT >", "n": [1, "a<b"]}
+    try:
+        out = generate_module._script_json(hostile)
+    except Exception as e:
+        return [f"[XSS-2] _script_json() raised {type(e).__name__}: {e} on a hostile value."]
+    if "<" in out:
+        errors.append("[XSS-2] _script_json() output still contains a raw '<' -- a '</script>' in the value would close the inline script tag.")
+    try:
+        if json.loads(out) != hostile:
+            errors.append("[XSS-2] _script_json() output does not round-trip to the original value -- the escaping changed the data.")
+    except json.JSONDecodeError as e:
+        errors.append(f"[XSS-2] _script_json() output is not valid JSON ({e}).")
+    # End to end through the real page pipeline: _strip_shipped_comments() splits on the first raw
+    # '</script>' BEFORE terser runs, so the helper (not terser's own escaping) is what has to hold.
+    try:
+        page = generate_module._strip_shipped_comments("<script>var X = " + out + ";</script>")
+    except Exception as e:
+        errors.append(f"[XSS-2] the shipped-page pipeline failed on a _script_json() value ({type(e).__name__}: {e}).")
+    else:
+        if page.lower().count("</script") != 1 or not page.rstrip().lower().endswith("</script>"):
+            errors.append("[XSS-2] a hostile value broke out of its inline <script> after the shipped-page pipeline (terser + comment strip).")
+    src = (repo_root / "generate.py").read_text(encoding="utf-8")
+    bare = src.count("{json.dumps(")
+    if bare:
+        errors.append(f"[XSS-2] generate.py has {bare} bare '{{json.dumps(' interpolation(s); use _script_json() for anything inside a <script> body.")
+    if "{_script_json(" not in src:
+        errors.append("[XSS-2] no '{_script_json(' call sites found in generate.py -- the ratchet above is measuring nothing.")
+    return errors
+
+
 def check_email_link_helper_usage(repo_root: Path) -> list[str]:
     """AuditLab EMAIL-2 (LOW-MED, filed 2026-08-08, widened 2026-08-12): dark
     mode recolors links by CSS class (.dr-accent/.dr-btn), not by attribute --
@@ -9420,6 +9464,7 @@ def main():
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
     all_errors += check_json_ld_script_breakout(repo_root)
+    all_errors += check_inline_script_json_breakout(repo_root)
     all_errors += check_security_header_layers()
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")

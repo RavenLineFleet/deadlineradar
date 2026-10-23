@@ -3707,7 +3707,7 @@ def site_header(
         fetch('{REMINDER_BACKEND_BASE_URL}/firm/logout', {{method: 'POST', credentials: 'include'}}).catch(function() {{}});
         return;
       }}
-      link.textContent = {json.dumps(_t("nav.dashboard", lang))}; link.href = '/firm-dashboard/';
+      link.textContent = {_script_json(_t("nav.dashboard", lang))}; link.href = '/firm-dashboard/';
       link.classList.remove('nav-quiet'); link.classList.add('cta');
     }}).catch(function() {{}});
   }}).catch(function() {{}});
@@ -4837,6 +4837,16 @@ def _json_ld_script_safe(s: dict) -> str:
         .replace(chr(0x2028), "\\u2028")
         .replace(chr(0x2029), "\\u2029")
     )
+
+
+def _script_json(v) -> str:
+    """json.dumps() for a value interpolated into an inline <script> body (AuditLab XSS-2,
+    2026-10-23). Same reason as _json_ld_script_safe(): json.dumps() passes '<' through, so a
+    string holding '</script>' would close the tag. '<' becomes the six characters backslash-u-0-0-
+    3-c, which JS reads back as '<', so the runtime value is unchanged. ensure_ascii stays on
+    (json.dumps' default), which already escapes U+2028/U+2029. preship_gate.py's
+    check_inline_script_json_breakout() runs this against a hostile value."""
+    return json.dumps(v).replace("<", "\\u003c")
 
 
 def _json_ld_html(schemas: list[dict] | None) -> str:
@@ -7223,7 +7233,7 @@ def _anchor_year_chosen_term_js(record_id: str, as_of: date) -> str:
   var goBtn = document.getElementById('dr-ayct-{record_id}-go');
   var result = document.getElementById('dr-ayct-{record_id}-result');
   var month = {cfg['month']}, day = {cfg['day']};
-  var termOptions = {json.dumps(cfg['term_options'])};
+  var termOptions = {_script_json(cfg['term_options'])};
   var asOf = new Date(Date.UTC({as_of.year}, {as_of.month - 1}, {as_of.day}));
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   function fmt(d) {{ return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }}
@@ -7721,7 +7731,7 @@ def _state_quick_search_html(by_slug: dict[str, list[dict]]) -> str:
   </form>
 </div>
 <script>
-var DR_STATES = {json.dumps(state_options)};
+var DR_STATES = {_script_json(state_options)};
 {_STATE_SEARCH_JS}
 </script>"""
 
@@ -9086,7 +9096,7 @@ verified renewal rule, with a link back to the official source and a "last verif
 </section>
 {signup_form_homepage(by_slug, as_of)}
 <script>
-var DR_STATES = {json.dumps(state_options)};
+var DR_STATES = {_script_json(state_options)};
 {_STATE_SEARCH_JS}
 </script>
 """
@@ -9589,7 +9599,7 @@ def build_roadmap_redirect_page() -> str:
     dest = f"{SITE_BASE_URL}/for-firms/"
     body = f"""<h1>Moved</h1>
 <p class="intro">The roadmap voting page has been retired. Redirecting you to <a href="{esc(dest)}">{esc(dest)}</a>&hellip;</p>
-<script>location.replace({json.dumps(dest)});</script>
+<script>location.replace({_script_json(dest)});</script>
 """
     return page_shell(
         f"Moved — {SITE_NAME}",
@@ -12967,7 +12977,7 @@ def build_my_page(cpe_hours_by_slug: dict[str, dict]) -> str:
   </div>
 </div>
 <script>
-var DR_CPE_REQUIREMENTS = {json.dumps(cpe_requirements_json)};
+var DR_CPE_REQUIREMENTS = {_script_json(cpe_requirements_json)};
 </script>
 {_MY_DASHBOARD_JS_HTML}
 """
@@ -21792,10 +21802,10 @@ def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date
   <div id="dr-calc-result" class="dr-calc-result" hidden></div>
 </div>
 <script>
-var DR_CALC_DATA = {json.dumps(data)};
-var DR_CALC_AS_OF = {json.dumps(as_of.isoformat())};
-var DR_CALC_BASE = {json.dumps("../" if lang == "en" else "../../")};
-var DR_CALC_I18N = {json.dumps(i18n_js)};
+var DR_CALC_DATA = {_script_json(data)};
+var DR_CALC_AS_OF = {_script_json(as_of.isoformat())};
+var DR_CALC_BASE = {_script_json("../" if lang == "en" else "../../")};
+var DR_CALC_I18N = {_script_json(i18n_js)};
 {_DEADLINE_CALC_JS}
 </script>"""
 
@@ -23109,9 +23119,9 @@ def build_firm_dashboard_page(
 </div>
 
 <script>
-var DR_CPE_REQUIREMENTS = {json.dumps(cpe_requirements_json)};
-var DR_DEFAULT_LICENSE_TYPE_ID = {json.dumps(default_license_type_id_json)};
-var DR_RULE_CHANGE_EVENTS = {json.dumps(rule_change_events_json)};
+var DR_CPE_REQUIREMENTS = {_script_json(cpe_requirements_json)};
+var DR_DEFAULT_LICENSE_TYPE_ID = {_script_json(default_license_type_id_json)};
+var DR_RULE_CHANGE_EVENTS = {_script_json(rule_change_events_json)};
 </script>
 
 {_FIRM_DASHBOARD_JS_HTML}
