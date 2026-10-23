@@ -10180,9 +10180,13 @@ def _rule_change_card_html(e: dict) -> str:
     eff_html = ""
     if eff:
         eff_date = fmt_date(date.fromisoformat(eff))
+        verified_date = e.get("verified_date")
+        unconfirmed_as_of_effective = bool(
+            verified_date and verified_date < eff
+        )
         if _is_still_upcoming(e):
             eff_html = f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; not yet in force.</p>'
-        elif e.get("needs_reverification"):
+        elif e.get("needs_reverification") or unconfirmed_as_of_effective:
             eff_html = (
                 f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; passed; we '
                 f"re-verify on or after that date before treating it as settled, not asserting it "
