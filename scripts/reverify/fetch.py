@@ -312,15 +312,33 @@ class Fetcher:
                             route.continue_()            # data:/blob: etc. carry no network target
                             return
                         if not (request.is_navigation_request() and request.frame == page.main_frame):
-                            # SSRF-1 (SecurityLab/AuditLab): subresources and sub-frames get the
-                            # address check too. They used to skip it, and were contained only as a
-                            # side effect of the main document being served with fulfill() below.
-                            # Refusing one aborts that request only, not the page fetch. Robots is
-                            # not applied here: it governs crawling pages, not a page's own assets.
-                            if not self._allow_private and _preflight_reason(u):
-                                route.abort()
-                            else:
-                                route.continue_()
+                            # SSRF-1/1b (SecurityLab/AuditLab): subresources and sub-frames get the
+                            # address check on every redirect hop, walked by hand for the same reason
+                            # as the main frame below (a continue_() would let Chromium follow a 3xx
+                            # to an unchecked target). Refusing one aborts that request only, not the
+                            # page fetch. Robots is not applied: it governs crawling pages, not a
+                            # page's own assets. Pacing is deliberately not applied either: an
+                            # asset-heavy page at 1 req/s per host would blow the networkidle timeout.
+                            cur = u
+                            for _ in range(MAX_REDIRECTS + 1):
+                                if not self._allow_private and _preflight_reason(cur):
+                                    route.abort()
+                                    return
+                                try:
+                                    resp = route.fetch(url=cur, max_redirects=0)
+                                except Exception:
+                                    route.abort()
+                                    return
+                                loc = resp.headers.get("location")
+                                if resp.status in REDIRECT_CODES and loc:
+                                    cur = urljoin(cur, loc)
+                                    if urlparse(cur).scheme not in ("http", "https"):
+                                        route.abort()
+                                        return
+                                    continue
+                                route.fulfill(response=resp)
+                                return
+                            route.abort()
                             return
                         # Chromium follows a 3xx inside its network stack and does NOT route
                         # the redirect target, so a plain continue_() would request the
@@ -356,7 +374,8 @@ class Fetcher:
                             return
                         if cur == u:
                             # fulfill() also stops Chromium sending the page's cross-origin
-                            # subresources (SSRF-1). The check above no longer depends on it.
+                            # subresources at all. The subresource branch above does not rely on
+                            # that: it checks every hop itself (SSRF-1/1b tests ablate fulfill()).
                             route.fulfill(response=resp)
                         else:
                             # re-space the browser's own request to the final host (1 req/s)

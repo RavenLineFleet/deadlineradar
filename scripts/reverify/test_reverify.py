@@ -1015,17 +1015,22 @@ def test_rvf2_browser_path_refuses_redirect_onto_internal_service(public_a_priva
     assert hits_c == []
 
 
+@pytest.mark.parametrize("via_redirect", [False, True])
 @pytest.mark.parametrize("serve_main_doc_with_continue", [False, True])
 def test_ssrf1_browser_subresource_onto_internal_service_is_refused(public_a_private_c, monkeypatch,
-                                                                     serve_main_doc_with_continue):
+                                                                     serve_main_doc_with_continue, via_redirect):
     """SSRF-1: a page's cross-origin <img> pointing at an internal service must be refused by the guard.
     The True arm swaps fulfill() for continue_() on the main document -- the refactor that used to open
     this -- so the guard, not fulfill's side effect, is what this asserts. The same-host /pixel.png
-    must still be requested, or "no internal hit" would prove nothing (AuditLab's constraint)."""
+    must still be requested, or "no internal hit" would prove nothing (AuditLab's constraint).
+    via_redirect (SSRF-1b): the asset is A/to-internal, which 302s to C, so the guard has to walk the hop.
+    Only the serve_main_doc_with_continue=True arms discriminate; the False arms pin shipped behaviour.
+    Don't collapse the parametrisation."""
     pytest.importorskip("playwright.sync_api")
     from playwright.sync_api import Route
     A, C, hits_a, hits_c = public_a_private_c
-    page = (f'<p>PAGE-WITH-ASSETS</p><img src="/pixel.png"><img src="{C}/admin/metrics">').encode()
+    target = f"{A}/to-internal" if via_redirect else f"{C}/admin/metrics"
+    page = (f'<p>PAGE-WITH-ASSETS</p><img src="/pixel.png"><img src="{target}">').encode()
     srv, P, hits_p = _serve({"/robots.txt": (200, {}, b"User-agent: *\nAllow: /\n"),
                              "/page.html": (200, {"Content-Type": "text/html"}, page),
                              "/pixel.png": (200, {"Content-Type": "image/png"}, b"")})
