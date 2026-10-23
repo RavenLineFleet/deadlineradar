@@ -26725,10 +26725,14 @@ def build_sitemap(
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
     <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
+    # CRAWL-13 (AuditLab, 2026-10-23): state pages too, not last_verified --
+    # 48 of 55 lagged their own last content change (up to 16 days). A
+    # last_verified bump changes the page bytes (visible stamp + data-verified),
+    # so _lm() already advances on it.
     for s in sorted(states, key=lambda s: s["state_slug"]):
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(s['state_slug'])}/</loc>
-    <lastmod>{esc(s['last_verified'])}</lastmod>
+    <lastmod>{_lm('/' + s['state_slug'] + '/')}</lastmod>
   </url>""")
     body = "\n".join(urls)
     return f"""<?xml version="1.0" encoding="UTF-8"?>
