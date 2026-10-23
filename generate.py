@@ -26267,6 +26267,43 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: Alabama CPA permits expire September 30 every year. The renewal application, $100 fee ($130 for firms), and CPE statement are due by December 31, with a $100 late penalty through February and $500 in March. CPE is 40 hours per fiscal year ending September 30. Wait past six months from the expiration and you move from renewing to a Board-discretion reinstatement.</p>
 ''',
     },
+    {
+        "slug": "idaho-cpa-license-renewal-guide",
+        "published": "2026-10-23",
+        "title": "Idaho CPA License Renewal: Why Your Deadline Now Depends on Your Birth Year",
+        "seo_title": "Idaho CPA Renewal: Birth-Year Transition",
+        "meta_description": (
+            "Idaho CPA renewal is shifting from annual to biennial by birth-year parity: odd to 2027, even to 2028. Fees, CPE hours, and the rule that hasn't caught up."
+        ),
+        "body_html": '''
+<p class="intro">Idaho is in the middle of switching CPA license renewal from an annual cycle to a two-year cycle, and which year you land on depends on your <strong>birth year parity</strong>. If you were born in an <strong>even</strong> year, your current license runs through <strong>June 30, 2028</strong>. If you were born in an <strong>odd</strong> year, your current license runs through <strong>June 30, 2027</strong>, and then switches to the two-year cycle after that. The Idaho Board's own rule text, meanwhile, still says the license expires every year; it hasn't been rewritten yet to match.</p>
+
+<h2>Odd year, even year: two different schedules right now</h2>
+<p>The Division of Occupational and Professional Licenses (DOPL) announced the transition starting May 1, 2026, staggered "based on whether your birth year is odd or even." For an <strong>even</strong> birth year, the license expires <strong>June 30, 2028</strong> (a two-year term), then <strong>June 30, 2030</strong>. For an <strong>odd</strong> birth year, the 2026 renewal was a one-year bridge expiring <strong>June 30, 2027</strong>, with the following renewal running two years to <strong>June 30, 2029</strong>. The one-year license fee is $120; the two-year fee is $240, the same annual rate, just billed over a longer term.</p>
+<p><a href="../../idaho/">Check your Idaho deadline here</a>.</p>
+
+<h2>The rule hasn't caught up to the schedule</h2>
+<p>If you look up the actual administrative rule, IDAPA 24.30.01, Section 108 is titled "Annual License Renewal and Late Fee" and its first line reads: "Licenses expire on June 30 of each year." That's still the literal text of the rule. The underlying statute, Idaho Code 54-211, already describes the newer structure: a license "subject to biennial renewal," issued for "no more than twenty-four (24) months." In practice, DOPL's current operational guidance (the odd/even schedule above) is what's actually being applied; the rule itself simply hasn't been formally amended yet to say so. If you're relying on the rule text alone, you'd come away thinking Idaho renewal is still strictly annual; it isn't, as of this transition.</p>
+
+<h2>CPE: 80 hours every two years, reported by January 31</h2>
+<p>Idaho CPE is already structured as a two-year requirement, independent of the renewal-cycle transition: <strong>80 hours</strong> over the two calendar years ending <strong>December 31</strong>, with at least <strong>4 ethics hours</strong>, a minimum of <strong>30 hours</strong> in any single year, and no more than <strong>50 hours</strong> credited in any single year. New and reciprocal licensees instead complete a <strong>2-hour Idaho-specific ethics course</strong> in the year the license is issued, then a <strong>30-hour</strong> minimum in their second year.</p>
+<p>Completing the hours isn't the finish line; you still have to <strong>report</strong> them, separately from and earlier than your renewal fee. Every licensee must file a signed reporting form (disclosing their CPE, or applying for an exception, extension, or exemption) no later than <strong>January 31</strong> each year. Miss that date and a license will not be issued even if your CPE and renewal fee are already in order, and the late-filing penalty escalates by the month: <strong>$100 in February, $150 in March, $200 in April, $250 in May, $300 in June</strong>, on top of the renewal fee itself.</p>
+<p><a href="../../idaho-cpa-cpe-requirements/">Full Idaho CPE breakdown here</a>.</p>
+
+<h2>Firm registration: a separate deadline, unaffected</h2>
+<p>If you also register a firm, that deadline hasn't moved: firms performing peer-reviewable services still file an annual registration no later than <strong>September 30</strong>, regardless of where your individual license is in the odd/even transition above. The firm registration fee is $20 plus $5 per licensee, capped at $200, annually. The rule's fee table also lists a biennial figure ($40 plus $10 per licensee, capped at $400), but DOPL has stated firm registration renewals are not part of this transition, so that biennial rate isn't currently available to firms.</p>
+<p><a href="../../idaho-cpa-firm-renewal/">Firm renewal details here</a>.</p>
+
+<h2>If you miss it: late fee, then reinstatement</h2>
+<p>Renew after July 1 but before August 1 and a <strong>$100</strong> late fee applies on top of your renewal fee. Miss August 1 entirely and the license is deemed lapsed, moving you from renewal into reinstatement, and a lapsed license also means you may not publicly display your certificate, use the CPA (or LPA) title, or perform services reserved to licensees until you're reinstated. Reinstatement costs the sum of your unpaid fees for the preceding three renewal cycles, capped by Idaho Code at <strong>$500</strong>, a cap that binds quickly once you're on the biennial $240 rate, since three missed cycles at that rate already total $720. Reinstatement also requires <strong>80 CPE hours</strong>, including at least 4 ethics hours (2 of them Idaho-specific), completed in the 12 months immediately before you apply.</p>
+<p><a href="../../idaho-cpa-license-reinstatement/">Idaho reinstatement details here</a>.</p>
+
+<h2>What's not settled yet</h2>
+<p>A further proposal floated in 2026 would move individual renewal again, this time to a birthday-based expiration date starting January 1, 2028 (with a 120-day renewal window), instead of the fixed June 30 date described above. As of the most recent Idaho Administrative Bulletin (October 2026), that proposal is still at the <strong>proposed-rule</strong> stage, not law, and not yet even at the pending-rule stage. Under Idaho Code 67-5291, a pending rule takes effect only if the legislature approves it by concurrent resolution, on July 1 of the session year in which that approval happens, unless the resolution sets another date. This proposal hasn't reached that stage. Until and unless it advances and takes effect, the odd/even June 30 dates above are what's actually in effect.</p>
+
+<p><strong>Bottom line</strong>: Idaho CPA renewal is mid-transition from annual to biennial. Even birth years run through June 30, 2028; odd birth years run through June 30, 2027. The $120/$240 fee reflects the same annual rate either way. The codified rule still literally says "annual" and hasn't been updated to match. CPE is 80 hours every two years, reported by January 31, a separate deadline from your renewal fee, with its own escalating penalty if missed. Firm registration keeps its own September 30 deadline. Miss your renewal past August 1 and you're into reinstatement: the sum of your missed cycles' fees, capped at $500.</p>
+''',
+    },
 ]
 
 

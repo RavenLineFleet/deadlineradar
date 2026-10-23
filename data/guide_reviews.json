@@ -133,6 +133,10 @@
     "alabama-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-16",
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+    },
+    "idaho-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-10-23",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
     }
   }
 }
