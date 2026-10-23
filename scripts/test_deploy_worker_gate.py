@@ -28,6 +28,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(dw, "unapplied_migrations", lambda: [])
     monkeypatch.setattr(dw, "head_commit", lambda: HEAD)
     monkeypatch.setattr(dw, "MARKER", tmp_path / ".last_deploy_commit")
+    monkeypatch.setattr(dw, "worker_tests_status", lambda: 0)
 
     def fake_run(cmd, **kw):
         calls["wrangler"] += 1
@@ -73,6 +74,40 @@ def test_preview_not_gated(monkeypatch, env):
     monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
     assert _main(monkeypatch, "--preview") == 0
     assert env["wrangler"] == 1
+
+
+@pytest.mark.parametrize("status", [1, 2])
+def test_test16_failing_worker_tests_refuse_before_wrangler(monkeypatch, env, status):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: HEAD)
+    monkeypatch.setattr(dw, "worker_tests_status", lambda: status)
+    assert _main(monkeypatch) == 1
+    assert env["wrangler"] == 0
+    assert not dw.MARKER.exists()
+
+
+def test_test16_skip_tests_deploys_without_running_them_and_skips_marker(monkeypatch, env):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: HEAD)
+    ran = []
+    monkeypatch.setattr(dw, "worker_tests_status", lambda: ran.append(1) or 1)
+    assert _main(monkeypatch, "--skip-tests") == 0
+    assert ran == [] and env["wrangler"] == 1
+    assert not dw.MARKER.exists()
+
+
+def test_test16_preview_does_not_run_worker_tests(monkeypatch, env):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
+    monkeypatch.setattr(dw, "worker_tests_status", lambda: 1)
+    assert _main(monkeypatch, "--preview") == 0
+    assert env["wrangler"] == 1
+
+
+def test_test16_worker_tests_status_calls_the_real_runner(monkeypatch):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import run_worker_tests
+    seen = []
+    monkeypatch.setattr(run_worker_tests, "run", lambda d: seen.append(d) or 7)
+    assert dw.worker_tests_status() == 7
+    assert seen == [dw.WORKER_DIR]
 
 
 # --- real-git controls (throwaway repos, no mocks on git) -------------------

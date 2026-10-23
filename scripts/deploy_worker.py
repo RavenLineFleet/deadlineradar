@@ -49,6 +49,12 @@ Usage:
     python3 scripts/deploy_worker.py --preview           # preview (no marker write)
     python3 scripts/deploy_worker.py --allow-dirty       # emergency, no marker write
     python3 scripts/deploy_worker.py --skip-migration-check   # emergency override only
+    python3 scripts/deploy_worker.py --skip-tests        # emergency, no marker write
+
+AuditLab TEST-16 (2026-10-23): the Worker's vitest suite had no automated
+caller -- job.py's gates and this script both skipped it, and
+run_worker_tests.py had zero callers. A production deploy now runs it first
+and refuses on anything but a clean or known-flaky result.
 """
 
 from __future__ import annotations
@@ -132,6 +138,14 @@ def remote_main_tip() -> str | None:
     return first[0] if first else None
 
 
+def worker_tests_status() -> int:
+    """run_worker_tests.py's exit code: 0 clean or known flakes only, 1 a real
+    failure, 2 vitest could not be run or its result could not be read."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import run_worker_tests
+    return run_worker_tests.run(WORKER_DIR)
+
+
 def head_commit() -> str:
     return run(["git", "rev-parse", "HEAD"], ROOT).stdout.strip()
 
@@ -142,6 +156,7 @@ def main() -> int:
     ap.add_argument("--allow-dirty", action="store_true", help="deploy with uncommitted worker changes (marker NOT updated)")
     ap.add_argument("--allow-non-origin-head", action="store_true", help="emergency override: deploy even if HEAD is not origin/main's tip (marker NOT updated)")
     ap.add_argument("--skip-migration-check", action="store_true", help="emergency override for the pending-migration guard")
+    ap.add_argument("--skip-tests", action="store_true", help="emergency override: deploy without the worker test gate (marker NOT updated)")
     args = ap.parse_args()
 
     dirty = worker_tree_dirty()
@@ -207,6 +222,19 @@ def main() -> int:
                 return 1
             print(f"WARNING: {where}; deploying anyway (--allow-non-origin-head). Marker will NOT be updated.", file=sys.stderr)
             skip_marker = True
+
+    # AuditLab TEST-16 (2026-10-23): production only, last gate before wrangler.
+    if not args.preview:
+        if args.skip_tests:
+            print("WARNING: --skip-tests; deploying without the worker test gate. Marker will NOT be updated.", file=sys.stderr)
+            skip_marker = True
+        else:
+            status = worker_tests_status()
+            if status != 0:
+                why = "a test failure that is not a known flake" if status == 1 else "the test run itself failed or was unreadable"
+                print(f"REFUSING: worker test gate exit {status} ({why}). See run_worker_tests.py output above.", file=sys.stderr)
+                print("Fix it, or re-run with --skip-tests (deploys, but will NOT update the marker).", file=sys.stderr)
+                return 1
 
     cmd = ["npx", "wrangler", "deploy"]
     if args.preview:
