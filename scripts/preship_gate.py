@@ -538,6 +538,81 @@ def _load_blog_grandfathered(approvals_dir: Path) -> tuple[set[str], list[str]]:
     return set(lines), errors
 
 
+# --- CRAWL-12 gate (AuditLab, 2026-10-23): the Alabama Oct-1 correction
+# changed a published post's body_html while data/guide_reviews.json kept
+# last_reviewed 2026-10-16, so the page's dateModified and its sitemap lastmod
+# both kept saying nothing changed since 10-16 -- on the one post whose whole
+# purpose was to replace a wrong date in the search index. Each guide's row now
+# pins body_sha256 (sha256 of body_html) and body_modified (the dateModified the
+# page declares, same formula as build_blog_article_page()). A body edit fails
+# until the pin is updated, and against origin/main a changed pin must carry a
+# later body_modified -- so the date has to advance with the body, via
+# content_modified for an edit or last_reviewed after a real re-review.
+def _blog_declared_modified(article: dict, review_row: dict) -> str:
+    return max(article.get("content_modified", review_row["last_reviewed"]), article["published"])
+
+
+def _load_base_guide_reviews(repo_root: Path) -> tuple[dict | None, str | None]:
+    r = subprocess.run(
+        ["git", "show", "origin/main:data/guide_reviews.json"],
+        cwd=repo_root, capture_output=True, text=True, encoding="utf-8",
+    )
+    if r.returncode != 0:
+        return None, r.stderr.strip()[:200]
+    try:
+        return json.loads(r.stdout)["guides"], None
+    except (json.JSONDecodeError, KeyError) as e:
+        return None, f"origin/main:data/guide_reviews.json unparseable: {e}"
+
+
+def check_blog_body_change_advances_modified(
+    repo_root: Path, blog_articles: list[dict] | None = None,
+    reviews: dict | None = None, base_reviews: dict | None = None,
+) -> list[str]:
+    """`blog_articles`, `reviews` and `base_reviews` are injectable for tests;
+    production reads generate.BLOG_ARTICLES, data/guide_reviews.json and
+    origin/main's copy of it. An unreadable base is an ERROR, not a skip."""
+    if blog_articles is None:
+        sys.path.insert(0, str(repo_root))
+        try:
+            import generate as generate_module
+        except ImportError:
+            return ["[BLOG-BODY] generate.py could not be imported -- this check is measuring nothing"]
+        blog_articles = generate_module.BLOG_ARTICLES
+    if reviews is None:
+        reviews = json.loads((repo_root / "data" / "guide_reviews.json").read_text(encoding="utf-8"))["guides"]
+    if base_reviews is None:
+        base_reviews, err = _load_base_guide_reviews(repo_root)
+        if base_reviews is None:
+            return [f"[BLOG-BODY] could not read origin/main's guide_reviews.json ({err}) -- the "
+                    f"date-advance arm cannot run"]
+
+    errors: list[str] = []
+    for article in blog_articles:
+        slug = article["slug"]
+        row = reviews.get(slug)
+        if row is None:
+            errors.append(f"[BLOG-BODY][{slug}] no row in data/guide_reviews.json")
+            continue
+        cur_sha = hashlib.sha256(article["body_html"].encode("utf-8")).hexdigest()
+        declared = _blog_declared_modified(article, row)
+        fix = (f"advance content_modified (an edit) or last_reviewed (only after a real re-review), "
+               f"then set body_sha256 to {cur_sha} and body_modified to the new dateModified")
+        if row.get("body_sha256") != cur_sha:
+            errors.append(f"[BLOG-BODY][{slug}] body_html changed but guide_reviews.json pins "
+                          f"body_sha256={row.get('body_sha256')!r} -- {fix}")
+            continue
+        if row.get("body_modified") != declared:
+            errors.append(f"[BLOG-BODY][{slug}] body_modified {row.get('body_modified')!r} != the "
+                          f"page's declared dateModified {declared!r}")
+            continue
+        base = base_reviews.get(slug) or {}
+        if base.get("body_sha256") and base["body_sha256"] != cur_sha and not declared > (base.get("body_modified") or ""):
+            errors.append(f"[BLOG-BODY][{slug}] body_html changed since origin/main but dateModified did not "
+                          f"advance ({base.get('body_modified')!r} -> {declared!r}) -- {fix}")
+    return errors
+
+
 def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None = None) -> list[str]:
     """Every slug in BLOG_ARTICLES must be either grandfathered (shipped
     before this gate existed) or carry a committed two-party approval record
@@ -9386,6 +9461,7 @@ def main():
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_double_hyphen_hand_copy_pages(docs_dir)
     all_errors += check_blog_approval_gate(repo_root)
+    all_errors += check_blog_body_change_advances_modified(repo_root)
     all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_no_fleet_codenames_in_shipped_html(html_files)
     all_errors += check_no_internal_ids_in_shipped_comments(html_files)

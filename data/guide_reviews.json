@@ -4,139 +4,207 @@
   "guides": {
     "what-your-board-promises-about-renewal-reminders": {
       "last_reviewed": "2026-08-17",
-      "reviewed_by": "assetlab-primary-source-factcheck"
+      "reviewed_by": "assetlab-primary-source-factcheck",
+      "body_sha256": "58465c01b2cc2b49549e9f6a673dc741e0d0431d124bc29bc9416caea7b2196c",
+      "body_modified": "2026-09-26"
     },
     "cpe-vs-license-renewal": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "bbd88aafd49ed047048ce20d3311294c75193ee55e0df26584f6a1ecab00dfb8",
+      "body_modified": "2026-08-04"
     },
     "common-cpa-renewal-mistakes": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "d0aab1cf922e81212e283fe93833d762671797926bc0326ecb3b4d40414e6f15",
+      "body_modified": "2026-08-04"
     },
     "missouri-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "6bd2e05100218ebdeae711c0a670f291ebf4d3a2f257a133e9c9cac6b0cabe4f",
+      "body_modified": "2026-08-04"
     },
     "arizona-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-14",
-      "reviewed_by": "assetlab-DATA8-correction"
+      "reviewed_by": "assetlab-DATA8-correction",
+      "body_sha256": "5152f5242678ab7f577d1830e1ba083e116651657874a4f7102e28fc2934900e",
+      "body_modified": "2026-08-14"
     },
     "why-some-states-need-your-birth-month": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "2b153f687e343b9112b301159837164ce96b815fbde6725e57bfc7561ee7fa85",
+      "body_modified": "2026-08-04"
     },
     "illinois-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "fac0bd9713b88e6a5e7bfb39ff0aceabeb6ec2d5f75029080c925738246a7579",
+      "body_modified": "2026-08-04"
     },
     "connecticut-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "4df03a5f66a6ab357029fd6e8e402d298e787331ba2aa8ad3cfce1ec2accf999",
+      "body_modified": "2026-08-04"
     },
     "wisconsin-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-04",
-      "reviewed_by": "auditlab-cross-check"
+      "reviewed_by": "auditlab-cross-check",
+      "body_sha256": "5f229157fcda9d5fc254455e663477a18e52bc1233c2b458a893fa67e384de1e",
+      "body_modified": "2026-08-04"
     },
     "florida-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-19",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "e857e16225b21d2c797f40d1f8c8cac9dfb09c26fa7207da465517588ef9e1e0",
+      "body_modified": "2026-09-19"
     },
     "minnesota-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-22",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review",
+      "body_sha256": "2e24fc0a7ddf9b7a0f180437d2be20ffc2e75c3f69008fd014bc77429f2ef2d1",
+      "body_modified": "2026-08-22"
     },
     "california-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-27",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review",
+      "body_sha256": "3ad95a7be409c468f2cd2f096c161bb942a35004097120fff00b5ae5db951817",
+      "body_modified": "2026-08-27"
     },
     "colorado-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-01",
-      "reviewed_by": "authored-from-verified-datasets-plus-primary-ccr-read-2026-09-01"
+      "reviewed_by": "authored-from-verified-datasets-plus-primary-ccr-read-2026-09-01",
+      "body_sha256": "c265c6372f343aff62f52f1ea949d3c4fa638bb4b0a43b15b639fc032fd44514",
+      "body_modified": "2026-09-01"
     },
     "why-third-party-cpe-numbers-go-stale": {
       "last_reviewed": "2026-08-28",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-citation-review",
+      "body_sha256": "2e9ec134691d8bed6d2345e42bcc0c0ffc42951c42c6a0d2b80c8059db7bd2cd",
+      "body_modified": "2026-08-28"
     },
     "new-york-to-new-jersey-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "be29755f054fd0bdddf778671d69aece1f63629c8318d788384cd07f09c716e8",
+      "body_modified": "2026-08-13"
     },
     "california-to-nevada-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "6c2c98de14ebc9152249606cdbb3071ae37983cadbe85cc62f7289b62c85b25c",
+      "body_modified": "2026-08-13"
     },
     "texas-to-oklahoma-cpa-mobility": {
       "last_reviewed": "2026-09-19",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "ae00e48fda483d99d4886c3916708fb7cf52dc56f7d1d5bab0b9c74bf6e5fe6f",
+      "body_modified": "2026-09-19"
     },
     "new-york-to-connecticut-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "d6dce82e94e6f8d5eca87b7fd739f6d5c8f7873aeef08ffb3c3a4aea2304bc71",
+      "body_modified": "2026-08-13"
     },
     "california-to-texas-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "24582377f40e16865cacf49caf8d784d281cce4ffd682dd7023186bb3f84ad7c",
+      "body_modified": "2026-08-13"
     },
     "illinois-to-indiana-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "e50f07bb803026fab34ec6589d51f0e7a2a0b42689da56f65e566dc51600a5a9",
+      "body_modified": "2026-08-13"
     },
     "florida-to-georgia-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "c9ed34ea71d229ae9b1a65b258123db2067c279315dcd963f7bc3ef247ee19e9",
+      "body_modified": "2026-08-13"
     },
     "virginia-to-maryland-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "8e0989d0ee656d2182c1e8b4523d2838a630a8fb5ed74682560736f412a9cc6d",
+      "body_modified": "2026-08-13"
     },
     "pennsylvania-to-new-jersey-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "f09edff2ea985d37c5da7b351e8d194501628481c60777f09ae2e5bf6702708d",
+      "body_modified": "2026-08-13"
     },
     "virginia-to-washington-dc-cpa-mobility": {
       "last_reviewed": "2026-08-13",
-      "reviewed_by": "authored-from-verified-datasets"
+      "reviewed_by": "authored-from-verified-datasets",
+      "body_sha256": "7259fa581da70a6f56d71da2c952b5dcf8a960e391089b2fc28fd518dfcc3c30",
+      "body_modified": "2026-08-13"
     },
     "how-a-superseded-rule-hid-on-an-official-site": {
       "last_reviewed": "2026-08-14",
-      "reviewed_by": "orchestrator-primary-source-factcheck"
+      "reviewed_by": "orchestrator-primary-source-factcheck",
+      "body_sha256": "dfab08aace80ca4dd8195236d8a5fbd522e0213196d3516638d923c95e142490",
+      "body_modified": "2026-08-14"
     },
     "south-carolina-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-04",
-      "reviewed_by": "assetlab-live-refetch"
+      "reviewed_by": "assetlab-live-refetch",
+      "body_sha256": "da9dc7d31c88aba8f995532e64e66e70a5d386d5667f74d57d425ea1d9d2a583",
+      "body_modified": "2026-09-04"
     },
     "tennessee-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-09",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-3-round-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-3-round-review",
+      "body_sha256": "687ef3b48d8f7fa0fc254f4df6b2a78723cdfc9e6ca80ff130488aa304c67922",
+      "body_modified": "2026-09-09"
     },
     "pennsylvania-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-11",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-2-round-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-2-round-review",
+      "body_sha256": "e377340ef910aaa22d55396e325e3b9ebdbaaa9853b0e72d607d2dd67514953d",
+      "body_modified": "2026-09-11"
     },
     "massachusetts-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-19",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-4-round-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-4-round-review",
+      "body_sha256": "f05b62b04dfa1bccfc2838c72b07b0b554cfff236c49e06affbe6a1b654e7940",
+      "body_modified": "2026-09-19"
     },
     "alaska-cpa-license-renewal-guide": {
       "last_reviewed": "2026-09-25",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "edf2a99f5e249991ebc5af08acc85076c6c89b7ccefc14262769f9a19c82850a",
+      "body_modified": "2026-09-25"
     },
     "nevada-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-02",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "c985ccb21fada9eb6c5eb5f5d906bcae8e76e1f47023d25b917e98e4032164f1",
+      "body_modified": "2026-10-02"
     },
     "georgia-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-06",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "c53e7df95bf9822de5b59a5b788a897ea1cfacb8705b7e978ce0a3a918e72f65",
+      "body_modified": "2026-10-09"
     },
     "alabama-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-23",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "3414a1462de41c7995edcd3dd53b716a0186070fcd5ccc1ac369af0910bcfb37",
+      "body_modified": "2026-10-23"
     },
     "idaho-cpa-license-renewal-guide": {
       "last_reviewed": "2026-10-23",
-      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review"
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "503cd0ff7b4475a86b3c2ed90aa246f981829a5215d59393954f751a1f404f27",
+      "body_modified": "2026-10-23"
     }
   }
 }
