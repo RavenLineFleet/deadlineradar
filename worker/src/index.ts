@@ -11378,9 +11378,10 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       // (env.ts's own doc comment), not an auth control, so an operator
       // setting it as a safety measure would have silently also exposed
       // this endpoint to any anonymous caller. Decoupled onto its own
-      // dedicated shared secret, same pattern as
-      // ASSISTANT_DROPLET_SHARED_SECRET, compared with constantTimeEqual()
-      // (password.ts) -- never `===`, which would reopen a timing side
+      // dedicated shared secret (the same dedicated-secret shape as
+      // ASSISTANT_DROPLET_SHARED_SECRET, which this Worker only SENDS -- the
+      // droplet does that comparison, ASSIST-CMP-1), compared with
+      // constantTimeEqual() (password.ts) -- never `===`, which would reopen a timing side
       // channel a test suite can't catch (that property rests on this
       // comment and code review, not a test). Lets a human tester fire the
       // daily reminder cron on demand rather than waiting for the real
