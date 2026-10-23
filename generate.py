@@ -23786,6 +23786,17 @@ def build_cpe_hours_page(
         if data_gap_note else ""
     )
 
+    # SRC-85 (AuditLab, 2026-10-23): a record whose duty the rule itself
+    # conditions (Virginia: Active only, a Board-granted Inactive exemption,
+    # an out-of-state exemption, a newly-licensed phase-in) carries those
+    # conditions in applicability_note, so the hours above never read as
+    # owed by every license holder.
+    _applicability = cpe_record.get("applicability_note")
+    # Leading newline lives inside the value so pages without a note stay
+    # byte-identical (an empty placeholder line would re-date every CPE page's
+    # sitemap lastmod, CRAWL-9).
+    applicability_html = "\n  <p>" + esc(_applicability) + "</p>" if _applicability else ""
+
     body = f"""<h1>{esc(title)}</h1>
 <p class="intro">See <a href="/methodology/">how we verify every figure on this site</a>.</p>
 
@@ -23796,7 +23807,7 @@ def build_cpe_hours_page(
   <ul>
     {annual_line}
     {ethics_line}
-  </ul>
+  </ul>{applicability_html}
   {_source_cite_html(cpe_record)}
   {sourcing_note_html}
 </div>
@@ -24078,9 +24089,12 @@ def _state_faq_html_and_schema(
             ethics_sentence = f"{note[0].upper()}{note[1:]}."
         qa.append((
             f"Does {state_name} require CPE hours to renew a CPA license?",
-            f"Yes, {state_name} requires {cpe_record['total_hours']} {hours_word} of CPE every "
-            f"{cpe_record['period_years']} {years_word}. {ethics_sentence} See the full {state_name} "
-            f"CPE requirements page for the exact citation.",
+            f"{'Yes, with conditions. ' if cpe_record.get('applicability_note') else 'Yes, '}"
+            f"{state_name} requires {cpe_record['total_hours']} {hours_word} of CPE every "
+            f"{cpe_record['period_years']} {years_word}. {ethics_sentence} "
+            # SRC-85: same conditions as the CPE page's callout, see build_cpe_hours_page().
+            f"{(cpe_record['applicability_note'] + ' ') if cpe_record.get('applicability_note') else ''}"
+            f"See the full {state_name} CPE requirements page for the exact citation.",
         ))
     if reinstatement_record:
         fee_str = _reinstatement_fee_str(reinstatement_record.get("reinstatement_fee_usd"))
