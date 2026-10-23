@@ -4953,7 +4953,7 @@
  },
  "ut-cpe": {
   "dataset": "cpe_hours",
-  "manual": null,
+  "manual": "NOT YET AUTOMATED (SRC-81, 2026-10-23): adminrules.utah.gov document layer down since its 2026-10-16 relaunch (uac-pdf export 404); no official-host text source. Re-check the official doc layer by 2026-11-08 (start from the rule page's __NEXT_DATA__/XHR, not a guessed path); if still down, re-check monthly and record each attempt.",
   "combine": "each",
   "field": null,
   "derivation": null,
