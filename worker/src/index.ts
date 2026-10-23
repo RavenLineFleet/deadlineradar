@@ -6266,7 +6266,7 @@ function handleAssistantMobility(url: URL): Response {
 function handleAssistantRuleChanges(url: URL): Response {
   const stateResult = assistantStateSlugOrError(url);
   if (stateResult instanceof Response) return stateResult;
-  return jsonResponse(200, { events: lookupAssistantRuleChanges(stateResult.slug) });
+  return jsonResponse(200, { events: lookupAssistantRuleChanges(stateResult.slug, new Date()) });
 }
 
 // Orchestrator's own DeadlineRadar chat-assistant droplet -- deployed,

@@ -220,9 +220,38 @@ interface AssistantRuleChangeResult {
   effective_date: string | null;
   status: string | null;
   verified_date: string;
+  needs_reverification: boolean;
+  in_force_status: "upcoming" | "pending_reverification" | "settled" | null;
 }
 
-export function lookupAssistantRuleChanges(stateSlug: string): AssistantRuleChangeResult[] {
+/** Mirrors generate.py's _rule_change_card_html()/_is_still_upcoming() honesty
+ * signals (AuditLab SRC-80, 2026-10-23): the HTML page hedges a passed-but-
+ * unconfirmed effective date and holds "not yet in force" for a genuinely
+ * future one, but this API had no field a consumer could use to reconstruct
+ * either -- so the assistant droplet stated e.g. "Missouri's rule took effect
+ * 2026-08-28" from a record verified 23 days *before* that date, with no
+ * caveat. `asOfISODate` is lexical YYYY-MM-DD, same as effective_date/
+ * verified_date, so no date parsing/timezone handling is needed -- same
+ * string-compare technique generate.py already uses for the
+ * verified_date < effective_date half of this check. */
+function ruleChangeInForceStatus(
+  e: Record<string, unknown>,
+  asOfISODate: string
+): "upcoming" | "pending_reverification" | "settled" | null {
+  const eff = typeof e.effective_date === "string" ? e.effective_date : null;
+  if (!eff) return null;
+  if (Boolean(e.upcoming) && eff > asOfISODate) return "upcoming";
+  const verifiedDate = typeof e.verified_date === "string" ? e.verified_date : null;
+  const unconfirmedAsOfEffective = Boolean(verifiedDate && verifiedDate < eff);
+  if (Boolean(e.needs_reverification) || unconfirmedAsOfEffective) return "pending_reverification";
+  return "settled";
+}
+
+export function lookupAssistantRuleChanges(
+  stateSlug: string,
+  asOf: Date = new Date()
+): AssistantRuleChangeResult[] {
+  const asOfISODate = asOf.toISOString().slice(0, 10);
   const events = (regChangeEventsData.events as unknown[]).filter(
     (e): e is Record<string, unknown> => typeof e === "object" && e !== null
   );
@@ -244,6 +273,8 @@ export function lookupAssistantRuleChanges(stateSlug: string): AssistantRuleChan
       effective_date: typeof e.effective_date === "string" ? e.effective_date : null,
       status: typeof e.status === "string" ? e.status : null,
       verified_date: String(e.verified_date ?? ""),
+      needs_reverification: Boolean(e.needs_reverification),
+      in_force_status: ruleChangeInForceStatus(e, asOfISODate),
     }));
 }
 

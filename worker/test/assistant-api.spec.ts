@@ -10,7 +10,7 @@
  *      trusting the allowlist code looks right.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolvedNextDeadlineComputed, type CpaRecord } from "../src/deadline";
 import cpaDeadlinesData from "../src/cpa_deadlines.json";
 
@@ -400,5 +400,94 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     expect(result[0]!.citation_url).toBeNull();
     vi.doUnmock("../src/reg_change_events.json");
     vi.resetModules();
+  });
+});
+
+// SRC-80 (AuditLab, 2026-10-23): /rule-changes/ hedges a passed-but-
+// unconfirmed effective date and withholds "in force" for a genuinely future
+// one (SRC-78's fix, generate.py:10183), but this API had no field carrying
+// either signal -- the assistant droplet could state a past effective_date
+// as settled fact from a record verified weeks before that date. Each case
+// below is one arm of AuditLab's live evidence table, with a fixed asOf so
+// the upcoming/settled boundary is deterministic.
+describe("SRC-80 regression -- in_force_status/needs_reverification mirror the HTML page's hedges", () => {
+  const ASOF = new Date("2026-10-23T00:00:00Z");
+
+  function mockEvents(events: Record<string, unknown>[]): void {
+    vi.doMock("../src/reg_change_events.json", () => ({ default: { events } }));
+  }
+
+  const base = {
+    jurisdiction_slug: "xx-test-state",
+    jurisdiction: "Test State",
+    topic: "CPA regulatory/statutory change",
+    citation: "Test Code s 1",
+    citation_url: null,
+    confidence: "dual_source",
+    summary_public: "fixture",
+    kind: "rule_change",
+    status: "ENACTED",
+    source: "difflab_reg_change_engine",
+  };
+
+  afterEach(() => {
+    vi.doUnmock("../src/reg_change_events.json");
+    vi.resetModules();
+  });
+
+  it("Arm A -- verified before a now-passed effective_date -> pending_reverification, not settled", async () => {
+    mockEvents([
+      { ...base, event_id: "a", effective_date: "2026-08-28", verified_date: "2026-08-05", upcoming: false, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("pending_reverification");
+    expect(result[0]!.needs_reverification).toBe(false);
+  });
+
+  it("Arm B -- needs_reverification flag alone -> pending_reverification even if verified after effective_date", async () => {
+    mockEvents([
+      { ...base, event_id: "b", effective_date: "2026-08-10", verified_date: "2026-08-14", upcoming: false, needs_reverification: true },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("pending_reverification");
+    expect(result[0]!.needs_reverification).toBe(true);
+  });
+
+  it("Arm C -- upcoming flag with a future effective_date -> upcoming, not a bare ENACTED claim", async () => {
+    mockEvents([
+      { ...base, event_id: "c", effective_date: "2026-11-01", verified_date: "2026-10-17", upcoming: true, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("upcoming");
+  });
+
+  it("verified on/after a passed effective_date, no reverification flag -> settled (earned, not a regression target)", async () => {
+    mockEvents([
+      { ...base, event_id: "d", effective_date: "2026-08-28", verified_date: "2026-10-05", upcoming: false, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("settled");
+  });
+
+  it("no effective_date -> in_force_status is null, same as the page rendering no in-force line at all", async () => {
+    mockEvents([
+      { ...base, event_id: "e", effective_date: null, verified_date: "2026-10-05", upcoming: false, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBeNull();
+  });
+
+  it("upcoming flag true but effective_date already passed asOf -> NOT upcoming (SRC-78's own build-drift correction, same axis)", async () => {
+    mockEvents([
+      { ...base, event_id: "f", effective_date: "2026-08-12", verified_date: "2026-07-31", upcoming: true, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("pending_reverification");
   });
 });
