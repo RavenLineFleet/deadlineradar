@@ -103,6 +103,19 @@ describe("GET /assistant/cpe", () => {
     expect(body.state_slug).toBe("texas");
   });
 
+  // AuditLab SRC-87: the duty's conditions live in applicability_note, so
+  // the API must carry it or it states Virginia's 120 hours unconditionally.
+  it("carries applicability_note where the record has one, null where it doesn't", async () => {
+    const va = (await (await getAssistant("/api/assistant/cpe?state=virginia")).json()) as {
+      applicability_note: string | null;
+    };
+    expect(va.applicability_note).toContain("18VAC5-22-90(C)");
+    const tx = (await (await getAssistant("/api/assistant/cpe?state=texas")).json()) as {
+      applicability_note: string | null;
+    };
+    expect(tx.applicability_note).toBeNull();
+  });
+
   it("400s on an unknown state", async () => {
     expect((await getAssistant("/api/assistant/cpe?state=narnia")).status).toBe(400);
   });

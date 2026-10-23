@@ -81,6 +81,9 @@ interface AssistantCpeResult {
   ethics_hours: number | null;
   ethics_period_years: number | null;
   notes: string | null;
+  // Who the duty applies to / carve-outs (AuditLab SRC-87); null when the
+  // record states no condition.
+  applicability_note: string | null;
   data_gap_note: string | null;
   citation: string | null;
   citation_url: string | null;
@@ -100,6 +103,8 @@ export function lookupAssistantCpe(stateSlug: string): AssistantCpeResult | null
     ethics_hours: typeof r.ethics_hours === "number" ? r.ethics_hours : null,
     ethics_period_years: typeof r.ethics_period_years === "number" ? r.ethics_period_years : null,
     notes: typeof r.notes === "string" && r.notes ? r.notes : null,
+    applicability_note:
+      typeof r.applicability_note === "string" && r.applicability_note.trim() ? r.applicability_note.trim() : null,
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
     citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
