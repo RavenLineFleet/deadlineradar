@@ -26527,7 +26527,7 @@ way as every state page on this site.</p>
     )
 
 
-def _translated_page_sitemap_urls(slug: str, as_of: date, es_ready: bool) -> str:
+def _translated_page_sitemap_urls(slug: str, lm, es_ready: bool) -> str:
     """ES-2 (AuditLab, 2026-08-19): don't emit an /es/<slug>/ sitemap entry
     or a reciprocal hreflang="es" tag on the English page unless the
     Spanish page actually has real translated content -- see
@@ -26538,68 +26538,118 @@ def _translated_page_sitemap_urls(slug: str, as_of: date, es_ready: bool) -> str
     if not es_ready:
         return f"""  <url>
     <loc>{en_url}</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{lm('/' + slug + '/')}</lastmod>
   </url>"""
     es_url = f"{SITE_BASE_URL}/es/{slug}/"
     return f"""  <url>
     <loc>{en_url}</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{lm('/' + slug + '/')}</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="{en_url}"/>
     <xhtml:link rel="alternate" hreflang="es" href="{es_url}"/>
   </url>""" + f"""  <url>
     <loc>{es_url}</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{lm('/es/' + slug + '/')}</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="{en_url}"/>
     <xhtml:link rel="alternate" hreflang="es" href="{es_url}"/>
   </url>"""
 
 
+# CRAWL-9 non-blog arm (AuditLab, 2026-10-23): every sitemap entry that isn't a
+# blog post or a state page used to carry the build-wide as_of -- 132 of 220
+# URLs said 2026-10-06 on 10-23, including /alabama-cpa-license-reinstatement/,
+# whose copy changed that day. lastmod is now the date the page's own built
+# content last changed: carried forward from the committed docs/sitemap.xml
+# while the page's bytes are unchanged, today (UTC) on the build where they
+# differ. The committed sitemap is the state, so there is no extra file to keep
+# in step. ?v=<hash> cache-bust tokens are masked first, or every stylesheet
+# edit would re-date every page.
+_LASTMOD_VOLATILE_RE = re.compile(r"\?v=[0-9A-Za-z]+")
+_SITEMAP_ENTRY_RE = re.compile(r"<loc>([^<]+)</loc>\s*<lastmod>([^<]+)</lastmod>")
+
+
+def _sitemap_page_file(path: str) -> pathlib.Path:
+    rel = path.strip("/")
+    return SITE_DIR / rel / "index.html" if rel else SITE_DIR / "index.html"
+
+
+def _lastmod_content_hash(f: pathlib.Path) -> str | None:
+    try:
+        text = f.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    return hashlib.sha256(_LASTMOD_VOLATILE_RE.sub("?v=", text).encode("utf-8")).hexdigest()
+
+
+def _snapshot_sitemap_lastmods() -> dict[str, tuple[str, str | None]]:
+    """{url: (committed lastmod, hash of the page as committed)}. Must run before
+    main() writes any page, while docs/ still holds the previous build."""
+    sm = SITE_DIR / "sitemap.xml"
+    if not sm.exists():
+        return {}
+    out = {}
+    for url, lm in _SITEMAP_ENTRY_RE.findall(sm.read_text(encoding="utf-8")):
+        if url.startswith(SITE_BASE_URL + "/"):
+            out[url] = (lm.strip(), _lastmod_content_hash(_sitemap_page_file(url[len(SITE_BASE_URL):])))
+    return out
+
+
 def build_sitemap(
-    states: list[dict], as_of: date, es_ready: dict[str, bool] | None = None, year_end_expired: bool = False
+    states: list[dict], as_of: date, es_ready: dict[str, bool] | None = None, year_end_expired: bool = False,
+    prior_lastmods: dict[str, tuple[str, str | None]] | None = None, today: date | None = None,
 ) -> str:
     es_ready = es_ready or {}
+    prior_lastmods = prior_lastmods or {}
+    today_iso = (today or datetime.now(timezone.utc).date()).isoformat()
+
+    def _lm(path: str) -> str:
+        old = prior_lastmods.get(SITE_BASE_URL + path)
+        cur = _lastmod_content_hash(_sitemap_page_file(path))
+        if old and cur is not None and old[1] == cur:
+            return old[0]
+        return today_iso
+
     urls = [f"""  <url>
     <loc>{SITE_BASE_URL}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/privacy/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/privacy/')}</lastmod>
   </url>""",
-        _translated_page_sitemap_urls("contact", as_of, es_ready.get("contact", False)),
+        _translated_page_sitemap_urls("contact", _lm, es_ready.get("contact", False)),
         f"""  <url>
     <loc>{SITE_BASE_URL}/terms/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/terms/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/security/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/security/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/status/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/status/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/for-firms/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/for-firms/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/founding-firms/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/founding-firms/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/about/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/about/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/compliance-reports/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/compliance-reports/')}</lastmod>
   </url>""",
-        _translated_page_sitemap_urls("pricing", as_of, es_ready.get("pricing", False)),
-        _translated_page_sitemap_urls("practice-privilege-check", as_of, es_ready.get("practice-privilege-check", False)),
-        _translated_page_sitemap_urls("multi-state-firms", as_of, es_ready.get("multi-state-firms", False)),
-        _translated_page_sitemap_urls("deadline-calculator", as_of, es_ready.get("deadline-calculator", False)),
+        _translated_page_sitemap_urls("pricing", _lm, es_ready.get("pricing", False)),
+        _translated_page_sitemap_urls("practice-privilege-check", _lm, es_ready.get("practice-privilege-check", False)),
+        _translated_page_sitemap_urls("multi-state-firms", _lm, es_ready.get("multi-state-firms", False)),
+        _translated_page_sitemap_urls("deadline-calculator", _lm, es_ready.get("deadline-calculator", False)),
         f"""  <url>
     <loc>{SITE_BASE_URL}/firm-login/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/firm-login/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/signin/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/signin/')}</lastmod>
   </url>""",
-        _translated_page_sitemap_urls("methodology", as_of, es_ready.get("methodology", False)),
+        _translated_page_sitemap_urls("methodology", _lm, es_ready.get("methodology", False)),
     ]
     # YE-5 (AuditLab, 2026-10-02): dropped from the sitemap past its own
     # target date, by the same date rule build_year_end_renewals_page()
@@ -26608,18 +26658,18 @@ def build_sitemap(
     if not year_end_expired:
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{YEAR_END_PAGE_SLUG}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/' + YEAR_END_PAGE_SLUG + '/')}</lastmod>
   </url>""")
     urls += [
         f"""  <url>
     <loc>{SITE_BASE_URL}/changelog/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/changelog/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/rule-changes/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/rule-changes/')}</lastmod>
   </url>""", f"""  <url>
     <loc>{SITE_BASE_URL}/blog/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/blog/')}</lastmod>
   </url>"""]
     # AuditLab CRAWL-9 (2026-10-09): a post's lastmod is the same date its own page
     # declares as dateModified (content_modified, else the guide review date), never the
@@ -26638,12 +26688,12 @@ def build_sitemap(
     for p in FIRM_LANDING_PAGES:
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
     for p in CPE_HOURS_PAGES:
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
     for p in REINSTATEMENT_PAGES:
         # SEO fix (2026-10-02): noindex,follow pages are dropped from the sitemap
@@ -26654,12 +26704,12 @@ def build_sitemap(
             continue
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
     for p in COMPETITOR_COMPARE_PAGES:
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
-    <lastmod>{as_of.isoformat()}</lastmod>
+    <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
     for s in sorted(states, key=lambda s: s["state_slug"]):
         urls.append(f"""  <url>
@@ -26796,6 +26846,8 @@ def main() -> None:
     # engines must agree, matching deadline.ts's own anchor exactly.
     real_today = datetime.now(timezone.utc).date()
     records = data["records"]
+    # CRAWL-9: read before any page is written -- see _snapshot_sitemap_lastmods().
+    _prior_sitemap_lastmods = _snapshot_sitemap_lastmods()
     JURISDICTION_COUNT = len({r["state_slug"] for r in records})
 
     # Wall-clock staleness guard. Checking computed deadlines only against the
@@ -27205,15 +27257,6 @@ def main() -> None:
         shutil.rmtree(es_methodology_dir)
         print(f"removed {SITE_DIR.name}/es/methodology/ (ES-2: no real translation yet)")
 
-    # sitemap.xml reads FIRM_LANDING_PAGES, CPE_HOURS_PAGES,
-    # REINSTATEMENT_PAGES, COMPETITOR_COMPARE_PAGES (populated by loops
-    # earlier in main()) and es_ready (populated by the translated-page
-    # blocks just above) -- must be written after both.
-    (SITE_DIR / "sitemap.xml").write_text(
-        build_sitemap(built, as_of, es_ready, year_end_expired=year_end_expired), encoding="utf-8"
-    )
-    print(f"wrote {SITE_DIR.name}/sitemap.xml")
-
     changelog_dir = SITE_DIR / "changelog"
     changelog_dir.mkdir(parents=True, exist_ok=True)
     (changelog_dir / "index.html").write_text(build_changelog_page(), encoding="utf-8")
@@ -27303,6 +27346,20 @@ def main() -> None:
     _shipped_css = _strip_css_comments(PAGE_CSS)
     (SITE_DIR / "styles.css").write_text(_shipped_css, encoding="utf-8")
     print(f"wrote {SITE_DIR.name}/styles.css  (v{PAGE_CSS_VERSION}, {len(_shipped_css.encode('utf-8'))/1024:.1f} KB, linked from every page instead of inlined)")
+
+    # sitemap.xml reads FIRM_LANDING_PAGES, CPE_HOURS_PAGES,
+    # REINSTATEMENT_PAGES, COMPETITOR_COMPARE_PAGES (populated by loops
+    # earlier in main()) and es_ready (populated by the translated-page
+    # blocks) -- and CRAWL-9's per-page lastmod hashes every page it lists,
+    # so this must stay the last page write in main().
+    (SITE_DIR / "sitemap.xml").write_text(
+        build_sitemap(
+            built, as_of, es_ready, year_end_expired=year_end_expired,
+            prior_lastmods=_prior_sitemap_lastmods, today=real_today,
+        ),
+        encoding="utf-8",
+    )
+    print(f"wrote {SITE_DIR.name}/sitemap.xml")
 
     print(f"\nDone. {len(built)} state pages generated under {SITE_DIR}")
 
