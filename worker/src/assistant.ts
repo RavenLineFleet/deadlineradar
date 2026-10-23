@@ -231,9 +231,12 @@ interface AssistantRuleChangeResult {
  * either -- so the assistant droplet stated e.g. "Missouri's rule took effect
  * 2026-08-28" from a record verified 23 days *before* that date, with no
  * caveat. `asOfISODate` is lexical YYYY-MM-DD, same as effective_date/
- * verified_date, so no date parsing/timezone handling is needed -- same
- * string-compare technique generate.py already uses for the
- * verified_date < effective_date half of this check. */
+ * verified_date, so no date parsing is needed -- same string-compare
+ * technique generate.py already uses for the verified_date < effective_date
+ * half of this check. It is the UTC date (asOf.toISOString()), and
+ * generate.py's _is_still_upcoming uses the UTC date too (SRC-82): a local
+ * date on either side makes the two disagree for the hours each day when
+ * UTC is already tomorrow. */
 function ruleChangeInForceStatus(
   e: Record<string, unknown>,
   asOfISODate: string

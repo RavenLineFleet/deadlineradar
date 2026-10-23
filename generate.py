@@ -4396,6 +4396,14 @@ def _is_still_upcoming(e: dict, today: date | None = None) -> bool:
     drift again, same structural limit as next_deadline_computed. The feed
     rebuilds far more often than events mature, so this closes the real gap;
     the seal's runtime evaluator is the pattern if that ever stops holding.
+
+    SRC-82 (AuditLab, 2026-10-23): "today" is the UTC date, not
+    date.today() (local). worker/src/assistant.ts mirrors this predicate for
+    the assistant API's in_force_status and anchors on
+    asOf.toISOString() -- UTC. With a local date here, the two disagreed for
+    the ~6h each evening when UTC is already tomorrow on an MDT build host,
+    and the API called a rule in force a day early while this page said
+    "not yet in force". Same UTC basis as main()'s real_today (DATE-6).
     """
     if not e.get("upcoming"):
         return False
@@ -4403,7 +4411,7 @@ def _is_still_upcoming(e: dict, today: date | None = None) -> bool:
     if not eff:
         return False
     try:
-        return date.fromisoformat(eff) > (today or date.today())
+        return date.fromisoformat(eff) > (today or datetime.now(timezone.utc).date())
     except ValueError:
         return False
 
