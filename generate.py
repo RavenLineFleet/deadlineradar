@@ -6354,7 +6354,12 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
     _seal_uid_counter[0] += 1
     uid = str(_seal_uid_counter[0])
     if last_verified:
-        age = (date.today() - date.fromisoformat(last_verified)).days
+        # SRC-83 (AuditLab, 2026-10-23): UTC date, same basis as main()'s
+        # staleness guard (real_today, DATE-6) against the same 30-day
+        # threshold. A local date gave a smaller age for ~6h each evening,
+        # so the badge kept saying "Verified source" after the guard had
+        # aged the record out.
+        age = (datetime.now(timezone.utc).date() - date.fromisoformat(last_verified)).days
         stale = age > _SEAL_STALE_DAYS
         date_text = _seal_date_text(last_verified)
         dv = f' data-verified="{esc(last_verified)}"'
