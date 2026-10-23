@@ -2,6 +2,10 @@
   "schema_note": "Roadmap #49 (2026-08-07): a curated public changelog of material corrections and updates to this site's data -- hand-maintained (not auto-generated from commit history), since raw internal commit messages reference internal tooling/finding codes never meant for public copy. Each entry here is a genuine, dated, already-verified change, rewritten in plain language. Newest first.",
   "entries": [
     {
+      "date": "2026-10-23",
+      "summary": "Alabama: corrected the renewal guide and the reinstatement page, which gave December 31 as the renewal due date without mentioning that the Board's own 2026-2027 registration package lists October 1 as the due date and treats December 31 as the end of a grace period for filing timely. The same pages also gave the $500 late penalty as ending March 31 (the rule's wording) without the package's \"on or after March 1\" wording and its April 1 disciplinary date. Both pages now name both sources."
+    },
+    {
       "date": "2026-09-12",
       "summary": "Utah: corrected a reinstatement page that listed a Laws-and-Rules exam as still required -- the current rule only requires the AICPA ethics exam. Because the state's own 2022 reinstatement checklist hasn't caught up to that change, the page now explains the conflict and points readers to confirm directly with the regulator rather than picking a side."
     },
