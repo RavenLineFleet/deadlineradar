@@ -9,9 +9,9 @@
  * runTeamsAlertPass() iterates every Teams-connected firm in the table.
  */
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
-import { isTeamsWebhookUrl } from "../src/teams";
+import { isTeamsWebhookUrl, sendToTeams } from "../src/teams";
 import { encryptSecretAesGcm } from "../src/totp";
 import { fmtDate } from "../src/emails";
 
@@ -112,6 +112,40 @@ describe("isTeamsWebhookUrl", () => {
   it("rejects a malformed URL", () => {
     expect(isTeamsWebhookUrl("not a url")).toBe(false);
     expect(isTeamsWebhookUrl("")).toBe(false);
+  });
+});
+
+describe("sendToTeams -- SSRF-2 redirect refusal", () => {
+  it("does not follow a 3xx: fails closed and logs it distinctly", async () => {
+    for (const status of [301, 302, 307, 308]) {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(null, { status, headers: { Location: "https://evil.example.com/collect" } }),
+      );
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        expect(await sendToTeams(REAL_WEBHOOK_URL, "hi")).toBe(false);
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect((fetchSpy.mock.calls[0]?.[1] as RequestInit).redirect).toBe("manual");
+        expect(logSpy.mock.calls.some((c) => String(c[0]).includes(`redirect refused: webhook answered ${status}`))).toBe(true);
+        // The URL carries a SAS signature -- it must never reach the log line.
+        expect(logSpy.mock.calls.some((c) => String(c[0]).includes("webhookb2"))).toBe(false);
+      } finally {
+        fetchSpy.mockRestore();
+        logSpy.mockRestore();
+      }
+    }
+  });
+
+  it("positive control: a 2xx still succeeds and logs nothing", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("1", { status: 202 }));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      expect(await sendToTeams(REAL_WEBHOOK_URL, "hi")).toBe(true);
+      expect(logSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
   });
 });
 

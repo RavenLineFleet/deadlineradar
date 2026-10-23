@@ -7921,7 +7921,9 @@ async function handleFirmTeamsWebhookSet(request: Request, env: Env): Promise<Re
   // off is never itself gated" posture the rest of this codebase uses.
   // Layer 1 of 2 (send-time in runTeamsAlertPass is layer 2, closing the
   // downgrade-after-connect gap) -- see requireFirmSessionAndPaidTier's own
-  // docstring for the parallel Map/PPC precedent this mirrors.
+  // docstring for the parallel Map/PPC precedent this mirrors. Both layers
+  // are TIER gates: the URL itself is vetted only by isTeamsWebhookUrl()
+  // below, never re-checked at send time (SSRF-2 -- see teams.ts).
   const valueLineDenial = valueLineDenialResponse(session.firm);
   if (valueLineDenial) return valueLineDenial;
 
