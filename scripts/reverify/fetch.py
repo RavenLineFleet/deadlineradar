@@ -308,9 +308,19 @@ class Fetcher:
 
                     def guard(route, request):
                         u = request.url
-                        if not (request.is_navigation_request() and request.frame == page.main_frame
-                                and urlparse(u).scheme in ("http", "https")):
-                            route.continue_()
+                        if urlparse(u).scheme not in ("http", "https"):
+                            route.continue_()            # data:/blob: etc. carry no network target
+                            return
+                        if not (request.is_navigation_request() and request.frame == page.main_frame):
+                            # SSRF-1 (SecurityLab/AuditLab): subresources and sub-frames get the
+                            # address check too. They used to skip it, and were contained only as a
+                            # side effect of the main document being served with fulfill() below.
+                            # Refusing one aborts that request only, not the page fetch. Robots is
+                            # not applied here: it governs crawling pages, not a page's own assets.
+                            if not self._allow_private and _preflight_reason(u):
+                                route.abort()
+                            else:
+                                route.continue_()
                             return
                         # Chromium follows a 3xx inside its network stack and does NOT route
                         # the redirect target, so a plain continue_() would request the
@@ -345,6 +355,8 @@ class Fetcher:
                             route.abort()
                             return
                         if cur == u:
+                            # fulfill() also stops Chromium sending the page's cross-origin
+                            # subresources (SSRF-1). The check above no longer depends on it.
                             route.fulfill(response=resp)
                         else:
                             # re-space the browser's own request to the final host (1 req/s)

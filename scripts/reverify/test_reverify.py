@@ -1015,6 +1015,37 @@ def test_rvf2_browser_path_refuses_redirect_onto_internal_service(public_a_priva
     assert hits_c == []
 
 
+@pytest.mark.parametrize("serve_main_doc_with_continue", [False, True])
+def test_ssrf1_browser_subresource_onto_internal_service_is_refused(public_a_private_c, monkeypatch,
+                                                                     serve_main_doc_with_continue):
+    """SSRF-1: a page's cross-origin <img> pointing at an internal service must be refused by the guard.
+    The True arm swaps fulfill() for continue_() on the main document -- the refactor that used to open
+    this -- so the guard, not fulfill's side effect, is what this asserts. The same-host /pixel.png
+    must still be requested, or "no internal hit" would prove nothing (AuditLab's constraint)."""
+    pytest.importorskip("playwright.sync_api")
+    from playwright.sync_api import Route
+    A, C, hits_a, hits_c = public_a_private_c
+    page = (f'<p>PAGE-WITH-ASSETS</p><img src="/pixel.png"><img src="{C}/admin/metrics">').encode()
+    srv, P, hits_p = _serve({"/robots.txt": (200, {}, b"User-agent: *\nAllow: /\n"),
+                             "/page.html": (200, {"Content-Type": "text/html"}, page),
+                             "/pixel.png": (200, {"Content-Type": "image/png"}, b"")})
+    p_port = srv.server_address[1]
+    allowed = fetch._address_allowed
+    monkeypatch.setattr(fetch, "_address_allowed",
+                        lambda ip, port: True if port == p_port else allowed(ip, port))
+    if serve_main_doc_with_continue:
+        real_fulfill = Route.fulfill
+        monkeypatch.setattr(Route, "fulfill", lambda self, **kw: self.continue_() if "response" in kw
+                            else real_fulfill(self, **kw))
+    try:
+        r = Fetcher(sleep=lambda s: None).get(f"{P}/page.html", "browser")
+    finally:
+        srv.shutdown()
+    assert r.ok and "PAGE-WITH-ASSETS" in r.text          # refusing the asset doesn't fail the page
+    assert "/pixel.png" in hits_p                         # control: subresources really were requested
+    assert hits_c == []
+
+
 def test_rvf4a_browser_hop_resolver_error_has_its_own_reason_but_still_refuses(public_a_private_c, monkeypatch):
     """Hop half of RVF-4a: a resolver error on a mid-redirect target is fail-closed and labelled
     preflight_unresolved; the same hop answering with a non-public address stays blocked_address."""
