@@ -7763,15 +7763,23 @@ def check_inline_script_json_breakout(repo_root: Path) -> list[str]:
             errors.append("[XSS-2] _script_json() output does not round-trip to the original value -- the escaping changed the data.")
     except json.JSONDecodeError as e:
         errors.append(f"[XSS-2] _script_json() output is not valid JSON ({e}).")
-    # End to end through the real page pipeline: _strip_shipped_comments() splits on the first raw
-    # '</script>' BEFORE terser runs, so the helper (not terser's own escaping) is what has to hold.
-    try:
-        page = generate_module._strip_shipped_comments("<script>var X = " + out + ";</script>")
-    except Exception as e:
-        errors.append(f"[XSS-2] the shipped-page pipeline failed on a _script_json() value ({type(e).__name__}: {e}).")
-    else:
-        if page.lower().count("</script") != 1 or not page.rstrip().lower().endswith("</script>"):
-            errors.append("[XSS-2] a hostile value broke out of its inline <script> after the shipped-page pipeline (terser + comment strip).")
+    # End to end through the real page pipeline. _strip_shipped_comments() splits on the literal
+    # '</script>' BEFORE terser runs, but a browser also ends the element on other spellings
+    # (AuditLab/SecurityLab 2026-10-23: 7 of 8 shipped), so each one is pushed through and the
+    # shipped body is judged by the HTML tokenizer's rule: '</script' + whitespace, '/' or '>'.
+    end_tag = re.compile(r"</script[\t\n\f\r />]", re.I)
+    spellings = ["</script>", "</SCRIPT>", "</Script >", "</script\t>", "</script\n>", "</script\f>",
+                 "</script\r>", "</script/>", "</script x>", "<!--<script>"]
+    for sp in spellings:
+        val = generate_module._script_json({"s": "a " + sp + "<img src=x onerror=alert(1)> b"})
+        try:
+            page = generate_module._strip_shipped_comments("<script>var X = " + val + ";</script>")
+        except Exception as e:
+            errors.append(f"[XSS-2] the shipped-page pipeline failed on {sp!r} ({type(e).__name__}: {e}).")
+            continue
+        body = page[len("<script>"):-len("</script>")] if page.startswith("<script>") and page.endswith("</script>") else page
+        if not (page.startswith("<script>") and page.endswith("</script>")) or end_tag.search(body) or "<!--" in body:
+            errors.append(f"[XSS-2] a value containing {sp!r} breaks out of its inline <script> after the shipped-page pipeline.")
     src = (repo_root / "generate.py").read_text(encoding="utf-8")
     bare = src.count("{json.dumps(")
     if bare:
