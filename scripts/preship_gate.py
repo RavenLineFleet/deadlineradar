@@ -6027,7 +6027,7 @@ def check_sitemap_completeness(html_files: list[Path], docs_dir: Path) -> list[s
     return errors
 
 
-def _blank_strings_and_comments(text: str) -> str:
+def _blank_strings_and_comments(text: str, keep_strings: bool = False) -> str:
     """AuditLab GUARD-1 (2026-08-20): the original `_strip_ts_comments()`
     doesn't understand string literals, so a `/*`/`*/`/`//`-shaped sequence
     INSIDE a string confuses it two ways -- a live comment-shaped iCalendar
@@ -6068,7 +6068,10 @@ def _blank_strings_and_comments(text: str) -> str:
     stays accurate). Not a real tokenizer -- template literal `${...}`
     interpolations are blanked along with the rest of the template rather
     than parsed, which is conservative (a real code reference inside one is
-    missed, never fabricated)."""
+    missed, never fabricated).
+
+    `keep_strings=True` copies string/template contents through verbatim
+    and only removes comments -- what `_strip_ts_comments()` needs (GATE-69)."""
     out = []
     i = 0
     n = len(text)
@@ -6076,19 +6079,19 @@ def _blank_strings_and_comments(text: str) -> str:
         c = text[i]
         if c in ("'", '"', "`"):
             quote = c
-            out.append(" ")
+            out.append(c if keep_strings else " ")
             i += 1
             while i < n:
                 c2 = text[i]
                 if c2 == "\\" and i + 1 < n:
-                    out.append("  ")
+                    out.append(text[i : i + 2] if keep_strings else "  ")
                     i += 2
                     continue
                 if c2 == quote:
-                    out.append(" ")
+                    out.append(c2 if keep_strings else " ")
                     i += 1
                     break
-                out.append(c2 if c2 == "\n" else " ")
+                out.append(c2 if keep_strings or c2 == "\n" else " ")
                 i += 1
             continue
         if c == "/" and i + 1 < n and text[i + 1] == "/":
@@ -6492,33 +6495,22 @@ def _strip_dead_if_false_blocks(text: str) -> str:
 
 
 def _strip_ts_comments(text: str) -> str:
-    """Best-effort TS/JS comment stripper for the source-scanning guards in
-    this file -- NOT a real parser, but catches the real failure mode a
-    positive-control mutation test on check_write_endpoint_rate_limits()
-    surfaced 2026-08-07: a naive `"checkRateLimit(" in body` substring
-    search is fooled by a COMMENT that mentions the function by name in
-    prose (e.g. "...see RATE_LIMIT_X's own comment for why
-    checkRateLimit()'s `ip` parameter is deliberately reused..." reads as
-    a real call to a substring search) -- the guard passed clean with the
-    actual call deleted, exactly the "guard exists vs guard fires" gap
-    this whole file exists to prevent. Block comments stripped first, then
-    `//` line comments -- `(?<!:)` avoids treating a `://` inside a URL
-    string as a comment opener.
+    """Comment-stripped, string-intact TS/JS text, for guards whose substring
+    search must ignore a comment that merely NAMES a function (2026-08-07:
+    "...checkRateLimit()'s `ip` parameter..." in prose read as a real call)
+    but must still see string contents (check_mutating_get_coverage()'s DML
+    regex matches SQL inside `.prepare("...")` literals).
 
-    AuditLab GUARD-1 (2026-08-20): this function doesn't understand string
-    literals, and -- proven the hard way -- can't be safely composed with a
-    separate string-blanking pass in either order (each mis-tokenizes the
-    other's delimiter characters when they appear inside its own construct:
-    a `//` comment containing an apostrophe, a string containing `//`/`/*`).
-    Superseded by `_blank_strings_and_comments()`, a single-pass tokenizer
-    that handles both correctly together. Left standalone (not deleted) only
-    because some future caller might genuinely want comment-stripped-but-
-    string-intact text; every guard in this file that gates a real security
-    or billing invariant should use `_blank_strings_and_comments()`, not
-    this function alone."""
-    text = re.sub(r"/\*[\s\S]*?\*/", "", text)
-    text = re.sub(r"(?<!:)//.*", "", text)
-    return text
+    AuditLab/SecurityLab GATE-69 (LOW, 2026-10-24): this name was defined
+    twice -- a regex version here with a `(?<!:)` URL guard, and a second
+    regex version further down without it. Python binds the later `def`, so
+    the guarded copy was dead and the live one erased everything after an
+    in-string `https://` (`const u = "https://x/p"; await store.write(x);`
+    lost the call). Both regex copies are gone; this delegates to the
+    single-pass tokenizer, which knows a `//` inside a string is not a
+    comment. Every guard gating a security/billing invariant should still
+    use `_blank_strings_and_comments()` (strings blanked too)."""
+    return _blank_strings_and_comments(text, keep_strings=True)
 
 
 _EMAIL_TRANSPORT_SCOPE_MARKERS: tuple[str, ...] = (
@@ -8005,7 +7997,9 @@ def check_send_pass_consent_gate_coverage(repo_root: Path) -> list[str]:
             continue
         fn_end = _bracket_match(scheduler_src, fn_m.end() - 1)
         fn_body = scheduler_src[fn_m.end() - 1 : fn_end] if fn_end is not None else ""
-        if "requireSendApproval(" not in fn_body:
+        # GATE-68 (2026-10-24): a comment naming requireSendApproval() used to
+        # satisfy this with the real call deleted -- test code only.
+        if "requireSendApproval(" not in _blank_strings_and_comments(fn_body):
             errors.append(
                 f"[CONSENT-GATE] {pass_name} is dispatched in scheduled() but is neither in "
                 f"GRANDFATHERED_PRE_CONSENT_GATE_PASSES nor calls requireSendApproval() in its own "
@@ -8344,19 +8338,6 @@ MUTATING_GET_HANDLERS = {
     "handleFirmSlackConnectCallback": "oauth-state-bound (consumeOauthState fails closed on browser-bound hash)",
     "handleOauthCallback": "oauth-state-bound (consumeOauthState fails closed on browser-bound hash)",
 }
-
-
-def _strip_ts_comments(body: str) -> str:
-    """Shared by check_mutating_get_coverage()'s function-body extraction --
-    same stripping CSRF-2/AUTH-1 apply before their own substring checks, so
-    a comment merely NAMING a function (e.g. "...via store.mintReferralCode()")
-    can't be mistaken for a real call. Caught exactly this false positive in
-    handleFirmLicensesList during development -- its own comment mentions
-    mintReferralCode() and handleFirmBillingCancellationToggle() by name;
-    without stripping, both looked like real calls and the handler
-    misclassified as mutating."""
-    body = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
-    return re.sub(r"//[^\n]*", " ", body)
 
 
 def _extract_top_level_ts_functions(src: str) -> dict[str, str]:
