@@ -19,7 +19,17 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
 import { hashPassword } from "../src/password";
-import { generateTotpSecretBase32, generateTotp, encryptTotpSecret, decryptTotpSecret, generateBackupCodes, hashBackupCode } from "../src/totp";
+import {
+  generateTotpSecretBase32,
+  generateTotp,
+  encryptTotpSecret,
+  decryptTotpSecret,
+  generateBackupCodes,
+  hashBackupCode,
+  sealEnrollmentSecret,
+  openEnrollmentSecret,
+  TOTP_ENROLLMENT_TOKEN_TTL_MS,
+} from "../src/totp";
 import { RATE_LIMIT_FIRM_2FA_VERIFY, RATE_LIMIT_FIRM_2FA_VERIFY_ACCOUNT } from "../src/validation";
 
 const BASE = "https://deadline-radar.com";
@@ -87,6 +97,12 @@ function pendingTokenFromLocation(resp: Response): string {
 async function sessionCookieFor(firmId: string, memberId: string): Promise<string> {
   const { rawSessionToken } = await store.createSession(env.DB, firmId, memberId);
   return `dr_firm_session=${rawSessionToken}`;
+}
+
+async function sessionIdOf(cookie: string): Promise<string> {
+  const verified = await store.verifySession(env.DB, cookie.slice(cookie.indexOf("=") + 1));
+  if (!verified) throw new Error("sessionIdOf: cookie does not verify");
+  return verified.sessionId;
 }
 
 describe("password login is gated the same way for an enrolled member", () => {
@@ -1332,7 +1348,7 @@ describe("POST /firm/2fa/enroll", () => {
 });
 
 describe("POST /firm/2fa/enroll/confirm", () => {
-  async function enroll(cookie: string, ip: string, password: string): Promise<{ secret: string }> {
+  async function enroll(cookie: string, ip: string, password: string): Promise<{ secret: string; token: string }> {
     const resp = await workerFetch(
       new Request(`${BASE}/firm/2fa/enroll`, {
         method: "POST",
@@ -1341,24 +1357,28 @@ describe("POST /firm/2fa/enroll/confirm", () => {
       }),
       { TOTP_ENCRYPTION_KEY: KEY }
     );
-    const json = (await resp.json()) as { secret: string };
-    return { secret: json.secret };
+    const json = (await resp.json()) as { secret: string; enrollment_token: string };
+    return { secret: json.secret, token: json.enrollment_token };
+  }
+
+  async function confirm(cookie: string, ip: string, body: Record<string, unknown>): Promise<Response> {
+    return workerFetch(
+      new Request(`${BASE}/firm/2fa/enroll/confirm`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": ip, Cookie: cookie },
+        body: JSON.stringify(body),
+      }),
+      { TOTP_ENCRYPTION_KEY: KEY }
+    );
   }
 
   it("a correct code completes enrollment and returns 8 one-time backup codes", async () => {
     const { firmId, memberId, password } = await newPlainFirm("confirm-ok");
     const cookie = await sessionCookieFor(firmId, memberId);
-    const { secret } = await enroll(cookie, "203.0.113.270", password);
+    const { secret, token } = await enroll(cookie, "203.0.113.270", password);
     const code = await generateTotp(secret);
 
-    const resp = await workerFetch(
-      new Request(`${BASE}/firm/2fa/enroll/confirm`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.270", Cookie: cookie },
-        body: JSON.stringify({ secret, code }),
-      }),
-      { TOTP_ENCRYPTION_KEY: KEY }
-    );
+    const resp = await confirm(cookie, "203.0.113.270", { enrollment_token: token, code });
     expect(resp.status).toBe(200);
     const json = (await resp.json()) as { ok: boolean; backup_codes: string[] };
     expect(json.ok).toBe(true);
@@ -1383,16 +1403,9 @@ describe("POST /firm/2fa/enroll/confirm", () => {
     const cookie = await sessionCookieFor(firmId, memberId);
     const a = await enroll(cookie, "203.0.113.272", password);
     const b = await enroll(cookie, "203.0.113.273", password);
-    const fire = async (secret: string, ip: string) =>
-      workerFetch(
-        new Request(`${BASE}/firm/2fa/enroll/confirm`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "cf-connecting-ip": ip, Cookie: cookie },
-          body: JSON.stringify({ secret, code: await generateTotp(secret) }),
-        }),
-        { TOTP_ENCRYPTION_KEY: KEY }
-      );
-    const [respA, respB] = await Promise.all([fire(a.secret, "203.0.113.272"), fire(b.secret, "203.0.113.273")]);
+    const fire = async (e: { secret: string; token: string }, ip: string) =>
+      confirm(cookie, ip, { enrollment_token: e.token, code: await generateTotp(e.secret) });
+    const [respA, respB] = await Promise.all([fire(a, "203.0.113.272"), fire(b, "203.0.113.273")]);
     expect([respA.status, respB.status].sort()).toEqual([200, 400]);
     // exactly the winner's 8 codes exist -- the loser must not have added its own
     const unused = await store.countUnusedFirmMemberBackupCodes(env.DB, memberId);
@@ -1404,17 +1417,11 @@ describe("POST /firm/2fa/enroll/confirm", () => {
   it("a wrong code refuses and leaves the member unenrolled", async () => {
     const { firmId, memberId, password } = await newPlainFirm("confirm-wrong-code");
     const cookie = await sessionCookieFor(firmId, memberId);
-    const { secret } = await enroll(cookie, "203.0.113.271", password);
+    const { token } = await enroll(cookie, "203.0.113.271", password);
 
-    const resp = await workerFetch(
-      new Request(`${BASE}/firm/2fa/enroll/confirm`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.271", Cookie: cookie },
-        body: JSON.stringify({ secret, code: "000000" }),
-      }),
-      { TOTP_ENCRYPTION_KEY: KEY }
-    );
+    const resp = await confirm(cookie, "203.0.113.271", { enrollment_token: token, code: "000000" });
     expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe("That code wasn't right. Please try again.");
     const member = await store.getFirmMemberById(env.DB, firmId, memberId);
     expect(member?.totp_enrolled_at).toBeNull();
   });
@@ -1424,21 +1431,129 @@ describe("POST /firm/2fa/enroll/confirm", () => {
     const cookie = await sessionCookieFor(firmId, memberId);
     const attackerSecret = generateTotpSecretBase32();
     const attackerCode = await generateTotp(attackerSecret);
+    // A VALID token for this member+session (minted directly -- /enroll itself
+    // refuses an enrolled member), so the 400 below is the enrolled-member
+    // refusal and not SEC-48's token check.
+    const sessionId = await sessionIdOf(cookie);
+    const token = await sealEnrollmentSecret(attackerSecret, memberId, sessionId, KEY);
 
-    const resp = await workerFetch(
-      new Request(`${BASE}/firm/2fa/enroll/confirm`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.272", Cookie: cookie },
-        body: JSON.stringify({ secret: attackerSecret, code: attackerCode }),
-      }),
-      { TOTP_ENCRYPTION_KEY: KEY }
-    );
+    const resp = await confirm(cookie, "203.0.113.272", { enrollment_token: token, code: attackerCode });
     expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe("Two-factor authentication is already enabled on this account.");
 
     // The ORIGINAL secret must still be the one in place, not the attacker's.
     const member = await store.getFirmMemberById(env.DB, firmId, memberId);
     const stillOriginal = await decryptTotpSecret(member!.totp_secret_encrypted!, member!.totp_secret_iv!, memberId, KEY);
     expect(stillOriginal).toBe(originalSecret);
+  });
+
+  // SEC-48 (SecurityLab + AuditLab, 2026-10-24): confirm used to take `secret`
+  // from the body, so verifyTotp() only proved the caller knew a secret it
+  // chose itself and /enroll's step-up gate could be skipped entirely.
+  const EXPIRED = "That setup has expired. Please start two-factor setup again.";
+
+  async function expectUnenrolled(firmId: string, memberId: string) {
+    const member = await store.getFirmMemberById(env.DB, firmId, memberId);
+    expect(member?.totp_enrolled_at).toBeNull();
+    expect(await store.countUnusedFirmMemberBackupCodes(env.DB, memberId)).toBe(0);
+  }
+
+  it("SEC-48: a session with no password re-proof cannot enroll a self-chosen secret by skipping /enroll", async () => {
+    const { firmId, memberId } = await newPlainFirm("sec48-skip-enroll");
+    const cookie = await sessionCookieFor(firmId, memberId);
+    const attackerSecret = generateTotpSecretBase32();
+    const resp = await confirm(cookie, "203.0.113.280", { secret: attackerSecret, code: await generateTotp(attackerSecret) });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe(EXPIRED);
+    await expectUnenrolled(firmId, memberId);
+  });
+
+  it("SEC-48: a body `secret` is ignored even alongside a valid token -- the token's secret is the only one verified", async () => {
+    const { firmId, memberId, password } = await newPlainFirm("sec48-body-secret-ignored");
+    const cookie = await sessionCookieFor(firmId, memberId);
+    const { token } = await enroll(cookie, "203.0.113.281", password);
+    const attackerSecret = generateTotpSecretBase32();
+    const resp = await confirm(cookie, "203.0.113.281", {
+      enrollment_token: token,
+      secret: attackerSecret,
+      code: await generateTotp(attackerSecret),
+    });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe("That code wasn't right. Please try again.");
+    await expectUnenrolled(firmId, memberId);
+  });
+
+  it("SEC-48: a token issued to one session is refused on another session of the SAME member", async () => {
+    const { firmId, memberId, password } = await newPlainFirm("sec48-cross-session");
+    const cookieA = await sessionCookieFor(firmId, memberId);
+    const cookieB = await sessionCookieFor(firmId, memberId);
+    const { secret, token } = await enroll(cookieA, "203.0.113.282", password);
+    const resp = await confirm(cookieB, "203.0.113.282", { enrollment_token: token, code: await generateTotp(secret) });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe(EXPIRED);
+    await expectUnenrolled(firmId, memberId);
+  });
+
+  it("SEC-48: a token issued to one member is refused for a different member", async () => {
+    const a = await newPlainFirm("sec48-cross-member-a");
+    const b = await newPlainFirm("sec48-cross-member-b");
+    const cookieA = await sessionCookieFor(a.firmId, a.memberId);
+    const cookieB = await sessionCookieFor(b.firmId, b.memberId);
+    const { secret, token } = await enroll(cookieA, "203.0.113.283", a.password);
+    const resp = await confirm(cookieB, "203.0.113.284", { enrollment_token: token, code: await generateTotp(secret) });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe(EXPIRED);
+    await expectUnenrolled(b.firmId, b.memberId);
+  });
+
+  it("SEC-48: a tampered token is refused", async () => {
+    const { firmId, memberId, password } = await newPlainFirm("sec48-tampered");
+    const cookie = await sessionCookieFor(firmId, memberId);
+    const { secret, token } = await enroll(cookie, "203.0.113.285", password);
+    // Flip a byte inside the ciphertext (after the dot), not base64 padding.
+    const i = token.indexOf(".") + 3;
+    const tampered = token.slice(0, i) + (token[i] === "A" ? "B" : "A") + token.slice(i + 1);
+    expect(tampered).not.toBe(token);
+    const resp = await confirm(cookie, "203.0.113.285", { enrollment_token: tampered, code: await generateTotp(secret) });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe(EXPIRED);
+    await expectUnenrolled(firmId, memberId);
+  });
+
+  it("SEC-48: a token past its TTL is refused at the route; the same token inside the TTL enrolls", async () => {
+    const { firmId, memberId, password } = await newPlainFirm("sec48-ttl");
+    const cookie = await sessionCookieFor(firmId, memberId);
+    const { secret, token } = await enroll(cookie, "203.0.113.286", password);
+    const realNow = Date.now();
+    const spy = vi.spyOn(Date, "now").mockReturnValue(realNow + TOTP_ENROLLMENT_TOKEN_TTL_MS + 60_000);
+    try {
+      const late = await confirm(cookie, "203.0.113.286", { enrollment_token: token, code: await generateTotp(secret) });
+      expect(late.status).toBe(400);
+      expect(((await late.json()) as { error: string }).error).toBe(EXPIRED);
+    } finally {
+      spy.mockRestore();
+    }
+    await expectUnenrolled(firmId, memberId);
+    const ok = await confirm(cookie, "203.0.113.286", { enrollment_token: token, code: await generateTotp(secret) });
+    expect(ok.status).toBe(200);
+  });
+
+  it("SEC-48: openEnrollmentSecret's TTL boundary, binding, and malformed input", async () => {
+    const t0 = 1_800_000_000_000;
+    const token = await sealEnrollmentSecret("JBSWY3DPEHPK3PXP", "m1", "s1", KEY, t0);
+    expect(await openEnrollmentSecret(token, "m1", "s1", KEY, t0)).toBe("JBSWY3DPEHPK3PXP");
+    expect(await openEnrollmentSecret(token, "m1", "s1", KEY, t0 + TOTP_ENROLLMENT_TOKEN_TTL_MS)).toBe("JBSWY3DPEHPK3PXP");
+    expect(await openEnrollmentSecret(token, "m1", "s1", KEY, t0 + TOTP_ENROLLMENT_TOKEN_TTL_MS + 1)).toBeNull();
+    expect(await openEnrollmentSecret(token, "m1", "s1", KEY, t0 - 60_001)).toBeNull();
+    expect(await openEnrollmentSecret(token, "m1", "s2", KEY, t0)).toBeNull();
+    expect(await openEnrollmentSecret(token, "m2", "s1", KEY, t0)).toBeNull();
+    expect(await openEnrollmentSecret(token, "m1", "s1", randomKeyBase64(), t0)).toBeNull();
+    for (const bad of ["", ".", "abc", "abc.", ".abc", "not.base64!!"]) {
+      expect(await openEnrollmentSecret(bad, "m1", "s1", KEY, t0)).toBeNull();
+    }
+    // A stored TOTP ciphertext (AAD = memberId) must not open as a token.
+    const stored = await encryptTotpSecret("JBSWY3DPEHPK3PXP", "m1", KEY);
+    expect(await openEnrollmentSecret(`${stored.ivBase64}.${stored.ciphertextBase64}`, "m1", "s1", KEY, t0)).toBeNull();
   });
 });
 

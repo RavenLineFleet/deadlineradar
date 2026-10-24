@@ -269,6 +269,74 @@ export async function decryptTotpSecret(
   return decryptSecretAesGcm(ciphertextBase64, ivBase64, memberId, encryptionKeyBase64);
 }
 
+/** How long a /firm/2fa/enroll token stays redeemable at /enroll/confirm. */
+export const TOTP_ENROLLMENT_TOKEN_TTL_MS = 10 * 60 * 1000;
+
+function enrollmentTokenContext(memberId: string, sessionId: string): string {
+  // Prefixed so no other AES-GCM context in this codebase (memberId for a
+  // stored TOTP secret, the Slack token's own id) can ever open one of these.
+  return `2fa-enroll:${memberId}:${sessionId}`;
+}
+
+/**
+ * SEC-48: seals the server-generated enrollment secret so /enroll/confirm can
+ * take the secret ONLY from something this Worker issued. Before this, confirm
+ * read `secret` straight from the request body, so verifyTotp() proved only
+ * that the caller knew a secret it had chosen itself, and enroll's step-up
+ * gate could be skipped by never calling enroll at all. The AAD binds the
+ * token to one member AND one session; the issue time inside the ciphertext
+ * bounds it to TOTP_ENROLLMENT_TOKEN_TTL_MS.
+ */
+export async function sealEnrollmentSecret(
+  secretBase32: string,
+  memberId: string,
+  sessionId: string,
+  encryptionKeyBase64: string,
+  nowMs: number = Date.now()
+): Promise<string> {
+  const { ciphertextBase64, ivBase64 } = await encryptSecretAesGcm(
+    JSON.stringify({ s: secretBase32, iat: nowMs }),
+    enrollmentTokenContext(memberId, sessionId),
+    encryptionKeyBase64
+  );
+  return `${ivBase64}.${ciphertextBase64}`;
+}
+
+/** Returns the sealed secret, or null (never throws) for a token that is
+ * malformed, tampered, issued to a different member or session, or past its
+ * TTL -- the caller refuses all of those the same way. */
+export async function openEnrollmentSecret(
+  token: string,
+  memberId: string,
+  sessionId: string,
+  encryptionKeyBase64: string,
+  nowMs: number = Date.now()
+): Promise<string | null> {
+  const dot = token.indexOf(".");
+  if (dot <= 0 || dot === token.length - 1) return null;
+  const plaintext = await decryptSecretAesGcm(
+    token.slice(dot + 1),
+    token.slice(0, dot),
+    enrollmentTokenContext(memberId, sessionId),
+    encryptionKeyBase64
+  );
+  if (plaintext === null) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(plaintext);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const { s, iat } = parsed as { s?: unknown; iat?: unknown };
+  if (typeof s !== "string" || !s || typeof iat !== "number") return null;
+  const age = nowMs - iat;
+  // NaN fails both comparisons and is refused. A small negative age is edge
+  // clock skew between the two requests, not a reason to refuse.
+  if (!(age >= -60_000 && age <= TOTP_ENROLLMENT_TOKEN_TTL_MS)) return null;
+  return s;
+}
+
 // ---------------------------------------------------------------------------
 // Backup codes -- 8 single-use recovery codes generated at enrollment,
 // shown once, hashed like every other single-use secret in this codebase

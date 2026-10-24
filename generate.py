@@ -17803,8 +17803,8 @@ function drSubmit2faDisable(form) {
 // action -- see handleFirm2faEnroll's own comment) so a stolen session
 // alone can never enroll 2FA with an attacker-controlled secret and lock
 // the real owner out. Sent even when blank -- a magic-link-only member has
-// no password to prove, and the server-side check already exempts that
-// case exactly the way handleFirmChangeEmailRequest's does.
+// no password to prove; for them the server checks for a recent sign-in
+// instead, the same way handleFirmChangeEmailRequest's does.
 function drStart2faEnroll(form) {
   var errEl = document.getElementById('dr-2fa-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
@@ -17827,7 +17827,7 @@ function drStart2faEnroll(form) {
           return;
         }
         form.hidden = true;
-        drRender2faEnrollForm(data.secret, data.otpauth_uri);
+        drRender2faEnrollForm(data.secret, data.otpauth_uri, data.enrollment_token);
       });
     }).catch(function() {
       if (btn) btn.disabled = false;
@@ -17835,7 +17835,7 @@ function drStart2faEnroll(form) {
     });
 }
 
-function drRender2faEnrollForm(secret, otpauthUri) {
+function drRender2faEnrollForm(secret, otpauthUri, enrollmentToken) {
   var wrap = document.getElementById('dr-2fa-enroll-wrap');
   if (!wrap) return;
   wrap.innerHTML =
@@ -17854,13 +17854,13 @@ function drRender2faEnrollForm(secret, otpauthUri) {
     '<button type="button" id="dr-2fa-cancel-enroll">Cancel</button>';
   var form = document.getElementById('dr-2fa-confirm-form');
   if (form) {
-    form.addEventListener('submit', function(ev) { ev.preventDefault(); drSubmit2faEnrollConfirm(form, secret); });
+    form.addEventListener('submit', function(ev) { ev.preventDefault(); drSubmit2faEnrollConfirm(form, enrollmentToken); });
   }
   var cancelBtn = document.getElementById('dr-2fa-cancel-enroll');
   if (cancelBtn) cancelBtn.addEventListener('click', function() { drLoad2faStatus(); });
 }
 
-function drSubmit2faEnrollConfirm(form, secret) {
+function drSubmit2faEnrollConfirm(form, enrollmentToken) {
   var errEl = document.getElementById('dr-2fa-enroll-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
   var fd = new FormData(form);
@@ -17870,7 +17870,7 @@ function drSubmit2faEnrollConfirm(form, secret) {
   fetch('/api/firm/2fa/enroll/confirm', {
     method: 'POST', credentials: 'include',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({secret: secret, code: code})
+    body: JSON.stringify({enrollment_token: enrollmentToken, code: code})
   }).then(function(res) {
     if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
     return drReadJsonSafe(res).then(function(data) {

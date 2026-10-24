@@ -1949,6 +1949,16 @@ export const SESSION_TTL_DAYS = 30;
 // can't silently widen this window too.
 export const PASSWORD_RESET_AUTHORITY_TTL_MINUTES = 15;
 
+// SEC-48 (2026-10-24): how long after ANY sign-in a session still counts as
+// freshly authenticated. It is the step-up for a member with no password
+// (magic-link / SSO only): the four gates above have no password to check
+// for them, so without this a stolen session could delete the firm, enroll
+// 2FA, change the login email or set a password with no re-proof at all.
+// Every session row is minted only by a credential-proving sign-in and
+// created_at is never rewritten, so its age is the age of that proof. Its
+// own literal for the same reason as the constant above.
+export const RECENT_AUTH_WINDOW_MINUTES = 15;
+
 export interface CreateFirmInput {
   name: string;
   adminEmail: string;
@@ -3181,7 +3191,7 @@ export async function verifySession(
   db: D1Database,
   rawSessionToken: string
 ): Promise<
-  | { firmId: string; sessionId: string; memberId: string; role: FirmMemberRole; passwordResetAuthorized: boolean; firmStatus: string }
+  | { firmId: string; sessionId: string; memberId: string; role: FirmMemberRole; passwordResetAuthorized: boolean; recentlyAuthenticated: boolean; firmStatus: string }
   | null
 > {
   const sessionTokenHash = await hashToken(rawSessionToken);
@@ -3228,6 +3238,9 @@ export async function verifySession(
     passwordResetAuthorized:
       (row as { password_reset_authorized?: unknown }).password_reset_authorized === 1 &&
       Date.now() - Date.parse(row.created_at) <= PASSWORD_RESET_AUTHORITY_TTL_MINUTES * 60_000,
+    // SEC-48: same fail-closed direction -- an unparseable created_at is NaN,
+    // which fails the comparison and reads as NOT recent.
+    recentlyAuthenticated: Date.now() - Date.parse(row.created_at) <= RECENT_AUTH_WINDOW_MINUTES * 60_000,
     firmStatus: row.firm_status,
   };
 }

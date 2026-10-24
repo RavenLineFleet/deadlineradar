@@ -253,6 +253,8 @@ import {
   decryptTotpSecret,
   encryptSecretAesGcm,
   decryptSecretAesGcm,
+  sealEnrollmentSecret,
+  openEnrollmentSecret,
   generateBackupCodes,
   hashBackupCode,
 } from "./totp";
@@ -3016,6 +3018,21 @@ async function handleFirmLogout(request: Request, env: Env, ip: string): Promise
 }
 
 /**
+ * SEC-48: the step-up refusal for a member with no password. The four
+ * credential-changing gates (password set, account delete, 2FA enroll,
+ * email change) check the current password when there is one; a magic-link
+ * or SSO-only member has none, so for them the proof is a recent sign-in
+ * (store.RECENT_AUTH_WINDOW_MINUTES). 403 rather than 401: the session is
+ * valid, and a 401 would bounce the dashboard to /firm-login/ with no reason.
+ */
+function passwordlessReauthRequired(): Response {
+  return jsonResponse(403, {
+    error: `For your security, please sign out and sign back in, then try this again within ${store.RECENT_AUTH_WINDOW_MINUTES} minutes.`,
+    reauth_required: true,
+  });
+}
+
+/**
  * THE single auth gate every firm-scoped route (staff CRUD, the dashboard
  * itself -- both built by a later step on top of this branch) must call
  * FIRST, as a one-line check:
@@ -3039,7 +3056,7 @@ export async function requireFirmSession(
   request: Request,
   env: Env
 ): Promise<
-  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean }
+  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean; recentlyAuthenticated: boolean }
   | Response
 > {
   // Orchestrator abuse-test pass (2026-08-05, side note): every caller of
@@ -3085,7 +3102,7 @@ async function requireFirmSessionWithFirm(
   request: Request,
   env: Env
 ): Promise<
-  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean; firm: store.FirmRow }
+  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean; recentlyAuthenticated: boolean; firm: store.FirmRow }
   | Response
 > {
   const session = await requireFirmSession(request, env);
@@ -3109,7 +3126,7 @@ async function requireFirmRole(
   env: Env,
   ...allowedRoles: store.FirmMemberRole[]
 ): Promise<
-  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean; firm: store.FirmRow }
+  | { firmId: string; sessionId: string; memberId: string; role: store.FirmMemberRole; passwordResetAuthorized: boolean; recentlyAuthenticated: boolean; firm: store.FirmRow }
   | Response
 > {
   const session = await requireFirmSessionWithFirm(request, env);
@@ -3474,6 +3491,7 @@ async function requireFirmSessionAndPaidTier(
       memberId: string;
       role: store.FirmMemberRole;
       passwordResetAuthorized: boolean;
+      recentlyAuthenticated: boolean;
       firm: store.FirmRow;
       mobilityAccessBasis: "paid" | "solo_free" | "trial";
     }
@@ -4043,6 +4061,8 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
   // exact gap DELETE-1 was meant to close, reopened by a column that
   // stopped being written. Fixed by reading the member row, same as the
   // three sibling step-up sites (password set, 2FA enroll, change email).
+  // SEC-48: the no-password exemption is gone at all four sites -- a member
+  // with no password must instead have signed in recently.
   const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
   if (!member) {
     return jsonResponse(404, { error: "Not found." });
@@ -4062,6 +4082,8 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
     if (!currentOk) {
       return jsonResponse(400, { error: "That current password isn't right." });
     }
+  } else if (!member.password_hash && !session.passwordResetAuthorized && !session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
   }
 
   // SEC-47: spend the one-shot reset authority before acting, same as
@@ -11977,7 +11999,8 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
   // exists for. The exemption is safe because that session proves control of
   // the account's own inbox -- stronger evidence than the cookie the
   // prove-the-old-password rule guards against -- and it is spent below, so
-  // one emailed link authorises exactly one password set.
+  // one emailed link authorises exactly one password set. SEC-48: a member
+  // setting a FIRST password has none to prove, so needs a recent sign-in.
   if (member.password_hash && !session.passwordResetAuthorized) {
     const currentOk = await verifyPassword(
       currentPassword,
@@ -11993,6 +12016,8 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
     if (!currentOk) {
       return jsonResponse(400, { error: "That current password isn't right." });
     }
+  } else if (!member.password_hash && !session.passwordResetAuthorized && !session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
   }
 
   // PREVENT-1 (AuditLab, 2026-08-20): setFirmMemberPassword() now reports
@@ -12092,12 +12117,11 @@ async function handleFirm2faStatus(request: Request, env: Env): Promise<Response
  * an authenticator app. Deliberately persists NOTHING yet -- the secret
  * only becomes real once handleFirm2faEnrollConfirm() proves a code was
  * actually derived from it, so an abandoned enrollment (closed tab, changed
- * mind) leaves no half-enrolled row to clean up. The secret is round-
- * tripped back to the client on /enroll/confirm; that adds no new exposure
- * (the client is about to display it to the member for manual entry into
- * their app anyway, which is the whole point of this step), and confirm
- * never trusts it without independently TOTP-verifying a real code
- * alongside it -- see that handler's own comment.
+ * mind) leaves no half-enrolled row to clean up. The secret goes back to the
+ * client in the clear for display, and ALSO sealed in `enrollment_token`
+ * (SEC-48), which is the only place /enroll/confirm reads it from -- so the
+ * step-up gate below is a real boundary, not flow control a caller can skip
+ * by going straight to confirm with a secret of its own.
  */
 async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response> {
   const session = await requireFirmSession(request, env);
@@ -12148,7 +12172,8 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
   // two exemptions: skipped when the firm has no password yet (a magic-
   // link-only firm must still be able to use this feature) or the session
   // is passwordResetAuthorized (already proved control of the inbox via a
-  // fresh reset link).
+  // fresh reset link). SEC-48: the no-password case is no longer skipped --
+  // it needs a recent sign-in instead (passwordlessReauthRequired).
   let raw: string;
   try {
     raw = await request.text();
@@ -12182,6 +12207,8 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
     if (!currentOk) {
       return jsonResponse(400, { error: "That current password isn't right." });
     }
+  } else if (!member.password_hash && !session.passwordResetAuthorized && !session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
   }
 
   // SEC-47: spend the one-shot reset authority, same as handleFirmPasswordSet.
@@ -12192,17 +12219,21 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
   }
 
   const secret = generateTotpSecretBase32();
-  return jsonResponse(200, { secret, otpauth_uri: buildOtpauthUri(secret, member.email, "Deadline-Radar") });
+  const enrollmentToken = await sealEnrollmentSecret(secret, member.id, session.sessionId, env.TOTP_ENCRYPTION_KEY);
+  return jsonResponse(200, {
+    secret,
+    otpauth_uri: buildOtpauthUri(secret, member.email, "Deadline-Radar"),
+    enrollment_token: enrollmentToken,
+  });
 }
 
 /**
  * POST /firm/2fa/enroll/confirm -- roadmap #53, enrollment step 2. Body:
- * secret (the value /enroll just returned), code (what the member's app
- * shows for it right now). Verifying the code against the CLIENT-SUPPLIED
- * secret before ever persisting anything is the whole security argument
- * for the stateless enroll/confirm split above: this route only ever
- * writes a secret it just watched produce a real, currently-valid code, so
- * there is no path where an unverified value reaches storage.
+ * enrollment_token (sealed by /enroll for this member and session), code
+ * (what the member's app shows for it right now). SEC-48: the secret comes
+ * ONLY from the token; a body `secret` is ignored. Verifying a code against
+ * a client-supplied secret proves nothing (the client picked the secret), so
+ * the token is what makes /enroll's step-up gate cover this write.
  *
  * Refuses outright if the member is already enrolled -- without this, a
  * stolen session could silently swap out a legitimate member's TOTP secret
@@ -12251,10 +12282,16 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
     return jsonResponse(400, { error: "Something went wrong processing that request." });
   }
 
-  const secret = typeof body.secret === "string" ? body.secret.trim().toUpperCase() : "";
+  const enrollmentToken = typeof body.enrollment_token === "string" ? body.enrollment_token.trim() : "";
   const code = typeof body.code === "string" ? body.code.trim() : "";
-  if (!secret || !code) {
+  if (!code) {
     return jsonResponse(400, { error: "Enter the 6-digit code from your authenticator app." });
+  }
+  const secret = enrollmentToken
+    ? await openEnrollmentSecret(enrollmentToken, session.memberId, session.sessionId, env.TOTP_ENCRYPTION_KEY)
+    : null;
+  if (!secret) {
+    return jsonResponse(400, { error: "That setup has expired. Please start two-factor setup again." });
   }
 
   const firm = await store.getFirmById(env.DB, session.firmId);
@@ -12639,6 +12676,8 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   // the firm has no password yet (a magic-link-only firm must still be able
   // to use this feature) or the session itself is passwordResetAuthorized
   // (already proved control of the current inbox via a fresh reset link).
+  // SEC-48: the no-password case is no longer skipped -- it needs a recent
+  // sign-in instead (passwordlessReauthRequired).
   if (member.password_hash && !session.passwordResetAuthorized) {
     const currentOk = await verifyPassword(
       currentPassword,
@@ -12654,6 +12693,8 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
     if (!currentOk) {
       return jsonResponse(400, { error: "That current password isn't right." });
     }
+  } else if (!member.password_hash && !session.passwordResetAuthorized && !session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
   }
 
   // Same LOWER(TRIM()) normalization findFirmMemberByEmail()/the migration
