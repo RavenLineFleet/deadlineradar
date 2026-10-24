@@ -191,6 +191,14 @@ def main() -> int:
             if monthly_on and env_name.endswith("_MONTHLY"):
                 mismatches.append((env_name, expected["label"], "<unset>", [
                     "env var unset while MONTHLY_BILLING_ENABLED -- the site offers monthly but checkout would 503"]))
+            elif expected["interval"] == "year":
+                # BILL-47 (AuditLab, LOW, 2026-10-24): same rule as the cron
+                # (scheduler.ts, OVER-2 + BILL-45) -- /pricing/ advertises every
+                # annual tier and the annual per-seat rate unconditionally, so an
+                # unset id is a 503 at checkout. This used to print "NOT
+                # CONFIGURED" and PASS where the cron alerts.
+                mismatches.append((env_name, expected["label"], "<unset>", [
+                    "env var unset while /pricing/ advertises this price -- checkout for it would 503"]))
             else:
                 missing_env.append(env_name)
             continue

@@ -179,10 +179,21 @@ def test_block1_unset_monthly_price_is_skipped_when_monthly_disabled(monkeypatch
     assert "NOT CONFIGURED" in output
 
 
-def test_block1_unset_annual_price_stays_skipped_while_monthly_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(recon, "monthly_billing_enabled", lambda: True)
-    exit_code, _output = _run_with_all_prices_except(monkeypatch, "STRIPE_PRICE_FIRM_GROWTH")
-    assert exit_code == 0
+@pytest.mark.parametrize("monthly_on", [True, False])
+@pytest.mark.parametrize("env_name", [
+    "STRIPE_PRICE_FIRM_STARTER", "STRIPE_PRICE_FIRM_GROWTH", "STRIPE_PRICE_FIRM_STANDARD",
+    "STRIPE_PRICE_FIRM_SCALE", "STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL",
+])
+def test_bill47_unset_annual_price_is_a_mismatch_like_the_cron(
+    monkeypatch: pytest.MonkeyPatch, env_name: str, monthly_on: bool
+) -> None:
+    """BILL-47 (AuditLab, 2026-10-24): the cron alerts on an unset annual id
+    (scheduler.ts OVER-2 + BILL-45); this script used to skip it and PASS."""
+    monkeypatch.setattr(recon, "monthly_billing_enabled", lambda: monthly_on)
+    exit_code, output = _run_with_all_prices_except(monkeypatch, env_name)
+    assert exit_code == 1
+    assert "MISMATCH" in output and env_name in output
+    assert "PASS --" not in output
 
 
 def test_monthly_billing_enabled_reads_the_real_tiers_ts_flag() -> None:
