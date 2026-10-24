@@ -5490,7 +5490,12 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS (the
     # dashboard's per-seat-over-cap label). Checked below, after py_text
     # is read.
-    per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD\s*=\s*(\d+)", ts_text)
+    # SEC-38 (SecurityLab, 2026-10-24): every price capture in this function
+    # was int-only somewhere -- `15.50` matched as `15`, so drift to a decimal
+    # price passed GREEN and a consistent decimal price failed; a decimal
+    # segment card didn't match at all and was dropped with no error. Same
+    # truncation hole GATE-57/58 closed for FIRM_TIERS; all widened here.
+    per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD\s*=\s*(\d+(?:\.\d+)?)", ts_text)
     per_seat_monthly_match = re.search(r"PER_SEAT_ADDON_MONTHLY_USD\s*=\s*([\d.]+)", ts_text)
 
     py_text = generate_py.read_text(encoding="utf-8")
@@ -5578,21 +5583,21 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
             )
 
     if per_seat_annual_match and per_seat_monthly_match:
-        ts_per_seat_annual = int(per_seat_annual_match.group(1))
+        ts_per_seat_annual = float(per_seat_annual_match.group(1))
         ts_per_seat_monthly = float(per_seat_monthly_match.group(1))
-        js_per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD_JS\s*=\s*(\d+)", py_text)
+        js_per_seat_annual_match = re.search(r"PER_SEAT_ADDON_ANNUAL_USD_JS\s*=\s*(\d+(?:\.\d+)?)", py_text)
         js_per_seat_monthly_match = re.search(r"PER_SEAT_ADDON_MONTHLY_USD_JS\s*=\s*([\d.]+)", py_text)
         if not (js_per_seat_annual_match and js_per_seat_monthly_match):
             errors.append("[SYNC] Could not find generate.py's PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS -- markup shape may have changed; update check_pricing_matches_tiers()")
         else:
-            js_per_seat_annual = int(js_per_seat_annual_match.group(1))
+            js_per_seat_annual = float(js_per_seat_annual_match.group(1))
             js_per_seat_monthly = float(js_per_seat_monthly_match.group(1))
             if js_per_seat_annual != ts_per_seat_annual or js_per_seat_monthly != ts_per_seat_monthly:
                 errors.append(
                     f"[SYNC] generate.py's PER_SEAT_ADDON_ANNUAL_USD_JS/PER_SEAT_ADDON_MONTHLY_USD_JS are "
-                    f"${js_per_seat_annual}/${js_per_seat_monthly}, but worker/src/tiers.ts's "
+                    f"${js_per_seat_annual:g}/${js_per_seat_monthly:g}, but worker/src/tiers.ts's "
                     f"PER_SEAT_ADDON_ANNUAL_USD/PER_SEAT_ADDON_MONTHLY_USD are "
-                    f"${ts_per_seat_annual}/${ts_per_seat_monthly} -- the dashboard's per-seat label and the "
+                    f"${ts_per_seat_annual:g}/${ts_per_seat_monthly:g} -- the dashboard's per-seat label and the "
                     f"actual checkout add-on price would disagree."
                 )
 
@@ -5641,21 +5646,24 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
                 f"${highest_tier['priceUsd']:g}/year ({highest_tier['seatCap']} staff)."
             )
 
-    segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year(?: or \$(\d+)/month)?\.</div>')
-    for label, price_str, monthly_str in segment_pat.findall(py_text):
+    segment_pat = re.compile(r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+(?:\.\d+)?)/year(?: or \$(\d+(?:\.\d+)?)/month)?\.</div>')
+    segment_matches = segment_pat.findall(py_text)
+    if not segment_matches:
+        errors.append("[SYNC] Could not find the /for-firms/ segment-card price lines in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()'s segment_pat")
+    for label, price_str, monthly_str in segment_matches:
         tier = by_label.get(label)
         if tier is None:
             errors.append(f'[SYNC] generate.py\'s /for-firms/ segment cards show a "{label}" detail line with no matching label in worker/src/tiers.ts\'s FIRM_TIERS')
             continue
-        if int(price_str) != tier["priceUsd"]:
+        if float(price_str) != tier["priceUsd"]:
             errors.append(
                 f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${price_str}/year, but '
                 f"worker/src/tiers.ts's FIRM_TIERS says ${tier['priceUsd']:g}/year for it."
             )
-        if monthly_str and int(monthly_str) != tier["monthlyPriceUsd"]:
+        if monthly_str and float(monthly_str) != tier["monthlyPriceUsd"]:
             errors.append(
                 f'[SYNC] generate.py\'s /for-firms/ segment card for "{label}" shows ${monthly_str}/month, but '
-                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['monthlyPriceUsd']}/month for it."
+                f"worker/src/tiers.ts's FIRM_TIERS says ${tier['monthlyPriceUsd']:g}/month for it."
             )
 
     # BILL-16 (AuditLab, 2026-08-29): the segment card's OWN "up to N staff"
@@ -5665,9 +5673,12 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # mutation (a "5" changed to "6" here passed clean) before adding this.
     segment_seatcap_pat = re.compile(
         r'<div class="dr-segment-name">[^<]*?up to (\d+) staff</div>\s*'
-        r'<div class="dr-segment-detail">([^<]+?) &mdash; \$(\d+)/year(?: or \$\d+/month)?\.</div>'
+        r'<div class="dr-segment-detail">([^<]+?) &mdash; \$\d+(?:\.\d+)?/year(?: or \$\d+(?:\.\d+)?/month)?\.</div>'
     )
-    for seat_cap_str, label, price_str in segment_seatcap_pat.findall(py_text):
+    segment_seatcap_matches = segment_seatcap_pat.findall(py_text)
+    if not segment_seatcap_matches:
+        errors.append("[SYNC] Could not find the /for-firms/ segment-card 'up to N staff' lines in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()'s segment_seatcap_pat")
+    for seat_cap_str, label in segment_seatcap_matches:
         tier = by_label.get(label)
         if tier is None:
             continue  # already reported by segment_pat above
@@ -5690,18 +5701,18 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         # i18n.py's only remaining bounds-prose surface) and given the same
         # "could not find" assertion its sibling arms already have.
         i18n_bounds_pat = re.compile(
-            r"firm plans from \$(\d+) to \$(\d+)/year \(or \$(\d+) to \$(\d+)/month\)"
+            r"firm plans from \$(\d+(?:\.\d+)?) to \$(\d+(?:\.\d+)?)/year \(or \$(\d+(?:\.\d+)?) to \$(\d+(?:\.\d+)?)/month\)"
         )
         i18n_bounds_matches = list(i18n_bounds_pat.finditer(i18n_text))
         for m in i18n_bounds_matches:
             lo_price_str, hi_price_str, lo_mo_str, hi_mo_str = m.groups()
-            lo_price, hi_price = int(lo_price_str), int(hi_price_str)
-            lo_mo, hi_mo = int(lo_mo_str), int(hi_mo_str)
+            lo_price, hi_price = float(lo_price_str), float(hi_price_str)
+            lo_mo, hi_mo = float(lo_mo_str), float(hi_mo_str)
             if (lo_price, hi_price) != (lowest_tier["priceUsd"], highest_tier["priceUsd"]) or \
                (lo_mo, hi_mo) != (lowest_tier["monthlyPriceUsd"], highest_tier["monthlyPriceUsd"]):
                 errors.append(
-                    f"[SYNC] i18n.py's pricing.meta_description reads \"firm plans from ${lo_price} to "
-                    f"${hi_price}/year (or ${lo_mo} to ${hi_mo}/month)\", but worker/src/tiers.ts's "
+                    f"[SYNC] i18n.py's pricing.meta_description reads \"firm plans from ${lo_price:g} to "
+                    f"${hi_price:g}/year (or ${lo_mo:g} to ${hi_mo:g}/month)\", but worker/src/tiers.ts's "
                     f"FIRM_TIERS lowest/highest tiers are ${lowest_tier['priceUsd']:g}/${highest_tier['priceUsd']:g}/year, "
                     f"${lowest_tier['monthlyPriceUsd']:g}/${highest_tier['monthlyPriceUsd']:g}/month."
                 )
@@ -5722,7 +5733,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     # not i18n_text, so they were wrongly nested under `if i18n_path.exists():`
     # -- moved to the same indent as the other py_text arms above so they
     # cannot silently stop verifying if i18n.py is ever removed or renamed.
-    founding_pat = re.compile(r"Growth plan, normally \$(\d+) a year")
+    founding_pat = re.compile(r"Growth plan, normally \$(\d+(?:\.\d+)?) a year")
     founding_matches = founding_pat.findall(py_text)
     growth_tier = by_label.get("Growth")
     if not founding_matches:
@@ -5734,7 +5745,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         errors.append("[SYNC] generate.py's /founding-firms/ prose names a \"Growth\" plan, but worker/src/tiers.ts's FIRM_TIERS has no tier labelled \"Growth\"")
     else:
         for price_str in founding_matches:
-            if int(price_str) != growth_tier["priceUsd"]:
+            if float(price_str) != growth_tier["priceUsd"]:
                 errors.append(
                     f"[SYNC] generate.py's /founding-firms/ page says the Growth plan is \"normally "
                     f"${price_str} a year\", but worker/src/tiers.ts's FIRM_TIERS says ${growth_tier['priceUsd']:g}/year for it."
@@ -5773,8 +5784,8 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         if not prose_monthly:
             errors.append("[SYNC] Could not find the '$N/seat/month' per-seat prose in generate.py -- markup shape may have changed; update check_pricing_matches_tiers()")
         for v in prose_annual:
-            if v != float(ts_per_seat_annual):
-                errors.append(f"[SYNC] i18n.py says ${v:g}/seat/year but worker/src/tiers.ts's PER_SEAT_ADDON_ANNUAL_USD is ${ts_per_seat_annual} -- the customer-facing add-on price would disagree with checkout.")
+            if v != ts_per_seat_annual:
+                errors.append(f"[SYNC] i18n.py says ${v:g}/seat/year but worker/src/tiers.ts's PER_SEAT_ADDON_ANNUAL_USD is ${ts_per_seat_annual:g} -- the customer-facing add-on price would disagree with checkout.")
         for v in prose_monthly:
             if v != ts_per_seat_monthly:
                 errors.append(f"[SYNC] generate.py says ${v:g}/seat/month but worker/src/tiers.ts's PER_SEAT_ADDON_MONTHLY_USD is ${ts_per_seat_monthly:g} -- the customer-facing add-on price would disagree with checkout.")
