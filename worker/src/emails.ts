@@ -2595,16 +2595,18 @@ export function buildTrialEndingSoonEmail(details: { firmName: string; daysRemai
  * "trialEndingNotice", which is NOT approved anywhere: this text needs Devin's
  * consent before that name is added to SEND_APPROVED_PASSES.
  * Every figure is a product fact checked against the shipped code/pricing
- * table (see AssetLab/state/TRIAL_END_EMAIL_DRAFT.md).
+ * table (see AssetLab/state/TRIAL_END_EMAIL_DRAFT.md). SEC-40 (2026-10-24):
+ * the free cap is the caller's seatCapForFirmTier() value, not a literal --
+ * at 3 the text is byte-identical to the reviewed draft.
  */
-export function buildTrialEndingNoticeEmail(details: { firmName: string; daysRemaining: number; pricingUrl: string; dashboardUrl: string }): BuiltEmail {
+export function buildTrialEndingNoticeEmail(details: { firmName: string; daysRemaining: number; freeCap: number; pricingUrl: string; dashboardUrl: string }): BuiltEmail {
   const safeFirmName = details.firmName.replace(/[\r\n]+/g, " ");
   const days = `${details.daysRemaining} day${details.daysRemaining === 1 ? "" : "s"}`;
   const subject = `Your Deadline-Radar 14-day trial ends in ${days}`;
   const textBody =
     `Hi ${safeFirmName || "there"},\n\n` +
     `Your 14-day trial of the Deadline-Radar paid features ends in ${days}.\n\n` +
-    `After that your account is on the Free plan. Your roster of up to 3 staff, calendar, CPE-hour tracking and ` +
+    `After that your account is on the Free plan. Your roster of up to ${details.freeCap} staff, calendar, CPE-hour tracking and ` +
     `email renewal reminders stay free, with no time limit. Document storage, Slack and Teams alerts, the daily ` +
     `firm-wide digest and the coverage overview are paid features, so they are only available on a paid plan.\n\n` +
     `If the Free plan is all you need, you don't have to do anything. Paid plans start at $199 a year or $20 a month: ` +
@@ -2614,7 +2616,7 @@ export function buildTrialEndingNoticeEmail(details: { firmName: string; daysRem
   const htmlBody =
     `<p>Hi ${esc(safeFirmName || "there")},</p>` +
     `<p>Your 14-day trial of the Deadline-Radar paid features ends in <strong>${days}</strong>.</p>` +
-    `<p>After that your account is on the Free plan. Your roster of up to 3 staff, calendar, CPE-hour tracking and ` +
+    `<p>After that your account is on the Free plan. Your roster of up to ${details.freeCap} staff, calendar, CPE-hour tracking and ` +
     `email renewal reminders stay free, with no time limit. Document storage, Slack and Teams alerts, the daily ` +
     `firm-wide digest and the coverage overview are paid features, so they are only available on a paid plan.</p>` +
     `<p>If the Free plan is all you need, you don't have to do anything. Paid plans start at $199 a year or $20 a month: ` +

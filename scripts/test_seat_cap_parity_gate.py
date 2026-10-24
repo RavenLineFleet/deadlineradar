@@ -16,9 +16,13 @@ import preship_gate as gate  # noqa: E402
 REPO = Path(HERE).parent
 
 
-def _fixture(tmp_path, ts_fn=lambda t: t, py_fn=lambda t: t, i18n_fn=lambda t: t):
+def _fixture(tmp_path, ts_fn=lambda t: t, py_fn=lambda t: t, i18n_fn=lambda t: t,
+             emails_fn=lambda t: t, sched_fn=lambda t: t, omit=()):
     (tmp_path / "worker" / "src").mkdir(parents=True)
-    for rel, fn in (("generate.py", py_fn), ("i18n.py", i18n_fn), ("worker/src/tiers.ts", ts_fn)):
+    for rel, fn in (("generate.py", py_fn), ("i18n.py", i18n_fn), ("worker/src/tiers.ts", ts_fn),
+                    ("worker/src/emails.ts", emails_fn), ("worker/src/scheduler.ts", sched_fn)):
+        if rel in omit:
+            continue
         (tmp_path / rel).write_text(fn((REPO / rel).read_text(encoding="utf-8")), encoding="utf-8")
     return gate.check_pricing_matches_tiers(tmp_path)
 
@@ -92,7 +96,9 @@ def test_lowest_cap_drift_hits_faq_and_roster_row(tmp_path):
 def test_free_cap_drift_is_not_silent(tmp_path):
     errors = _fixture(tmp_path, ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP = 4;")))
     # 12 surfaces; generate.py's trial-end paragraph carries 2 phrasings.
+    # SEC-40: emails.ts adds none -- its notice interpolates freeCap.
     assert len(errors) == 13, errors
+    assert not any("emails.ts" in e for e in errors), errors
 
 
 def test_consistent_free_cap_change_is_clean(tmp_path):
@@ -128,3 +134,42 @@ def test_rephrased_copy_is_not_silent(tmp_path):
 def test_free_cap_constant_missing_is_not_silent(tmp_path):
     errors = _fixture(tmp_path, ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP: number = 3;")))
     assert any("NEW_SIGNUP_FREE_SEAT_CAP numeric literal" in e for e in errors)
+
+
+_NOTICE_INTERP = "Your roster of up to ${details.freeCap} staff"
+_NOTICE_LITERAL = "Your roster of up to 3 staff"
+
+
+def _emails_literal(text):
+    assert text.count(_NOTICE_INTERP) == 2
+    return text.replace(_NOTICE_INTERP, _NOTICE_LITERAL)
+
+
+def test_emails_literal_cap_is_not_silent_even_at_matching_value(tmp_path):
+    # SEC-40 ROUND3: the pre-fix emails.ts, tiers.ts untouched (cap 3 == 3).
+    errors = _fixture(tmp_path, emails_fn=_emails_literal)
+    assert len([e for e in errors if "states a literal seat cap" in e]) == 2, errors
+    assert any("found 0, want 2" in e for e in errors), errors
+
+
+def test_emails_literal_cap_with_free_cap_drift_is_not_green(tmp_path):
+    # The pre-fix emails.ts, every generate.py/i18n.py copy moved with the cap.
+    errors = _fixture(
+        tmp_path,
+        ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP = 4;")),
+        py_fn=_resub(*(_STAFF_WORDED_PY + _PEOPLE_WORDED_PY)),
+        i18n_fn=_resub(*_STAFF_WORDED_I18N),
+        emails_fn=_emails_literal,
+    )
+    assert errors and all("emails.ts" in e for e in errors), errors
+
+
+def test_scheduler_dropping_free_cap_is_not_silent(tmp_path):
+    errors = _fixture(tmp_path, sched_fn=lambda t: re.sub(
+        r"(buildTrialEndingNoticeEmail\(\{[^}]*?)freeCap, ", r"\1", t, count=1))
+    assert any("does not pass freeCap" in e for e in errors), errors
+
+
+def test_missing_emails_or_scheduler_fails_closed(tmp_path):
+    errors = _fixture(tmp_path, omit=("worker/src/emails.ts",))
+    assert any("emails.ts not found" in e for e in errors), errors

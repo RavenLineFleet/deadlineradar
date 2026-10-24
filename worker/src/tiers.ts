@@ -21,10 +21,9 @@ import { isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
  * seatCapForFirmTier() below), same grandfather mechanism as the other
  * four #151 gates.
  *
- * SEC-39 (2026-10-24): generate.py's and i18n.py's "up to 3 staff" copy
- * (9 sites, varied phrasing) is now gated against this constant by
- * preship_gate.py's check_pricing_matches_tiers() -- supersedes BILL-16's
- * scope call to leave it ungated. */
+ * SEC-39/SEC-40 (2026-10-24): customer-facing copy restating this cap is
+ * gated against it by preship_gate.py's check_pricing_matches_tiers() --
+ * supersedes BILL-16's scope call to leave it ungated. */
 export const NEW_SIGNUP_FREE_SEAT_CAP = 3;
 
 export interface FirmTierDef {

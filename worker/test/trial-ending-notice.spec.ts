@@ -155,7 +155,7 @@ describe("runTrialEndingNoticePass -- built dark", () => {
 });
 
 describe("buildTrialEndingNoticeEmail -- the draft text", () => {
-  const built = buildTrialEndingNoticeEmail({ firmName: "Acme CPA", daysRemaining: 3, pricingUrl: "https://deadline-radar.com/pricing/", dashboardUrl: "https://deadline-radar.com/firm-dashboard/#account" });
+  const built = buildTrialEndingNoticeEmail({ firmName: "Acme CPA", daysRemaining: 3, freeCap: 3, pricingUrl: "https://deadline-radar.com/pricing/", dashboardUrl: "https://deadline-radar.com/firm-dashboard/#account" });
   it("states only facts the pricing table backs, and nothing it cannot back", () => {
     expect(built.subject).toBe("Your Deadline-Radar 14-day trial ends in 3 days");
     for (const must of ["14-day trial", "up to 3 staff", "no time limit", "Document storage", "Slack and Teams alerts", "daily firm-wide digest", "coverage overview", "$199 a year or $20 a month"]) {
@@ -181,7 +181,7 @@ describe("buildTrialEndingNoticeEmail -- the draft text", () => {
   });
   it("AuditLab 16:20 gap: subject, greeting, body, dashboard line and sign-off for N=2 equal the reviewed full text, character for character", () => {
     // The literal below IS the reviewed text (AssetLab/claims/drafts/trial_notice_email_full.txt).
-    const full = buildTrialEndingNoticeEmail({ firmName: "Acme CPA", daysRemaining: 2, pricingUrl: "https://deadline-radar.com/pricing/", dashboardUrl: "https://deadline-radar.com/firm-dashboard/#account" });
+    const full = buildTrialEndingNoticeEmail({ firmName: "Acme CPA", daysRemaining: 2, freeCap: 3, pricingUrl: "https://deadline-radar.com/pricing/", dashboardUrl: "https://deadline-radar.com/firm-dashboard/#account" });
     const expected = [
       "Hi Acme CPA,",
       "",
@@ -199,9 +199,16 @@ describe("buildTrialEndingNoticeEmail -- the draft text", () => {
     expect(full.textBody).toBe(expected);
   });
   it("singular day, and firm names are neutralised (header injection in text, markup in HTML)", () => {
-    expect(buildTrialEndingNoticeEmail({ firmName: "A", daysRemaining: 1, pricingUrl: "p", dashboardUrl: "d" }).subject).toBe("Your Deadline-Radar 14-day trial ends in 1 day");
-    const evil = buildTrialEndingNoticeEmail({ firmName: "Evil\r\nBcc: x@y.z <script>alert(1)</script>", daysRemaining: 2, pricingUrl: "p", dashboardUrl: "d" });
+    expect(buildTrialEndingNoticeEmail({ firmName: "A", daysRemaining: 1, freeCap: 3, pricingUrl: "p", dashboardUrl: "d" }).subject).toBe("Your Deadline-Radar 14-day trial ends in 1 day");
+    const evil = buildTrialEndingNoticeEmail({ firmName: "Evil\r\nBcc: x@y.z <script>alert(1)</script>", daysRemaining: 2, freeCap: 3, pricingUrl: "p", dashboardUrl: "d" });
     expect(evil.textBody).not.toMatch(/\r|\nBcc:/);
     expect(evil.htmlBody).not.toContain("<script>");
+  });
+  it("SEC-40: the roster cap is the caller's freeCap, never a literal 3", () => {
+    const b = buildTrialEndingNoticeEmail({ firmName: "A", daysRemaining: 2, freeCap: 5, pricingUrl: "p", dashboardUrl: "d" });
+    for (const body of [b.textBody, b.htmlBody]) {
+      expect(body).toContain("Your roster of up to 5 staff,");
+      expect(body).not.toContain("up to 3 staff");
+    }
   });
 });

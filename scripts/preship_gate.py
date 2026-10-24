@@ -5843,6 +5843,31 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
             if got != expect:
                 errors.append(f"[SYNC] {fname} seat-cap copy /{pat}/ states {got}, but worker/src/tiers.ts says {expect} -- the advertised seat cap would disagree with what checkout bills.")
 
+
+    # SEC-40 (SecurityLab, AuditLab-confirmed, 2026-10-24): emails.ts's
+    # trial-ending notice hardcoded "up to 3 staff" and no arm above reads
+    # emails.ts. Its cap now comes from the caller's seatCapForFirmTier(), so
+    # the arms are: no literal "up to N <noun>" in emails.ts at all, the
+    # interpolated phrase present in both bodies, and scheduler.ts passing
+    # freeCap (the Worker bundle isn't typechecked, so a dropped argument
+    # would render "up to undefined staff").
+    emails_ts = repo_root / "worker" / "src" / "emails.ts"
+    scheduler_ts = repo_root / "worker" / "src" / "scheduler.ts"
+    for p in (emails_ts, scheduler_ts):
+        if not p.exists():
+            errors.append(f"[SYNC] worker/src/{p.name} not found -- can't verify the trial-ending notice's seat cap (SEC-40)")
+    if emails_ts.exists():
+        emails_cap_text = emails_ts.read_text(encoding="utf-8")
+        for m in re.finditer(r"up to (\d+) " + noun + r"\b", emails_cap_text):
+            line_no = emails_cap_text.count("\n", 0, m.start()) + 1
+            errors.append(f"[SYNC] worker/src/emails.ts:{line_no} states a literal seat cap {m.group(0)!r} -- email copy must interpolate the caller's freeCap, not restate tiers.ts (SEC-40)")
+        n = emails_cap_text.count("Your roster of up to ${details.freeCap} staff")
+        if n != 2:
+            errors.append(f"[SYNC] Could not find the trial-ending notice's interpolated 'Your roster of up to ${{details.freeCap}} staff' in both bodies of worker/src/emails.ts (found {n}, want 2) -- markup shape may have changed; update check_pricing_matches_tiers()'s SEC-40 arm")
+    if scheduler_ts.exists():
+        if not re.search(r"buildTrialEndingNoticeEmail\(\{[^}]*\bfreeCap\b[^}]*\}\)", scheduler_ts.read_text(encoding="utf-8")):
+            errors.append("[SYNC] worker/src/scheduler.ts's buildTrialEndingNoticeEmail({...}) call does not pass freeCap -- the notice would render 'up to undefined staff' (SEC-40)")
+
     return errors
 
 

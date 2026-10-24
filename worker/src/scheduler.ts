@@ -3012,7 +3012,7 @@ export async function runTrialEndingNoticePass(env: Env, opts: RunTrialEndingNot
       const daysRemaining = Math.max(1, Math.ceil((trialEndsAtMs - now.getTime()) / 86_400_000));
       const claimed = await store.claimTrialEndingSoonNotice(env.DB, firm.id);
       if (!claimed) continue;
-      const built = buildTrialEndingNoticeEmail({ firmName: firm.name, daysRemaining, pricingUrl, dashboardUrl });
+      const built = buildTrialEndingNoticeEmail({ firmName: firm.name, daysRemaining, freeCap, pricingUrl, dashboardUrl });
       const ok = await send(firm.admin_email, built);
       if (ok) summary.sent += 1;
       else summary.errors.push({ firm_id: firm.id, error: "send returned false" });
