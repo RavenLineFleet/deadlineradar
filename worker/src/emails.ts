@@ -1103,15 +1103,20 @@ export function buildSubscriberEmailChangeRequestedNoticeEmail(requestedNewEmail
   const subject = `An email change was requested on your ${SITE_NAME} account`;
   // UX-11 (2026-08-21): was `subject` verbatim -- requestedNewEmail is
   // already in scope and is the concrete fact worth surfacing at a glance.
-  const preheader = `Requested new address: ${requestedNewEmail}. Not you? No action needed unless confirmed.`;
+  const preheader = `Requested new address: ${requestedNewEmail}. Not you? Sign in again to cancel it.`;
+  // SUBSESS-2: this used to say "you can safely ignore this email", but
+  // whoever requested the change controls the new address and will confirm
+  // it. A fresh sign-in is what cancels it (handleSubscriberLoginVerify()).
+  const signInUrl = `${SITE_URL}/signin/`;
 
   const textBody =
     `A request was just made to change the email address on your ${SITE_NAME} account to ` +
     `${requestedNewEmail} (${whenIso}). Nothing has changed yet -- the new address still has to be ` +
     `confirmed before this takes effect.\n\n` +
     `If this was you, no action is needed.\n\n` +
-    `IF THIS WAS NOT YOU, you can safely ignore this email -- nothing changes unless the new ` +
-    `address is confirmed.\n\n` +
+    `IF THIS WAS NOT YOU, do not ignore this email. Request a new sign-in link for this address at ` +
+    `${signInUrl} and open it. Signing in cancels the pending change and signs out every other ` +
+    `session. Do it soon: the change takes effect as soon as the new address confirms it.\n\n` +
     `---\n${SENDER_LINE}\n${addr}`;
 
   const htmlBody = htmlShell(
@@ -1125,8 +1130,10 @@ export function buildSubscriberEmailChangeRequestedNoticeEmail(requestedNewEmail
       ) +
       p("If this was you, no action is needed.", 13, LIGHT.muted) +
       p(
-        "<strong>If this was not you</strong>, you can safely ignore this email -- nothing changes " +
-          "unless the new address is confirmed.",
+        `<strong>If this was not you</strong>, do not ignore this email. Request a new sign-in link ` +
+          `for this address at ${textLink(signInUrl, signInUrl)} and open it. Signing in ` +
+          `cancels the pending change and signs out every other session. Do it soon: the change takes ` +
+          `effect as soon as the new address confirms it.`,
         13,
         LIGHT.muted
       ),

@@ -11,6 +11,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import * as emails from "../src/emails";
 
 const BASE = "https://deadline-radar.com";
 
@@ -480,6 +481,45 @@ describe("POST /subscriber/login/verify -- email_change apply phase (roadmap #12
     expect(await store.verifySubscriberSession(env.DB, staleOld.rawSessionToken)).toBeNull();
     expect((await store.verifySubscriberSession(env.DB, fresh))?.emailNormalized).toBe(store.normalizeEmail(oldEmail));
     expect(await store.verifySubscriberSession(env.DB, contestedOwner.rawSessionToken)).not.toBeNull();
+  });
+
+  it("SUBSESS-2: a plain sign-in by the owner burns a pending email change, so the attacker's confirm link no longer transfers the account", async () => {
+    const ownerEmail = `subsess2-owner-${Date.now()}@example.com`;
+    const attackerEmail = `subsess2-attacker-${Date.now()}@example.com`;
+    const bystander = `subsess2-bystander-${Date.now()}@example.com`;
+    await seed(ownerEmail, "texas");
+    // The attacker's pending change, plus an unrelated pending change as a control.
+    const attack = await store.createSubscriberLoginToken(env.DB, ownerEmail, "email_change", attackerEmail);
+    await store.createSubscriberLoginToken(env.DB, bystander, "email_change", `subsess2-other-${Date.now()}@example.com`);
+    const login = await store.createSubscriberLoginToken(env.DB, ownerEmail, "login");
+
+    const resp = await postVerify(login.rawToken, "203.0.113.233");
+    expect(resp.headers.get("Location")).toBe(`/my/`);
+
+    const pending = async (email: string) =>
+      (
+        await env.DB.prepare(
+          "SELECT COUNT(*) AS c FROM subscriber_login_tokens WHERE email_normalized = ?1 AND purpose = 'email_change' AND used_at IS NULL"
+        )
+          .bind(store.normalizeEmail(email))
+          .first<{ c: number }>()
+      )?.c;
+    expect(await pending(ownerEmail)).toBe(0);
+    expect(await pending(bystander)).toBe(1);
+
+    const replay = await postVerify(attack.rawToken, "203.0.113.234");
+    expect(replay.status).toBe(400);
+    expect((await store.listSubscriberLicenses(env.DB, ownerEmail)).length).toBe(1);
+    expect(await store.listSubscriberLicenses(env.DB, attackerEmail)).toEqual([]);
+  });
+
+  it("SUBSESS-2: the change-requested notice tells the owner to sign in again, not to ignore it", () => {
+    const built = emails.buildSubscriberEmailChangeRequestedNoticeEmail("someone@example.com", "2026-10-24T00:00:00Z");
+    for (const body of [built.textBody, built.htmlBody]) {
+      expect(body).not.toMatch(/safely ignore/);
+      expect(body).toContain("https://deadline-radar.com/signin/");
+      expect(body).toContain("cancels the pending change");
+    }
   });
 
   it("full request-then-redeem round trip via the real emailed confirm link", async () => {

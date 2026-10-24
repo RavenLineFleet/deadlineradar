@@ -4914,6 +4914,17 @@ async function handleSubscriberLoginVerify(env: Env, token: string | null): Prom
   // account screen, so "request a fresh link" IS the sign-out-everywhere
   // control, and it only works if it actually revokes.
   await store.deleteOtherSubscriberSessions(env.DB, signInEmail, sessionId);
+  // SUBSESS-2: revoking sessions alone doesn't stop a transfer an attacker
+  // already started from a stolen session -- the confirm link sits in THEIR
+  // inbox and redeems with no session at all. So a plain sign-in also burns
+  // any pending email change for this address, which is what the notice
+  // email now tells the real owner to do. Only on a plain sign-in: "applied"
+  // already burned the old address's tokens above, and a "conflict"
+  // redemption isn't the owner's recovery. A legitimate user who signs in
+  // again before confirming has to re-request the change (fail-safe).
+  if (emailChangeOutcome === null) {
+    await store.invalidateOutstandingSubscriberEmailChangeTokens(env.DB, signInEmail);
+  }
   const destinationQuery =
     emailChangeOutcome === "applied" ? "?email_changed=1" : emailChangeOutcome === "conflict" ? "?email_change_failed=conflict" : "";
   return new Response(null, {
