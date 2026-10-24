@@ -92,3 +92,11 @@ def test_9_unreadable_base_is_an_error_not_a_skip(tmp_path):
 
 def test_10_real_repo_pins_match_shipped_bodies():
     assert gate.check_blog_body_change_advances_modified(REPO_ROOT) == []
+
+
+def test_11_unimportable_generate_is_an_error_not_a_skip(monkeypatch):
+    # GATE-65: repo_root does not govern `import generate` (sys.path/sys.modules
+    # do), so block the import where it actually resolves.
+    monkeypatch.setitem(sys.modules, "generate", None)
+    errs = gate.check_blog_body_change_advances_modified(REPO_ROOT)
+    assert len(errs) == 1 and "measuring nothing" in errs[0], errs

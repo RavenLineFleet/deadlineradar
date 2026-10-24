@@ -576,8 +576,11 @@ def check_blog_body_change_advances_modified(
         sys.path.insert(0, str(repo_root))
         try:
             import generate as generate_module
-        except ImportError:
-            return ["[BLOG-BODY] generate.py could not be imported -- this check is measuring nothing"]
+        except Exception as e:
+            # GATE-66: Exception, not ImportError -- same widening as the
+            # [GATE-20] arms, so a SyntaxError in generate.py reports here
+            # instead of aborting main() and forfeiting every later check.
+            return [f"[BLOG-BODY] generate.py could not be imported ({type(e).__name__}: {e}) -- this check is measuring nothing"]
         blog_articles = generate_module.BLOG_ARTICLES
     if reviews is None:
         reviews = json.loads((repo_root / "data" / "guide_reviews.json").read_text(encoding="utf-8"))["guides"]

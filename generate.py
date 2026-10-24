@@ -10198,6 +10198,25 @@ def _rule_change_status_label(status: str | None) -> str:
     }.get(status or "", "Status undetermined")
 
 
+def _rc_verified_html(e: dict) -> str:
+    # AuditLab STALE-76 (MEDIUM, 2026-10-23): RC-23 put data-verified on the
+    # conflict cards only, so _STALE_BADGE_RUNTIME_JS reached 4 of 21 cards on
+    # /rule-changes/ -- "Recently changed, confirmed" claimed "settled" over 7
+    # undated cards, 3 of them 36-79 days past verification. Shared by every
+    # card builder so a new bucket can't regress to dateless again.
+    _verified = e.get("verified_date")
+    if not (isinstance(_verified, str) and _verified):
+        return ""
+    try:
+        _verified_human = esc(fmt_date(date.fromisoformat(_verified)))
+    except ValueError:
+        return ""
+    return (
+        f'<p class="rc-verified verified-badge" data-verified="{esc(_verified)}">'
+        f'Verified {_verified_human}</p>'
+    )
+
+
 def _rule_change_card_html(e: dict) -> str:
     eff = e.get("effective_date")
     eff_html = ""
@@ -10269,6 +10288,7 @@ def _rule_change_card_html(e: dict) -> str:
   <p class="rc-detail">{esc(detail)}</p>
   <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a>
   <span class="rc-conf">&middot; {esc(source_label)}</span></p>
+  {_rc_verified_html(e)}
 </div>"""
 
 
@@ -10300,18 +10320,7 @@ def _rule_conflict_card_html(e: dict) -> str:
     # fmt_date's human string -- the script's own regex requires it), plus
     # the verified-badge class so a card the script marks stale also gets
     # its existing .verified-badge.verified-stale visual treatment.
-    _verified = e.get("verified_date")
-    verified_html = ""
-    if isinstance(_verified, str) and _verified:
-        try:
-            _verified_human = esc(fmt_date(date.fromisoformat(_verified)))
-        except ValueError:
-            pass
-        else:
-            verified_html = (
-                f'<p class="rc-verified verified-badge" data-verified="{esc(_verified)}">'
-                f'Verified {_verified_human}</p>'
-            )
+    verified_html = _rc_verified_html(e)
     # AuditLab RC-30 (MEDIUM, 2026-09-23): the section intro and every card
     # promise "we're showing you exactly where they disagree," but only the
     # generic summary_public sentence (identical wording on all 4 cards,
@@ -10506,7 +10515,7 @@ because its start date arrived.</p>
 {f'''
 <h2>Recently changed, confirmed ({len(recent_verified)})</h2>
 <p class="rc-section-note">The effective date has passed and we have since confirmed it against the
-primary source &mdash; these are settled, not assumed.</p>
+primary source on the date shown on each card &mdash; settled as of that check, not assumed.</p>
 {recent_verified_html}
 ''' if recent_verified else ""}
 """
