@@ -3167,6 +3167,68 @@ async function handleFirmMembersList(request: Request, env: Env): Promise<Respon
 }
 
 /**
+ * SEC-50 (SecurityLab 19:56Z, AuditLab CONFIRMED 20:11Z, HIGH): the four
+ * team-management handlers (invite, role change, remove, make-primary) ran
+ * on a session cookie alone, so a stolen Partner session up to
+ * SESSION_TTL_DAYS old could invite its own Partner, make it primary
+ * (repointing firms.admin_email), then remove every other member -- the
+ * real owner included -- with no self-service way back. Same proof the
+ * SEC-48 credential gates take: the current password when the member has
+ * one, otherwise a sign-in within store.RECENT_AUTH_WINDOW_MINUTES. Unlike
+ * those gates, a password-reset session's one-shot authority is NOT
+ * accepted here and NOT spent -- it was issued to set a password, and a
+ * reset session is recent anyway. Returns null when the proof holds.
+ */
+async function requireTeamChangeStepUp(
+  env: Env,
+  session: { firmId: string; memberId: string; recentlyAuthenticated: boolean },
+  currentPassword: string
+): Promise<Response | null> {
+  const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
+  if (!member) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+  if (member.password_hash) {
+    const currentOk = await verifyPassword(
+      currentPassword,
+      {
+        algo: member.password_algo ?? undefined,
+        salt: member.password_salt ?? undefined,
+        iterations: member.password_iterations ?? undefined,
+        rounds: member.password_rounds ?? undefined,
+        hash: member.password_hash,
+      },
+      env.PASSWORD_PEPPER
+    );
+    if (!currentOk) {
+      return jsonResponse(400, { error: "Enter your current password to make team changes.", current_password_required: true });
+    }
+    return null;
+  }
+  if (!session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
+  }
+  return null;
+}
+
+/**
+ * SEC-50: DELETE and the make-primary POST historically sent no body; they
+ * now carry { current_password }. An empty or unparseable body reads as no
+ * password, which requireTeamChangeStepUp() then refuses on its own terms.
+ */
+async function readTeamChangePassword(request: Request): Promise<string | Response> {
+  const raw = await request.text();
+  if (raw.length > MAX_BODY_BYTES) return jsonResponse(400, { error: "Request too large." });
+  if (!raw) return "";
+  try {
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    return body && typeof body.current_password === "string" ? body.current_password : "";
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+}
+
+/**
  * POST /firm/members/invite -- body: { email, role, name? }. Partner or
  * Office Manager only; an Office Manager may only invite Staff (granting
  * Office Manager/Partner access is Partner-only). Devin's pricing decision
@@ -3242,6 +3304,9 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   }
 
   const name = sanitizeFreeText(nameRaw, MAX_ADMIN_NAME_LEN);
+
+  const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
+  if (stepUp) return stepUp;
 
   const existing = await store.findFirmMemberByEmail(env.DB, email);
   if (existing) {
@@ -3321,6 +3386,9 @@ async function handleFirmMemberRoleChange(request: Request, env: Env, memberId: 
     }
   }
 
+  const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
+  if (stepUp) return stepUp;
+
   await store.updateFirmMemberRole(env.DB, session.firmId, memberId, role);
   return jsonResponse(200, { id: memberId, role });
 }
@@ -3389,6 +3457,11 @@ async function handleFirmMemberRemove(request: Request, env: Env, memberId: stri
     }
   }
 
+  const removePassword = await readTeamChangePassword(request);
+  if (removePassword instanceof Response) return removePassword;
+  const stepUp = await requireTeamChangeStepUp(env, session, removePassword);
+  if (stepUp) return stepUp;
+
   await store.removeFirmMember(env.DB, session.firmId, memberId);
   await store.deleteAllSessionsForMember(env.DB, memberId);
   await store.invalidateOutstandingLoginTokensForMember(env.DB, memberId);
@@ -3433,6 +3506,18 @@ async function handleFirmMemberMakePrimary(request: Request, env: Env, memberId:
   if (target.id === session.firm.primary_member_id) {
     return jsonResponse(200, { ok: true, primary_member_id: target.id });
   }
+  // SEC-50: an invited Partner who has never signed in is not yet a person
+  // who has shown they hold that address -- and is exactly what a stolen
+  // session mints for itself. Primary contact (and with it firms.admin_email)
+  // only moves to someone who has actually joined.
+  if (!target.joined_at) {
+    return jsonResponse(400, { error: "This Partner hasn't accepted their invite yet. They need to sign in once before they can become the primary contact." });
+  }
+
+  const primaryPassword = await readTeamChangePassword(request);
+  if (primaryPassword instanceof Response) return primaryPassword;
+  const stepUp = await requireTeamChangeStepUp(env, session, primaryPassword);
+  if (stepUp) return stepUp;
 
   const applied = await store.setPrimaryMember(env.DB, session.firmId, memberId);
   if (!applied) {

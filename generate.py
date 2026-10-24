@@ -17489,6 +17489,8 @@ function drRenderTeam(members) {
   var isFree = !drBilling || drBilling.planTier === 'free';
   var canInvite = drRole === 'partner' || drRole === 'office_manager';
   if (upgradeNotice) upgradeNotice.hidden = !(isFree && canInvite);
+  var stepUpEl = document.getElementById('dr-team-stepup');
+  if (stepUpEl) stepUpEl.hidden = !canInvite;
   if (inviteForm) {
     inviteForm.hidden = !(canInvite && !isFree);
     if (!inviteForm.hidden) {
@@ -17539,7 +17541,7 @@ function drSubmitTeamInvite(form) {
 
   var fd = new FormData(form);
   var email = fd.get('email') || '';
-  var body = {email: email, role: fd.get('role') || 'staff'};
+  var body = {email: email, role: fd.get('role') || 'staff', current_password: drTeamCurrentPassword()};
 
   fetch('/api/firm/members/invite', {
     method: 'POST', credentials: 'include',
@@ -17564,13 +17566,20 @@ function drSubmitTeamInvite(form) {
   });
 }
 
+// SEC-50: every team change re-proves the signed-in member -- the server
+// checks this password (or, for a member with none, a recent sign-in).
+function drTeamCurrentPassword() {
+  var el = document.getElementById('dr-team-current-password');
+  return el ? el.value : '';
+}
+
 function drChangeTeamMemberRole(id, role) {
   var errEl = document.getElementById('dr-team-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
   fetch('/api/firm/members/' + encodeURIComponent(id), {
     method: 'PATCH', credentials: 'include',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({role: role})
+    body: JSON.stringify({role: role, current_password: drTeamCurrentPassword()})
   }).then(function(res) {
     if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
     return drReadJsonSafe(res).then(function(data) {
@@ -17588,7 +17597,11 @@ function drRemoveTeamMember(id, label) {
   if (!window.confirm('Remove ' + label + ' from your team? They will be signed out immediately, and any pending invite link stops working.')) return;
   var errEl = document.getElementById('dr-team-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
-  fetch('/api/firm/members/' + encodeURIComponent(id), {method: 'DELETE', credentials: 'include'})
+  fetch('/api/firm/members/' + encodeURIComponent(id), {
+    method: 'DELETE', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({current_password: drTeamCurrentPassword()})
+  })
     .then(function(res) {
       if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
       return drReadJsonSafe(res).then(function(data) {
@@ -17606,7 +17619,11 @@ function drMakeTeamMemberPrimary(id, label) {
   if (!window.confirm('Make ' + label + ' the primary contact for this firm? Billing receipts and account-level email go to them instead.')) return;
   var errEl = document.getElementById('dr-team-error');
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
-  fetch('/api/firm/members/' + encodeURIComponent(id) + '/make-primary', {method: 'POST', credentials: 'include'})
+  fetch('/api/firm/members/' + encodeURIComponent(id) + '/make-primary', {
+    method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({current_password: drTeamCurrentPassword()})
+  })
     .then(function(res) {
       if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
       return drReadJsonSafe(res).then(function(data) {
@@ -22959,6 +22976,13 @@ def build_firm_dashboard_page(
         <p class="signup-microcopy">Everyone who can sign in to this firm's account, and what they
         can do. Partners have full access; Office Managers can manage the roster, CPE, and firm
         settings but not billing; Staff can view everything but not change it.</p>
+        <div id="dr-team-stepup" hidden>
+          <label for="dr-team-current-password">Your current password</label>
+          <input type="password" id="dr-team-current-password" name="current_password" autocomplete="current-password">
+          <p class="signup-microcopy">Required to invite, remove, or change anyone on your team. If you
+          sign in without a password, leave this blank &mdash; you'll need to have signed in within the
+          last 15 minutes instead.</p>
+        </div>
         <div id="dr-team-list"><p class="dr-panel-empty">Loading&hellip;</p></div>
         <p id="dr-team-error" role="alert" class="dr-account-err" hidden></p>
         <p id="dr-team-upgrade-notice" class="signup-microcopy" hidden>Adding team members requires a

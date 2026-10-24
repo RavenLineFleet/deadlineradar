@@ -24,6 +24,8 @@ async function seedPaidFirm(name = "Members Test Firm"): Promise<{ firmId: strin
 async function addMember(firmId: string, role: store.FirmMemberRole): Promise<{ memberId: string; cookie: string }> {
   const email = `members-${role}-${Date.now()}-${Math.random()}@example.com`;
   const created = await store.createFirmMember(env.DB, { firmId, email, role });
+  // Holding a session means they signed in -- SEC-50's make-primary refuses a never-joined Partner.
+  await store.markFirmMemberJoined(env.DB, created.id);
   const { rawSessionToken } = await store.createSession(env.DB, firmId, created.id);
   return { memberId: created.id, cookie: `dr_firm_session=${rawSessionToken}` };
 }
