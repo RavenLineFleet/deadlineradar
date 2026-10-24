@@ -12484,13 +12484,15 @@ async function handleFirmSignOutOtherDevices(request: Request, env: Env): Promis
   // version would wrongly sign out teammates who did nothing.
   const endedSessions = await store.deleteOtherSessionsForMember(env.DB, session.memberId, session.sessionId);
 
-  if (endedSessions > 0) {
-    // Same reasoning as handleFirmPasswordSet's own token sweep: an
-    // outstanding emailed link is a live bearer credential too, so ending
-    // every session but leaving a still-redeemable link would only close
-    // part of the door.
-    await store.invalidateOutstandingLoginTokensForMember(env.DB, session.memberId);
+  // Same reasoning as handleFirmPasswordSet's own token sweep: an
+  // outstanding emailed link is a live bearer credential too, so ending
+  // every session but leaving a still-redeemable link would only close
+  // part of the door. Unconditional, like that precedent (SEC-37): a
+  // member whose only session is the caller's still ends 0 sessions, and
+  // a pending email_change link would otherwise survive the click.
+  await store.invalidateOutstandingLoginTokensForMember(env.DB, session.memberId);
 
+  if (endedSessions > 0) {
     const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
     // Best-effort and never allowed to fail the request -- see
     // handleFirmPasswordSet's own comment on the identical pattern. This is

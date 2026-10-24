@@ -6819,22 +6819,27 @@ describe("POST /firm/sign-out-other-devices", () => {
     expect(outstanding?.c).toBe(0);
   });
 
-  it("does NOT invalidate outstanding login links when there was nothing to end (no other sessions)", async () => {
-    // Guards the endedSessions > 0 gate itself: a solo session calling this
-    // must not have a side effect on tokens it never touched.
+  it("SEC-37: invalidates outstanding links even when there was nothing to end (no other sessions)", async () => {
+    // Reverses the old endedSessions > 0 gate on the sweep (AuditLab SEC-37):
+    // a member whose only session is the caller's ends 0 sessions, and a
+    // pending email_change link minted by a one-shot attacker request would
+    // otherwise be the sole surviving credential. The detection email stays
+    // gated -- see the detection-email describe below.
     const email = `signout-tokens-solo-${Date.now()}@examplefirm.com`;
     const { id: firmId } = await store.createFirm(env.DB, { name: "Solo Link Firm", adminEmail: email });
     const mine = await store.createSession(env.DB, firmId);
     await store.createLoginToken(env.DB, firmId, "login");
+    await store.createLoginToken(env.DB, firmId, "email_change", `sec37-attacker-${Date.now()}@evil.example`);
 
     const resp = await postSignOutOtherDevices(`dr_firm_session=${mine.rawSessionToken}`, "203.0.113.227");
     expect(resp.status).toBe(200);
+    expect((await resp.json<{ other_sessions_ended: number }>()).other_sessions_ended).toBe(0);
 
     const outstanding = await env.DB
       .prepare("SELECT COUNT(*) AS c FROM firm_login_tokens WHERE firm_id = ?1 AND used_at IS NULL")
       .bind(firmId)
       .first<{ c: number }>();
-    expect(outstanding?.c).toBe(1);
+    expect(outstanding?.c).toBe(0);
   });
 
   it("rate-limits PER SESSION, not per firm -- one session's budget can't 429 a different session of the same firm", async () => {

@@ -520,6 +520,10 @@ describe("POST /subscriber/login/verify -- email_change apply phase (roadmap #12
       expect(body).toContain("https://deadline-radar.com/signin/");
       expect(body).toContain("cancels the pending change");
     }
+    // GATE-70: the preheader is the only line shown unopened in the inbox
+    // list, and the body paragraph above already satisfies every assertion
+    // in the loop, so pin it on its own.
+    expect(built.htmlBody).toContain("Sign in again to cancel it");
   });
 
   it("full request-then-redeem round trip via the real emailed confirm link", async () => {
