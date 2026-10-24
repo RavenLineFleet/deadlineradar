@@ -10217,18 +10217,23 @@ def _rc_verified_html(e: dict) -> str:
     )
 
 
+# AuditLab SRC-91 (2026-10-24): one predicate for "past-dated but not yet confirmed on/after the
+# effective date", shared by the card hedge and the recent_pending/recent_verified bucket split.
+# SRC-78 added the verified_date < effective_date term to the card only, so two Missouri cards
+# rendered the hedge under a "Recently changed, confirmed" header that counted them.
+def _rc_pending_reverification(e: dict) -> bool:
+    eff, ver = e.get("effective_date"), e.get("verified_date")
+    return bool(e.get("needs_reverification")) or bool(eff and ver and ver < eff)
+
+
 def _rule_change_card_html(e: dict) -> str:
     eff = e.get("effective_date")
     eff_html = ""
     if eff:
         eff_date = fmt_date(date.fromisoformat(eff))
-        verified_date = e.get("verified_date")
-        unconfirmed_as_of_effective = bool(
-            verified_date and verified_date < eff
-        )
         if _is_still_upcoming(e):
             eff_html = f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; not yet in force.</p>'
-        elif e.get("needs_reverification") or unconfirmed_as_of_effective:
+        elif _rc_pending_reverification(e):
             eff_html = (
                 f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; passed; we '
                 f"re-verify on or after that date before treating it as settled, not asserting it "
@@ -10398,15 +10403,20 @@ def build_rule_changes_page() -> str:
     # above a card that has, correctly, assumed exactly that. Split on the flag, same pattern as the
     # undated_enacted/undated_proposed split above -- a re-verified record keeps its accurate,
     # unhedged card text, but now also sits under an accurate section claim instead of someone else's.
-    recent_pending = [e for e in recent if e.get("needs_reverification")]
-    recent_verified = [e for e in recent if not e.get("needs_reverification")]
+    recent_pending = [e for e in recent if _rc_pending_reverification(e)]
+    recent_verified = [e for e in recent if not _rc_pending_reverification(e)]
+    # AuditLab STATUS-2 (2026-10-24): same split as undated_enacted/undated_proposed above. The
+    # upcoming bucket's note said "A dated, signed change" over a PROPOSED member (Idaho).
+    upcoming_enacted = [e for e in upcoming if e.get("status") in ("ENACTED", "ADOPTED_RULE")]
+    upcoming_proposed = [e for e in upcoming if e not in upcoming_enacted]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
     upcoming_html = (
-        "\n".join(_rule_change_card_html(e) for e in upcoming)
-        if upcoming
+        "\n".join(_rule_change_card_html(e) for e in upcoming_enacted)
+        if upcoming_enacted
         else '<p class="rc-empty">No upcoming changes detected right now.</p>'
     )
+    upcoming_proposed_html = "\n".join(_rule_change_card_html(e) for e in upcoming_proposed)
     undated_enacted_html = "\n".join(_rule_change_card_html(e) for e in undated_enacted)
     undated_proposed_html = "\n".join(_rule_change_card_html(e) for e in undated_proposed)
     recent_pending_html = (
@@ -10492,9 +10502,15 @@ and clearly labelled where we could only confirm it against the board's own page
   </form>
 </div>
 
-<h2>Upcoming changes ({len(upcoming)})</h2>
+<h2>Upcoming changes ({len(upcoming_enacted)})</h2>
 <p class="rc-section-note">A dated, signed change that hasn't taken effect yet.</p>
 {upcoming_html}
+{f'''
+<h2>Proposed, with a target effective date ({len(upcoming_proposed)})</h2>
+<p class="rc-section-note">Formally proposed with a target effective date, but not yet signed into
+law or adopted as a final rule -- nothing is enforceable until it is.</p>
+{upcoming_proposed_html}
+''' if upcoming_proposed else ""}
 {f'''
 <h2>Enacted, effective date not yet set ({len(undated_enacted)})</h2>
 <p class="rc-section-note">Signed into law or adopted as a final rule, but no effective date has been
@@ -10504,7 +10520,7 @@ set yet -- we move it to Upcoming the moment one is pinned.</p>
 {f'''
 <h2>Proposed, not yet dated ({len(undated_proposed)})</h2>
 <p class="rc-section-note">Formally proposed, but not yet signed into law with a scheduled effective
-date -- we move it to Upcoming the moment one is set.</p>
+date -- we move it up the page the moment a target effective date is set.</p>
 {undated_proposed_html}
 ''' if undated_proposed else ""}
 <h2>Recently changed, pending re-verification ({len(recent_pending)})</h2>
