@@ -7621,6 +7621,27 @@ export async function resolveAssistantErrorBurstAlertForToday(
     .run();
 }
 
+/** BILL-46 (SecurityLab, MEDIUM, 2026-10-24): retained outcome of the
+ * nightly Stripe price-parity pass. Its outcome lines were console.log only
+ * and nothing retains Worker logs, so "ran clean" vs "never ran" was
+ * unknowable the next day -- the same gap MON-5 closed for the cron itself.
+ * One row per UTC day in the stripe_webhook_events ledger (the
+ * send_approval_presence:* precedent, no migration), id
+ * `stripe_price_parity:<YYYY-MM-DD>`, event_type a counts-only summary
+ * (env var NAMES, never price ids or keys). Last write wins, so a manual
+ * re-run the same day replaces the cron's row rather than being dropped.
+ * Read it with `SELECT id, event_type, received_at FROM stripe_webhook_events
+ * WHERE id LIKE 'stripe_price_parity:%' ORDER BY received_at DESC LIMIT 7`. */
+export async function recordStripePriceParityOutcome(db: D1Database, dayUtc: string, summary: string): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO stripe_webhook_events (id, event_type, firm_id, received_at) VALUES (?1, ?2, NULL, ?3)
+       ON CONFLICT(id) DO UPDATE SET event_type = ?2, received_at = ?3`
+    )
+    .bind(`stripe_price_parity:${dayUtc}`, `stripe_price_parity:${summary}`, nowIso())
+    .run();
+}
+
 /** MON-5 (2026-09-02): unconditional cron-liveness heartbeat. Upserts the
  * single scheduler_heartbeat row (id=1) at the top of every scheduled()
  * tick, BEFORE any gate. `last_run_at` becomes a hard "the nightly tick

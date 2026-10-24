@@ -2712,10 +2712,13 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
  * pass; the read-only detection + log runs regardless (BILL-44). Month-keyed
  * dedup (not daily), same reasoning as mobility staleness: a price desync
  * is a slow-moving config-drift signal, not something needing a daily nag
- * once known. A tier whose env var isn't configured at all is silently
- * skipped (not itself a mismatch -- e.g. a test/preview environment
- * legitimately missing live-mode price ids), matching the standalone
- * script's own "NOT CONFIGURED" (not "MISMATCH") category.
+ * once known. An unset price env var is a MISMATCH wherever /pricing/
+ * advertises that price (every annual tier and the annual per-seat add-on;
+ * every monthly id while MONTHLY_BILLING_ENABLED) -- checkout for it would
+ * 503 (BILL-45). Only an unset monthly id with monthly billing off is
+ * "not configured" and skipped. scripts/check_stripe_price_reconciliation.py
+ * applies the same rule (BILL-47). Every run's outcome is retained as a D1
+ * row (BILL-46, store.recordStripePriceParityOutcome).
  */
 /**
  * BILL-24 (SecurityLab, LOW, confirmed by AuditLab, 2026-10-03): a stable
@@ -2743,8 +2746,20 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   // looked identical. Detection is read-only Stripe GETs and sends nothing,
   // so it always runs and always logs its outcome; requireSendApproval()
   // now gates only the email, below.
+  //
+  // BILL-46 (SecurityLab, MEDIUM, 2026-10-24): those log lines are not
+  // retained anywhere, so every exit below also records its outcome as a D1
+  // row. A write failure is logged, never thrown, so it can't block the send.
+  const retain = async (summary: string): Promise<void> => {
+    try {
+      await store.recordStripePriceParityOutcome(env.DB, new Date().toISOString().slice(0, 10), summary);
+    } catch (err) {
+      console.log(`[stripe-price-parity-cron] outcome record error: ${String(err)}`);
+    }
+  };
   if (!env.STRIPE_SECRET_KEY) {
     console.log("[stripe-price-parity-cron] STRIPE_SECRET_KEY unset -- parity check skipped");
+    await retain("outcome=skipped_no_stripe_key");
     return;
   }
 
@@ -2794,7 +2809,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
         // "not configured".
         mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while /pricing/ advertises this tier -- checkout for it would 503`] });
       } else {
-        notConfigured.push(envVar); // not offered in this environment -- not a mismatch
+        notConfigured.push(envVar); // monthly id with monthly billing off -- not offered, not a mismatch
       }
       continue;
     }
@@ -2841,17 +2856,21 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     }
   }
 
+  const counts = `compared=${compared},checks=${checks.length},mismatches=${mismatches.length},mismatched=${mismatches.map((m) => m.envVar).join("|")},not_configured=${notConfigured.join("|")}`;
   if (mismatches.length === 0) {
     const skipped = notConfigured.length > 0 ? ` -- not configured, skipped: ${notConfigured.join(", ")}` : "";
     console.log(`[stripe-price-parity-cron] ${compared} of ${checks.length} price(s) checked, 0 mismatches${skipped}`);
+    await retain(`outcome=clean,${counts}`);
     return;
   }
   if (!requireSendApproval(env, "stripePriceParityAlert")) {
     console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but stripePriceParityAlert not in SEND_APPROVED_PASSES -- not alerting: ${JSON.stringify(mismatches)}`);
+    await retain(`outcome=mismatch_unapproved,${counts}`);
     return;
   }
   if (!env.RESEND_API_KEY) {
     console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but RESEND_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
+    await retain(`outcome=mismatch_no_resend,${counts}`);
     return;
   }
   const monthUtc = new Date().toISOString().slice(0, 7);
@@ -2864,16 +2883,21 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   // one send per month for the SAME problem -- the original intent).
   const mismatchSignature = await buildStripePriceParityMismatchSignature(mismatches);
   const claimed = await store.claimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
-  if (!claimed) return;
+  if (!claimed) {
+    await retain(`outcome=mismatch_already_alerted_this_month,${counts}`);
+    return;
+  }
   try {
     const built = buildStripePriceParityAlertEmail(mismatches);
     const ok = await sendEmail(env.RESEND_API_KEY, INTERNAL_NOTIFY_EMAIL, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
     if (!ok) {
       await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
     }
+    await retain(`outcome=${ok ? "alert_sent" : "alert_send_failed"},${counts}`);
   } catch (err) {
     await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
     console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
+    await retain(`outcome=alert_error,${counts}`);
   }
 }
 

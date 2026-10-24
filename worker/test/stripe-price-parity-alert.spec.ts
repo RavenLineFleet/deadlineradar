@@ -97,12 +97,102 @@ describe("claimStripePriceParityAlertForMonth / unclaim -- (month, mismatch sign
 describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM stripe_price_parity_alert_log").run();
+    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id LIKE 'stripe_price_parity:%'").run();
   });
 
   async function freshRun(overrides: Record<string, unknown>) {
     const { runStripePriceParityAlertPass } = await import("../src/scheduler");
     return runStripePriceParityAlertPass({ ...env, ...BASE_ENV, ...overrides } as never);
   }
+
+  // BILL-46: today's retained outcome row, or null if the pass wrote none.
+  async function parityOutcomeRow(): Promise<string | null> {
+    const row = await env.DB
+      .prepare("SELECT event_type FROM stripe_webhook_events WHERE id = ?1")
+      .bind(`stripe_price_parity:${new Date().toISOString().slice(0, 10)}`)
+      .first<{ event_type: string }>();
+    return row?.event_type ?? null;
+  }
+
+  function allMatchFetch(starterCents = 19900) {
+    let resendCalls = 0;
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === RESEND_URL) { resendCalls++; return new Response(null, { status: 202 }); }
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: starterCents }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    return { spy, resendCalls: () => resendCalls };
+  }
+
+  // BILL-46 (SecurityLab, MEDIUM, 2026-10-24): the outcome lines were
+  // console.log only and nothing retains Worker logs, so the day after,
+  // "ran clean" and "never ran" were indistinguishable again. Every exit
+  // now leaves a D1 row.
+  it("BILL-46: a clean run retains outcome=clean with the real counts", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { spy } = allMatchFetch();
+    try {
+      expect(await parityOutcomeRow()).toBeNull();
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
+      expect(await parityOutcomeRow()).toBe("stripe_price_parity:outcome=clean,compared=10,checks=10,mismatches=0,mismatched=,not_configured=");
+    } finally {
+      spy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("BILL-46: an unapproved mismatch retains outcome=mismatch_unapproved naming the env var, never a price id or key", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { spy, resendCalls } = allMatchFetch(18800);
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
+      const row = await parityOutcomeRow();
+      expect(row).toBe("stripe_price_parity:outcome=mismatch_unapproved,compared=10,checks=10,mismatches=1,mismatched=STRIPE_PRICE_FIRM_STARTER,not_configured=");
+      expect(row).not.toContain("price_starter");
+      expect(row).not.toContain("sk_test");
+      expect(resendCalls()).toBe(0);
+    } finally {
+      spy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("BILL-46: no STRIPE_SECRET_KEY retains outcome=skipped_no_stripe_key", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      await freshRun({ STRIPE_SECRET_KEY: undefined });
+      expect(await parityOutcomeRow()).toBe("stripe_price_parity:outcome=skipped_no_stripe_key");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("BILL-46: approved mismatch retains alert_sent, then a same-month re-run replaces it with mismatch_already_alerted_this_month", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { spy, resendCalls } = allMatchFetch(18800);
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(resendCalls()).toBe(1);
+      expect(await parityOutcomeRow()).toMatch(/^stripe_price_parity:outcome=alert_sent,.*mismatched=STRIPE_PRICE_FIRM_STARTER,/);
+      await freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", ...PR6_ENV });
+      expect(resendCalls()).toBe(1);
+      expect(await parityOutcomeRow()).toMatch(/^stripe_price_parity:outcome=mismatch_already_alerted_this_month,/);
+      const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE id LIKE 'stripe_price_parity:%'").first<{ n: number }>();
+      expect(n?.n).toBe(1);
+    } finally {
+      spy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
 
   // BILL-44 (AuditLab, MEDIUM, 2026-10-24): this used to assert "no fetch at
   // all" when unapproved -- which is how the only production price check sat
