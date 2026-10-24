@@ -4064,6 +4064,12 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
     }
   }
 
+  // SEC-47: spend the one-shot reset authority before acting, same as
+  // handleFirmPasswordSet does -- one emailed link buys one privileged action.
+  if (session.passwordResetAuthorized) {
+    await store.clearSessionResetAuthorization(env.DB, session.sessionId);
+  }
+
   await store.requestFirmDeletion(env.DB, session.firmId, { reason, detail });
 
   // Best-effort from here down -- the account is already, irreversibly (in
@@ -12178,6 +12184,13 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
     }
   }
 
+  // SEC-47: spend the one-shot reset authority, same as handleFirmPasswordSet.
+  // /enroll/confirm has no step-up of its own, so this route is the only
+  // place the authority can be spent for the 2FA leg.
+  if (session.passwordResetAuthorized) {
+    await store.clearSessionResetAuthorization(env.DB, session.sessionId);
+  }
+
   const secret = generateTotpSecretBase32();
   return jsonResponse(200, { secret, otpauth_uri: buildOtpauthUri(secret, member.email, "Deadline-Radar") });
 }
@@ -12648,6 +12661,12 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   // constraint will enforce at redemption time.
   if (newEmailRaw.trim().toLowerCase() === member.email.trim().toLowerCase()) {
     return jsonResponse(400, { error: "That's already your email address." });
+  }
+  // SEC-47: spend the one-shot reset authority, same as handleFirmPasswordSet.
+  // Placed above the conflicting-address no-op so that branch spends it too
+  // -- it returns the same generic success, so it must cost the same.
+  if (session.passwordResetAuthorized) {
+    await store.clearSessionResetAuthorization(env.DB, session.sessionId);
   }
   // ENUM-1 fix (AuditLab, 2026-09-19, orchestrator-ruled): Adversarial-
   // review L2 (2026-08-05) found this exact oracle and chose to KEEP it,

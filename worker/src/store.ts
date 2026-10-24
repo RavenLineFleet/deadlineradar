@@ -1938,6 +1938,17 @@ export function formatTokenTtl(minutes: number): string {
 // login-link email, which costs them one click.
 export const SESSION_TTL_DAYS = 30;
 
+// SecurityLab SEC-47 (MEDIUM, 2026-10-24): how long after a reset-minted
+// session is created its password_reset_authorized flag is still honoured.
+// The flag exempts four step-up gates (password set, account delete, 2FA
+// enroll, email change) but was only spent at the first, so an abandoned
+// reset left the other three password-free for the session's full 30 days.
+// Enforced once, in verifySession(), so every gate that reads the flag --
+// including any added later -- inherits the bound. Its own literal rather
+// than LOGIN_TOKEN_TTL_MINUTES, so lengthening the emailed link's lifetime
+// can't silently widen this window too.
+export const PASSWORD_RESET_AUTHORITY_TTL_MINUTES = 15;
+
 export interface CreateFirmInput {
   name: string;
   adminEmail: string;
@@ -3211,8 +3222,12 @@ export async function verifySession(
     role: row.member_role,
     // Strict truthiness on 1 -- a NULL from a pre-0014 row, or anything
     // unexpected, must read as NOT authorized. The permissive direction is
-    // the dangerous one here.
-    passwordResetAuthorized: (row as { password_reset_authorized?: unknown }).password_reset_authorized === 1,
+    // the dangerous one here. SEC-47: also NOT authorized once the session
+    // is older than PASSWORD_RESET_AUTHORITY_TTL_MINUTES, or if created_at
+    // doesn't parse -- the same fail-closed direction.
+    passwordResetAuthorized:
+      (row as { password_reset_authorized?: unknown }).password_reset_authorized === 1 &&
+      Date.now() - Date.parse(row.created_at) <= PASSWORD_RESET_AUTHORITY_TTL_MINUTES * 60_000,
     firmStatus: row.firm_status,
   };
 }
