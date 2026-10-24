@@ -65,6 +65,18 @@ describe("store.isEmailBlocklisted", () => {
     expect(await store.isEmailBlocklisted(env.DB, `person@totally-unrelated.example`)).toBe(false);
   });
 
+  // SEC-42 site 3 (2026-10-24): an email-pattern entry must also catch the
+  // entry's +tag/dot aliases -- the exact match alone let abuser+1@ through.
+  it("SEC-42: matches +tag/dot aliases of a blocked email, but not a different local part", async () => {
+    const local = `aliasblock${Date.now()}`;
+    await addBlocklistEntry(`${local}@alias-example.com`, "email");
+    expect(await store.isEmailBlocklisted(env.DB, `${local}+1@alias-example.com`)).toBe(true);
+    expect(await store.isEmailBlocklisted(env.DB, `alias.block${local.slice(10)}@alias-example.com`)).toBe(true);
+    expect(await store.isEmailBlocklisted(env.DB, `${local.toUpperCase()}+X@ALIAS-EXAMPLE.COM`)).toBe(true);
+    expect(await store.isEmailBlocklisted(env.DB, `${local}x@alias-example.com`)).toBe(false);
+    expect(await store.isEmailBlocklisted(env.DB, `${local}@other-alias-example.com`)).toBe(false);
+  });
+
   it("returns false for an address with no blocklist entries", async () => {
     expect(await store.isEmailBlocklisted(env.DB, `clean-${Date.now()}@example.com`)).toBe(false);
   });

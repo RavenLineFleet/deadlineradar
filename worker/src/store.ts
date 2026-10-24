@@ -3069,6 +3069,17 @@ export async function isEmailBlocklisted(db: D1Database, email: string): Promise
     .bind(emailLower)
     .first();
   if (exactHit) return true;
+  // SEC-42 site 3 (2026-10-24): the exact match above lets a +tag/dot alias
+  // of a blocklisted address (abuser+1@, a.buser@) straight through, so an
+  // operator who blocked one address hadn't blocked its aliases. Compare
+  // cooldownKey() on both sides -- folded in JS, not SQL, so it holds
+  // whatever form the pattern was stored in. Same small curated list as the
+  // domain fetch below.
+  const emailKey = cooldownKey(emailLower);
+  const { results: emailPatterns } = await db
+    .prepare(`SELECT pattern FROM signup_blocklist WHERE pattern_type = 'email'`)
+    .all<{ pattern: string }>();
+  if ((emailPatterns ?? []).some((r) => cooldownKey(r.pattern) === emailKey)) return true;
   if (!domain) return false;
 
   const { results } = await db

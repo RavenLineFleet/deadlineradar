@@ -2218,6 +2218,31 @@ async function handleFirmSignup(request: Request, env: Env, ip: string): Promise
     );
   }
 
+  // AuditLab RL-7 (2026-08-06): second bucket keyed on the RECIPIENT, same
+  // shape as RL-6's fix on /firm/login just above. Unlike that route, this
+  // one always sends on every non-blocked, Turnstile-passed submission (no
+  // anti-enumeration branch to piggyback on -- the domain gate above already
+  // distinguishes "has an account" from "doesn't" for blocked domains), so
+  // the bucket is charged unconditionally on every such submission.
+  // SEC-42 (2026-10-24): keyed on cooldownKey(), not normalizeEmail() --
+  // the latter left one bucket per +tag/dot alias of the same inbox
+  // (victim+1@, vic.tim@, ...), so 5/hour per alias was effectively
+  // unbounded per recipient. And charged HERE, before the referral claim
+  // and createFirm(), not right before the send: a refused alias must cost
+  // no firm/member row and no referral-code use, or the bucket bounds the
+  // sends but not the row spam. cooldownKey() folds dots at every domain,
+  // so two people at one domain can share this signup allowance -- the
+  // same trade /subscribe and /newsletter/subscribe already accept.
+  const signupAccountAllowed = await checkRateLimit(
+    env.DB,
+    `account:${store.cooldownKey(email)}`,
+    "firm_signup_account",
+    RATE_LIMIT_FIRM_SIGNUP_ACCOUNT
+  );
+  if (!signupAccountAllowed) {
+    return errorPage(429, "Too many requests for this account. Please try again later.");
+  }
+
   // AuditLab F-4, 2026-08-02: `existing` was checked above, but nothing
   // stopped two concurrent signups for the same email from BOTH seeing
   // `existing === null` and both reaching createFirm() -- a plain TOCTOU
@@ -2302,22 +2327,6 @@ async function handleFirmSignup(request: Request, env: Env, ip: string): Promise
       memberId = raced.id;
       resolvedAdminName = raced.name;
     }
-  }
-
-  // AuditLab RL-7 (2026-08-06): second bucket keyed on the RECIPIENT, same
-  // shape as RL-6's fix on /firm/login just above. Unlike that route, this
-  // one always sends on every non-blocked, Turnstile-passed submission (no
-  // anti-enumeration branch to piggyback on -- the domain gate above already
-  // distinguishes "has an account" from "doesn't" for blocked domains), so
-  // the bucket is charged unconditionally right before the send.
-  const signupAccountAllowed = await checkRateLimit(
-    env.DB,
-    `account:${store.normalizeEmail(email)}`,
-    "firm_signup_account",
-    RATE_LIMIT_FIRM_SIGNUP_ACCOUNT
-  );
-  if (!signupAccountAllowed) {
-    return errorPage(429, "Too many requests for this account. Please try again later.");
   }
 
   await issueAndSendFirmLoginLink(env, firmId, email, undefined, resolvedAdminName, memberId);

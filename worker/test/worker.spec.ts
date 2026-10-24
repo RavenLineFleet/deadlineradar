@@ -1057,6 +1057,34 @@ describe("POST /firm/signup -- firm account creation + login-link send", () => {
     expect(sixth.status).toBe(429);
   });
 
+  // SEC-42 (2026-10-24, LOW): the RL-7 bucket was keyed on normalizeEmail(),
+  // so each +tag/dot alias of one inbox got its own 5/hour -- and createFirm()
+  // ran BEFORE the bucket, so even a refused alias left a firm row behind.
+  // Six aliases of one inbox, each from a fresh IP: the 6th must 429 AND
+  // must not have created a firm row.
+  it("SEC-42: +tag/dot aliases of one inbox share the per-recipient bucket, and a refused alias creates no firm row", async () => {
+    const stamp = Date.now();
+    const base = `sec42victim${stamp}`;
+    const aliases = [
+      `${base}@example.com`,
+      `${base}+1@example.com`,
+      `sec42.victim${stamp}@example.com`,
+      `${base}+2@example.com`,
+      `s.e.c42victim${stamp}+3@example.com`,
+    ];
+    for (let i = 0; i < aliases.length; i++) {
+      const resp = await postFirmSignup({ name: "SEC42 Firm", admin_email: aliases[i] }, `192.0.2.${210 + i}`);
+      expect(resp.status).not.toBe(429);
+    }
+    const sixthAlias = `${base}+6@example.com`;
+    const sixth = await postFirmSignup({ name: "SEC42 Firm", admin_email: sixthAlias }, "192.0.2.216");
+    expect(sixth.status).toBe(429);
+    expect(await firmByAdminEmail(sixthAlias)).toBeNull();
+    // Positive control: an unrelated address is not caught by the folded key.
+    const other = await postFirmSignup({ name: "SEC42 Other Firm", admin_email: `sec42other${stamp}@example.com` }, "192.0.2.217");
+    expect(other.status).not.toBe(429);
+  });
+
   // AuditLab F-4, 2026-08-02 (LOW): `firms.admin_email` had no UNIQUE
   // constraint. Two rows could hold the same email (reproduced via two
   // concurrent POST /firm/signup from the same IP -- the rate-limit bucket
