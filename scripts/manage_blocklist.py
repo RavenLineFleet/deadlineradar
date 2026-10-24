@@ -3,10 +3,15 @@
 2026-08-06, migration 0023) -- the abuse-response list, distinct from
 validation.ts's compiled-in DISPOSABLE_EMAIL_DOMAINS/COMPETITOR_EMAIL_DOMAINS.
 
-Blocks a specific email or domain across all three signup paths
-(/subscribe, /firm/signup, and a firm admin adding staff to their own
-roster) -- see store.ts's isEmailBlocklisted() for the matching semantics
-(exact email match, or exact-or-subdomain match for a domain entry).
+Blocks a specific email or domain on every route that calls store.ts's
+isEmailBlocklisted() -- 8 call sites as of SEC-42 (2026-10-24): /subscribe,
+the newsletter signup, /firm/signup, firm staff invite, firm license
+create/patch, and both email-change requests (subscriber and firm). See
+isEmailBlocklisted() for the matching semantics: an email entry matches
+case-insensitively AND matches every +tag/dot alias of the same inbox
+(cooldownKey() folds both sides) -- so blocking a.b@corp.example also
+blocks ab@corp.example and ab+x@corp.example, which at a non-Gmail domain
+may be a different person. A domain entry is an exact-or-subdomain match.
 
 Writes go through a real .sql file passed to `wrangler d1 execute --file`
 rather than an inline `--command` string -- avoids ever hand-building SQL

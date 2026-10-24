@@ -1,7 +1,8 @@
 /**
  * Task #7 (2026-08-06): operator-managed email/domain blocklist. Covers
- * store.isEmailBlocklisted() directly plus its three call sites (public
- * /subscribe, /firm/signup, and authenticated firm staff-roster adds).
+ * store.isEmailBlocklisted() directly plus three of its call sites (public
+ * /subscribe, /firm/signup, and authenticated firm staff-roster adds); it has
+ * 8 production call sites as of SEC-42 (2026-10-24).
  */
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
@@ -75,6 +76,18 @@ describe("store.isEmailBlocklisted", () => {
     expect(await store.isEmailBlocklisted(env.DB, `${local.toUpperCase()}+X@ALIAS-EXAMPLE.COM`)).toBe(true);
     expect(await store.isEmailBlocklisted(env.DB, `${local}x@alias-example.com`)).toBe(false);
     expect(await store.isEmailBlocklisted(env.DB, `${local}@other-alias-example.com`)).toBe(false);
+  });
+
+  // SEC-42 follow-up (SecurityLab advisory): the arms above store a bare
+  // pattern and probe an alias, so only the email-side fold is pinned. Store
+  // the tagged/dotted form (what an abuse report usually carries) and probe
+  // the bare inbox -- fails if the pattern side is compared unfolded.
+  it("SEC-42: a tagged/dotted stored pattern blocks the bare inbox", async () => {
+    const local = `taggedblock${Date.now()}`;
+    await addBlocklistEntry(`${local}+spam@alias-example.com`, "email");
+    expect(await store.isEmailBlocklisted(env.DB, `${local}@alias-example.com`)).toBe(true);
+    await addBlocklistEntry(`d.${local}@alias-example.com`, "email");
+    expect(await store.isEmailBlocklisted(env.DB, `d${local}@alias-example.com`)).toBe(true);
   });
 
   it("returns false for an address with no blocklist entries", async () => {
