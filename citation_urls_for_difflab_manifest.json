@@ -76,9 +76,9 @@
     {
       "state_slug": "florida",
       "monitor_urls": [
+        "https://flrules.org/gateway/readFile.asp?sid=0&tid=31362348&type=1&file=61H1-33.003.doc",
         "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=12439006&type=1&file=61H1-31.015.doc",
         "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=20486417&type=1&file=61H1-31.003.doc",
-        "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
         "https://www2.myfloridalicense.com/certified-public-accounting/public-records/"
       ]
     },

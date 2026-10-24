@@ -886,7 +886,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "url": "https://flrules.org/gateway/readFile.asp?sid=0&tid=31362348&type=1&file=61H1-33.003.doc",
     "alt_urls": [],
     "method": "http",
     "anchor": "t must have completed at any time or times during the two-year period, at least",
@@ -895,7 +895,7 @@
     "field": "total_hours"
    },
    {
-    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "url": "https://flrules.org/gateway/readFile.asp?sid=0&tid=31362348&type=1&file=61H1-33.003.doc",
     "alt_urls": [],
     "method": "http",
     "anchor": "hours may be in behavioral subjects and at least",
@@ -933,7 +933,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.flrules.org/gateway/readFile.asp?sid=0&tid=27653941&type=1&file=61H1-33.003.doc",
+    "url": "https://flrules.org/gateway/readFile.asp?sid=0&tid=31362348&type=1&file=61H1-33.003.doc",
     "alt_urls": [],
     "method": "http",
     "anchor": "biennial license renewal. (c) Effective with the reestablishment period ending",
