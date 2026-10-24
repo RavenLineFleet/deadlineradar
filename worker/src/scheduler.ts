@@ -2707,9 +2707,9 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
  * to tiers.ts, never to Stripe. This is that check, wired into the nightly
  * cron: GET each configured FIRM_TIERS price, compare unit_amount/currency/
  * recurring.interval/active against what the site advertises, and alert if
- * any diverge. Standing consent-gate directive (Devin, 2026-08-21) -- gated
- * behind requireSendApproval() since this is a NEW send pass, same
- * mechanism every pass added after that directive must use. Month-keyed
+ * any diverge. Standing consent-gate directive (Devin, 2026-08-21) -- the
+ * alert email is gated behind requireSendApproval() since this is a NEW send
+ * pass; the read-only detection + log runs regardless (BILL-44). Month-keyed
  * dedup (not daily), same reasoning as mobility staleness: a price desync
  * is a slow-moving config-drift signal, not something needing a daily nag
  * once known. A tier whose env var isn't configured at all is silently
@@ -2736,8 +2736,17 @@ async function buildStripePriceParityMismatchSignature(
 }
 
 export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
-  if (!requireSendApproval(env, "stripePriceParityAlert")) return;
-  if (!env.STRIPE_SECRET_KEY) return;
+  // BILL-44 (AuditLab, MEDIUM, 2026-10-24): the approval gate used to be
+  // this function's first line, so with stripePriceParityAlert unset in
+  // SEND_APPROVED_PASSES (true on every recorded day) the Stripe comparison
+  // never ran and the skip logged nothing -- "ran clean" and "never ran"
+  // looked identical. Detection is read-only Stripe GETs and sends nothing,
+  // so it always runs and always logs its outcome; requireSendApproval()
+  // now gates only the email, below.
+  if (!env.STRIPE_SECRET_KEY) {
+    console.log("[stripe-price-parity-cron] STRIPE_SECRET_KEY unset -- parity check skipped");
+    return;
+  }
 
   // PR6-A (AuditLab, 2026-10-02, HOLD on a2a9471b4): stripePriceIdForTier()'s
   // new `interval` parameter defaults to "annual" so every PRE-PR6 call
@@ -2817,7 +2826,14 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     }
   }
 
-  if (mismatches.length === 0) return;
+  if (mismatches.length === 0) {
+    console.log(`[stripe-price-parity-cron] ${checks.length} price(s) checked, 0 mismatches`);
+    return;
+  }
+  if (!requireSendApproval(env, "stripePriceParityAlert")) {
+    console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but stripePriceParityAlert not in SEND_APPROVED_PASSES -- not alerting: ${JSON.stringify(mismatches)}`);
+    return;
+  }
   if (!env.RESEND_API_KEY) {
     console.log(`[stripe-price-parity-cron] ${mismatches.length} mismatch(es) found but RESEND_API_KEY unset -- cannot alert: ${JSON.stringify(mismatches)}`);
     return;

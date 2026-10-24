@@ -104,20 +104,77 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     return runStripePriceParityAlertPass({ ...env, ...BASE_ENV, ...overrides } as never);
   }
 
-  it("does nothing (no fetch call at all) when SEND_APPROVED_PASSES doesn't include this pass -- fails closed by default", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+  // BILL-44 (AuditLab, MEDIUM, 2026-10-24): this used to assert "no fetch at
+  // all" when unapproved -- which is how the only production price check sat
+  // inert and silent for every recorded day. Detection now always runs and
+  // logs; the approval gate covers only the send.
+  it("BILL-44: unapproved with a real mismatch -- still checks Stripe and logs the mismatch, but sends nothing and claims nothing", async () => {
+    let resendCalls = 0;
+    const stripeUrls: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === RESEND_URL) { resendCalls++; return new Response(null, { status: 202 }); }
+      stripeUrls.push(url);
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 18800 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`unexpected fetch: ${url}`);
+    });
     try {
-      await freshRun({ SEND_APPROVED_PASSES: undefined });
-      expect(fetchSpy).not.toHaveBeenCalled();
+      const month = new Date().toISOString().slice(0, 7);
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
+      expect(stripeUrls).toHaveLength(10);
+      expect(resendCalls).toBe(0);
+      const lines = logSpy.mock.calls.map((c) => String(c[0]));
+      const hit = lines.find((l) => l.includes("not in SEND_APPROVED_PASSES"));
+      expect(hit).toBeDefined();
+      expect(hit).toContain("1 mismatch(es)");
+      expect(hit).toContain("STRIPE_PRICE_FIRM_STARTER");
+      expect(hit).toContain("unit_amount=18800");
+      expect(await store.claimStripePriceParityAlertForMonth(env.DB, month, "any-signature")).toBe(true);
     } finally {
       fetchSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("BILL-44: unapproved and all prices match -- logs a clean-run line so 'ran clean' is distinguishable from 'never ran'", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
+      const lines = logSpy.mock.calls.map((c) => String(c[0]));
+      expect(lines).toContain("[stripe-price-parity-cron] 10 price(s) checked, 0 mismatches");
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
     }
   });
 
   it("no STRIPE_SECRET_KEY -- degrades safely, no fetch attempted, no throw", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     try {
-      await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", STRIPE_SECRET_KEY: undefined })).resolves.toBeUndefined();
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        await expect(freshRun({ SEND_APPROVED_PASSES: "stripePriceParityAlert", STRIPE_SECRET_KEY: undefined })).resolves.toBeUndefined();
+        // BILL-44: this skip used to be silent too.
+        expect(logSpy.mock.calls.map((c) => String(c[0]))).toContain("[stripe-price-parity-cron] STRIPE_SECRET_KEY unset -- parity check skipped");
+      } finally {
+        logSpy.mockRestore();
+      }
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();

@@ -14156,9 +14156,10 @@ export default {
     );
 
     // AuditLab BILL-17 (MEDIUM, 2026-09-09): see runStripePriceParityAlertPass()'s
-    // own docstring. Independent pass, no checkDataFreshness() dependency,
-    // gated behind requireSendApproval() per the standing consent-gate
-    // directive since this is a NEW pass added after that directive existed.
+    // own docstring. Independent pass, no checkDataFreshness() dependency.
+    // Its alert email is gated behind requireSendApproval() per the standing
+    // consent-gate directive; the read-only Stripe check and its log line run
+    // every tick regardless (BILL-44).
     ctx.waitUntil(
       (async () => {
         try {
