@@ -4455,10 +4455,11 @@ def _short_verified(iso: str) -> str:
 
 def _upcoming_change_events_by_state() -> dict[str, list[dict]]:
     """Same kind=='rule_change' AND upcoming filter build_firm_dashboard_page()
-    already uses for its own rule-change surface, and the exact set
-    build_rule_changes_page()'s "Upcoming changes" section publishes -- so a
-    per-state page can never show something that page itself wouldn't stand
-    behind. Grouped by jurisdiction_slug and computed once at module load
+    already uses for its own rule-change surface. This is the UNION of
+    build_rule_changes_page()'s "Upcoming changes" (enacted) and "Proposed,
+    with a target effective date" sections, not the first alone (STATUS-3),
+    so every consumer must branch on _rc_is_enacted() before saying a change
+    will happen. Grouped by jurisdiction_slug and computed once at module load
     (not per page) since the source feed is small and identical for every
     caller this build. Sorted soonest-first per state."""
     raw = json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8"))
@@ -4527,9 +4528,23 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     topic_phrase = topic if topic.rstrip().lower().endswith("change") else f"{topic} change"
     jurisdiction = e.get("jurisdiction") or state_slug
     summary = e.get("summary_public") or ""
+    # UX-25 (AuditLab, 2026-10-24): fmt_date, same as every other date surface -- this printed raw ISO.
+    eff_human = fmt_date(date.fromisoformat(e["effective_date"]))
+    # STATUS-3 (AuditLab, 2026-10-24): only an enacted/adopted record gets "is coming"; anything else
+    # (PROPOSED, or a status we couldn't establish) is stated as not adopted, same as /rule-changes/.
+    if _rc_is_enacted(e):
+        lead = f"A {esc(topic_phrase)} is coming to {esc(jurisdiction)}, effective {esc(eff_human)}."
+    else:
+        _proposed = e.get("status") == "PROPOSED"
+        lead = (
+            f"A {'proposed ' if _proposed else ''}{esc(topic_phrase)} for {esc(jurisdiction)} has a target "
+            f"effective date of {esc(eff_human)}. "
+            f"{'It has not been adopted' if _proposed else 'We have not confirmed it has been adopted'}, "
+            f"so it could still change or be withdrawn."
+        )
     return f"""<div class="callout" style="border-left-color:var(--gold);">
   <p class="label">Heads up</p>
-  <p>A {esc(topic_phrase)} is coming to {esc(jurisdiction)}, effective {esc(e["effective_date"])}.
+  <p>{lead}
   {esc(summary)}{citation_link_html}</p>
 </div>"""
 
@@ -10226,6 +10241,14 @@ def _rc_pending_reverification(e: dict) -> bool:
     return bool(e.get("needs_reverification")) or bool(eff and ver and ver < eff)
 
 
+# AuditLab STATUS-3 (2026-10-24): one status test for "adopted, so a dated change will happen". Used by
+# /rule-changes/'s splits AND the three other consumers of the upcoming union (state-page callout,
+# firm-dashboard Calendar modal/chip, staff notify email) -- STATUS-2 landed on /rule-changes/ alone, so
+# /idaho/ still said a PROPOSED rule "is coming ... effective 2028-01-01".
+def _rc_is_enacted(e: dict) -> bool:
+    return e.get("status") in ("ENACTED", "ADOPTED_RULE")
+
+
 def _rule_change_card_html(e: dict) -> str:
     eff = e.get("effective_date")
     eff_html = ""
@@ -10391,7 +10414,7 @@ def build_rule_changes_page() -> str:
     # law." A signed-but-undated rule is a real, distinct state from a
     # proposal that hasn't been adopted at all -- split on status rather than
     # asserting one heading covers both.
-    undated_enacted = [e for e in undated if e.get("status") in ("ENACTED", "ADOPTED_RULE")]
+    undated_enacted = [e for e in undated if _rc_is_enacted(e)]
     undated_proposed = [e for e in undated if e not in undated_enacted]
     recent = [e for e in changes if not _is_still_upcoming(e) and e.get("effective_date")]
     # AuditLab FAIL-3-followup (2026-10-16): this bucket's own section note makes a first-person
@@ -10407,7 +10430,7 @@ def build_rule_changes_page() -> str:
     recent_verified = [e for e in recent if not _rc_pending_reverification(e)]
     # AuditLab STATUS-2 (2026-10-24): same split as undated_enacted/undated_proposed above. The
     # upcoming bucket's note said "A dated, signed change" over a PROPOSED member (Idaho).
-    upcoming_enacted = [e for e in upcoming if e.get("status") in ("ENACTED", "ADOPTED_RULE")]
+    upcoming_enacted = [e for e in upcoming if _rc_is_enacted(e)]
     upcoming_proposed = [e for e in upcoming if e not in upcoming_enacted]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
@@ -15562,6 +15585,12 @@ function drRuleChangeEventsForFirm() {
   return DR_RULE_CHANGE_EVENTS.filter(function(e) { return activeStates[e.jurisdiction_slug]; });
 }
 
+// AuditLab STATUS-3 (2026-10-24): mirrors generate.py's _rc_is_enacted(). DR_RULE_CHANGE_EVENTS holds
+// proposed rules too, and a missing/unknown status must not read as the settled claim.
+function drRuleChangeIsEnacted(e) {
+  return e.status === 'ENACTED' || e.status === 'ADOPTED_RULE';
+}
+
 function drRuleChangeEventsByDate() {
   var map = {};
   drRuleChangeEventsForFirm().forEach(function(e) {
@@ -15577,8 +15606,12 @@ function drOpenRuleChangeModal(event, triggerBtn) {
   drRuleChangeModalTriggerBtn = triggerBtn || null;
   drRuleChangeModalCurrentEvent = event;
   document.getElementById('dr-rule-change-modal-title').textContent = event.jurisdiction;
-  document.getElementById('dr-rule-change-modal-date').innerHTML =
-    '<strong>Effective ' + drEscapeHtml(drFormatDeadline(event.effective_date)) + '</strong> &mdash; not yet in force.';
+  var drRuleChangeDateLabel = drEscapeHtml(drFormatDeadline(event.effective_date));
+  document.getElementById('dr-rule-change-modal-date').innerHTML = drRuleChangeIsEnacted(event)
+    ? '<strong>Effective ' + drRuleChangeDateLabel + '</strong> &mdash; not yet in force.'
+    : '<strong>Target effective date ' + drRuleChangeDateLabel + '</strong> &mdash; ' +
+      (event.status === 'PROPOSED' ? 'proposed, not adopted' : 'adoption not confirmed') +
+      '; it could still change or be withdrawn.';
   document.getElementById('dr-rule-change-modal-summary').textContent = event.summary;
   var citeLink = document.getElementById('dr-rule-change-modal-citation-link');
   citeLink.href = event.citation_url || '#';
@@ -15652,7 +15685,9 @@ function drNotifyRuleChangeStaff() {
       // above) -- it just wasn't forwarded, so the email always assumed
       // mobility. Same already-public-client-data posture as every other
       // field here.
-      topic: event.topic || ''
+      topic: event.topic || '',
+      // STATUS-3: lets the email drop the "upcoming ... Effective" framing for a rule that isn't adopted.
+      status: event.status || ''
     })
   }).then(function(res) {
     if (res.status === 401) { window.location.href = '/firm-login/'; return null; }
@@ -15767,11 +15802,14 @@ function drRenderCalendar() {
       // leaning on title= for this: it is the least accessible of the three
       // (no touch, no keyboard focus, inconsistent screen-reader support).
       var chipTopic = e.topic ? drRuleChangeShortTopic(e.topic) : 'rule change';
+      // STATUS-3: a proposed rule's chip says so, visibly and to a screen reader.
+      var chipStatus = drRuleChangeIsEnacted(e) ? '' : (e.status === 'PROPOSED' ? 'proposed' : 'unconfirmed');
+      if (chipStatus) chipTopic = chipStatus + ' ' + chipTopic;
       var chipDetail = [e.jurisdiction, e.topic || 'rule change'].join(' — ') +
         (e.summary ? ': ' + e.summary : '');
       return '<button type="button" class="dr-cal-item--rule-change" data-rule-change-id="' + drEscapeHtml(e.id) + '" ' +
         'title="' + drEscapeHtml(chipDetail) + '" ' +
-        'aria-label="Rule change: ' + drEscapeHtml(chipDetail) + '">' +
+        'aria-label="' + (!chipStatus ? 'Rule change: ' : chipStatus === 'proposed' ? 'Proposed rule change, not adopted: ' : 'Rule change, adoption not confirmed: ') + drEscapeHtml(chipDetail) + '">' +
         drEscapeHtml(e.jurisdiction) + ': ' + drEscapeHtml(chipTopic) + '</button>';
     }).join('');
     // --has-item (staff) and --has-rule-change (regulatory) are separate
@@ -22210,9 +22248,10 @@ def build_firm_dashboard_page(
     # question this static page can't answer at build time. Scoped to
     # kind=='rule_change' AND upcoming (excludes source_conflict entries,
     # which aren't confirmed changes, and already-effective ones, which
-    # belong on the roster/deadline surfaces instead) -- matches
-    # build_rule_changes_page()'s own "Upcoming changes" section exactly, so
-    # this can never show something that page itself wouldn't stand behind.
+    # belong on the roster/deadline surfaces instead). This is the union of
+    # build_rule_changes_page()'s "Upcoming changes" and "Proposed, with a
+    # target effective date" sections (STATUS-3), so `status` rides along and
+    # the modal/chip/notify email branch on it via drRuleChangeIsEnacted().
     # summary_public ONLY, same reason as that page's own comment: never a
     # raw internal-prose field.
     _reg_change_raw = json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8"))
@@ -22237,6 +22276,9 @@ def build_firm_dashboard_page(
             if isinstance(e.get("citation_url"), str) and e["citation_url"].startswith(("http://", "https://"))
             else None,
             "confidence": e.get("confidence") or "",
+            # AuditLab STATUS-3 (2026-10-24): the client had no way to tell a PROPOSED rule from an
+            # enacted one, so the modal and the staff email both framed Idaho's proposal as settled.
+            "status": e.get("status") or "",
             # AuditLab COPY-2 EXTENDED (LOW, 2026-08-14): added so the modal
             # JS below can render the same English source_label as
             # _rule_change_card_html() instead of the raw confidence enum.

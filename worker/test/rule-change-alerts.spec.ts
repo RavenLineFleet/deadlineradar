@@ -391,7 +391,8 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
       "November 1, 2026",
       "https://example.gov/hb4317",
       "https://deadline-radar.com/unsubscribe?token=x",
-      "CPA regulatory/statutory change"
+      "CPA regulatory/statutory change",
+      "ENACTED"
     );
     expect(built.subject).toBe("Oklahoma CPA regulatory/statutory change -- Acme CPA");
     expect(built.subject.toLowerCase()).not.toContain("mobility");
@@ -413,7 +414,8 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
       "January 1, 2027",
       null,
       "https://deadline-radar.com/unsubscribe?token=x",
-      "practice privilege (mobility)"
+      "practice privilege (mobility)",
+      "ENACTED"
     );
     expect(built.subject).toBe("Illinois mobility rule change -- Acme CPA");
     expect(built.textBody).toContain("practice-privilege rule change");
@@ -429,7 +431,9 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
       "A rule changed.",
       "August 28, 2026",
       null,
-      "https://deadline-radar.com/unsubscribe?token=x"
+      "https://deadline-radar.com/unsubscribe?token=x",
+      undefined,
+      "ENACTED"
     );
     expect(built.subject).toBe("Missouri practice/license rule change -- Acme CPA");
     expect(built.subject.toLowerCase()).not.toContain("mobility");
@@ -452,11 +456,62 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab ALERT-3 staff half", ()
       "January 1, 2028",
       null,
       "https://deadline-radar.com/unsubscribe?token=x",
-      ""
+      "",
+      "ENACTED"
     );
     expect(built.subject).toBe("Idaho practice/license rule change -- Acme CPA");
     expect(built.subject).not.toContain("  ");
     expect(built.textBody).not.toContain("upcoming  rule change");
+  });
+});
+
+describe("buildRuleChangeNotificationEmail() -- AuditLab STATUS-3 (a PROPOSED rule is not framed as settled)", () => {
+  // Live example (2026-10-24): Idaho's PROPOSED rule, target 2028-01-01, went out as "flagged an
+  // upcoming ... Effective January 1, 2028".
+  const idaho = (status?: string) =>
+    import("../src/emails").then(({ buildRuleChangeNotificationEmail }) =>
+      buildRuleChangeNotificationEmail(
+        "Acme CPA",
+        "Idaho",
+        "Idaho",
+        "The proposed rule would change Idaho's CPE rules.",
+        "January 1, 2028",
+        null,
+        "https://deadline-radar.com/unsubscribe?token=x",
+        "CPA regulatory/statutory change",
+        status
+      )
+    );
+
+  it("PROPOSED: subject, heading, body and preheader all say proposed / not adopted, never 'upcoming' or 'Effective'", async () => {
+    const built = await idaho("PROPOSED");
+    expect(built.subject).toBe("Idaho proposed CPA regulatory/statutory change (not adopted) -- Acme CPA");
+    expect(built.textBody).toContain("flagged a proposed CPA regulatory/statutory change in Idaho");
+    expect(built.textBody).toContain("It has not been adopted, so it could still change or be withdrawn.");
+    expect(built.textBody).toContain("Target effective date January 1, 2028:");
+    for (const body of [built.textBody, built.htmlBody]) {
+      expect(body).not.toContain("upcoming");
+      expect(body).not.toMatch(/(^|[^ ])Effective January/);
+    }
+    expect(built.htmlBody).toContain("Idaho proposed CPA regulatory/statutory change (not adopted)</h1>");
+  });
+
+  it("missing or unrecognised status fails safe: no settled framing, and no 'not adopted' claim it can't back", async () => {
+    for (const status of [undefined, "", "STATUS_UNDETERMINED"]) {
+      const built = await idaho(status);
+      expect(built.subject).toBe("Idaho CPA regulatory/statutory change (adoption not confirmed) -- Acme CPA");
+      expect(built.textBody).toContain("We have not confirmed it has been adopted");
+      expect(built.textBody).not.toContain("It has not been adopted");
+      expect(built.textBody).not.toContain("upcoming");
+      expect(built.textBody).toContain("Target effective date January 1, 2028:");
+    }
+  });
+
+  it("ADOPTED_RULE keeps the enacted framing, same as ENACTED", async () => {
+    const built = await idaho("ADOPTED_RULE");
+    expect(built.subject).toBe("Idaho CPA regulatory/statutory change -- Acme CPA");
+    expect(built.textBody).toContain("flagged an upcoming CPA regulatory/statutory change in Idaho");
+    expect(built.textBody).toContain("Effective January 1, 2028:");
   });
 });
 
@@ -489,6 +544,7 @@ describe("POST /firm/rule-change/notify forwards topic end to end", () => {
             effective_date_label: "November 1, 2026",
             citation_url: "",
             topic: "CPA regulatory/statutory change",
+            status: "ENACTED",
           }),
         }),
         { RESEND_API_KEY: "test-key-not-real" }
@@ -499,6 +555,49 @@ describe("POST /firm/rule-change/notify forwards topic end to end", () => {
       expect(captured).toHaveLength(1);
       const sentSubject = captured[0]?.subject ?? "";
       expect(sentSubject).toBe("Oklahoma CPA regulatory/statutory change -- alert3-e2e LLP");
+      expect(sentSubject.toLowerCase()).not.toContain("mobility");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("STATUS-3: a PROPOSED status in the request body reaches the sent subject -- the handler forwards it, not just the builder", async () => {
+    const { firmId, memberId } = await newFirmWithRosterLicense("status3-e2e", "oklahoma");
+    const cookie = await sessionCookieFor(firmId, memberId);
+
+    const captured: Array<{ subject: string }> = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === RESEND_URL) {
+        const body = JSON.parse(String(init?.body)) as { subject: string };
+        captured.push({ subject: body.subject });
+        return new Response(null, { status: 202 });
+      }
+      throw new Error(`unexpected fetch in ALERT-3 e2e test: ${url}`);
+    });
+    try {
+      const resp = await workerFetch(
+        new Request(`${BASE}/firm/rule-change/notify`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Cookie: cookie, Origin: BASE, "cf-connecting-ip": "203.0.113.91" },
+          body: JSON.stringify({
+            state_slug: "oklahoma",
+            jurisdiction: "Oklahoma",
+            summary: "HB4317 adds a bachelor's-degree-plus-experience pathway to CPA licensure.",
+            effective_date_label: "November 1, 2026",
+            citation_url: "",
+            topic: "CPA regulatory/statutory change",
+            status: "PROPOSED",
+          }),
+        }),
+        { RESEND_API_KEY: "test-key-not-real" }
+      );
+      expect(resp.status).toBe(200);
+      const respBody = (await resp.json()) as { sent: number };
+      expect(respBody.sent).toBe(1);
+      expect(captured).toHaveLength(1);
+      const sentSubject = captured[0]?.subject ?? "";
+      expect(sentSubject).toBe("Oklahoma proposed CPA regulatory/statutory change (not adopted) -- status3-e2e LLP");
       expect(sentSubject.toLowerCase()).not.toContain("mobility");
     } finally {
       fetchSpy.mockRestore();

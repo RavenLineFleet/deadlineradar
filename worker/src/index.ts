@@ -6229,6 +6229,9 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   // event data) still degrades to buildRuleChangeNotificationEmail()'s own
   // generic fallback rather than 400ing.
   const topicRaw = (form.topic ?? "").trim();
+  // AuditLab STATUS-3 (2026-10-24): same already-public posture; only ever compared against the
+  // enum in buildRuleChangeNotificationEmail(), never rendered, so no length/charset check needed.
+  const statusRaw = (form.status ?? "").trim();
 
   if (!stateSlug || !jurisdiction || !summary || !effectiveDateLabel) {
     return jsonResponse(400, { error: "Missing rule-change details." });
@@ -6292,7 +6295,8 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
         effectiveDateLabel,
         citationUrl,
         unsubscribeUrl,
-        topicRaw || undefined
+        topicRaw || undefined,
+        statusRaw
       );
       const ok = await sendEmail(env.RESEND_API_KEY, target.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
       if (ok) sent++;

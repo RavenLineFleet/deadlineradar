@@ -1246,7 +1246,13 @@ export function buildRuleChangeNotificationEmail(
   // the correct tool for that class) ONLY when the topic actually is
   // mobility; anything else gets generic wording and points at the board
   // directly rather than a tool meant for a different kind of question.
-  topic: string = "practice/license rule change"
+  topic: string = "practice/license rule change",
+  // AuditLab STATUS-3 (2026-10-24): the Calendar feed carries PROPOSED rules too, and this said
+  // "flagged an upcoming ... Effective January 1, 2028" over Idaho's proposal. Only ENACTED /
+  // ADOPTED_RULE keep that framing; anything else, including a missing status from an older
+  // cached page, drops it (an else-to-the-strongest-claim default is CONF-2's bug). PROPOSED says
+  // "not adopted"; an unknown status says only that we haven't confirmed adoption.
+  status: string = ""
 ): BuiltEmail {
   const addr = mailingAddress();
   const safeFirmName = firmName.replace(/[\r\n]+/g, " ");
@@ -1264,19 +1270,31 @@ export function buildRuleChangeNotificationEmail(
   const confirmLine = isMobilityTopic
     ? `check Practice Privilege Check or confirm directly with the ${stateName} board of accountancy`
     : `confirm directly with the ${stateName} board of accountancy`;
-  const subject = `${jurisdiction} ${changeNoun} -- ${safeFirmName}`;
+  const isEnacted = status === "ENACTED" || status === "ADOPTED_RULE";
+  const isProposed = status === "PROPOSED";
+  const headingNoun = isEnacted
+    ? changeNoun
+    : isProposed
+      ? `proposed ${changeNoun} (not adopted)`
+      : `${changeNoun} (adoption not confirmed)`;
+  const subject = `${jurisdiction} ${headingNoun} -- ${safeFirmName}`;
+  const flaggedLead = isEnacted
+    ? `flagged an upcoming ${flaggedPhrase} in ${jurisdiction} that may affect you.`
+    : `flagged a ${isProposed ? "proposed " : ""}${flaggedPhrase} in ${jurisdiction} that may affect you. ` +
+      (isProposed ? "It has not been adopted" : "We have not confirmed it has been adopted") +
+      ", so it could still change or be withdrawn.";
+  const dateLead = isEnacted ? `Effective ${effectiveDateLabel}` : `Target effective date ${effectiveDateLabel}`;
   // UX-11 (2026-08-21): was `subject` verbatim -- effectiveDateLabel and
   // summary are both already in scope and carry the actual content of the
   // change, which the subject only gestures at.
-  const preheader = `Effective ${effectiveDateLabel}: ${summary}`;
+  const preheader = `${dateLead}: ${summary}`;
 
   const citationLine = citationUrl
     ? `Source: ${citationUrl}\n\n`
     : "";
   const textBody =
-    `${safeFirmName} flagged an upcoming ${flaggedPhrase} in ${jurisdiction} that may ` +
-    `affect you.\n\n` +
-    `Effective ${effectiveDateLabel}:\n${summary}\n\n` +
+    `${safeFirmName} ${flaggedLead}\n\n` +
+    `${dateLead}:\n${summary}\n\n` +
     citationLine +
     `This is informational only, not a determination about your own situation -- ${confirmLine}.\n\n` +
     `If this doesn't apply to you, you can safely ignore this email.\n\n` +
@@ -1286,12 +1304,9 @@ export function buildRuleChangeNotificationEmail(
   const htmlBody = htmlShell(
     preheader,
     `<h1 class="dr-fg" style="margin:0 0 16px;font-size:19px;font-weight:700;color:${LIGHT.fg};">` +
-      `${esc(jurisdiction)} ${esc(changeNoun)}</h1>` +
-      p(
-        `${esc(safeFirmName)} flagged an upcoming ${esc(flaggedPhrase)} in ` +
-          `${esc(jurisdiction)} that may affect you.`
-      ) +
-      p(`<strong>Effective ${esc(effectiveDateLabel)}:</strong> ${esc(summary)}`) +
+      `${esc(jurisdiction)} ${esc(headingNoun)}</h1>` +
+      p(`${esc(safeFirmName)} ${esc(flaggedLead)}`) +
+      p(`<strong>${esc(dateLead)}:</strong> ${esc(summary)}`) +
       (citationUrl
         ? `<p style="margin:0 0 20px;">${button(citationUrl, "See the source")}</p>`
         : "") +
