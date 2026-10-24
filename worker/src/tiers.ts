@@ -21,12 +21,10 @@ import { isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
  * seatCapForFirmTier() below), same grandfather mechanism as the other
  * four #151 gates.
  *
- * BILL-16 (AuditLab, 2026-08-29): unlike the paid FIRM_TIERS seat caps
- * below, generate.py's "free, up to 3 staff" marketing copy (3 sites,
- * varied phrasing) is NOT gated against this constant -- deliberate scope
- * call, not an oversight, since a robust regex across the varied phrasing
- * wasn't worth building for a claim with zero billing impact. If this
- * number ever changes, grep generate.py for "up to 3 staff" by hand. */
+ * SEC-39 (2026-10-24): generate.py's and i18n.py's "up to 3 staff" copy
+ * (9 sites, varied phrasing) is now gated against this constant by
+ * preship_gate.py's check_pricing_matches_tiers() -- supersedes BILL-16's
+ * scope call to leave it ungated. */
 export const NEW_SIGNUP_FREE_SEAT_CAP = 3;
 
 export interface FirmTierDef {

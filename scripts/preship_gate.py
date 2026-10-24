@@ -5796,6 +5796,48 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
             "markup shape may have changed; update check_pricing_matches_tiers()'s bounds_pat"
         )
 
+    # SEC-39 (SecurityLab, AuditLab-extended, 2026-10-24): the seat-cap arms
+    # above cover 4 surfaces, but 7 more customer-facing copies state a
+    # FIRM_TIERS cap and 9 state NEW_SIGNUP_FREE_SEAT_CAP, which this check
+    # never read -- fixing what the gate named went GREEN with them stale,
+    # and a free-cap drift produced 0 errors. Each pattern is one phrasing,
+    # with its own not-found guard; `expect` gives the cap every captured
+    # number must equal. faq.firm.4_a is checked per tier, since it states
+    # all four caps and splits one across a string-literal join.
+    free_cap_match = re.search(r"NEW_SIGNUP_FREE_SEAT_CAP\s*=\s*(\d+)", ts_text)
+    if not free_cap_match:
+        errors.append("[SYNC] Could not find tiers.ts's NEW_SIGNUP_FREE_SEAT_CAP numeric literal -- markup shape may have changed; update check_pricing_matches_tiers()")
+    free_cap = int(free_cap_match.group(1)) if free_cap_match else None
+    i18n_cap_text = i18n_text if i18n_path.exists() else ""
+    lo_cap, hi_cap = lowest_tier["seatCap"], highest_tier["seatCap"]
+    cap_arms = [
+        ("generate.py", py_text, r"More than (\d+) staff\?", [hi_cap]),
+        ("i18n.py", i18n_cap_text, r"More than (\d+) staff\?", [hi_cap]),
+        ("i18n.py", i18n_cap_text, r"From (\d+) to (\d+) staff", [lo_cap, hi_cap]),
+        ("i18n.py", i18n_cap_text, r"includes the first (\d+) seats, plus [^\"]*? for each seat above (\d+)", [hi_cap, hi_cap]),
+        ("generate.py", py_text, r"DR_FREE_STAFF_CAP\s*=\s*(\d+)", [free_cap]),
+        ("generate.py", py_text, r"Free plan \(up to (\d+) staff\)", [free_cap]),
+        ("generate.py", py_text, r"free up to (\d+) staff\.", [free_cap]),
+        ("generate.py", py_text, r"up to (\d+) staff</strong>, no card required", [free_cap]),
+        ("generate.py", py_text, r"above (\d+) staff(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
+        ("i18n.py", i18n_cap_text, r"up to (\d+) staff</strong>, no card required", [free_cap]),
+        ("i18n.py", i18n_cap_text, r"above (\d+) staff(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
+        ("i18n.py", i18n_cap_text, r'"pricing\.row_roster_free":\s*"Up to (\d+) staff"', [free_cap]),
+        ("i18n.py", i18n_cap_text, r"up to (\d+) staff, no card and no time limit", [free_cap]),
+    ]
+    for t in by_plan_tier.values():
+        cap_arms.append(("i18n.py", i18n_cap_text, re.escape(t["label"]) + r' \(up to\s*(?:"\s*")?(\d+)\)', [t["seatCap"]]))
+    for fname, text, pat, expect in cap_arms:
+        if None in expect:
+            continue  # NEW_SIGNUP_FREE_SEAT_CAP not-found already reported
+        found = re.findall(pat, text)
+        if not found:
+            errors.append(f"[SYNC] Could not find the seat-cap copy matching /{pat}/ in {fname} -- markup shape may have changed; update check_pricing_matches_tiers()'s SEC-39 cap_arms")
+        for groups in found:
+            got = [int(g) for g in (groups if isinstance(groups, tuple) else (groups,))]
+            if got != expect:
+                errors.append(f"[SYNC] {fname} seat-cap copy /{pat}/ states {got}, but worker/src/tiers.ts says {expect} -- the advertised seat cap would disagree with what checkout bills.")
+
     return errors
 
 

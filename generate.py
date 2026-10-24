@@ -15216,7 +15216,7 @@ function drRenderBillingPanel() {
         var priceUsd = isMonthly ? t.monthlyUsd : t.annualUsd;
         var priceLabel = '$' + priceUsd + '/' + (isMonthly ? 'month' : 'year');
         var seatLabel = (t.tier === topTier.tier && seatCount > t.seatCap)
-          ? ('up to 35 staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS.toFixed(2) : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
+          ? ('up to ' + t.seatCap + ' staff + $' + (isMonthly ? PER_SEAT_ADDON_MONTHLY_USD_JS.toFixed(2) : PER_SEAT_ADDON_ANNUAL_USD_JS) + '/seat beyond')
           : ('up to ' + t.seatCap + ' staff');
         // BILL-26 (SecurityLab, confirmed by orchestrator, 2026-10-03):
         // same reasoning as the static pricing page's own savings badge --
