@@ -157,7 +157,7 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     try {
       await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
       const lines = logSpy.mock.calls.map((c) => String(c[0]));
-      expect(lines).toContain("[stripe-price-parity-cron] 10 price(s) checked, 0 mismatches");
+      expect(lines).toContain("[stripe-price-parity-cron] 10 of 10 price(s) checked, 0 mismatches");
     } finally {
       fetchSpy.mockRestore();
       logSpy.mockRestore();
@@ -181,10 +181,19 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     }
   });
 
-  it("an unset ANNUAL price env var is silently skipped -- not a mismatch (monthly + per-seat configured and correct)", async () => {
+  // BILL-45 (AuditLab, MEDIUM, 2026-10-24): this used to assert an unset
+  // annual tier id is silently skipped. /pricing/ advertises all 4 annual
+  // tiers unconditionally, so an unset one is a checkout 503 -- OVER-2's
+  // argument -- and must alert like its add-on sibling.
+  it("BILL-45: unset ANNUAL tier price env vars alert naming each one (monthly + per-seat configured and correct)", async () => {
     const urls: string[] = [];
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const captured: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : (input as Request).url;
+      if (url === RESEND_URL) {
+        captured.push(String((JSON.parse(String(init?.body)) as { text?: string }).text ?? ""));
+        return new Response(null, { status: 202 });
+      }
       urls.push(url);
       const ok = pr6OkResponse(url);
       if (ok) return ok;
@@ -199,9 +208,42 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
         STRIPE_PRICE_FIRM_STANDARD: undefined,
         STRIPE_PRICE_FIRM_SCALE: undefined,
       });
-      expect(urls).toHaveLength(6); // only the 6 PR6 prices fetched, no alert POST
+      expect(urls).toHaveLength(6); // only the 6 PR6 prices fetched
+      expect(captured).toHaveLength(1);
+      for (const name of ["STRIPE_PRICE_FIRM_STARTER", "STRIPE_PRICE_FIRM_GROWTH", "STRIPE_PRICE_FIRM_STANDARD", "STRIPE_PRICE_FIRM_SCALE"]) {
+        expect(captured[0]).toContain(`${name} [`);
+      }
+      expect(captured[0]).toContain("advertises this tier");
     } finally {
       fetchSpy.mockRestore();
+    }
+  });
+
+  it("BILL-45: one annual tier id unset -- no clean-run line claiming 10 checked; the mismatch is logged even unapproved", async () => {
+    const stripeUrls: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      stripeUrls.push(url);
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV, STRIPE_PRICE_FIRM_STARTER: undefined });
+      expect(stripeUrls).toHaveLength(9);
+      const lines = logSpy.mock.calls.map((c) => String(c[0]));
+      expect(lines.some((l) => l.includes("price(s) checked"))).toBe(false);
+      const hit = lines.find((l) => l.includes("not in SEND_APPROVED_PASSES"));
+      expect(hit).toContain("1 mismatch(es)");
+      expect(hit).toContain("STRIPE_PRICE_FIRM_STARTER");
+      expect(hit).toContain("advertises this tier");
+    } finally {
+      fetchSpy.mockRestore();
+      logSpy.mockRestore();
     }
   });
 

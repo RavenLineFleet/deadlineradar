@@ -2766,6 +2766,12 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   checks.push({ envVar: "STRIPE_PRICE_PER_SEAT_ADDON_MONTHLY", label: "Per-seat add-on (monthly)", priceId: stripePriceIdForPerSeatAddon(env, "monthly"), expectedUsd: PER_SEAT_ADDON_MONTHLY_USD, expectedInterval: "month" });
 
   const mismatches: { envVar: string; label: string; expectedUsd: number; expectedInterval: "year" | "month"; problems: string[] }[] = [];
+  // BILL-45 (AuditLab, MEDIUM, 2026-10-24): the clean-run line used to print
+  // checks.length, a constant 10, however many prices were actually fetched
+  // -- so "10 checked" read the same whether 10 or 6 were compared. Count
+  // and name what really happened instead.
+  let compared = 0;
+  const notConfigured: string[] = [];
   for (const check of checks) {
     const { envVar, label, priceId, expectedUsd, expectedInterval } = check;
     if (!priceId) {
@@ -2781,8 +2787,16 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
         // `_MONTHLY` suffix test above never matched this name, so an unset
         // annual add-on could sit silent forever.
         mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while /pricing/ advertises the per-seat rate -- checkout for a roster above the top tier's seat cap would 503`] });
+      } else if (expectedInterval === "year") {
+        // BILL-45: the 4 annual tier prices are the primary purchase path and
+        // /pricing/ advertises every one unconditionally, so OVER-2's argument
+        // applies to them too -- an unset id is a 503 at checkout, not
+        // "not configured".
+        mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while /pricing/ advertises this tier -- checkout for it would 503`] });
+      } else {
+        notConfigured.push(envVar); // not offered in this environment -- not a mismatch
       }
-      continue; // otherwise not configured in this environment -- not a mismatch
+      continue;
     }
     let price;
     try {
@@ -2795,6 +2809,7 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
       mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`price id ${priceId} not found or rejected by Stripe -- checkout for this price would fail`] });
       continue;
     }
+    compared++;
     const problems: string[] = [];
     const expectedCents = Math.round(expectedUsd * 100);
     if (price.unitAmount !== expectedCents) {
@@ -2827,7 +2842,8 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   }
 
   if (mismatches.length === 0) {
-    console.log(`[stripe-price-parity-cron] ${checks.length} price(s) checked, 0 mismatches`);
+    const skipped = notConfigured.length > 0 ? ` -- not configured, skipped: ${notConfigured.join(", ")}` : "";
+    console.log(`[stripe-price-parity-cron] ${compared} of ${checks.length} price(s) checked, 0 mismatches${skipped}`);
     return;
   }
   if (!requireSendApproval(env, "stripePriceParityAlert")) {
