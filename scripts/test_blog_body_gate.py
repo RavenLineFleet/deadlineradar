@@ -100,3 +100,21 @@ def test_11_unimportable_generate_is_an_error_not_a_skip(monkeypatch):
     monkeypatch.setitem(sys.modules, "generate", None)
     errs = gate.check_blog_body_change_advances_modified(REPO_ROOT)
     assert len(errs) == 1 and "measuring nothing" in errs[0], errs
+
+
+def test_12_a_syntaxerror_in_generate_is_reported_not_raised(monkeypatch):
+    # GATE-67: test_11's blocked import raises ImportError, which the
+    # pre-GATE-66 `except ImportError` also caught -- only a non-ImportError
+    # can tell the widening apart from the arm it replaced.
+    import builtins
+    real_import = builtins.__import__
+
+    def fake_import(name, *a, **k):
+        if name == "generate":
+            raise SyntaxError("invalid syntax (generate.py, line 1)")
+        return real_import(name, *a, **k)
+
+    monkeypatch.delitem(sys.modules, "generate", raising=False)
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    errs = gate.check_blog_body_change_advances_modified(REPO_ROOT)
+    assert len(errs) == 1 and "SyntaxError" in errs[0], errs
