@@ -5495,6 +5495,12 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
 
     py_text = generate_py.read_text(encoding="utf-8")
     errors = []
+    # GATE-71 (AuditLab, 2026-10-24): both per-seat legs below are gated
+    # on these two matches with no else, so a miss (a `: number`
+    # annotation, a derived initialiser) dropped all four per-seat checks
+    # silently. Say so instead, like every other not-found case here.
+    if not (per_seat_annual_match and per_seat_monthly_match):
+        errors.append("[SYNC] Could not find tiers.ts's PER_SEAT_ADDON_ANNUAL_USD/PER_SEAT_ADDON_MONTHLY_USD numeric literals -- markup shape may have changed; update check_pricing_matches_tiers()")
 
     # PR6 (2026-10-02): both the dashboard paywall modal and the /pricing/
     # page cards moved from hardcoded per-tier HTML to generating from a
