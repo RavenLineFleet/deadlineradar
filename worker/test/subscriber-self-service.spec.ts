@@ -427,6 +427,61 @@ describe("POST /subscriber/login/verify -- email_change apply phase (roadmap #12
     expect((await store.listSubscriberLicenses(env.DB, contested)).length).toBe(1);
   });
 
+  it("SUBSESS-1: an applied change revokes EVERY session still keyed on the old address, leaving only the new sign-in", async () => {
+    const oldEmail = `subsess1-old-${Date.now()}@example.com`;
+    const newEmail = `subsess1-new-${Date.now()}@example.com`;
+    const bystander = `subsess1-bystander-${Date.now()}@example.com`;
+    await seed(oldEmail, "texas");
+    // Two sessions the redeeming click knows nothing about (another device,
+    // a replayed link), plus an unrelated person's session as a control.
+    const staleA = await store.createSubscriberSession(env.DB, store.normalizeEmail(oldEmail));
+    const staleB = await store.createSubscriberSession(env.DB, store.normalizeEmail(oldEmail));
+    const other = await store.createSubscriberSession(env.DB, store.normalizeEmail(bystander));
+    const { rawToken } = await store.createSubscriberLoginToken(env.DB, oldEmail, "email_change", newEmail);
+
+    const resp = await postVerify(rawToken, "203.0.113.231");
+    expect(resp.headers.get("Location")).toBe(`/my/?email_changed=1`);
+
+    const count = async (email: string) =>
+      (
+        await env.DB.prepare("SELECT COUNT(*) AS c FROM subscriber_sessions WHERE email_normalized = ?1")
+          .bind(store.normalizeEmail(email))
+          .first<{ c: number }>()
+      )?.c;
+    expect(await count(oldEmail)).toBe(0);
+    expect(await count(newEmail)).toBe(1);
+    expect(await count(bystander)).toBe(1);
+    expect(await store.verifySubscriberSession(env.DB, staleA.rawSessionToken)).toBeNull();
+    expect(await store.verifySubscriberSession(env.DB, staleB.rawSessionToken)).toBeNull();
+    expect(await store.verifySubscriberSession(env.DB, other.rawSessionToken)).not.toBeNull();
+
+    // The cross-account leg: someone else later claims the old address. A
+    // stale cookie must not resolve to their rows.
+    await seed(oldEmail, "nevada");
+    const page = await SELF.fetch(`${BASE}/subscriber/licenses`, {
+      headers: { Cookie: `dr_sub_session=${staleA.rawSessionToken}` },
+    });
+    expect(page.status).toBe(401);
+  });
+
+  it("SUBSESS-1: a conflict leaves the old address signed in on the new session only, and never touches the contested owner's sessions", async () => {
+    const oldEmail = `subsess1-conflict-old-${Date.now()}@example.com`;
+    const contested = `subsess1-contested-${Date.now()}@example.com`;
+    await seed(oldEmail, "texas");
+    const staleOld = await store.createSubscriberSession(env.DB, store.normalizeEmail(oldEmail));
+    const { rawToken } = await store.createSubscriberLoginToken(env.DB, oldEmail, "email_change", contested);
+    await seed(contested, "nevada");
+    const contestedOwner = await store.createSubscriberSession(env.DB, store.normalizeEmail(contested));
+
+    const resp = await postVerify(rawToken, "203.0.113.232");
+    expect(resp.headers.get("Location")).toBe(`/my/?email_change_failed=conflict`);
+    const fresh = /dr_sub_session=([^;]+)/.exec(resp.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+
+    expect(await store.verifySubscriberSession(env.DB, staleOld.rawSessionToken)).toBeNull();
+    expect((await store.verifySubscriberSession(env.DB, fresh))?.emailNormalized).toBe(store.normalizeEmail(oldEmail));
+    expect(await store.verifySubscriberSession(env.DB, contestedOwner.rawSessionToken)).not.toBeNull();
+  });
+
   it("full request-then-redeem round trip via the real emailed confirm link", async () => {
     const oldEmail = `sub12-flow-old-${Date.now()}@example.com`;
     const newEmail = `sub12-flow-new-${Date.now()}@example.com`;

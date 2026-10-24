@@ -6099,6 +6099,22 @@ export async function deleteOtherSubscriberSessions(
   return result.meta.changes ?? 0;
 }
 
+/**
+ * Revokes EVERY session for this email, keeping none. SUBSESS-1: on an
+ * applied email change A -> B, the sign-in that follows is keyed on B, so
+ * deleteOtherSubscriberSessions(B, ...) never reaches A's rows. Those
+ * would otherwise outlive the change for their full TTL, and once someone
+ * else re-claims A they resolve to that person's rows. Deleting is the
+ * fix; re-keying them onto B would hand the old sessions the new account.
+ */
+export async function deleteAllSubscriberSessionsForEmail(db: D1Database, emailNormalized: string): Promise<number> {
+  const result = await db
+    .prepare(`DELETE FROM subscriber_sessions WHERE email_normalized = ?1`)
+    .bind(emailNormalized)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
 export async function verifySubscriberSession(
   db: D1Database,
   rawSessionToken: string

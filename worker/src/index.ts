@@ -4900,6 +4900,12 @@ async function handleSubscriberLoginVerify(env: Env, token: string | null): Prom
       // invalidateOutstandingLoginTokensForMember()'s own comment on the
       // firm side.
       await store.invalidateOutstandingSubscriberEmailChangeTokens(env.DB, result.emailNormalized);
+      // SUBSESS-1: the revocation below is keyed on the NEW address, so it
+      // can't reach sessions still keyed on the old one. Those now point at
+      // an address with no rows, and at whoever re-claims it next. Only on
+      // this branch: on "conflict" signInEmail stays the old address and the
+      // call below already covers it.
+      await store.deleteAllSubscriberSessionsForEmail(env.DB, result.emailNormalized);
     }
   }
   const { rawSessionToken, sessionId } = await store.createSubscriberSession(env.DB, signInEmail);
