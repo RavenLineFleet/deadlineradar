@@ -5810,20 +5810,25 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
     free_cap = int(free_cap_match.group(1)) if free_cap_match else None
     i18n_cap_text = i18n_text if i18n_path.exists() else ""
     lo_cap, hi_cap = lowest_tier["seatCap"], highest_tier["seatCap"]
+    # SEC-39 residual: the free cap is also worded "up to 3 people" (3
+    # sites, all missed by a staff-only noun). AuditLab enumerated every noun
+    # after a cap number in both copy files: staff/people/seats, no fourth.
+    noun = r"(?:staff|people|person)"
     cap_arms = [
         ("generate.py", py_text, r"More than (\d+) staff\?", [hi_cap]),
         ("i18n.py", i18n_cap_text, r"More than (\d+) staff\?", [hi_cap]),
         ("i18n.py", i18n_cap_text, r"From (\d+) to (\d+) staff", [lo_cap, hi_cap]),
         ("i18n.py", i18n_cap_text, r"includes the first (\d+) seats, plus [^\"]*? for each seat above (\d+)", [hi_cap, hi_cap]),
         ("generate.py", py_text, r"DR_FREE_STAFF_CAP\s*=\s*(\d+)", [free_cap]),
-        ("generate.py", py_text, r"Free plan \(up to (\d+) staff\)", [free_cap]),
-        ("generate.py", py_text, r"free up to (\d+) staff\.", [free_cap]),
-        ("generate.py", py_text, r"up to (\d+) staff</strong>, no card required", [free_cap]),
-        ("generate.py", py_text, r"above (\d+) staff(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
-        ("i18n.py", i18n_cap_text, r"up to (\d+) staff</strong>, no card required", [free_cap]),
-        ("i18n.py", i18n_cap_text, r"above (\d+) staff(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
-        ("i18n.py", i18n_cap_text, r'"pricing\.row_roster_free":\s*"Up to (\d+) staff"', [free_cap]),
-        ("i18n.py", i18n_cap_text, r"up to (\d+) staff, no card and no time limit", [free_cap]),
+        ("generate.py", py_text, r"Free plan \(up to (\d+) " + noun + r"\)", [free_cap]),
+        ("generate.py", py_text, r"free up to (\d+) " + noun + r"\.", [free_cap]),
+        ("generate.py", py_text, r"free for up to (\d+) " + noun + r"\b", [free_cap]),
+        ("generate.py", py_text, r"up to (\d+) " + noun + r"</strong>, no card required", [free_cap]),
+        ("generate.py", py_text, r"above (\d+) " + noun + r"(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
+        ("i18n.py", i18n_cap_text, r"up to (\d+) " + noun + r"</strong>, no card required", [free_cap]),
+        ("i18n.py", i18n_cap_text, r"above (\d+) " + noun + r"(?: then)?, you choose which (\d+) stay", [free_cap, free_cap]),
+        ("i18n.py", i18n_cap_text, r'"pricing\.row_roster_free":\s*"Up to (\d+) ' + noun + '"', [free_cap]),
+        ("i18n.py", i18n_cap_text, r"up to (\d+) " + noun + r", no card and no time limit", [free_cap]),
     ]
     for t in by_plan_tier.values():
         cap_arms.append(("i18n.py", i18n_cap_text, re.escape(t["label"]) + r' \(up to\s*(?:"\s*")?(\d+)\)', [t["seatCap"]]))

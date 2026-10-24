@@ -42,6 +42,22 @@ def _resub(*pairs):
     return fn
 
 
+_STAFF_WORDED_PY = (
+    (r"DR_FREE_STAFF_CAP = 3;", "DR_FREE_STAFF_CAP = 4;", 1),
+    (r"Free plan \(up to 3 staff\)", "Free plan (up to 4 staff)", 1),
+    (r"free up to 3 staff\.", "free up to 4 staff.", 1),
+    (r"up to 3 staff</strong>, no card required", "up to 4 staff</strong>, no card required", 2),
+    (r"above 3 staff then, you choose which 3 stay", "above 4 staff then, you choose which 4 stay", 1),
+)
+_PEOPLE_WORDED_PY = ((r"free for up to 3 people", "free for up to 4 people", 3),)
+_STAFF_WORDED_I18N = (
+    (r"up to 3 staff</strong>, no card required", "up to 4 staff</strong>, no card required", 1),
+    (r"above 3 staff, you choose which 3 stay", "above 4 staff, you choose which 4 stay", 1),
+    (r'"pricing\.row_roster_free": "Up to 3 staff"', '"pricing.row_roster_free": "Up to 4 staff"', 1),
+    (r"up to 3 staff, no card and no time limit", "up to 4 staff, no card and no time limit", 1),
+)
+
+
 def test_clean_as_committed(tmp_path):
     assert _fixture(tmp_path) == []
 
@@ -75,30 +91,32 @@ def test_lowest_cap_drift_hits_faq_and_roster_row(tmp_path):
 
 def test_free_cap_drift_is_not_silent(tmp_path):
     errors = _fixture(tmp_path, ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP = 4;")))
-    # 9 surfaces; generate.py's trial-end paragraph carries 2 phrasings.
-    assert len(errors) == 10, errors
+    # 12 surfaces; generate.py's trial-end paragraph carries 2 phrasings.
+    assert len(errors) == 13, errors
 
 
 def test_consistent_free_cap_change_is_clean(tmp_path):
-    # Positive control: every free-cap copy moved with tiers.ts -> GREEN.
+    # Positive control: all 12 free-cap copies moved with tiers.ts -> GREEN.
     errors = _fixture(
         tmp_path,
         ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP = 4;")),
-        py_fn=_resub(
-            (r"DR_FREE_STAFF_CAP = 3;", "DR_FREE_STAFF_CAP = 4;", 1),
-            (r"Free plan \(up to 3 staff\)", "Free plan (up to 4 staff)", 1),
-            (r"free up to 3 staff\.", "free up to 4 staff.", 1),
-            (r"up to 3 staff</strong>, no card required", "up to 4 staff</strong>, no card required", 2),
-            (r"above 3 staff then, you choose which 3 stay", "above 4 staff then, you choose which 4 stay", 1),
-        ),
-        i18n_fn=_resub(
-            (r"up to 3 staff</strong>, no card required", "up to 4 staff</strong>, no card required", 1),
-            (r"above 3 staff, you choose which 3 stay", "above 4 staff, you choose which 4 stay", 1),
-            (r'"pricing\.row_roster_free": "Up to 3 staff"', '"pricing.row_roster_free": "Up to 4 staff"', 1),
-            (r"up to 3 staff, no card and no time limit", "up to 4 staff, no card and no time limit", 1),
-        ),
+        py_fn=_resub(*(_STAFF_WORDED_PY + _PEOPLE_WORDED_PY)),
+        i18n_fn=_resub(*_STAFF_WORDED_I18N),
     )
     assert errors == []
+
+
+def test_free_cap_drift_with_only_staff_worded_copy_patched_is_not_green(tmp_path):
+    # SecurityLab's ROUND2 on SEC-39: the 9 staff-worded copies moved, the
+    # 3 "up to N people" copies left stale.
+    errors = _fixture(
+        tmp_path,
+        ts_fn=_sub(("NEW_SIGNUP_FREE_SEAT_CAP = 3;", "NEW_SIGNUP_FREE_SEAT_CAP = 4;")),
+        py_fn=_resub(*_STAFF_WORDED_PY),
+        i18n_fn=_resub(*_STAFF_WORDED_I18N),
+    )
+    assert len(errors) == 3, errors
+    assert all("free for up to" in e for e in errors)
 
 
 def test_rephrased_copy_is_not_silent(tmp_path):
