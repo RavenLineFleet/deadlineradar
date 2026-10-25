@@ -77,7 +77,7 @@ def test_top_cap_drift_with_previously_named_surfaces_patched_is_not_green(tmp_p
     joined = "\n".join(errors)
     assert "More than (\\d+) staff" in joined
     assert "From (\\d+) to (\\d+) staff" in joined
-    assert "includes the first" in joined
+    assert "covers up to" in joined
     assert "Enterprise" in joined  # faq.firm.4_a
 
 

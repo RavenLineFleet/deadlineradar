@@ -19,7 +19,7 @@ MONTHLY = "export const PER_SEAT_ADDON_MONTHLY_USD = "
 
 def _fixture(tmp_path, transform):
     (tmp_path / "worker" / "src").mkdir(parents=True)
-    for rel in ("generate.py", "i18n.py"):
+    for rel in ("generate.py", "i18n.py", "worker/src/emails.ts", "worker/src/scheduler.ts"):
         shutil.copy(REPO / rel, tmp_path / rel)
     ts = (REPO / "worker" / "src" / "tiers.ts").read_text(encoding="utf-8")
     assert ts.count(ANNUAL) == 1 and ts.count(MONTHLY) == 1
@@ -50,7 +50,8 @@ def test_one_constant_missing_is_not_silent(tmp_path):
 # dropped decimal prices. Each mutation asserts its anchor exists once.
 def _fixture3(tmp_path, ts_fn=lambda t: t, py_fn=lambda t: t, i18n_fn=lambda t: t):
     (tmp_path / "worker" / "src").mkdir(parents=True)
-    for rel, fn in (("generate.py", py_fn), ("i18n.py", i18n_fn), ("worker/src/tiers.ts", ts_fn)):
+    for rel, fn in (("generate.py", py_fn), ("i18n.py", i18n_fn), ("worker/src/tiers.ts", ts_fn),
+                    ("worker/src/emails.ts", lambda t: t), ("worker/src/scheduler.ts", lambda t: t)):
         (tmp_path / rel).write_text(fn((REPO / rel).read_text(encoding="utf-8")), encoding="utf-8")
     return gate.check_pricing_matches_tiers(tmp_path)
 
@@ -65,7 +66,6 @@ def _sub(old, new):
 def test_decimal_annual_drift_in_tiers_is_caught(tmp_path):
     errors = _fixture3(tmp_path, ts_fn=_sub(ANNUAL + "15;", ANNUAL + "15.50;"))
     assert any("PER_SEAT_ADDON_ANNUAL_USD_JS" in e for e in errors)
-    assert any("/seat/year" in e for e in errors)
 
 
 def test_consistent_decimal_annual_is_clean(tmp_path):
@@ -73,14 +73,21 @@ def test_consistent_decimal_annual_is_clean(tmp_path):
         tmp_path,
         ts_fn=_sub(ANNUAL + "15;", ANNUAL + "15.50;"),
         py_fn=_sub("var PER_SEAT_ADDON_ANNUAL_USD_JS = 15;", "var PER_SEAT_ADDON_ANNUAL_USD_JS = 15.50;"),
-        i18n_fn=_sub("$15/seat/year", "$15.50/seat/year"),
     )
     assert errors == []
 
 
 def test_integer_message_has_no_trailing_zero(tmp_path):
-    errors = _fixture3(tmp_path, i18n_fn=_sub("$15/seat/year", "$16/seat/year"))
+    # BILL-52: /pricing/ carries no per-seat prose now; re-adding a wrong
+    # rate must still be caught, and the message must say $15, not $15.0.
+    errors = _fixture3(tmp_path, i18n_fn=_sub("no self-serve plan above that yet.", "no self-serve plan above that yet, $16/seat/year."))
     assert any("PER_SEAT_ADDON_ANNUAL_USD is $15 --" in e for e in errors), errors
+
+
+def test_absent_per_seat_prose_is_clean(tmp_path):
+    # BILL-52 positive control: the committed copy states no per-seat rate.
+    assert "/seat/year" not in (REPO / "i18n.py").read_text(encoding="utf-8")
+    assert _fixture3(tmp_path) == []
 
 
 def test_decimal_segment_card_drift_is_caught(tmp_path):
