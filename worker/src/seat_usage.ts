@@ -138,6 +138,55 @@ export function decideAdd(
   return { ok: true };
 }
 
+export interface SeatRowWithId extends SeatRowLike {
+  id: string;
+}
+
+/**
+ * Whether editing one roster line's email and/or license type is allowed
+ * (AuditLab BILL-54, 2026-10-25). decideAdd() guards POST only, and an edit
+ * can raise the same counts: re-addressing a line held by a person with 2+
+ * lines adds a person, and turning a "-firm" line into a personal type makes
+ * its email take a seat. `rows` is the live roster with the edited line still
+ * at its CURRENT values; the edit is refused only if it raises a count AND
+ * leaves it past its limit, so a frozen over-cap roster can still swap one
+ * person for another or fix a typo, same posture as decideAdd(). An id not
+ * on the roster changes nothing and is allowed.
+ */
+export function decideEdit(
+  rows: readonly SeatRowWithId[],
+  editedId: string,
+  newEmail: string,
+  newDeadlineFields: string | null,
+  seatCap: number
+): AddDecision {
+  if (!rows.some((r) => r.id === editedId)) return { ok: true };
+  const before = computeSeatUsage(rows);
+  const after = computeSeatUsage(
+    rows.map((r) => (r.id === editedId ? { email: newEmail, deadline_fields: newDeadlineFields } : r))
+  );
+  const typeId = licenseTypeIdFromDeadlineFields(newDeadlineFields);
+  if (isFirmEntityLicenseType(typeId)) {
+    if (after.firmEntityLines > before.firmEntityLines && after.firmEntityLines > FIRM_ENTITY_LINE_CEILING) {
+      return { ok: false, reason: "firm_entity_ceiling" };
+    }
+    const typeBefore = before.firmEntityByType.get(typeId!) ?? 0;
+    const typeAfter = after.firmEntityByType.get(typeId!) ?? 0;
+    if (typeAfter > typeBefore && typeAfter > FIRM_ENTITY_LINES_PER_TYPE) {
+      return { ok: false, reason: "firm_entity_type_ceiling" };
+    }
+  } else {
+    const key = personKeyForEmail(newEmail);
+    const linesBefore = before.linesByPerson.get(key) ?? 0;
+    const linesAfter = after.linesByPerson.get(key) ?? 0;
+    if (linesAfter > linesBefore && linesAfter > PER_PERSON_LINE_CEILING) {
+      return { ok: false, reason: "person_line_ceiling" };
+    }
+  }
+  if (after.people > before.people && after.people > seatCap) return { ok: false, reason: "seat_cap" };
+  return { ok: true };
+}
+
 export interface SeatRowOrdered extends SeatRowLike {
   id: string;
   created_at: string;

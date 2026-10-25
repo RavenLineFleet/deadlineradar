@@ -13,7 +13,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 import { runTrialEndingAlertPass } from "../src/scheduler";
-import { addViolatesAfterInsert, computeSeatUsage, decideAdd } from "../src/seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit } from "../src/seat_usage";
 
 async function createFirm(name: string): Promise<{ firmId: string; cookie: string }> {
   const firm = await store.createFirm(env.DB, { name, adminEmail: `${name.replace(/\W/g, "")}-${Date.now()}@example.com` });
@@ -436,6 +436,122 @@ describe("SEAT-1: concurrent adds cannot both win the last seat (post-insert re-
     const people = await store.countFirmLicenses(env.DB, firmId);
     expect(people).toBe(2 + statuses.filter((c) => c === 201).length);
     expect(people).toBeLessThanOrEqual(3);
+  });
+});
+
+async function patch(cookie: string, id: string, body: Record<string, string>): Promise<Response> {
+  return SELF.fetch(`https://deadline-radar.com/firm/licenses/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.201", Cookie: cookie },
+    body: JSON.stringify(body),
+  });
+}
+
+async function remove(cookie: string, id: string): Promise<Response> {
+  return SELF.fetch(`https://deadline-radar.com/firm/licenses/${id}`, {
+    method: "DELETE",
+    headers: { Cookie: cookie, "cf-connecting-ip": "203.0.113.201" },
+  });
+}
+
+describe("BILL-54: PATCH /firm/licenses/:id is held to the same seat cap and ceilings as POST", () => {
+  const r = (id: string, email: string, typeId: string) => ({ id, email, deadline_fields: JSON.stringify({ license_type_id: typeId }) });
+  const f = (typeId: string) => JSON.stringify({ license_type_id: typeId });
+
+  it("pure: re-addressing a multi-line person's 2nd line at cap is refused; the same move for a sole-line person (a swap) is allowed", () => {
+    const rows = [r("1", "a@x.com", "al-individual"), r("2", "a@x.com", "ak-individual"), r("3", "b@x.com", "ga-individual"), r("4", "c@x.com", "ga-individual")];
+    expect(decideEdit(rows, "2", "d@x.com", f("ak-individual"), 3)).toEqual({ ok: false, reason: "seat_cap" });
+    expect(decideEdit(rows, "3", "d@x.com", f("ga-individual"), 3)).toEqual({ ok: true });
+    expect(decideEdit(rows, "2", "a@x.com", f("ak-individual"), 3)).toEqual({ ok: true });
+    expect(decideEdit(rows, "2", "b@x.com", f("ak-individual"), 3)).toEqual({ ok: true });
+  });
+
+  it("pure: a -firm line turned personal at cap is refused unless its email is already a person; the reverse is allowed", () => {
+    const rows = [r("1", "a@x.com", "ga-individual"), r("2", "b@x.com", "ga-individual"), r("3", "c@x.com", "ga-individual"), r("4", "o@x.com", "ga-firm")];
+    expect(decideEdit(rows, "4", "o@x.com", f("ga-individual"), 3)).toEqual({ ok: false, reason: "seat_cap" });
+    expect(decideEdit(rows, "4", "a@x.com", f("ga-individual"), 3)).toEqual({ ok: true });
+    expect(decideEdit(rows, "4", "o@x.com", f("ga-individual"), 4)).toEqual({ ok: true });
+    expect(decideEdit(rows, "1", "a@x.com", f("ga-firm"), 3)).toEqual({ ok: true });
+  });
+
+  it("pure: a frozen over-cap roster can swap or fix a typo but cannot grow; malformed fields still count as a seat", () => {
+    const rows = [r("1", "a@x.com", "ga-individual"), r("2", "b@x.com", "ga-individual"), r("3", "c@x.com", "ga-individual"), r("4", "c@x.com", "al-individual")];
+    expect(decideEdit(rows, "1", "a2@x.com", f("ga-individual"), 2)).toEqual({ ok: true });
+    expect(decideEdit(rows, "4", "d@x.com", f("al-individual"), 2)).toEqual({ ok: false, reason: "seat_cap" });
+    const firmRows = [r("1", "a@x.com", "ga-individual"), r("2", "o@x.com", "ga-firm")];
+    expect(decideEdit(firmRows, "2", "o@x.com", "{not json", 1)).toEqual({ ok: false, reason: "seat_cap" });
+  });
+
+  it("pure: ceilings -- an edit cannot make an 11th line for one person, a 3rd line of one firm type, or a 26th firm line", () => {
+    const person = Array.from({ length: 10 }, (_, i) => r(`p${i}`, "a@x.com", `s${i}-individual`));
+    const withOther = [...person, r("q", "b@x.com", "tx-individual")];
+    expect(decideEdit(withOther, "q", "a@x.com", f("tx-individual"), 35)).toEqual({ ok: false, reason: "person_line_ceiling" });
+    expect(decideEdit(withOther, "p0", "a@x.com", f("tx-individual"), 35)).toEqual({ ok: true });
+    const typed = [r("1", "o@x.com", "ga-firm"), r("2", "p@x.com", "ga-firm"), r("3", "q@x.com", "tx-firm")];
+    expect(decideEdit(typed, "3", "q@x.com", f("ga-firm"), 35)).toEqual({ ok: false, reason: "firm_entity_type_ceiling" });
+    expect(decideEdit(typed, "1", "o2@x.com", f("ga-firm"), 35)).toEqual({ ok: true });
+    const firms = [...Array.from({ length: 25 }, (_, i) => r(`f${i}`, `o${i}@x.com`, `t${i}-firm`)), r("x", "x@x.com", "tx-individual")];
+    expect(decideEdit(firms, "x", "x@x.com", f("zz-firm"), 35)).toEqual({ ok: false, reason: "firm_entity_ceiling" });
+    expect(decideEdit(firms, "x", "x2@x.com", f("tx-individual"), 35)).toEqual({ ok: true });
+  });
+
+  it("pure: an id not on the roster changes nothing", () => {
+    expect(decideEdit([r("1", "a@x.com", "ga-individual")], "nope", "z@x.com", f("ga-individual"), 1)).toEqual({ ok: true });
+  });
+
+  for (const tier of [
+    { label: "free (3)", planTier: null as string | null, cap: 3 },
+    { label: "paid Essentials (5)", planTier: "firm_starter", cap: 5 },
+  ]) {
+    it(`HTTP ${tier.label}: email PATCH that adds a person at cap -> 402 and the roster is unchanged; a swap and a label edit still 200`, async () => {
+      const { firmId, cookie } = await createFirm(`Bill54Email${tier.cap}`);
+      if (tier.planTier) await env.DB.prepare("UPDATE firms SET plan_tier = ?1 WHERE id = ?2").bind(tier.planTier, firmId).run();
+      const t = Date.now();
+      const multi = `multi-${t}@example.com`;
+      await seed(firmId, multi, "alabama", "al-individual");
+      const second = await seed(firmId, multi, "alaska", "ak-individual");
+      const others: string[] = [];
+      for (let i = 1; i < tier.cap; i++) others.push(await seed(firmId, `o${i}-${t}@example.com`, "georgia", "ga-individual"));
+      expect((await listBody(cookie)).seat_count).toBe(tier.cap);
+
+      const grow = await patch(cookie, second, { email: `new-${t}@example.com` });
+      expect(grow.status).toBe(402);
+      expect(((await grow.json()) as { error: string }).error).toContain(String(tier.cap));
+      expect((await store.getFirmLicense(env.DB, firmId, second))!.email).toBe(multi);
+      expect((await listBody(cookie)).seat_count).toBe(tier.cap);
+
+      expect((await patch(cookie, others[0]!, { email: `swap-${t}@example.com` })).status).toBe(200);
+      expect((await patch(cookie, second, { staff_label: "Renamed" })).status).toBe(200);
+      expect((await listBody(cookie)).seat_count).toBe(tier.cap);
+    });
+  }
+
+  it("HTTP: turning a -firm line into a personal type at cap -> 402; with a free seat it is allowed", async () => {
+    const { firmId, cookie } = await createFirm("Bill54Type");
+    const t = Date.now();
+    const s1 = await seed(firmId, `a-${t}@example.com`, "georgia", "ga-individual");
+    await seed(firmId, `b-${t}@example.com`, "georgia", "ga-individual");
+    await seed(firmId, `c-${t}@example.com`, "georgia", "ga-individual");
+    const permit = await seed(firmId, `office-${t}@example.com`, "georgia", "ga-firm");
+    expect((await patch(cookie, permit, { license_type_id: "ga-individual" })).status).toBe(402);
+    expect((await listBody(cookie)).seat_count).toBe(3);
+    expect((await remove(cookie, s1)).status).toBe(200);
+    expect((await patch(cookie, permit, { license_type_id: "ga-individual" })).status).toBe(200);
+    expect((await listBody(cookie)).seat_count).toBe(3);
+  });
+
+  it("HTTP: an admin-removed line cannot be PATCHed back onto the roster (an email change used to clear its stop_reason)", async () => {
+    const { firmId, cookie } = await createFirm("Bill54Removed");
+    const t = Date.now();
+    const gone = await seed(firmId, `gone-${t}@example.com`, "georgia", "ga-individual");
+    const kept = await seed(firmId, `kept-${t}@example.com`, "georgia", "ga-individual");
+    expect((await remove(cookie, gone)).status).toBe(200);
+    expect((await patch(cookie, gone, { email: `revived-${t}@example.com` })).status).toBe(400);
+    const row = (await store.getFirmLicense(env.DB, firmId, gone))!;
+    expect(row.stop_reason).toBe(store.STOP_REASON_REMOVED_BY_ADMIN);
+    expect(row.email).toBe(`gone-${t}@example.com`);
+    expect((await listBody(cookie)).seat_count).toBe(1);
+    expect((await patch(cookie, kept, { email: `kept2-${t}@example.com` })).status).toBe(200);
   });
 });
 

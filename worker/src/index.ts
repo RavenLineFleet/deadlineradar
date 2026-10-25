@@ -281,7 +281,7 @@ import {
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
 import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup } from "./entitlements";
-import { addViolatesAfterInsert, computeSeatUsage, decideAdd, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
   lookupAssistantCpe,
@@ -8259,6 +8259,41 @@ async function handleFirmCalendarIcs(request: Request, env: Env): Promise<Respon
   });
 }
 
+type SeatRefusalReason = Exclude<ReturnType<typeof decideAdd>, { ok: true }>["reason"];
+
+/** The 402/400 a refused seat or ceiling check returns. Shared by POST and
+ * PATCH /firm/licenses (AuditLab BILL-54) so both say the same thing. */
+function seatRefusalResponse(reason: SeatRefusalReason, seatCap: number, planTier: string): Response {
+  if (reason === "person_line_ceiling") {
+    return jsonResponse(400, {
+      error: `One person can have up to ${PER_PERSON_LINE_CEILING} state lines on a roster. If this is a different person, use their own email address.`,
+    });
+  }
+  if (reason === "firm_entity_type_ceiling") {
+    return jsonResponse(400, {
+      error: `That firm permit or registration is already tracked on ${FIRM_ENTITY_LINES_PER_TYPE} lines. Email us if you need more contacts on it.`,
+    });
+  }
+  if (reason === "firm_entity_ceiling") {
+    return jsonResponse(400, {
+      error: `A roster can track up to ${FIRM_ENTITY_LINE_CEILING} firm permits or registrations. Email us if your firm needs more.`,
+    });
+  }
+  // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to add
+  // more" points at /firm-dashboard/#account for a free/pilot firm (that
+  // panel's checkout genuinely starts a paid subscription), but a firm
+  // ALREADY on a named paid tier has no self-serve path to a HIGHER tier
+  // there, so it is sent to /contact/ instead (firmTierByPlanTier() is null
+  // for free/pilot, a real tier def otherwise).
+  const onPaidTier = firmTierByPlanTier(planTier) !== null;
+  return jsonResponse(402, {
+    error: onPaidTier
+      ? `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier -- there's no self-serve tier change yet.`
+      : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
+    pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
+  });
+}
+
 /**
  * POST /firm/licenses -- adds a staff member to the firm's roster.
  *
@@ -8405,36 +8440,7 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     deadlineFields.license_type_id,
     seatCap
   );
-  const refuseAdd = (reason: Exclude<ReturnType<typeof decideAdd>, { ok: true }>["reason"]): Response => {
-    if (reason === "person_line_ceiling") {
-      return jsonResponse(400, {
-        error: `One person can have up to ${PER_PERSON_LINE_CEILING} state lines on a roster. If this is a different person, use their own email address.`,
-      });
-    }
-    if (reason === "firm_entity_type_ceiling") {
-      return jsonResponse(400, {
-        error: `That firm permit or registration is already tracked on ${FIRM_ENTITY_LINES_PER_TYPE} lines. Email us if you need more contacts on it.`,
-      });
-    }
-    if (reason === "firm_entity_ceiling") {
-      return jsonResponse(400, {
-        error: `A roster can track up to ${FIRM_ENTITY_LINE_CEILING} firm permits or registrations. Email us if your firm needs more.`,
-      });
-    }
-    // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to add
-    // more" points at /firm-dashboard/#account for a free/pilot firm (that
-    // panel's checkout genuinely starts a paid subscription), but a firm
-    // ALREADY on a named paid tier has no self-serve path to a HIGHER tier
-    // there, so it is sent to /contact/ instead (firmTierByPlanTier() is null
-    // for free/pilot, a real tier def otherwise).
-    const onPaidTier = firmTierByPlanTier(session.firm.plan_tier) !== null;
-    return jsonResponse(402, {
-      error: onPaidTier
-        ? `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier -- there's no self-serve tier change yet.`
-        : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
-      pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
-    });
-  };
+  const refuseAdd = (reason: SeatRefusalReason): Response => seatRefusalResponse(reason, seatCap, session.firm.plan_tier);
   if (!seatDecision.ok) return refuseAdd(seatDecision.reason);
 
   // HYBRID consent model (2026-07-28, Devin's decision, firm path only):
@@ -8623,6 +8629,15 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
 
   const existing = await store.getFirmLicense(env.DB, session.firmId, id);
   if (!existing) return jsonResponse(404, { error: "Not found." });
+  // AuditLab BILL-54 (2026-10-25): getFirmLicense() also returns admin-removed
+  // rows, and an email change (resetConfirmation) clears their stop_reason,
+  // which put a removed line back on the roster with no seat check. Same
+  // answer handleFirmLicenseRenew() gives.
+  if (existing.status === store.STATUS_STOPPED && existing.stop_reason === store.STOP_REASON_REMOVED_BY_ADMIN) {
+    return jsonResponse(400, {
+      error: "This person was removed from the roster. Add them again to start tracking a new cycle.",
+    });
+  }
 
   const parsed = await readFirmLicenseJsonBody(request);
   if (parsed instanceof Response) return parsed;
@@ -8795,6 +8810,25 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
       });
     }
   }
+
+  // AuditLab BILL-54 (MEDIUM, 2026-10-25): the seat cap and line ceilings were
+  // enforced on POST only. An email or license-type edit can add a person (or
+  // turn a no-seat "-firm" line into a seat), and a PAID firm over cap is never
+  // reconciled afterwards (firmRosterOverCapUnpaidPostTrial() trusts the add
+  // gate), so the edit is judged by decideEdit() with the same cap POST uses.
+  // Identity is compared by personKeyForEmail()/license type, not emailChanged.
+  const newDeadlineFieldsJson = JSON.stringify(deadlineFields);
+  const seatCap = trialLiftsSeatCap(session.firm)
+    ? TRIAL_SEAT_CAP
+    : seatCapForFirmTier(session.firm.plan_tier, session.firm.created_at);
+  const editDecision = decideEdit(
+    await store.listFirmLicenses(env.DB, session.firmId),
+    existing.id,
+    email,
+    newDeadlineFieldsJson,
+    seatCap
+  );
+  if (!editDecision.ok) return seatRefusalResponse(editDecision.reason, seatCap, session.firm.plan_tier);
 
   // Same non-blocking warning POST /firm/licenses gives -- see
   // findOtherFirmRowsByEmail()'s own docstring for why this is a warning,
