@@ -16776,6 +16776,7 @@ function drRenderReport() {
     '<thead><tr><th scope="col">Staff</th><th scope="col">State</th><th scope="col">License type</th>' +
     '<th scope="col">Status</th><th scope="col">Next deadline</th><th scope="col">CPE progress</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table></div>';
+  if (window.drRefreshTableScrollHints) window.drRefreshTableScrollHints();
 }
 
 // Roadmap #18 (2026-08-07): CSV bulk export of roster + deadline data. Pure
@@ -16999,6 +17000,7 @@ function drApplyAuditTrailFilter() {
   el.innerHTML = '<div class="table-wrap"><table class="dr-report-table">' +
     '<thead><tr><th scope="col">Date</th><th scope="col">Staff</th><th scope="col">Event</th></tr></thead>' +
     '<tbody>' + tableRows + '</tbody></table></div>';
+  if (window.drRefreshTableScrollHints) window.drRefreshTableScrollHints();
 }
 
 function drLoadCpeEntries() {
