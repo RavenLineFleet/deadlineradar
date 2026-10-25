@@ -613,15 +613,14 @@ EN: dict[str, str] = {
         "10), Professional (up to 20), or Enterprise (up to 35). Every tier has the exact same "
         "feature set (Roster, Calendar, Map, CPE Hours, Practice Privilege Check); the only thing "
         "that changes between tiers is how many staff it covers, never what it can do. "
-        # P1 (ValueLab pricing/billing report, ruled 2026-08-20): the old
-        # claim here ("moving up a tier, not losing anything") described a
-        # self-serve upgrade flow that doesn't exist -- today the only path
-        # is cancel, wait for annual billing to clear (up to 12 months),
-        # then re-buy the higher tier. A paying customer acting on this
-        # exact sentence hits that wall. Whether to BUILD real self-serve
-        # upgrade is a separate, non-Oct-1 question; this just stops the
-        # copy promising something the product doesn't do yet.
-        "Email us and we'll move you up; there's no self-serve tier change yet."
+        # AuditLab COPY-30 (2026-10-25): self-serve plan change went live
+        # 2026-10-11 (Manage billing -> Stripe Customer Portal, partner-only),
+        # so the 2026-08-20 "no self-serve tier change yet" stance is retired.
+        # The portal withholds switching for some firms (per-seat add-on, a
+        # live founding trial, the staleness guard), hence the email fallback.
+        "Outgrow your tier later? A partner on the firm can switch to a larger plan from "
+        "Manage billing on the dashboard's Account tab; if a larger plan isn't offered there, "
+        "email us and we'll sort it out."
     ),
     "faq.firm.5_q": "I'm a single CPA, not a firm — is this for me?",
     "faq.firm.5_a": (
