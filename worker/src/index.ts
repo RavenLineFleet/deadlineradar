@@ -8263,7 +8263,7 @@ type SeatRefusalReason = Exclude<ReturnType<typeof decideAdd>, { ok: true }>["re
 
 /** The 402/400 a refused seat or ceiling check returns. Shared by POST and
  * PATCH /firm/licenses (AuditLab BILL-54) so both say the same thing. */
-function seatRefusalResponse(reason: SeatRefusalReason, seatCap: number, planTier: string): Response {
+export function seatRefusalResponse(env: Env, reason: SeatRefusalReason, seatCap: number, planTier: string): Response {
   if (reason === "person_line_ceiling") {
     return jsonResponse(400, {
       error: `One person can have up to ${PER_PERSON_LINE_CEILING} state lines on a roster. If this is a different person, use their own email address.`,
@@ -8279,18 +8279,33 @@ function seatRefusalResponse(reason: SeatRefusalReason, seatCap: number, planTie
       error: `A roster can track up to ${FIRM_ENTITY_LINE_CEILING} firm permits or registrations. Email us if your firm needs more.`,
     });
   }
-  // P1 (ValueLab pricing/billing report, ruled 2026-08-20): "Upgrade to add
-  // more" points at /firm-dashboard/#account for a free/pilot firm (that
-  // panel's checkout genuinely starts a paid subscription), but a firm
-  // ALREADY on a named paid tier has no self-serve path to a HIGHER tier
-  // there, so it is sent to /contact/ instead (firmTierByPlanTier() is null
-  // for free/pilot, a real tier def otherwise).
-  const onPaidTier = firmTierByPlanTier(planTier) !== null;
+  // "Upgrade to add more" points at /firm-dashboard/#account for a free/pilot
+  // firm (that panel's checkout starts a paid subscription). A firm already
+  // on a named paid tier below the top one is sent there too while
+  // SELF_SERVE_PLAN_CHANGE is on (AuditLab COPY-30: Manage billing switches
+  // plans since 2026-10-11); the portal can still withhold switching for an
+  // add-on / founding-trial / staleness-paused firm, hence the email
+  // fallback in the same sentence. The top tier, or a paid tier with the flag
+  // off, has no larger self-serve plan, so it goes to /contact/.
+  const paidTier = firmTierByPlanTier(planTier);
+  if (!paidTier) {
+    return jsonResponse(402, {
+      error: `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
+      pay_now_url: "/firm-dashboard/#account",
+    });
+  }
+  const isTopTier = paidTier.planTier === FIRM_TIERS[FIRM_TIERS.length - 1]?.planTier;
+  if (isTopTier || !selfServePlanChangeEnabled(env)) {
+    return jsonResponse(402, {
+      error: isTopTier
+        ? `Your plan covers up to ${seatCap} staff, our largest plan. Email us if your firm needs more.`
+        : `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier.`,
+      pay_now_url: "/contact/",
+    });
+  }
   return jsonResponse(402, {
-    error: onPaidTier
-      ? `Your plan covers up to ${seatCap} staff. Email us and we'll move you up to a higher tier -- there's no self-serve tier change yet.`
-      : `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
-    pay_now_url: onPaidTier ? "/contact/" : "/firm-dashboard/#account",
+    error: `Your plan covers up to ${seatCap} staff. A partner can switch to a larger plan from Manage billing on the dashboard's Account tab; if a larger plan isn't offered there, email us.`,
+    pay_now_url: "/firm-dashboard/#account",
   });
 }
 
@@ -8440,7 +8455,7 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     deadlineFields.license_type_id,
     seatCap
   );
-  const refuseAdd = (reason: SeatRefusalReason): Response => seatRefusalResponse(reason, seatCap, session.firm.plan_tier);
+  const refuseAdd = (reason: SeatRefusalReason): Response => seatRefusalResponse(env, reason, seatCap, session.firm.plan_tier);
   if (!seatDecision.ok) return refuseAdd(seatDecision.reason);
 
   // HYBRID consent model (2026-07-28, Devin's decision, firm path only):
@@ -8828,7 +8843,7 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
     newDeadlineFieldsJson,
     seatCap
   );
-  if (!editDecision.ok) return seatRefusalResponse(editDecision.reason, seatCap, session.firm.plan_tier);
+  if (!editDecision.ok) return seatRefusalResponse(env, editDecision.reason, seatCap, session.firm.plan_tier);
 
   // Same non-blocking warning POST /firm/licenses gives -- see
   // findOtherFirmRowsByEmail()'s own docstring for why this is a warning,
