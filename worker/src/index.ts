@@ -3733,9 +3733,11 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   }
   const interval: "annual" | "monthly" = requestedIntervalRaw;
 
-  // STALE-68 (AuditLab, 2026-10-21): the only one of the 4 mutating customer
-  // actions (signup, license create, license edit, billing checkout) that
-  // never checked this. Without it a firm could mint a Stripe Checkout
+  // STALE-68 (AuditLab, 2026-10-21): one of the 5 mutating customer actions
+  // (signup, license create, license edit, billing checkout, billing portal)
+  // and, at the time, the only one of the first 4 that never checked this.
+  // The portal (STALE-78) degrades to the no-switching config instead of 503ing;
+  // its case is in subscription-sync.spec.ts, not the worker.spec.ts census. Without it a firm could mint a Stripe Checkout
   // Session -- and start an annual charge -- for a deliverable (reminder
   // sends; see scheduler.ts's 7 checkDataFreshness() passes) that's already
   // paused at the wall. Same catch/503 shape as the other 3 sites.

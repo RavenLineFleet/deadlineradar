@@ -4733,6 +4733,9 @@ describe("scheduler.ts runReminderPass -- one pass", () => {
 });
 
 describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFreshness() in isolation", () => {
+  // Customer-route census: 5 mutating actions. 4 are below; the 5th, the
+  // billing portal (STALE-78), degrades to the no-switching config rather than
+  // 503ing and is covered in subscription-sync.spec.ts.
   // checkDataFreshness() deliberately judges freshness against the REAL wall
   // clock even when a caller supplies a simulated `asOf` (scheduler.ts:88-92)
   // -- a caller can never talk its way past the guard. That's the right
