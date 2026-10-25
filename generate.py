@@ -3955,6 +3955,17 @@ def _birth_month_finder_js(needs_year: bool) -> str:
 _USER_DEADLINE_MAX_DAYS = 1280  # keep in sync with worker/src/deadline.ts's USER_DEADLINE_MAX_DAYS
 
 
+def _state_scoped_field_ids(fields_html: str, state_slug: str) -> str:
+    """Suffix every id= / for= in one state's _extra_fields_html() block with
+    the state slug, for the all-states forms (homepage, firm dashboard) that
+    render every state's block on one page. Without it, 20 blocks share
+    id="license_type_id" (and 6 other ids), and since a <label for=X> labels
+    only the FIRST element with id=X, 36 states' required controls had no
+    accessible name (AuditLab A11Y-29). name= is untouched: it's what the
+    worker reads, and drUpdateFields() works by data-for-state, not id."""
+    return re.sub(r'(?<![\w-])(id|for)="([^"]+)"', lambda m: f'{m.group(1)}="{m.group(2)}--{state_slug}"', fields_html)
+
+
 def _extra_fields_html(state_slug: str, records: list[dict], as_of: date) -> str:
     """The state-specific fields beyond email, needed to compute THIS
     subscriber's exact deadline. Kept in sync with reminders/server.py's
@@ -4602,7 +4613,7 @@ def signup_form_homepage(by_slug: dict[str, list[dict]], as_of: date) -> str:
     )
     field_groups = "\n".join(
         f'<div class="signup-extra-fields" data-for-state="{esc(slug)}" hidden>'
-        f'{_extra_fields_html(slug, by_slug[slug], as_of)}</div>'
+        f'{_state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug)}</div>'
         for slug in all_slugs
         if _extra_fields_html(slug, by_slug[slug], as_of)
     )
@@ -13119,23 +13130,19 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
     like the public form uses) because that's the key
     handleFirmLicenseCreate() actually reads.
 
-    Inherits one pre-existing, harmless quirk from signup_form_homepage()'s
-    identical pattern: two different states that both fall into the
-    "multiple computed license types" family each render a
-    `<select id="license_type_id">`, so this page (like the homepage) can
-    have more than one element sharing that id. It is not a NEW defect this
-    page introduces -- drUpdateFields() disables every field outside the
-    selected state's group, and FormData only serializes ENABLED fields by
-    name, so only one `license_type_id` is ever actually submitted. The
-    duplicate id is an HTML-validity nit inherited from the homepage, not a
-    functional bug."""
+    Every state's field block renders on this page (as on the homepage), so
+    each block's ids are state-suffixed via _state_scoped_field_ids() --
+    otherwise duplicate ids leave all but the first block's required
+    controls with no accessible name (A11Y-29). Submission was never
+    affected: drUpdateFields() disables every field outside the selected
+    state's group, and FormData only serializes ENABLED fields by name."""
     all_slugs = sorted(by_slug, key=lambda slug: by_slug[slug][0]["state"])
     state_options = "\n".join(
         f'<option value="{esc(slug)}">{esc(by_slug[slug][0]["state"])}</option>' for slug in all_slugs
     )
     field_groups = "\n".join(
         f'<div class="signup-extra-fields" data-for-state="{esc(slug)}" hidden>'
-        f'{_extra_fields_html(slug, by_slug[slug], as_of)}</div>'
+        f'{_state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug)}</div>'
         for slug in all_slugs
         if _extra_fields_html(slug, by_slug[slug], as_of)
     )
