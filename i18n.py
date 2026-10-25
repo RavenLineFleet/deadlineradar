@@ -549,7 +549,10 @@ EN: dict[str, str] = {
     # ("plus the per-seat rate for each seat above 35") was unreachable -- every
     # tier caps at 35 and the add gate refuses the 36th person, so checkout
     # never mints the add-on for a new firm. Says what the product does.
-    "pricing.card_more_detail": "Enterprise covers up to 35 staff, and there's no self-serve plan above that yet. {contact_link} and we'll work out what fits.",
+    # BILL-53 (AuditLab, LOW, 2026-10-25): a roster already above 35 can still
+    # check out Enterprise and gets the per-seat add-on for the rest, so the
+    # denial is scoped to starting a plan, not to every firm.
+    "pricing.card_more_detail": "Enterprise covers up to 35 staff, the largest plan you can start online. If your roster is already above 35, your dashboard prices the rest per seat. New firm with more than 35 staff? {contact_link} and we'll work out what fits.",
     "pricing.contact_us_link_text": "Contact us",
     "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
     "pricing.includes_admin_digest": "Daily firm-wide digest",

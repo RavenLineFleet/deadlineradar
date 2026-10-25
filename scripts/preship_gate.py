@@ -5818,7 +5818,7 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         ("generate.py", py_text, r"More than (\d+) staff\?", [hi_cap]),
         ("i18n.py", i18n_cap_text, r"More than (\d+) staff\?", [hi_cap]),
         ("i18n.py", i18n_cap_text, r"From (\d+) to (\d+) staff", [lo_cap, hi_cap]),
-        ("i18n.py", i18n_cap_text, r"covers up to (\d+) staff, and there's no self-serve plan above", [hi_cap]),
+        ("i18n.py", i18n_cap_text, r"covers up to (\d+) staff, the largest plan you can start online\. If your roster is already above (\d+),", [hi_cap, hi_cap]),
         ("generate.py", py_text, r"DR_FREE_STAFF_CAP\s*=\s*(\d+)", [free_cap]),
         ("generate.py", py_text, r"Free plan \(up to (\d+) " + noun + r"\)", [free_cap]),
         ("generate.py", py_text, r"free up to (\d+) " + noun + r"\.", [free_cap]),
