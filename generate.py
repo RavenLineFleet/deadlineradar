@@ -1084,7 +1084,7 @@ PAGE_CSS = """
   .dr-chat-msg { font-size: 0.86rem; line-height: 1.45; padding: 0.5rem 0.7rem; border-radius: 9px; max-width: 88%; white-space: pre-wrap; }
   .dr-chat-msg--user { align-self: flex-end; background: var(--accent); color: var(--on-accent); }
   .dr-chat-msg--assistant { align-self: flex-start; background: var(--row-alt); }
-  .dr-chat-msg--error { align-self: flex-start; background: var(--row-alt); color: #c33737; }
+  .dr-chat-msg--error { align-self: flex-start; background: var(--row-alt); color: var(--stale-red); }
   .dr-chat-msg--pending { align-self: flex-start; background: var(--row-alt); color: var(--muted); font-style: italic; }
   .dr-chat-input-row { flex: none; border-top: 1px solid var(--border); padding: 0.7rem; display: flex; gap: 0.5rem; }
   .dr-chat-input-row textarea {
@@ -1118,7 +1118,7 @@ PAGE_CSS = """
     width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.84rem; padding: 0.45rem 0.6rem;
     border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg); resize: vertical;
   }
-  .dr-chat-ticket-error { color: #c33737; font-size: 0.78rem; margin: 0.4rem 0 0; }
+  .dr-chat-ticket-error { color: var(--stale-red); font-size: 0.78rem; margin: 0.4rem 0 0; }
   .dr-chat-ticket-error[hidden], .dr-chat-ticket-email[hidden] { display: none; }
   @media (max-width: 480px) {
     /* Phase 3 outside-review item 3 (2026-10-01): the cookie notice wraps
@@ -2376,7 +2376,7 @@ PAGE_CSS = """
   .dr-csv-row-ready { color: var(--muted); }
   .dr-csv-row-error { color: #c33737; }
   @media (prefers-color-scheme: dark) { .dr-csv-row-error { color: #ff8080; } }
-  .dr-csv-row-added { color: #2e8b57; }
+  .dr-csv-row-added { color: var(--verified-green); }
   .dr-panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-bottom: 1.2rem; }
   @media (max-width: 860px) { .dr-panel-row { grid-template-columns: 1fr; } }
   .dr-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 11px; padding: 1.1rem 1.2rem; }
@@ -3185,8 +3185,11 @@ PAGE_CSS = """
   .dr-sso-note { margin-top: 0.55rem; }
   .dr-account-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 11px; padding: 1.1rem 1.2rem; margin-bottom: 1.2rem; max-width: 32rem; }
   .dr-account-panel h2 { font-size: 1.05rem; margin: 0 0 0.6rem; font-family: var(--font-display); }
-  .dr-account-ok { color: #1f9e5c; font-size: 0.85rem; margin-top: 0.6rem; }
-  .dr-account-err { color: #c33737; font-size: 0.85rem; margin-top: 0.6rem; }
+  /* AuditLab A11Y-30: hardcoded hexes here never flipped with the theme
+     (err 3.09:1 dark, ok 3.44:1 light). Paired tokens clear 4.5:1 on every
+     card/page/row surface in both modes. */
+  .dr-account-ok { color: var(--verified-green); font-size: 0.85rem; margin-top: 0.6rem; }
+  .dr-account-err { color: var(--stale-red); font-size: 0.85rem; margin-top: 0.6rem; }
   /* Task #3 (2026-08-06): visually set apart from every other Account tab
      panel above it -- same red already used for .dr-account-err/
      .dr-cal-item--soon, at low opacity so it reads as "be careful here"
@@ -3321,8 +3324,8 @@ PAGE_CSS = """
   .dr-my-pill-quiet { color: var(--faint); }
   .dr-my-date { font-size: 1.15rem; font-variant-numeric: tabular-nums; margin-top: 0.5rem; }
   .dr-my-count { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; }
-  .is-soon .dr-my-count { color: #a86a10; }
-  .is-overdue .dr-my-count { color: #c33737; }
+  .is-soon .dr-my-count { color: var(--gold); }
+  .is-overdue .dr-my-count { color: var(--stale-red); }
   .dr-my-note { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; }
   /* CPE self-service (2026-08-05) -- only rendered inside a managed_by_firm
      card. Same visual language as the rest of this page (var(--card-bg)
@@ -3346,7 +3349,7 @@ PAGE_CSS = """
   .dr-my-cpe-form button { font-family: inherit; font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.9rem; border: 0; border-radius: 6px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
   .dr-my-cpe-form button:hover { opacity: 0.9; }
   .dr-my-cpe-form button:disabled { opacity: 0.6; cursor: default; }
-  .dr-my-cpe-error { flex: 1 0 100%; font-size: 0.8rem; color: #c33737; }
+  .dr-my-cpe-error { flex: 1 0 100%; font-size: 0.8rem; color: var(--stale-red); }
   .dr-my-error { border: 1px solid #c33737; border-radius: 11px; padding: 0.9rem 1.1rem; margin-top: 1.2rem; font-size: 0.9rem; }
   .dr-my-empty { background: var(--card-bg); border: 1px solid var(--border); border-radius: 11px; padding: 1.2rem; margin-top: 1.2rem; }
   .dr-my-actions { margin-top: 1.4rem; font-size: 0.9rem; }
