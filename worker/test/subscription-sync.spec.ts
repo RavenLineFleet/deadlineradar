@@ -10,6 +10,8 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import { STALENESS_THRESHOLD_DAYS } from "../src/deadline";
+import cpaDeadlinesData from "../src/cpa_deadlines.json";
 import {
   deriveSubscriptionState,
   portalConfigurationIdForRoster,
@@ -256,6 +258,28 @@ describe("POST /firm/billing/portal", () => {
     await addRoster(firmId, 10);
     expect((await postPortal(cookie)).status).toBe(200);
     expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_none1");
+  });
+  // AuditLab STALE-78: once the staleness guard pauses reminders, the portal must not start a new/larger
+  // charge -- no-switching config (cancel / invoices / payment method still reachable), never a 503.
+  // Stale date derived like worker.spec.ts's STALE_MOCK_DATE: min(as_of_date, oldest last_verified) + threshold + 1.
+  it("STALE-78: stale data -> the no-switching config even for a firm that would otherwise be offered tiers", async () => {
+    const anchorMs = Math.min(
+      Date.parse(`${cpaDeadlinesData.as_of_date}T00:00:00Z`),
+      ...cpaDeadlinesData.records.map((r) => Date.parse(`${r.last_verified}T00:00:00Z`)).filter((ms) => !Number.isNaN(ms))
+    );
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(anchorMs + (STALENESS_THRESHOLD_DAYS + 1) * 86_400_000));
+      const subs: Record<string, SubStub | undefined> = {};
+      const calls = installFetch(subs);
+      const { firmId, cookie, sub } = await makeFirm({ tier: "firm_growth" });
+      subs[sub] = { items: [{ price: "price_gr_a", quantity: 1 }] };
+      await addRoster(firmId, 7); // the fresh-data case above gets bpc_growth1 for this exact shape
+      expect((await postPortal(cookie)).status).toBe(200);
+      expect(calls.portalPosts[0]!.get("configuration")).toBe("bpc_none1");
+    } finally {
+      vi.useRealTimers();
+    }
   });
   // Founding Firms (AuditLab FFT-3 / FFT-6): the dedicated configuration (no plan switching AND no payment-method
   // update) applies only while the trial is LIVE; a converted founding firm is an ordinary customer again.

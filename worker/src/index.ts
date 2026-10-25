@@ -3965,7 +3965,10 @@ async function handleFirmBillingPortal(request: Request, env: Env): Promise<Resp
     // FFT-3). Fail closed if that configuration is not provisioned (FFT-6).
     const foundingTrialLive =
       snapshot?.status === "trialing" && (await store.getFoundingFirmGrant(env.DB, session.firmId)) !== null;
-    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0;
+    // STALE-78: while the staleness guard has reminders paused, withhold plan
+    // switching (a new/larger charge) but keep cancel / invoices / payment
+    // method reachable -- not a 503, which would trap the customer.
+    const noSwitching = !derived || !derived.ok || derived.addonQuantity > 0 || dataFreshnessInfo(new Date()).stale;
     const configurationId = foundingTrialLive
       ? portalConfigurationIdForFoundingTrial(env)
       : portalConfigurationIdForRoster(env, rosterCount, noSwitching);
