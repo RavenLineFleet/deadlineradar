@@ -495,6 +495,34 @@ describe("SRC-80 regression -- in_force_status/needs_reverification mirror the H
     expect(result[0]!.in_force_status).toBeNull();
   });
 
+  it("STATUS-4 -- PROPOSED with a future effective_date -> not_adopted, never the same value as an ENACTED upcoming change", async () => {
+    mockEvents([
+      { ...base, event_id: "g", status: "PROPOSED", effective_date: "2028-01-01", verified_date: "2026-08-29", upcoming: true, needs_reverification: false },
+      { ...base, event_id: "h", status: "ENACTED", effective_date: "2028-01-01", verified_date: "2026-08-29", upcoming: true, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result.map((r) => r.in_force_status)).toEqual(["not_adopted", "upcoming"]);
+  });
+
+  it("STATUS-4 -- PROPOSED whose target date has passed -> still not_adopted, not settled/pending_reverification", async () => {
+    mockEvents([
+      { ...base, event_id: "i", status: "PROPOSED", effective_date: "2026-08-28", verified_date: "2026-10-05", upcoming: false, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("not_adopted");
+  });
+
+  it("STATUS-4 -- ADOPTED_RULE counts as adopted, same predicate as generate.py _rc_is_enacted", async () => {
+    mockEvents([
+      { ...base, event_id: "j", status: "ADOPTED_RULE", effective_date: "2026-11-01", verified_date: "2026-10-17", upcoming: true, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("upcoming");
+  });
+
   it("upcoming flag true but effective_date already passed asOf -> NOT upcoming (SRC-78's own build-drift correction, same axis)", async () => {
     mockEvents([
       { ...base, event_id: "f", effective_date: "2026-08-12", verified_date: "2026-07-31", upcoming: true, needs_reverification: false },

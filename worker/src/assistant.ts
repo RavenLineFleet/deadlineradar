@@ -226,8 +226,10 @@ interface AssistantRuleChangeResult {
   status: string | null;
   verified_date: string;
   needs_reverification: boolean;
-  in_force_status: "upcoming" | "pending_reverification" | "settled" | null;
+  in_force_status: RuleChangeInForceStatus;
 }
+
+type RuleChangeInForceStatus = "not_adopted" | "upcoming" | "pending_reverification" | "settled" | null;
 
 /** Mirrors generate.py's _rule_change_card_html()/_is_still_upcoming() honesty
  * signals (AuditLab SRC-80, 2026-10-23): the HTML page hedges a passed-but-
@@ -245,9 +247,16 @@ interface AssistantRuleChangeResult {
 function ruleChangeInForceStatus(
   e: Record<string, unknown>,
   asOfISODate: string
-): "upcoming" | "pending_reverification" | "settled" | null {
+): RuleChangeInForceStatus {
   const eff = typeof e.effective_date === "string" ? e.effective_date : null;
   if (!eff) return null;
+  // AuditLab STATUS-4 (2026-10-25): every arm below is timing-only, so a
+  // PROPOSED record with a future date came back "upcoming" -- the same value
+  // as an ENACTED one -- on the API whose docstring above says it exists so a
+  // consumer need not re-derive the page's hedge. Same adoption test as
+  // generate.py's _rc_is_enacted (STATUS-3), checked first so a proposal's
+  // target date passing can't promote it to pending_reverification/settled.
+  if (e.status !== "ENACTED" && e.status !== "ADOPTED_RULE") return "not_adopted";
   if (Boolean(e.upcoming) && eff > asOfISODate) return "upcoming";
   const verifiedDate = typeof e.verified_date === "string" ? e.verified_date : null;
   const unconfirmedAsOfEffective = Boolean(verifiedDate && verifiedDate < eff);
