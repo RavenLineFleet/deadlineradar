@@ -296,8 +296,9 @@ export function checkDataFreshness(realToday: Date, records: CpaRecord[] = DATA.
 }
 
 /** AuditLab ST-1: the write guard above pauses signups and roster-adds once
- * data is stale (checkDataFreshness()'s three call sites -- POST /subscribe,
- * POST /firm/licenses, PATCH /firm/licenses/:id -- NOT the renew route,
+ * data is stale (checkDataFreshness()'s four call sites -- POST /subscribe,
+ * POST /firm/licenses, PATCH /firm/licenses/:id, POST /firm/billing/checkout
+ * (STALE-68) -- NOT the renew route,
  * which stays unguarded on purpose since it doesn't persist a computed
  * deadline), but every READ path (GET /firm/licenses, the roster list) kept
  * serving dates derived from that same data with no disclosure -- a customer
