@@ -15,6 +15,8 @@ export interface IcsEvent {
   summary: string;
   /** YYYY-MM-DD, rendered as an all-day event. */
   dateIso: string;
+  /** Optional DESCRIPTION (STALE-87: the stale-data caveat). Omitted when unset. */
+  description?: string;
 }
 
 /** RFC 5545 TEXT escaping: backslash, comma, semicolon, then any line break. */
@@ -94,6 +96,7 @@ export function buildIcs(events: IcsEvent[], asOf: Date): string {
       `DTSTART;VALUE=DATE:${icsAllDayDate(event.dateIso)}`,
       `DTEND;VALUE=DATE:${icsAllDayDate(addOneDayIso(event.dateIso))}`,
       `SUMMARY:${escapeIcsText(event.summary)}`,
+      ...(event.description ? [`DESCRIPTION:${escapeIcsText(event.description)}`] : []),
       "END:VEVENT"
     );
   }

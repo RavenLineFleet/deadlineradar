@@ -12622,8 +12622,26 @@ _MY_DASHBOARD_JS_HTML = """<script>
     });
   }
 
+  // AuditLab STALE-87: GET /api/subscriber/licenses carries the same
+  // data_as_of/data_stale pair as the firm dashboard (ST-1). Adding a state
+  // is refused while data is stale, so the dates below must not render as
+  // if nothing were wrong. No paused-action list here: /my/ has no action
+  // the freshness guard pauses.
+  function drRenderMyStalenessBanner(data) {
+    var el = document.getElementById('dr-my-staleness-banner');
+    if (!el) return;
+    if (!data.data_stale) { el.hidden = true; el.textContent = ''; return; }
+    el.textContent = 'Heads up: our reference data was last verified ' + (data.data_as_of || '') +
+      ' and is due for re-verification. The dates below may be out of date until we re-verify, ' +
+      'so confirm one with your state board before relying on it.';
+    el.hidden = false;
+  }
+
   function drRender(data) {
     if (emailEl) emailEl.textContent = data.email || '';
+    // Partial re-renders (e.g. after logging CPE) pass no freshness pair;
+    // leave the banner as the last full load set it.
+    if (typeof data.data_stale === 'boolean') drRenderMyStalenessBanner(data);
     drMyFillProfile(data);
     drLicenses = data.licenses || [];
     if (!drLicenses.length) {
@@ -13068,6 +13086,8 @@ def build_my_page(cpe_hours_by_slug: dict[str, dict]) -> str:
     <p><b>We couldn't load your deadlines just now.</b> Your reminders are unaffected &mdash; they
     send from our servers, not this page. Please refresh in a moment.</p>
   </div>
+
+  <div id="dr-my-staleness-banner" class="callout" style="border-left-color:#b8860b;" role="status" hidden></div>
 
   <ul class="dr-my-list" id="dr-my-list"><li class="dr-my-loading">Loading&hellip;</li></ul>
 
@@ -15138,6 +15158,8 @@ function drSaveRosterActivePicks() {
         if (errEl) { errEl.textContent = (data && data.error) ? data.error : 'Something went wrong, please try again.'; errEl.hidden = false; }
         return;
       }
+      // STALE-87: this response carries the freshness pair too.
+      if (data && typeof data.data_stale === 'boolean') drRenderStalenessBanner(data.data_as_of, data.data_stale);
       if (data && data.licenses) {
         var byId = {};
         drLicenses.forEach(function(l) { byId[l.id] = l; });

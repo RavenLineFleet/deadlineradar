@@ -5875,9 +5875,16 @@ async function handleSubscriberLicensesList(request: Request, env: Env): Promise
       // posture as scheduler.ts's own parse.
     }
   }
+  // STALE-87 (AuditLab, 2026-10-26): ST-1's freshness signal, on the tier
+  // ST-1 never covered -- POST /subscribe refuses this person's next add
+  // once data is stale, so their existing next_deadline dates must not be
+  // served silently either. /my/ renders the banner from these two fields.
+  const freshness = dataFreshnessInfo(asOf);
   return jsonResponse(200, {
     email: session.emailNormalized,
     first_name: rows[0]?.first_name ?? null,
+    data_as_of: freshness.as_of_date,
+    data_stale: freshness.stale,
     reminder_thresholds: reminderThresholds,
     // Roadmap #24: same "person-level, read from the first row, every row
     // agrees by construction" posture as reminder_thresholds above.
@@ -7158,7 +7165,14 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
   await store.setRosterActivePicks(env.DB, session.firmId, requestedIds);
   const reconciled = await store.reconcileRosterPauseState(env.DB, session.firmId);
   const asOf = new Date();
-  return jsonResponse(200, { licenses: reconciled.map((r) => toFirmLicenseJson(r, asOf)) });
+  // STALE-87: same freshness fields as GET /firm/licenses, since this
+  // response re-serves computed next_deadline dates too.
+  const freshness = dataFreshnessInfo(asOf);
+  return jsonResponse(200, {
+    licenses: reconciled.map((r) => toFirmLicenseJson(r, asOf)),
+    data_as_of: freshness.as_of_date,
+    data_stale: freshness.stale,
+  });
 }
 
 /** GET /firm/licenses -- every roster row for the session's firm, sorted by
@@ -8245,6 +8259,15 @@ async function handleFirmCalendarIcs(request: Request, env: Env): Promise<Respon
 
   const rows = await store.listFirmLicenses(env.DB, session.firmId);
   const asOf = new Date();
+  // STALE-87: the worst of the read surfaces -- an exported date lives on in
+  // the customer's own calendar after the dashboard banner is gone, so once
+  // data is stale each event carries the caveat itself. Events are kept,
+  // not withheld: the date is still our best answer, and a missing event
+  // reads as "no deadline", which is worse.
+  const freshness = dataFreshnessInfo(asOf);
+  const staleNote = freshness.stale
+    ? `Deadline-Radar's reference data was last verified ${freshness.as_of_date} and is due for re-verification, so this date may be out of date. Confirm it with the state board before relying on it.`
+    : undefined;
   const events: IcsEvent[] = [];
   for (const row of rows) {
     // Same filter drLicensesByDate() already applies client-side (opted-out
@@ -8258,6 +8281,7 @@ async function handleFirmCalendarIcs(request: Request, env: Env): Promise<Respon
       uid: row.id,
       summary: `${row.staff_label || row.email} — ${stateName} license renewal`,
       dateIso: nextDeadline,
+      description: staleNote,
     });
   }
 
