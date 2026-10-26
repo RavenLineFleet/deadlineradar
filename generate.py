@@ -5996,13 +5996,13 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     Maine are instead sourced from a STRONGER open-data license register;
     Idaho's board guidance is simply more current than an unamended rule; a
     first draft of this sentence named Montana's specific reason and would have
-    been flatly wrong on the other eight records).
+    been flatly wrong on every other operational record).
 
     CITE-28 (AuditLab, 2026-08-20; Devin: "we need to be 100% correct," not
     just honestly vague): `has_citation`/`is_operational_record` are each a
     single bool, `all()`-reduced across every record on a mixed-citation
-    state page (Alaska, Connecticut, Florida, Idaho, Illinois -- one record
-    codified, the other operational/board-page). That reduction was never
+    state page (one record codified, another operational/board-page or
+    partial; which states qualify moves with the data). That reduction was never
     FALSE -- it always picked the more conservative of the two claims -- but
     it was imprecise: "at least one of these records isn't fully codified"
     is not the same statement as "the individual license is, the firm
