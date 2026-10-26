@@ -280,7 +280,7 @@ import {
 } from "./mobility";
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
-import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup } from "./entitlements";
+import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
 import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
@@ -8304,15 +8304,20 @@ export function seatRefusalResponse(env: Env, reason: SeatRefusalReason, seatCap
   // add-on / founding-trial / staleness-paused firm, hence the email
   // fallback in the same sentence. The top tier, or a paid tier with the flag
   // off, has no larger self-serve plan, so it goes to /contact/.
-  const paidTier = firmTierByPlanTier(planTier);
-  if (!paidTier) {
+  // AuditLab TIER-4 (2026-10-26): "free/pilot" is keyed on PAID_PLAN_TIERS,
+  // not on FIRM_TIERS membership -- the three original manually-set paid
+  // tiers (firm/firm_annual/premium) are paid but in no FIRM_TIERS row, and
+  // were being told to "Upgrade" from the free-tier panel. They have no
+  // self-serve plan to move to, so they take the email branch.
+  if (!PAID_PLAN_TIERS.has(planTier)) {
     return jsonResponse(402, {
       error: `Your plan covers up to ${seatCap} staff. Upgrade to add more.`,
       pay_now_url: "/firm-dashboard/#account",
     });
   }
-  const isTopTier = paidTier.planTier === FIRM_TIERS[FIRM_TIERS.length - 1]?.planTier;
-  if (isTopTier || !selfServePlanChangeEnabled(env)) {
+  const paidTier = firmTierByPlanTier(planTier);
+  const isTopTier = paidTier?.planTier === FIRM_TIERS[FIRM_TIERS.length - 1]?.planTier;
+  if (!paidTier || isTopTier || !selfServePlanChangeEnabled(env)) {
     return jsonResponse(402, {
       error: isTopTier
         ? `Your plan covers up to ${seatCap} staff, our largest plan. Email us if your firm needs more.`

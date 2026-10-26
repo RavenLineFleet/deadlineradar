@@ -50,6 +50,18 @@ describe("COPY-30 seat-cap 402", () => {
     }
   });
 
+  // AuditLab TIER-4 (2026-10-26): paid in PAID_PLAN_TIERS, absent from
+  // FIRM_TIERS -- used to fall into the free-tier "Upgrade" arm.
+  for (const tier of ["firm", "firm_annual", "premium"]) {
+    it(`legacy paid tier ${tier} -> email us, never the free-tier upgrade prompt`, async () => {
+      for (const e of [on, off]) {
+        const b = await refuse(e, 25, tier);
+        expect(b.error).toBe("Your plan covers up to 25 staff. Email us and we'll move you up to a higher tier.");
+        expect(b.pay_now_url).toBe("/contact/");
+      }
+    });
+  }
+
   it("no arm still says there's no self-serve tier change", async () => {
     for (const e of [on, off]) for (const t of ["free", "firm_starter", "firm_growth", "firm_standard", "firm_scale"]) {
       expect((await refuse(e, 5, t)).error).not.toMatch(/no self-serve tier change/i);

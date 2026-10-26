@@ -13404,6 +13404,19 @@ var drDashboardSynthesisIncluded = true;
 var DR_PLAN_TIER_LABELS = {
   firm_starter: 'Essentials', firm_growth: 'Growth', firm_standard: 'Professional', firm_scale: 'Enterprise'
 };
+// AuditLab TIER-4 (2026-10-26): the three original manually-set tiers are
+// paid (worker entitlements.ts PAID_PLAN_TIERS) but not purchasable, so they
+// stay OUT of DR_PLAN_TIER_LABELS, whose key order is the checkout ranking
+// drCheckPendingCheckoutTier() uses. drPaidTierLabel() is the "is this firm
+// on a paid plan, and what is it called" check: without it a paying legacy
+// firm got the free-tier upgrade picker, callout and trial banner.
+var DR_LEGACY_PAID_TIER_LABELS = { firm: 'Firm', firm_annual: 'Firm (annual)', premium: 'Premium' };
+function drPaidTierLabel(planTier) {
+  var own = Object.prototype.hasOwnProperty;
+  if (own.call(DR_PLAN_TIER_LABELS, planTier)) return DR_PLAN_TIER_LABELS[planTier];
+  if (own.call(DR_LEGACY_PAID_TIER_LABELS, planTier)) return DR_LEGACY_PAID_TIER_LABELS[planTier];
+  return null;
+}
 
 // migration 0045 (roadmap #11/#13/#14/#51): the CALLER's own role/member id,
 // same "null until the first real load" posture as drBilling above. Drives
@@ -15022,7 +15035,7 @@ function drRenderTrialBanner() {
   // already covers everything it would), and telling a paying customer
   // their "trial" is ending is confusing, not useful. Same truthiness
   // check drRenderMapValueCallout() already uses for "is this firm paid".
-  if (DR_PLAN_TIER_LABELS[drBilling.planTier]) { el.hidden = true; return; }
+  if (drPaidTierLabel(drBilling.planTier)) { el.hidden = true; return; }
   var trialEndsAt = drBilling.trialEndsAt;
   if (!trialEndsAt) { el.hidden = true; return; }
   var endMs = Date.parse(trialEndsAt);
@@ -15055,7 +15068,7 @@ function drRenderTrialBanner() {
 function drRenderRosterPausePicker() {
   var el = document.getElementById('dr-roster-pause-picker');
   if (!el || !drBilling) return;
-  if (DR_PLAN_TIER_LABELS[drBilling.planTier]) { el.hidden = true; return; } // paid -- moot, same as the trial banner
+  if (drPaidTierLabel(drBilling.planTier)) { el.hidden = true; return; } // paid -- moot, same as the trial banner
   var pausedCount = drLicenses.filter(function(l) { return l.paused; }).length;
   var trialEndsAt = drBilling.trialEndsAt;
   var trialLapsed = trialEndsAt && Date.now() >= Date.parse(trialEndsAt);
@@ -15255,18 +15268,18 @@ function drDismissNpsPrompt() {
 }
 
 // Roadmap #42: shown only while the firm has no paid tier -- same
-// DR_PLAN_TIER_LABELS[planTier] truthiness check drRenderBillingPanel()
+// drPaidTierLabel(planTier) truthiness check drRenderBillingPanel()
 // itself uses just below to decide "is this firm on the free tier".
 function drRenderMapValueCallout() {
   var el = document.getElementById('dr-map-value-callout');
   if (!el || !drBilling) return;
-  el.hidden = !!DR_PLAN_TIER_LABELS[drBilling.planTier];
+  el.hidden = !!drPaidTierLabel(drBilling.planTier);
 }
 
 function drRenderBillingPanel() {
   var body = document.getElementById('dr-billing-body');
   if (!body || !drBilling) return;
-  var tierDef = DR_PLAN_TIER_LABELS[drBilling.planTier];
+  var tierDef = drPaidTierLabel(drBilling.planTier);
   if (!tierDef) {
     // Task #12 (2026-08-05): a real, always-visible upgrade trigger on the
     // Account tab, rather than making a free-tier firm discover paid plans
