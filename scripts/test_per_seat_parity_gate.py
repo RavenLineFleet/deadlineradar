@@ -80,7 +80,8 @@ def test_consistent_decimal_annual_is_clean(tmp_path):
 def test_integer_message_has_no_trailing_zero(tmp_path):
     # BILL-52: /pricing/ carries no per-seat prose now; re-adding a wrong
     # rate must still be caught, and the message must say $15, not $15.0.
-    errors = _fixture3(tmp_path, i18n_fn=_sub("prices the rest per seat.", "prices the rest at $16/seat/year."))
+    # PROC-10: re-anchored on the BILL-55 copy (the old anchor went with it).
+    errors = _fixture3(tmp_path, i18n_fn=_sub("and we'll work out what fits.", "and we'll work out what fits at $16/seat/year."))
     assert any("PER_SEAT_ADDON_ANNUAL_USD is $15 --" in e for e in errors), errors
 
 
