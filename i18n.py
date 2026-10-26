@@ -552,7 +552,10 @@ EN: dict[str, str] = {
     # BILL-53 (AuditLab, LOW, 2026-10-25): a roster already above 35 can still
     # check out Enterprise and gets the per-seat add-on for the rest, so the
     # denial is scoped to starting a plan, not to every firm.
-    "pricing.card_more_detail": "Enterprise covers up to 35 staff, the largest plan you can start online. If your roster is already above 35, your dashboard prices the rest per seat. New firm with more than 35 staff? {contact_link} and we'll work out what fits.",
+    # COPY-31 (AuditLab, MEDIUM, 2026-10-26): the per-seat add-on is minted
+    # only by first checkout; a subscribed firm gets already_subscribed and the
+    # portal has nothing above 35, so the per-seat line is scoped to pre-subscribe.
+    "pricing.card_more_detail": "Enterprise covers up to 35 staff, the largest plan you can start online. If your roster is already above 35 before you subscribe, your dashboard prices the rest per seat. Already subscribed and need more than 35, or a new firm with more than 35 staff? {contact_link} and we'll work out what fits.",
     "pricing.contact_us_link_text": "Contact us",
     "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
     "pricing.includes_admin_digest": "Daily firm-wide digest",
