@@ -7823,6 +7823,116 @@ def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     return errors
 
 
+def _strip_ws(s: str) -> str:
+    return re.sub(r"\s+", "", s)
+
+
+def check_date_bound_parity(repo_root: Path) -> list[str]:
+    """AuditLab PROC-12 (LOW, 2026-10-26). The signup date pickers' client
+    bounds (generate.py _DATE_BOUND_RUNTIME_JS, served on every page that
+    carries a data-dr-bound input) and the worker's accept/reject bounds
+    (worker/src/index.ts license_expiration_date, anchor_date, Florida
+    certificate date) are duplicated with no cross-check. The class failed
+    twice in two days -- DATE-14 (anchor max frozen at build date) and
+    DATE-15 (client keyed to the later of local/UTC while the worker keys to
+    UTC) -- and both were found by audit, not by a gate. This pins both
+    sides: the worker's bound expressions and 400 strings must be present
+    as shipped, USER_DEADLINE_MAX_DAYS must agree between deadline.ts and
+    generate.py, and every built page's bound script must use UTC, the
+    worker's future window, and the worker's 366*10-day anchor floor (read
+    from index.ts, not hardcoded). A change to either side fails here until
+    the other side and this check are updated together. Fails closed on a
+    missing file or zero bound pages."""
+    tag = "[PROC-12]"
+    errs: list[str] = []
+    index_ts = repo_root / "worker" / "src" / "index.ts"
+    deadline_ts = repo_root / "worker" / "src" / "deadline.ts"
+    gen_py = repo_root / "generate.py"
+    for p in (index_ts, deadline_ts, gen_py):
+        if not p.exists():
+            return [f"{tag} {p.relative_to(repo_root).as_posix()} not found -- date-bound parity "
+                    "can't be verified and this check must be repaired."]
+
+    m_ts = re.search(r"export const USER_DEADLINE_MAX_DAYS = (\d+);", deadline_ts.read_text(encoding="utf-8"))
+    m_py = re.search(r"^_USER_DEADLINE_MAX_DAYS = (\d+)", gen_py.read_text(encoding="utf-8"), re.M)
+    if not m_ts or not m_py:
+        return [f"{tag} USER_DEADLINE_MAX_DAYS not found in "
+                f"{'worker/src/deadline.ts' if not m_ts else 'generate.py'} -- this check must be repaired."]
+    max_days = int(m_ts.group(1))
+    if int(m_py.group(1)) != max_days:
+        errs.append(f"{tag} generate.py _USER_DEADLINE_MAX_DAYS={m_py.group(1)} but worker/src/deadline.ts "
+                    f"USER_DEADLINE_MAX_DAYS={max_days}: the client future window disagrees with the worker.")
+
+    ts_raw = index_ts.read_text(encoding="utf-8")
+    ts = _strip_ws(ts_raw)
+    m_floor = re.search(r"minAnchorDate=newDate\(todayUtcForAnchor\.getTime\(\)-(\d+)\*(\d+)\*86_400_000\);", ts)
+    if not m_floor:
+        errs.append(f"{tag} worker/src/index.ts: anchor floor `minAnchorDate = new Date(todayUtcForAnchor"
+                    ".getTime() - N * M * 86_400_000)` not found -- re-anchor this check on the new expression.")
+        floor_days = None
+    else:
+        floor_days = int(m_floor.group(1)) * int(m_floor.group(2))
+    # Each pin ends at its closing `)`/`;` so an appended slack term breaks it.
+    utc_today = "=newDate(Date.UTC({n}.getUTCFullYear(),{n}.getUTCMonth(),{n}.getUTCDate()));"
+    server_exprs = [
+        "todayUtcForAnchor" + utc_today.format(n="nowForAnchor"),
+        "if(parsedAnchor.getTime()>todayUtcForAnchor.getTime())",
+        "if(parsedAnchor.getTime()<minAnchorDate.getTime())",
+        "todayUtcForCert" + utc_today.format(n="nowForCert"),
+        "if(parsedCertDate.getTime()>todayUtcForCert.getTime())",
+        "todayUtc" + utc_today.format(n="now"),
+        "if(parsedDate.getTime()<=todayUtc.getTime())",
+        "maxDate=newDate(todayUtc.getTime()+USER_DEADLINE_MAX_DAYS*86_400_000);",
+        "if(parsedDate.getTime()>maxDate.getTime())",
+    ]
+    for expr in server_exprs:
+        if expr not in ts:
+            errs.append(f"{tag} worker/src/index.ts: bound expression `{expr}` (whitespace-stripped) not found. "
+                        "If the worker's bound changed, change _DATE_BOUND_RUNTIME_JS to match and re-pin here.")
+    for msg in ("needs a date that already happened -- your last issuance or renewal, not a future date.",
+                "That date looks too far in the past -- please double-check your license.",
+                "That date has already passed -- please double-check your license.",
+                "That date looks too far out -- please double-check your license.",
+                "Florida needs a certificate date that already happened, not a future date."):
+        if msg not in ts_raw:
+            errs.append(f"{tag} worker/src/index.ts: 400 string \"{msg}\" not found -- a bound check was "
+                        "removed or reworded; re-pin it here deliberately.")
+
+    docs_dir = repo_root / "docs"
+    want = ["varutc=iso(now)", "returnd.toISOString().slice(0,10)", "el.min=addDays(utc,1)",
+            f"el.max=addDays(utc,{max_days})", "el.max=utc"]
+    if floor_days is not None:
+        want.append(f"el.min=addDays(utc,-{floor_days})")
+    banned = ["getTimezoneOffset", ".getFullYear(", ".getMonth(", ".getDate(", "latest"]
+    script_re = re.compile(r"<script[^>]*>(.*?)</script>", re.S | re.I)
+    pages = 0
+    bad: dict[str, list[str]] = {}
+    for page in sorted(docs_dir.rglob("*.html")) if docs_dir.exists() else []:
+        html = page.read_text(encoding="utf-8", errors="replace")
+        if "data-dr-bound" not in html:
+            continue
+        pages += 1
+        bound = [s for s in script_re.findall(html) if "data-dr-bound" in s]
+        if len(bound) != 1:
+            bad.setdefault(f"{len(bound)} bound scripts (expected 1)", []).append(page.relative_to(docs_dir).as_posix())
+            continue
+        js = _strip_ws(bound[0])
+        for w in want:
+            if w not in js:
+                bad.setdefault(f"missing `{w}`", []).append(page.relative_to(docs_dir).as_posix())
+        for b in banned:
+            if b in js:
+                bad.setdefault(f"contains `{b}`", []).append(page.relative_to(docs_dir).as_posix())
+    if pages == 0:
+        errs.append(f"{tag} found NO built page with a data-dr-bound input under docs/ -- the signup "
+                    "forms moved or the build is missing; this check is measuring nothing.")
+    for why, ps in bad.items():
+        errs.append(f"{tag} date-bound script {why} on {len(ps)} page(s), e.g. {', '.join(ps[:3])} -- "
+                    "client bounds no longer match the worker's (UTC, +1..+USER_DEADLINE_MAX_DAYS, "
+                    "<= today, >= today-366*10).")
+    return errs
+
+
 def check_json_ld_script_breakout(repo_root: Path) -> list[str]:
     """AuditLab JSONLD-1 (2026-09-26, latent not live): generate.py's
     _json_ld_html() embeds json.dumps() output directly inside a <script
@@ -9628,6 +9738,7 @@ def main():
     all_errors += check_mutating_get_coverage(repo_root)
     all_errors += check_action_pages_post_switch_parity(repo_root)
     all_errors += check_migration_numbering_uniqueness(repo_root)
+    all_errors += check_date_bound_parity(repo_root)
     all_errors += check_json_ld_script_breakout(repo_root)
     all_errors += check_inline_script_json_breakout(repo_root)
     all_errors += check_security_header_layers()
