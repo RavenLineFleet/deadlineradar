@@ -170,7 +170,7 @@
   .dr-calc label { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.4rem; display: block; }
   .dr-calc select, .dr-calc input {
     width: 100%; padding: 0.65rem 0.75rem; border-radius: 7px; border: 1px solid var(--border-strong);
-    background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
+    background: var(--bg); color: var(--fg); font-size: 1rem; font-family: inherit;
   }
   .dr-calc-followup { margin-top: 0.9rem; }
   .dr-calc-followup:empty { margin-top: 0; }
@@ -295,7 +295,7 @@
   .dr-chat-msg--pending { align-self: flex-start; background: var(--row-alt); color: var(--muted); font-style: italic; }
   .dr-chat-input-row { flex: none; border-top: 1px solid var(--border); padding: 0.7rem; display: flex; gap: 0.5rem; }
   .dr-chat-input-row textarea {
-    flex: 1; resize: none; font-family: inherit; font-size: 0.86rem; padding: 0.5rem 0.65rem;
+    flex: 1; resize: none; font-family: inherit; font-size: 1rem; padding: 0.5rem 0.65rem;
     border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg);
     max-height: 5.5rem;
   }
@@ -319,7 +319,7 @@
   .dr-chat-ticket-intro { margin: 0; }
   .dr-chat-ticket label { display: block; font-size: 0.78rem; font-weight: 600; margin: 0.6rem 0 0.25rem; }
   .dr-chat-ticket textarea, .dr-chat-ticket input {
-    width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.84rem; padding: 0.45rem 0.6rem;
+    width: 100%; box-sizing: border-box; font-family: inherit; font-size: 1rem; padding: 0.45rem 0.6rem;
     border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--fg); resize: vertical;
   }
   .dr-chat-ticket-error { color: var(--stale-red); font-size: 0.78rem; margin: 0.4rem 0 0; }
@@ -654,7 +654,7 @@
   
   .remind-panel input, .remind-panel select {
     width: 100%; border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.06); color: #fff;
-    border-radius: 7px; padding: 0.6rem 0.7rem; font-family: inherit; font-size: 0.92rem;
+    border-radius: 7px; padding: 0.6rem 0.7rem; font-family: inherit; font-size: 1rem;
   }
   
   input::placeholder, textarea::placeholder { color: #8fa7bb; }
@@ -905,7 +905,7 @@
   
   .signup-form input:not([type="checkbox"]):not([type="radio"]), .signup-form select {
     width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
+    background: var(--bg); color: var(--fg); font-size: 1rem; font-family: inherit;
   }
   .signup-form-row { display: flex; gap: 0.75rem; }
   .signup-form-row > div { flex: 1; }
@@ -1184,7 +1184,7 @@
   
   .dr-audit-filter input, .dr-audit-filter select {
     padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
+    background: var(--bg); color: var(--fg); font-size: 1rem; font-family: inherit;
   }
   .dr-audit-filter input { flex: 1 1 220px; min-width: 160px; }
   
@@ -1197,7 +1197,7 @@
   
   .dr-bulk-tag-panel select, .dr-bulk-tag-panel input {
     width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: var(--fg); font-size: 0.9rem; font-family: inherit;
+    background: var(--bg); color: var(--fg); font-size: 1rem; font-family: inherit;
   }
   .dr-bulk-tag-panel button {
     margin-top: 0.8rem; padding: 0.55rem 1rem; border: none; border-radius: 6px;
@@ -1602,7 +1602,7 @@
   .dr-map-note { font-size: 0.78rem; color: var(--faint); margin-top: 0.8rem; }
   .dr-map-controls { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
   .dr-map-controls label { font-size: 0.85rem; font-weight: 600; margin: 0; }
-  .dr-map-controls select { font-family: inherit; font-size: 0.9rem; padding: 0.4rem 0.6rem;
+  .dr-map-controls select { font-family: inherit; font-size: 1rem; padding: 0.4rem 0.6rem;
     border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg); color: inherit; }
   .dr-map-mobility-note { font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; padding: 0.6rem 0.8rem;
     background: var(--row-alt); border-radius: 8px; }
@@ -1637,7 +1637,7 @@
   
   .dr-cpe-log-panel form input, .dr-cpe-log-panel form select {
     width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: var(--fg); font-size: 0.95rem; font-family: inherit;
+    background: var(--bg); color: var(--fg); font-size: 1rem; font-family: inherit;
   }
   .dr-cpe-log-panel form button {
     margin-top: 1rem; padding: 0.6rem 1.1rem; border: none; border-radius: 6px;
@@ -1707,7 +1707,7 @@
   .dr-auth-card input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="color"]):not([type="range"]):not([type="hidden"]), .dr-auth-card select, .dr-auth-card textarea,
   .dr-account-panel input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="color"]):not([type="range"]):not([type="hidden"]), .dr-account-panel select, .dr-account-panel textarea {
     width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; border: 1px solid var(--border-strong);
-    border-radius: 7px; font-family: inherit; font-size: 0.95rem; background: var(--bg); color: inherit; }
+    border-radius: 7px; font-family: inherit; font-size: 1rem; background: var(--bg); color: inherit; }
   .dr-auth-card button[type="submit"], .dr-account-panel form button[type="submit"] {
     width: 100%; margin-top: 1.1rem; padding: 0.7rem 1rem; border: 0;
     border-radius: 8px; background: #1f5fbf; color: #fff; font-family: inherit; font-size: 0.98rem;
@@ -1786,7 +1786,7 @@
   .dr-my-cpe-entries li { padding: 0.2rem 0; }
   .dr-my-cpe-empty { font-size: 0.82rem; color: var(--muted); margin: 0.4rem 0; }
   .dr-my-cpe-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
-  .dr-my-cpe-form input, .dr-my-cpe-form select { font-family: inherit; font-size: 0.85rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--card-bg); color: inherit; }
+  .dr-my-cpe-form input, .dr-my-cpe-form select { font-family: inherit; font-size: 1rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--card-bg); color: inherit; }
   .dr-my-cpe-form input[type=number] { width: 5.5rem; }
   .dr-my-cpe-form button { font-family: inherit; font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.9rem; border: 0; border-radius: 6px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
   .dr-my-cpe-form button:hover { opacity: 0.9; }
