@@ -12922,7 +12922,7 @@ _MY_DASHBOARD_JS_HTML = """<script>
     if (nameOk) { nameOk.textContent = 'Your email address was updated.'; nameOk.hidden = false; }
   } else if (myParams.get('email_change_failed') === 'conflict') {
     var emailErr = document.getElementById('dr-my-email-error');
-    if (emailErr) { emailErr.textContent = 'That address was claimed by someone else before you confirmed. Please try again with a different one.'; emailErr.hidden = false; }
+    if (emailErr) { emailErr.textContent = 'Your email was not changed: that address could not be applied. Please try again with a different one.'; emailErr.hidden = false; }
   }
 })();
 </script>"""
@@ -19631,7 +19631,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } else if (hashParams.get('email_changed') === '1') {
     drShowSuccess('Your sign-in email has been updated.');
   } else if (hashParams.get('email_change_failed') === 'conflict') {
-    drShowError('That email address was claimed by another account before you confirmed. Nothing changed — try a different address.');
+    drShowError('Your email was not changed: that address could not be applied. Try a different address.');
   } else if (hashParams.get('slack_connected') === '1') {
     drShowSuccess('Slack connected — expect a daily digest of newly-due renewals.');
   } else if (hashParams.get('slack_connect_failed') === 'paid_plan_required') {
