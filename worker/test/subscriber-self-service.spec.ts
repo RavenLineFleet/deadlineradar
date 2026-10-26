@@ -96,6 +96,11 @@ describe("store: hasAnySubscriberRowForEmail / setSubscriberEmail (roadmap #12)"
     expect(await store.hasAnySubscriberRowForEmail(env.DB, `nobody-${Date.now()}@example.com`)).toBe(false);
   });
 
+  // Load-bearing for SUBSESS-3 too (SecurityLab SEC-55): setSubscriberEmail()'s
+  // in-statement NOT EXISTS must be evaluated once, before any row moves. If
+  // D1 ever re-evaluated it per row, the first row would move and block its
+  // siblings, and this test would go RED on changed === 1. Don't simplify it
+  // to a single seeded row.
   it("updates EVERY row sharing the old email, including a firm-tracked one, and never touches another person's rows", async () => {
     const oldEmail = `sub12-multi-old-${Date.now()}@example.com`;
     const newEmail = `sub12-multi-new-${Date.now()}@example.com`;

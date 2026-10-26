@@ -2790,9 +2790,13 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     const { envVar, label, priceId, expectedUsd, expectedInterval } = check;
     if (!priceId) {
       if (envVar.startsWith("STRIPE_PRICE_PER_SEAT_ADDON_")) {
-        // AuditLab BILL-56 (2026-10-26): neither add-on is offered. Every
-        // tier's seat cap is 35, so checkout's extraSeats is always 0 and
-        // no request reaches the add-on line item (BILL-52/54), and
+        // AuditLab BILL-56 (2026-10-26): neither add-on is offered. Tier
+        // caps are 5/10/20/35 and no seat cap anywhere exceeds the top
+        // tier's 35, so firmTierForSeatCount() always finds a tier,
+        // checkout's extraSeats is always 0 and no request reaches the
+        // add-on line item (BILL-52/54). Any cap above 35 that isn't the
+        // top FIRM_TIERS entry (e.g. one written straight to D1) would make
+        // extraSeats > 0 reachable: a 503 at checkout, silent here. And
         // /pricing/ no longer advertises a per-seat rate (BILL-55, see the
         // i18n.py "pricing.card_more_detail" comment). OVER-2 (2026-10-09)
         // made the annual id a MISMATCH on the premise that /pricing/

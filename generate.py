@@ -17682,7 +17682,7 @@ function drSubmitTeamInvite(form) {
   if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
   // UX-13 (AuditLab, 2026-08-21): this handler never disabled its submit
   // button, so a double-click fired two POSTs. The server's own duplicate-
-  // email check (409, backed by migration 0045's unique index) catches it
+  // email check (400, backed by migration 0045's unique index) catches it
   // with no duplicate row -- but the user's second response was an error
   // describing the invite they just successfully sent, reading as "the
   // invite failed" when it succeeded. Same disable-on-entry/re-enable-on-

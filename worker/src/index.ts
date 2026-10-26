@@ -5155,10 +5155,9 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   // an uninvolved third party into THIS caller's account. Silently
   // no-op'ing here means that link is never generated for an address the
   // caller doesn't already control, closing the oracle without opening
-  // that cross-account exposure. (The narrow legitimate RACE case --
-  // newEmailRaw becomes claimed AFTER this check passes, before
-  // redemption -- is pre-existing, unrelated to this fix, and out of its
-  // scope; flagged separately for AuditLab/SecurityLab.)
+  // that cross-account exposure. (The race where newEmailRaw becomes
+  // claimed AFTER this check passes, before redemption, is closed by
+  // SUBSESS-3: setSubscriberEmail() refuses in-statement at redemption.)
   if (await store.hasAnySubscriberRowForEmail(env.DB, newEmailRaw)) {
     return jsonResponse(200, { ok: true });
   }
@@ -12915,10 +12914,10 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   // identical generic success, no token created, no email sent to
   // newEmailRaw at all in this branch -- closes the oracle without
   // generating that link for an address the caller doesn't already
-  // control. (The narrow legitimate RACE case -- newEmailRaw becomes
-  // claimed AFTER this check passes, before redemption -- is
-  // pre-existing, unrelated to this fix, and out of its scope; flagged
-  // separately for AuditLab/SecurityLab.) migration 0045:
+  // control. (The race where newEmailRaw becomes claimed AFTER this
+  // check passes, before redemption, is DB-closed: migration 0045's
+  // partial unique index on LOWER(TRIM(email)) makes setFirmMemberEmail()
+  // return false, and redemption fails closed to "conflict".) migration 0045:
   // findFirmMemberByEmail(), checking against every member across every
   // firm, not just each firm's primary.
   const conflicting = await store.findFirmMemberByEmail(env.DB, newEmailRaw);
