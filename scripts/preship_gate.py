@@ -757,7 +757,9 @@ def print_double_hyphen_backlog_advisory(html_files: list[Path], docs_dir: Path)
 # entry's `note` field specifically -- narrow on purpose: DR_CALC_DATA is
 # the one proven JSON-in-script customer-text vector today, and a whole-
 # script scan would false-positive on ordinary JS identifiers/comments.
-_CALC_DATA_RE = re.compile(r"DR_CALC_DATA=(\{.*?\});var DR_CALC_AS_OF", re.DOTALL)
+# DATE-14 (2026-10-26): anchor moved from DR_CALC_AS_OF (removed; the
+# calculator now rolls forward from the visitor's clock) to the next var.
+_CALC_DATA_RE = re.compile(r"DR_CALC_DATA=(\{.*?\});var DR_CALC_BASE", re.DOTALL)
 # The shipped blob is JS-minified (unquoted identifier-safe object keys,
 # e.g. `florida:{label:...`), NOT valid JSON, so json.loads() can't parse
 # it -- confirmed empirically against the real built file, not assumed.

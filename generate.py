@@ -3984,12 +3984,20 @@ def _extra_fields_html(state_slug: str, records: list[dict], as_of: date) -> str
     is the real, authoritative validation regardless of what the browser
     enforces -- same "validation authority stays server-side" rule this
     function's own docstring already establishes for every other field."""
+    # DATE-14 (AuditLab, 2026-10-26): every date bound below was keyed to
+    # as_of (the data-freshness floor, which lags the build by as much as a
+    # month), so NH/CNMI refused an anchor renewed after as_of outright and
+    # the expiry field let through dates the worker then 400'd. Bounds are
+    # now the build's UTC date, and _DATE_BOUND_RUNTIME_JS re-keys them to
+    # the visitor's clock at view time (data-dr-bound) so they never drift
+    # between builds. as_of stays in the signature for callers only.
+    today = datetime.now(timezone.utc).date()
     if not _state_signup_supported(state_slug, records):
-        min_date = as_of + timedelta(days=1)
-        max_date = as_of + timedelta(days=_USER_DEADLINE_MAX_DAYS)
+        min_date = today + timedelta(days=1)
+        max_date = today + timedelta(days=_USER_DEADLINE_MAX_DAYS)
         return f"""<label for="license_expiration_date">License expiration date</label>
 <input type="date" id="license_expiration_date" name="license_expiration_date"
-  min="{fmt_date_iso(min_date)}" max="{fmt_date_iso(max_date)}" required>
+  min="{fmt_date_iso(min_date)}" max="{fmt_date_iso(max_date)}" data-dr-bound="future" required>
 <p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p>"""
     if state_slug in ANCHOR_DATE_PLUS_TERM_STATES:
@@ -3997,11 +4005,11 @@ up automatically, so we'll remind you based on the date you give us.</p>"""
         # computation (anchor + a fixed term, rolled forward), not a raw
         # pass-through -- the worker recomputes forward from this anchor on
         # every future cycle too, same as every other computed state.
-        min_date = as_of - timedelta(days=366 * 10)
-        max_date = as_of
+        min_date = today - timedelta(days=366 * 10)
+        max_date = today
         return f"""<label for="anchor_date">Last issuance or renewal date</label>
 <input type="date" id="anchor_date" name="anchor_date"
-  min="{fmt_date_iso(min_date)}" max="{fmt_date_iso(max_date)}" required>
+  min="{fmt_date_iso(min_date)}" max="{fmt_date_iso(max_date)}" data-dr-bound="past10" required>
 <p class="field-hint">Your renewal cycle is exactly {ANCHOR_DATE_PLUS_TERM_STATES[state_slug]['term_years']}
 years after this date, same month and day, repeating.</p>"""
     if state_slug == "florida":
@@ -4020,7 +4028,7 @@ years after this date, same month and day, repeating.</p>"""
   <option value="fl-firm">Firm license</option>
 </select>
 <label for="anchor_date">Original certificate date (individual license only)</label>
-<input type="date" id="anchor_date" name="anchor_date" max="{fmt_date_iso(as_of)}">
+<input type="date" id="anchor_date" name="anchor_date" max="{fmt_date_iso(today)}" data-dr-bound="past">
 <p class="field-hint">Only needed if you selected Individual CPA license above &mdash; find it on your
 original Florida CPA certificate. Leave blank if you selected Firm license.</p>"""
     if state_slug in ANCHOR_YEAR_CHOSEN_TERM_SIGNUP_STATES:
@@ -5108,6 +5116,40 @@ _STALE_BADGE_RUNTIME_JS = """<script>
 })();
 </script>"""
 
+# DATE-14 (AuditLab, 2026-10-26): build-time date bounds go stale between
+# builds, so re-key every data-dr-bound input to the visitor's clock.
+# "future" mirrors the worker's request-time UTC check (index.ts
+# license_expiration_date: todayUtc+1 .. todayUtc+USER_DEADLINE_MAX_DAYS).
+# "past"/"past10" (anchor dates; the worker applies no upper bound) cap at
+# the LATER of the local and UTC date, so a UTC+10 CNMI licensee who
+# renewed this morning local time is never refused.
+_DATE_BOUND_RUNTIME_JS = """<script>
+(function () {
+  var inputs = document.querySelectorAll('input[type="date"][data-dr-bound]');
+  if (!inputs.length) return;
+  var now = new Date();
+  function iso(d) { return d.toISOString().slice(0, 10); }
+  function addDays(isoDay, n) {
+    var d = new Date(isoDay + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return iso(d);
+  }
+  var utc = iso(now);
+  var local = iso(new Date(now.getTime() - now.getTimezoneOffset() * 60000));
+  var latest = local > utc ? local : utc;
+  inputs.forEach(function (el) {
+    var kind = el.getAttribute('data-dr-bound');
+    if (kind === 'future') {
+      el.min = addDays(utc, 1);
+      el.max = addDays(utc, """ + str(_USER_DEADLINE_MAX_DAYS) + """);
+    } else if (kind === 'past' || kind === 'past10') {
+      el.max = latest;
+      if (kind === 'past10') el.min = addDays(latest, -3660);
+    }
+  });
+})();
+</script>"""
+
 _SHOW_PASSWORD_TOGGLE_HTML = """<script>
 (function () {
   document.querySelectorAll('input[type="password"]').forEach(function (input) {
@@ -5852,6 +5894,7 @@ def page_shell(
 {_SCROLL_REVEAL_BODY_JS}
 {_TABLE_SCROLL_HINT_JS}
 {_STALE_BADGE_RUNTIME_JS}
+{_DATE_BOUND_RUNTIME_JS}
 {_SEAL_RUNTIME_JS}
 {_ATTRIBUTION_JS}
 </body>
@@ -7149,7 +7192,8 @@ def _anchor_year_term_js(record_id: str, as_of: date) -> str:
   var goBtn = document.getElementById('dr-ayt-{record_id}-go');
   var result = document.getElementById('dr-ayt-{record_id}-result');
   var month = {cfg['month']}, day = {cfg['day']}, termYears = {cfg['term_years']};
-  var asOf = new Date(Date.UTC({as_of.year}, {as_of.month - 1}, {as_of.day}));
+  var asOfNow = new Date();
+  var asOf = new Date(Date.UTC(asOfNow.getFullYear(), asOfNow.getMonth(), asOfNow.getDate()));
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   function fmt(d) {{ return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }}
   function show() {{
@@ -7279,7 +7323,8 @@ def _anchor_year_chosen_term_js(record_id: str, as_of: date) -> str:
   var result = document.getElementById('dr-ayct-{record_id}-result');
   var month = {cfg['month']}, day = {cfg['day']};
   var termOptions = {_script_json(cfg['term_options'])};
-  var asOf = new Date(Date.UTC({as_of.year}, {as_of.month - 1}, {as_of.day}));
+  var asOfNow = new Date();
+  var asOf = new Date(Date.UTC(asOfNow.getFullYear(), asOfNow.getMonth(), asOfNow.getDate()));
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   function fmt(d) {{ return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }}
   function show() {{
@@ -7375,7 +7420,8 @@ def _certificate_date_term_js(record_id: str, as_of: date) -> str:
   var periodEndMonth = {cfg['month']}, periodEndDay = {cfg['day']};
   var renewalMonth = {renewal_month}, renewalDay = {renewal_day};
   var initialPeriods = {cfg['initial_periods']}, termYears = {cfg['term_years']};
-  var asOf = new Date(Date.UTC({as_of.year}, {as_of.month - 1}, {as_of.day}));
+  var asOfNow = new Date();
+  var asOf = new Date(Date.UTC(asOfNow.getFullYear(), asOfNow.getMonth(), asOfNow.getDate()));
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   function fmt(d) {{ return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }}
   function show() {{
@@ -21739,12 +21785,14 @@ _DEADLINE_CALC_JS = """
   var stateSel = document.getElementById('dr-calc-state');
   var followup = document.getElementById('dr-calc-followup');
   var result = document.getElementById('dr-calc-result');
-  // Shared build-time "as of" for every kind below that rolls a date
-  // forward client-side (cdit/ayt/aytc) -- same value the equivalent
-  // per-state widgets bake in via their own as_of parameter, computed once
-  // here instead of three times.
-  var asOfParts = DR_CALC_AS_OF.split('-');
-  var DR_CALC_AS_OF_DATE = new Date(Date.UTC(parseInt(asOfParts[0], 10), parseInt(asOfParts[1], 10) - 1, parseInt(asOfParts[2], 10)));
+  // Shared "as of" for every kind below that rolls a date forward
+  // client-side (cdit/ayt/aytc). DATE-14 (AuditLab, 2026-10-26): was the
+  // build-time as_of_date (the data-freshness floor), which lags the build
+  // and never advances on a rebuild alone, so a deadline that passed after
+  // as_of kept being served as next. Now the visitor's clock, the same
+  // idiom the adt branch below and the per-state widgets use.
+  var asOfNow = new Date();
+  var DR_CALC_AS_OF_DATE = new Date(Date.UTC(asOfNow.getFullYear(), asOfNow.getMonth(), asOfNow.getDate()));
 
   function monthOptionsHtml() {
     var out = '<option value="">' + I18N.select + '</option>';
@@ -21917,7 +21965,6 @@ def _deadline_calculator_widget_html(by_slug: dict[str, list[dict]], as_of: date
 </div>
 <script>
 var DR_CALC_DATA = {_script_json(data)};
-var DR_CALC_AS_OF = {_script_json(as_of.isoformat())};
 var DR_CALC_BASE = {_script_json("../" if lang == "en" else "../../")};
 var DR_CALC_I18N = {_script_json(i18n_js)};
 {_DEADLINE_CALC_JS}
