@@ -4397,13 +4397,78 @@ _BOT_DEFENSE_FIELDS_HTML_MAGIC = _bot_defense_fields_html("-magic", shared_widge
 _SRC_HIDDEN_FIELD_HTML = '<input type="hidden" name="src" class="dr-src-field" value="">'
 
 
+# Inline <head> loader for Turnstile's api.js (Orchestrator go, 2026-10-26 LCP
+# fix). The old eager <script src=...api.js> started a ~600KB
+# challenges.cloudflare.com fetch at ~650ms on every page; Lighthouse's Lantern
+# simulation counted it against LCP (simulated 6.0s vs observed 1.3s). Now:
+#   * api.js loads on the visitor's first focusin/pointerdown/keydown/
+#     touchstart/scroll, so an idle page load never fetches it. Implicit
+#     rendering still picks up every .cf-turnstile div once it arrives.
+#   * /firm-login/ (the shared widget, .dr-turnstile-slot) loads it at
+#     DOMContentLoaded as before: its 4s "blocked" notice assumes an
+#     eagerly-started widget.
+#   * Submit guard: a form holding a .cf-turnstile widget whose token has not
+#     landed yet is held (capture phase, before any per-form handler), the
+#     load is kicked, and the form is re-submitted via requestSubmit() once
+#     the token appears or after 8s -- the 8s case is exactly today's
+#     ad-blocked path, which the Worker already handles honestly.
+# Kept free of apostrophes and backslashes: it is a plain Python string.
+_TURNSTILE_DEFERRED_LOADER_JS = """<script>
+(function () {
+  var SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+  var EVENTS = ["focusin", "pointerdown", "keydown", "touchstart", "scroll"];
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    EVENTS.forEach(function (t) { window.removeEventListener(t, load, true); });
+    var s = document.createElement("script");
+    s.src = SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }
+  window.drTurnstileLoad = load;
+  EVENTS.forEach(function (t) { window.addEventListener(t, load, { capture: true, passive: true }); });
+  document.addEventListener("DOMContentLoaded", function () {
+    if (document.querySelector(".dr-turnstile-slot")) load();
+  });
+  document.addEventListener("submit", function (e) {
+    var f = e.target;
+    if (!f || f.tagName !== "FORM" || typeof f.requestSubmit !== "function") return;
+    if (!f.querySelector(".cf-turnstile") || f.drTsPass) return;
+    function token() {
+      var i = f.querySelector("input[name=cf-turnstile-response]");
+      return i ? i.value : "";
+    }
+    if (token() && !f.drTsWaiting) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (f.drTsWaiting) return;
+    f.drTsWaiting = true;
+    load();
+    var sub = e.submitter || null;
+    var waited = 0;
+    var poll = setInterval(function () {
+      waited += 150;
+      if (!token() && waited < 8000) return;
+      clearInterval(poll);
+      f.drTsWaiting = false;
+      f.drTsPass = true;
+      try { if (sub) f.requestSubmit(sub); else f.requestSubmit(); } finally { f.drTsPass = false; }
+    }, 150);
+  }, true);
+})();
+</script>"""
+
+
 def _turnstile_head_html() -> str:
-    """Cloudflare Turnstile loader script for <head> -- only when a site key is
+    """Deferred Turnstile loader for <head> -- only when a site key is
     configured. Loading it unconditionally would be a wasted external request on
-    a page whose form has no widget to render."""
+    a page whose form has no widget to render. See _TURNSTILE_DEFERRED_LOADER_JS
+    for why it is no longer a plain eager <script src>."""
     if not TURNSTILE_SITE_KEY:
         return ""
-    return '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
+    return _TURNSTILE_DEFERRED_LOADER_JS
 
 
 def _is_still_upcoming(e: dict, today: date | None = None) -> bool:
