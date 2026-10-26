@@ -1302,6 +1302,12 @@ PAGE_CSS = """
      640px breakpoint below. */
   .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: normal; }
   .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
+  /* Devin (2026-10-26): at 18rem the caption broke after the day, orphaning "2026 ->" on its own
+     line (/new-york/). Wide viewports have empty space left of the seal under the subhead, so let
+     the caption size to its one-line content there; everywhere it still has to wrap, the date
+     clause is kept whole so the only break is before "verified" (on phones, before the date). */
+  .dr-seal-caption-date, .dr-seal-caption-day { white-space: nowrap; }
+  @media (min-width: 1024px) { .dr-seal-caption { width: max-content; max-width: 32rem; } }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--v2 { width: 8.75rem; height: 8.75rem; } }
   /* .dr-seal-caption is a normal-flow (position:static) child of .dr-seal here, but .dr-seal
@@ -1315,6 +1321,7 @@ PAGE_CSS = """
      every state) plus buffer, rather than relying on the desktop value. */
   @media (max-width: 640px) { .dr-seal-link { margin-bottom: 5rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
+  @media (max-width: 640px) { .dr-seal-caption-date { white-space: normal; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   /* Both tracks are minmax(0,...) on purpose: a grid track's automatic minimum
@@ -6475,7 +6482,8 @@ def _seal_html(last_verified: str | None, extra_class: str = "", hidden: bool = 
         # then make the whole thing a link through to the methodology page.
         caption_html = (
             f'<p class="dr-seal-caption">{esc(state_name)} renewal dates &mdash; '
-            f'verified {esc(fmt_date(date.fromisoformat(last_verified)))} &rarr;</p>'
+            f'<span class="dr-seal-caption-date">verified <span class="dr-seal-caption-day">'
+            f'{esc(fmt_date(date.fromisoformat(last_verified)))}&nbsp;&rarr;</span></span></p>'
         )
     seal_div = (
         f'<div class="{cls}"{dv} role="img" aria-label="{label}"{hid}>'

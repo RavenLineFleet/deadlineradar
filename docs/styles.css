@@ -420,11 +420,15 @@
   
   .dr-seal-caption { position: absolute; top: 100%; right: 0; width: 18rem; margin: 0.45rem 0 0; font-size: 0.78rem; line-height: 1.35; color: var(--accent); text-decoration: underline; text-align: right; white-space: normal; }
   .dr-seal-link:hover .dr-seal-caption, .dr-seal-link:focus-visible .dr-seal-caption { color: var(--accent-deep); }
+  
+  .dr-seal-caption-date, .dr-seal-caption-day { white-space: nowrap; }
+  @media (min-width: 1024px) { .dr-seal-caption { width: max-content; max-width: 32rem; } }
   @media (max-width: 640px) { .dr-seal { width: 6rem; height: 6rem; margin-left: 0.8rem; } }
   @media (max-width: 640px) { .dr-seal--v2 { width: 8.75rem; height: 8.75rem; } }
   
   @media (max-width: 640px) { .dr-seal-link { margin-bottom: 5rem; } }
   @media (max-width: 640px) { .dr-seal-caption { position: static; width: 8.75rem; white-space: normal; margin: 0.35rem 0.8rem 0 0; text-align: right; } }
+  @media (max-width: 640px) { .dr-seal-caption-date { white-space: normal; } }
   @media print { .dr-seal--report { width: 6.5rem; height: 6.5rem; } }
   .rowlist { display: flex; flex-direction: column; }
   
