@@ -3617,6 +3617,12 @@ _MIRROR_HOST_RE = re.compile(
 # nebraska-reinstatement were retired above: re-check adminrules.utah.gov
 # periodically, and the moment it serves real content again, repoint
 # citation_url back and demote the Cornell mirror to secondary_source_url.
+# SRC-93 (AuditLab, 2026-10-25): the /public/rule/<RULE>/Current%20Rules
+# scheme is RETIRED (hard 404, byte-identical to a nonce path), so re-checking
+# it can never fire. Re-check the successor instead: adminrules.utah.gov/Code
+# (200 but a JS shell with no R156 text as of 2026-10-25) and rules.utah.gov.
+# Retire these once /Code (or a per-rule URL under it) serves R156-1 /
+# R156-26a text to a plain fetch.
 _MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
     "ut-all": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
     "ut-cpe": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
