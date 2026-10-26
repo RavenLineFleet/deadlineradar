@@ -15618,6 +15618,15 @@ function drOpenRuleChangeModal(event, triggerBtn) {
     : '<strong>Target effective date ' + drRuleChangeDateLabel + '</strong> &mdash; ' +
       (event.status === 'PROPOSED' ? 'proposed, not adopted' : 'adoption not confirmed') +
       '; it could still change or be withdrawn.';
+  // AuditLab STATUS-7 (LOW, 2026-10-26): this chip was a hardcoded gold "Upcoming",
+  // so a PROPOSED event read as settled beside the STATUS-3 hedge above. Same
+  // labels as generate.py's _rule_change_status_label() on /rule-changes/.
+  var drRuleChangeBadge = document.getElementById('dr-rule-change-modal-badge');
+  drRuleChangeBadge.textContent = ({
+    ENACTED: 'Enacted', ENACTED_DATE_PENDING: 'Enacted, date pending', ADOPTED_RULE: 'Adopted rule',
+    PROPOSED: 'Proposed', DIED_WITHDRAWN: 'Died / withdrawn'
+  })[event.status] || 'Status undetermined';
+  drRuleChangeBadge.className = drRuleChangeIsEnacted(event) ? 'rc-badge rc-badge-upcoming' : 'rc-badge';
   document.getElementById('dr-rule-change-modal-summary').textContent = event.summary;
   var citeLink = document.getElementById('dr-rule-change-modal-citation-link');
   citeLink.href = event.citation_url || '#';
@@ -23096,7 +23105,7 @@ def build_firm_dashboard_page(
   <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-rule-change-modal-title">
     <div class="rc-head">
       <span class="rc-jurisdiction" id="dr-rule-change-modal-title"></span>
-      <span class="rc-badge rc-badge-upcoming">Upcoming</span>
+      <span class="rc-badge" id="dr-rule-change-modal-badge"></span>
     </div>
     <p class="rc-date" id="dr-rule-change-modal-date"></p>
     <p class="rc-detail" id="dr-rule-change-modal-summary"></p>
