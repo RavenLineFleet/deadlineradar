@@ -2100,6 +2100,9 @@ PAGE_CSS = """
   .dr-showcase-tab--active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   .dr-showcase-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--card-bg); }
   .dr-showcase-frame img { display: block; width: 100%; height: auto; }
+  /* Homepage teaser video (2026-10-26, Devin-approved teaser_v1). Same
+     frame as the showcase screenshots; 16:9 reserved so nothing shifts. */
+  .dr-showcase-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #111418; }
   .dr-questionnaire-check { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.5rem 0; font-size: 0.88rem; font-weight: 400; }
   .dr-questionnaire-check input { margin-top: 0.2rem; flex: 0 0 auto; }
   .dr-nps-scale { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.9rem 0; }
@@ -9166,7 +9169,41 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   &rarr;</a> &middot; <a href="pricing/">Full pricing (incl. individual) &rarr;</a></p>
 </section>"""
 
+    # Homepage teaser video (2026-10-26, Orchestrator directive: Devin approved
+    # brand/teaser_video/teaser_v1.mp4 and asked for it on the site). Placed
+    # straight under the hero rather than in it, so the hero's rotating
+    # verified-fact card keeps its slot. Pure UI b-roll from the shared demo
+    # account, no overlaid claims; the caption reuses the showcase's existing
+    # "shared live demo account" wording. preload="none" + play-when-visible
+    # keeps the 5.8MB file off the critical path; reduced-motion visitors get
+    # the poster and native controls only, never autoplay.
+    teaser_html = f"""<section class="band-section dr-reveal" style="border-top:0;">
+  <p class="eyebrow">See it in action</p>
+  <h2>The firm dashboard, in twenty seconds.</h2>
+  <div class="dr-showcase-frame" style="margin-top:1.2rem;">
+    <video id="dr-teaser-video" muted loop playsinline controls preload="none" width="1920" height="1080"
+      poster="/media/teaser-poster.jpg" aria-label="Twenty-second silent walkthrough of the Deadline-Radar firm dashboard.">
+      <source src="/media/teaser.mp4" type="video/mp4">
+    </video>
+  </div>
+  <p class="mock-caption">Footage of our own shared live demo account, no sound. <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo yourself &rarr;</a></p>
+</section>
+<script>
+(function () {{
+  var v = document.getElementById('dr-teaser-video');
+  if (!v || !('IntersectionObserver' in window)) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  new IntersectionObserver(function (entries) {{
+    entries.forEach(function (e) {{
+      if (e.isIntersecting) {{ var p = v.play(); if (p && p.catch) p.catch(function () {{}}); }}
+      else {{ v.pause(); }}
+    }});
+  }}, {{ threshold: 0.4 }}).observe(v);
+}})();
+</script>"""
+
     body = f"""{hero_html}
+{teaser_html}
 {stats_band_html}
 {demo_html}
 <div id="all-states">
@@ -27173,6 +27210,13 @@ def main() -> None:
     for showcase_file in sorted(showcase_src_dir.glob("*.jpg")):
         (showcase_dst_dir / showcase_file.name).write_bytes(showcase_file.read_bytes())
     print(f"wrote {SITE_DIR.name}/showcase/ ({len(list(showcase_src_dir.glob('*.jpg')))} images)")
+
+    # Homepage teaser video + poster (2026-10-26) -- same copy-verbatim pattern.
+    media_src_dir = ROOT / "assets" / "media"
+    media_dst_dir = SITE_DIR / "media"
+    media_dst_dir.mkdir(parents=True, exist_ok=True)
+    for media_file in sorted(list(media_src_dir.glob("*.mp4")) + list(media_src_dir.glob("*.jpg"))):
+        (media_dst_dir / media_file.name).write_bytes(media_file.read_bytes())
 
     # CRAWL-5 (AuditLab, 2026-08-29): derived from by_slug here, not
     # hand-maintained -- see the comment above the historical

@@ -1400,7 +1400,7 @@ _BENIGN_EXTENSIONS = {
     ".py", ".md", ".html", ".css", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".mts",
     ".json", ".csv", ".sql", ".txt", ".xml", ".yml", ".yaml", ".toml", ".lock",
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
-    ".pdf",
+    ".pdf", ".mp4",
 }
 # Legitimate tracked files with no extension at all -- an allowlist here has
 # to be an exact-name match, since "no extension" is otherwise indistinguishable
