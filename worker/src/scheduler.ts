@@ -2790,18 +2790,22 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
   for (const check of checks) {
     const { envVar, label, priceId, expectedUsd, expectedInterval } = check;
     if (!priceId) {
-      // SecurityLab BLOCK-1 (2026-10-07): with MONTHLY_BILLING_ENABLED the
-      // UI offers Monthly unconditionally, so an unset monthly price id is
-      // a 503 at purchase time, not "not configured in this environment".
-      if (MONTHLY_BILLING_ENABLED && envVar.endsWith("_MONTHLY")) {
+      if (envVar.startsWith("STRIPE_PRICE_PER_SEAT_ADDON_")) {
+        // AuditLab BILL-56 (2026-10-26): neither add-on is offered. Every
+        // tier's seat cap is 35, so checkout's extraSeats is always 0 and
+        // no request reaches the add-on line item (BILL-52/54), and
+        // /pricing/ no longer advertises a per-seat rate (BILL-55, see the
+        // i18n.py "pricing.card_more_detail" comment). OVER-2 (2026-10-09)
+        // made the annual id a MISMATCH on the premise that /pricing/
+        // advertised it; that premise is gone. Checked before the
+        // MONTHLY_BILLING_ENABLED arm so the monthly add-on, unoffered for
+        // the same reason, is not reported as a monthly-checkout 503.
+        notConfigured.push(envVar);
+      } else if (MONTHLY_BILLING_ENABLED && envVar.endsWith("_MONTHLY")) {
+        // SecurityLab BLOCK-1 (2026-10-07): with MONTHLY_BILLING_ENABLED the
+        // UI offers Monthly unconditionally, so an unset monthly price id is
+        // a 503 at purchase time, not "not configured in this environment".
         mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while MONTHLY_BILLING_ENABLED -- the site offers monthly but checkout would 503`] });
-      } else if (envVar === "STRIPE_PRICE_PER_SEAT_ADDON_ANNUAL") {
-        // AuditLab OVER-2 (MEDIUM, 2026-10-09): /pricing/ advertises the
-        // annual per-seat rate unconditionally, and an unset id makes
-        // checkout 503 for any roster above the top tier's seat cap. The
-        // `_MONTHLY` suffix test above never matched this name, so an unset
-        // annual add-on could sit silent forever.
-        mismatches.push({ envVar, label, expectedUsd, expectedInterval, problems: [`env var unset while /pricing/ advertises the per-seat rate -- checkout for a roster above the top tier's seat cap would 503`] });
       } else if (expectedInterval === "year") {
         // BILL-45: the 4 annual tier prices are the primary purchase path and
         // /pricing/ advertises every one unconditionally, so OVER-2's argument
