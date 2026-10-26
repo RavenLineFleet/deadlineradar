@@ -5076,7 +5076,10 @@ _SEAL_STALE_DAYS = _STALE_DAYS  # kept as an alias; existing call sites read thi
 # surfaces now read _STALE_DAYS; do not reintroduce a second constant.
 _STALE_BADGE_RUNTIME_JS = """<script>
 (function () {
-  var marks = document.querySelectorAll('[data-verified]');
+  // A11Y-32 (AuditLab, 2026-10-26): .dr-seal also carries data-verified
+  // (its own seal script handles staleness); a note appended inside the
+  // fixed-height seal box overlapped .dr-seal-caption on every state page.
+  var marks = document.querySelectorAll('[data-verified]:not(.dr-seal)');
   if (!marks.length) return;
   var RUNTIME_STALE_DAYS = """ + str(_STALE_DAYS) + """;
   var now = new Date();
@@ -19344,7 +19347,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Roadmap #41 (accessibility audit): all six .dr-modal-overlay dialogs
+  // Roadmap #41 (accessibility audit): all seven .dr-modal-overlay dialogs
   // already set role="dialog"/aria-modal and close on Escape, but none
   // trapped Tab -- a keyboard user could Tab straight out into background
   // content while a modal was open. One shared listener (keyed off
@@ -19473,7 +19476,10 @@ document.addEventListener('DOMContentLoaded', function() {
       drCloseNotifications();
     });
     document.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Escape' && !notifPanel.hidden) drCloseNotifications();
+      // A11Y-31 (AuditLab, 2026-10-26): return focus to the bell, as the
+      // chat widget does, instead of dropping it to <body>. Not on the
+      // outside-click path above -- that click already moved focus.
+      if (ev.key === 'Escape' && !notifPanel.hidden) { drCloseNotifications(); notifBellBtn.focus(); }
     });
   }
   if (notifPanelBody) {
@@ -19494,6 +19500,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ev.preventDefault();
       drSwitchView(link.getAttribute('data-view'));
       drCloseNotifications();
+      if (notifBellBtn) notifBellBtn.focus();
     });
   }
 
