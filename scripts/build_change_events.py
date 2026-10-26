@@ -88,6 +88,14 @@ DIFFLAB_EVENTS_DIR = pathlib.Path(
     os.environ.get("DR_DIFFLAB_EVENTS_DIR", ROOT.parent.parent.parent / "Orchestrator" / "reg_change_events")
 )
 
+# SRC-97 (AuditLab 2026-10-26; DiffLab ruling 19:55Z): DiffLab retired these
+# event ids as duplicates of a surviving record of the same change. Keyed on
+# the explicit id, never on citation_url -- two distinct changes can share a
+# section URL (the 326.289 pair is one such case).
+RETIRED_EVENT_IDS = frozenset({
+    "missouri-regwatch-4b9dc4971d5a",  # same SB1233 326.283 change as d4c826d1ac09
+})
+
 KIND_CHANGE = "rule_change"
 KIND_CONFLICT = "source_conflict"
 
@@ -835,6 +843,9 @@ def main() -> int:
     seen_ids: set[str] = set()
     deduped = []
     for e in events:
+        if e["event_id"] in RETIRED_EVENT_IDS:
+            rejected.append(f"{e['event_id']}: retired by DiffLab as a duplicate, dropped")
+            continue
         if e["event_id"] in seen_ids:
             rejected.append(f"{e['event_id']}: duplicate event_id, second occurrence dropped")
             continue
