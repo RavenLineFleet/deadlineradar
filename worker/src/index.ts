@@ -5029,11 +5029,13 @@ async function handleSubscriberLoginVerify(env: Env, token: string | null): Prom
   let signInEmail = result.emailNormalized;
   let emailChangeOutcome: "applied" | "conflict" | null = null;
   if (result.purpose === "email_change" && result.pendingNewEmail) {
-    const alreadyClaimed = await store.hasAnySubscriberRowForEmail(env.DB, result.pendingNewEmail);
-    if (alreadyClaimed) {
+    // SUBSESS-3: the conflict check lives inside setSubscriberEmail()'s
+    // UPDATE, so 0 rows changed IS the conflict branch -- no read-then-write
+    // window for a second redemption to land in.
+    const changed = await store.setSubscriberEmail(env.DB, result.emailNormalized, result.pendingNewEmail);
+    if (changed === 0) {
       emailChangeOutcome = "conflict";
     } else {
-      await store.setSubscriberEmail(env.DB, result.emailNormalized, result.pendingNewEmail);
       signInEmail = store.normalizeEmail(result.pendingNewEmail);
       emailChangeOutcome = "applied";
       // Any OTHER unused login/email-change link sits in the OLD address's

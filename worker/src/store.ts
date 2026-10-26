@@ -6066,14 +6066,20 @@ export async function hasAnySubscriberRowForEmail(db: D1Database, email: string)
 /** Roadmap #12: applies a self-service email change across EVERY
  * subscribers row belonging to this person (their free-tier row and every
  * firm-tracked row alike -- identity is the shared email, not a single
- * account row, per migration 0012's own docstring). The caller must
- * already have confirmed via hasAnySubscriberRowForEmail() that the new
- * address isn't already someone else's before calling this -- this
- * function does not re-check, same "caller validates, store executes"
- * split as setFirmPassword(). */
+ * account row, per migration 0012's own docstring). Applies only if no
+ * row already holds the new address, checked in the SAME statement
+ * (AuditLab SUBSESS-3, 2026-10-26): a separate hasAnySubscriberRowForEmail()
+ * read followed by this write was two D1 round trips, and
+ * subscribers.email has no UNIQUE constraint to back it up. The subquery is
+ * uncorrelated, so SQLite evaluates it once, before any row is rewritten --
+ * a multi-row move does not block itself. Returns rows changed; 0 means the
+ * address was taken (or the old one has no rows), and nothing moved. */
 export async function setSubscriberEmail(db: D1Database, oldEmailNormalized: string, newEmail: string): Promise<number> {
   const result = await db
-    .prepare(`UPDATE subscribers SET email = ?1 WHERE LOWER(TRIM(email)) = ?2`)
+    .prepare(
+      `UPDATE subscribers SET email = ?1 WHERE LOWER(TRIM(email)) = ?2
+         AND NOT EXISTS (SELECT 1 FROM subscribers WHERE LOWER(TRIM(email)) = LOWER(TRIM(?1)))`
+    )
     .bind(newEmail.trim(), oldEmailNormalized)
     .run();
   return result.meta.changes ?? 0;

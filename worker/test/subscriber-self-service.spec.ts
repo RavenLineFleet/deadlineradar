@@ -117,6 +117,22 @@ describe("store: hasAnySubscriberRowForEmail / setSubscriberEmail (roadmap #12)"
 
     expect((await store.listSubscriberLicenses(env.DB, other)).length).toBe(1);
   });
+
+  // SUBSESS-3 (AuditLab, 2026-10-26): the caller's hasAnySubscriberRowForEmail()
+  // read and this write used to be two round trips. Calling the store write
+  // with the target already claimed is exactly the state that window leaves:
+  // the write itself must refuse, not trust an earlier read.
+  it("SUBSESS-3: refuses (0 changed, nothing moved) when the new address is already claimed, in any case/whitespace", async () => {
+    const oldEmail = `subsess3-old-${Date.now()}@example.com`;
+    const claimed = `subsess3-claimed-${Date.now()}@example.com`;
+    await seed(oldEmail, "texas");
+    await seed(oldEmail, "ohio");
+    await seed(claimed, "florida");
+
+    expect(await store.setSubscriberEmail(env.DB, store.normalizeEmail(oldEmail), `  ${claimed.toUpperCase()} `)).toBe(0);
+    expect((await store.listSubscriberLicenses(env.DB, oldEmail)).map((r) => r.state_slug).sort()).toEqual(["ohio", "texas"]);
+    expect((await store.listSubscriberLicenses(env.DB, claimed)).map((r) => r.state_slug)).toEqual(["florida"]);
+  });
 });
 
 describe("store: setSubscriberFirstName leaves staff_label and compliance fields untouched (roadmap #12)", () => {
