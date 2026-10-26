@@ -3308,14 +3308,15 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
   if (stepUp) return stepUp;
 
-  const existing = await store.findFirmMemberByEmail(env.DB, email);
-  if (existing) {
-    return jsonResponse(409, {
-      error:
-        existing.firm_id === session.firmId
-          ? "That person is already on your team."
-          : "That email address is already associated with a different firm account.",
-    });
+  // MEMBER-2 (AuditLab, 2026-10-26): findFirmMemberByEmail() is unscoped,
+  // and two different answers here ("already on your team" vs "a different
+  // firm account") told an inviter whether a named address belonged to some
+  // OTHER firm. Same status and text as the blocklist refusal above, so a
+  // member here, a member elsewhere and a blocklisted address all read
+  // alike -- the posture handleFirmChangeEmailRequest() already takes.
+  // The inviter's own roster is on their dashboard, so nothing is lost.
+  if (await store.findFirmMemberByEmail(env.DB, email)) {
+    return jsonResponse(400, { error: "That address can't be invited right now." });
   }
 
   const { id: memberId } = await store.createFirmMember(env.DB, {

@@ -120,18 +120,27 @@ describe("POST /firm/members/invite", () => {
     expect(body.error.toLowerCase()).toContain("demo account");
   });
 
-  it("rejects inviting an email that's already active in this firm, or already belongs to a DIFFERENT firm", async () => {
+  // MEMBER-2: refused, and the two refusals must be indistinguishable --
+  // a different answer for "another firm's member" is a cross-firm
+  // membership oracle.
+  it("rejects inviting an email that's already active in this firm, or already belongs to a DIFFERENT firm, with one identical response", async () => {
     const partner = await seedPaidFirm();
     const staff = await addMember(partner.firmId, "staff");
     const staffMember = await store.getFirmMemberById(env.DB, partner.firmId, staff.memberId);
 
     const sameFirm = await postInvite(partner.cookie, inviteBody("staff", staffMember!.email));
-    expect(sameFirm.status).toBe(409);
+    expect(sameFirm.status).toBe(400);
+    const sameBody = await sameFirm.json<{ error: string }>();
 
     const otherFirm = await seedPaidFirm("Other Firm");
     const otherFirmOwner = await store.getFirmMemberById(env.DB, otherFirm.firmId, otherFirm.memberId);
     const crossFirm = await postInvite(partner.cookie, inviteBody("staff", otherFirmOwner!.email));
-    expect(crossFirm.status).toBe(409);
+    expect(crossFirm.status).toBe(400);
+    const crossBody = await crossFirm.json<{ error: string }>();
+
+    expect(crossBody).toEqual(sameBody);
+    expect(sameBody).toEqual({ error: "That address can't be invited right now." });
+    expect(await store.listFirmMembers(env.DB, otherFirm.firmId)).toHaveLength(1);
   });
 
   it("rejects an invalid email and an invalid role", async () => {
