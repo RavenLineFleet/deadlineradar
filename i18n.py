@@ -555,7 +555,10 @@ EN: dict[str, str] = {
     # COPY-31 (AuditLab, MEDIUM, 2026-10-26): the per-seat add-on is minted
     # only by first checkout; a subscribed firm gets already_subscribed and the
     # portal has nothing above 35, so the per-seat line is scoped to pre-subscribe.
-    "pricing.card_more_detail": "Enterprise covers up to 35 staff, the largest plan you can start online. If your roster is already above 35 before you subscribe, your dashboard prices the rest per seat. Already subscribed and need more than 35, or a new firm with more than 35 staff? {contact_link} and we'll work out what fits.",
+    # BILL-55 (AuditLab, MEDIUM, 2026-10-26): no gated path lets a roster pass
+    # 35 people (decideAdd + the BILL-54 PATCH gate), so the pre-subscribe
+    # per-seat case is unreachable too. Dropped; matches /for-firms/ and the 402.
+    "pricing.card_more_detail": "Enterprise covers up to 35 staff, the largest plan you can start online. Need more than 35? {contact_link} and we'll work out what fits.",
     "pricing.contact_us_link_text": "Contact us",
     "pricing.includes_coverage_overview": "Coverage overview &amp; at-risk ranking",
     "pricing.includes_admin_digest": "Daily firm-wide digest",
