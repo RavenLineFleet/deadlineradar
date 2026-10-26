@@ -3733,11 +3733,14 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   }
   const interval: "annual" | "monthly" = requestedIntervalRaw;
 
-  // STALE-68 (AuditLab, 2026-10-21): one of the 5 mutating customer actions
-  // (signup, license create, license edit, billing checkout, billing portal)
-  // and, at the time, the only one of the first 4 that never checked this.
-  // The portal (STALE-78) degrades to the no-switching config instead of 503ing;
-  // its case is in subscription-sync.spec.ts, not the worker.spec.ts census. Without it a firm could mint a Stripe Checkout
+  // STALE-68 (AuditLab, 2026-10-21): one of the 7 mutating customer actions
+  // (signup, license create, license edit, billing checkout, billing portal,
+  // billing cancel, billing resume) and, at the time, the only one of the
+  // first 4 that never checked this. The portal (STALE-78) degrades to the
+  // no-switching config instead of 503ing; its case is in
+  // subscription-sync.spec.ts, not the worker.spec.ts census. Cancel/resume
+  // are exempt on purpose -- see handleFirmBillingCancellationToggle's own
+  // comment (STALE-81/84). Without it a firm could mint a Stripe Checkout
   // Session -- and start an annual charge -- for a deliverable (reminder
   // sends; see scheduler.ts's 7 checkDataFreshness() passes) that's already
   // paused at the wall. Same catch/503 shape as the other 3 sites.
@@ -4005,6 +4008,14 @@ async function handleFirmBillingPortal(request: Request, env: Env): Promise<Resp
  * self-management isn't a paid FEATURE, a free-tier firm must be able to
  * reach it too (if only to discover it has nothing to cancel, via the
  * plain 400 below for a missing stripe_subscription_id).
+ *
+ * No checkDataFreshness() here, on purpose (STALE-81/84, 2026-10-25): neither
+ * route creates a charge at the stale moment or persists a computed deadline.
+ * Resume posts only cancel_at_period_end, so any charge lands at the period
+ * end -- the same deferred exposure as every non-cancelling subscription's
+ * ordinary renewal, which nothing pauses. And this handler serves /cancel
+ * too, so a top-of-handler gate would refuse a customer trying to leave; any
+ * future gate must branch on `cancelAtPeriodEnd`.
  */
 async function handleFirmBillingCancellationToggle(request: Request, env: Env, cancelAtPeriodEnd: boolean): Promise<Response> {
   // migration 0045 (roadmap #11/#13/#14): billing is Partner-only.

@@ -2668,12 +2668,11 @@ export function gatedDatasetRowsNearingExpiry(now: Date): GatedDatasetRowNearing
 
 /** The send half. New pass added after the standing consent-gate directive
  * (Devin, 2026-08-21) -- gated behind requireSendApproval() like every pass
- * added since. NOT present in any deployed SEND_APPROVED_PASSES value as of
- * this writing (grep the wrangler secrets / .dev.vars before assuming
- * otherwise) -- built, tested, and positive-controlled per the standing
- * "no new send triggers without Devin's consent" policy, but the live send
- * stays off until Devin explicitly adds "gatedDatasetStalenessAlert" to
- * that list. DAY-keyed dedup (not month-keyed like
+ * added since. Approved in production: the send_approval_presence ledger
+ * row for 2026-10-10 18:00:07Z shows gatedDatasetStalenessAlert=1 (AuditLab
+ * STALE-86). SEND_APPROVED_PASSES is write-only, so re-check that ledger
+ * (the query is in index.ts scheduled(), "Send-approval presence
+ * diagnostic") rather than .dev.vars before assuming either way. DAY-keyed dedup (not month-keyed like
  * runMobilityStalenessAlertPass() above) -- see the migration's own
  * comment for why a 7-day warning window needs a daily, not monthly, nag. */
 export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void> {

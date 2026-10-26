@@ -298,9 +298,12 @@ export function checkDataFreshness(realToday: Date, records: CpaRecord[] = DATA.
 /** AuditLab ST-1: the write guard above pauses signups and roster-adds once
  * data is stale (checkDataFreshness()'s four call sites -- POST /subscribe,
  * POST /firm/licenses, PATCH /firm/licenses/:id, POST /firm/billing/checkout
- * (STALE-68) -- NOT the renew route,
- * which stays unguarded on purpose since it doesn't persist a computed
- * deadline), but every READ path (GET /firm/licenses, the roster list) kept
+ * (STALE-68) -- plus POST /firm/billing/portal, which calls dataFreshnessInfo()
+ * below and withholds plan switching instead of 503ing (STALE-78). NOT the
+ * renew route, which stays unguarded on purpose since it doesn't persist a
+ * computed deadline, and NOT POST /firm/billing/cancel or /resume, which
+ * create no charge at the stale moment (STALE-81, see
+ * handleFirmBillingCancellationToggle in index.ts)), but every READ path (GET /firm/licenses, the roster list) kept
  * serving dates derived from that same data with no disclosure -- a customer
  * could be refused a new staff member while the dashboard confidently showed
  * 40 existing ones. Exposes the same age/threshold computation as a

@@ -212,10 +212,11 @@ export function stripePriceIdForPerSeatAddon(env: Env, interval: "annual" | "mon
  * enabled with one `wrangler secret put` once SecurityLab + AuditLab PASS and
  * the portal configurations (scripts/configure_stripe_portal.py) exist in
  * live mode. generate.py's DR_SELF_SERVE_PLAN_CHANGE_ENABLED is the matching
- * UI-side half -- flip both together. Unset (the shipped state): POST
- * /firm/billing/portal 404s, the customer.subscription.updated branch is a
- * no-op that never calls Stripe, and the already_subscribed refusal keeps
- * saying "contact support". */
+ * UI-side half -- flip both together. Production has it ON (AuditLab
+ * COPY-30/PROC-9, 2026-10-26: the portal route answers 401, not 404). Unset
+ * (local/test default): POST /firm/billing/portal 404s, the
+ * customer.subscription.updated branch is a no-op that never calls Stripe,
+ * and the already_subscribed refusal keeps saying "contact support". */
 export function selfServePlanChangeEnabled(env: Env): boolean {
   return env.SELF_SERVE_PLAN_CHANGE === "on";
 }
