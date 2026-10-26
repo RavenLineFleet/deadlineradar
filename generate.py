@@ -5120,9 +5120,10 @@ _STALE_BADGE_RUNTIME_JS = """<script>
 # builds, so re-key every data-dr-bound input to the visitor's clock.
 # "future" mirrors the worker's request-time UTC check (index.ts
 # license_expiration_date: todayUtc+1 .. todayUtc+USER_DEADLINE_MAX_DAYS).
-# "past"/"past10" (anchor dates; the worker applies no upper bound) cap at
-# the LATER of the local and UTC date, so a UTC+10 CNMI licensee who
-# renewed this morning local time is never refused.
+# "past"/"past10" mirror the worker's anchor checks (index.ts: anchor_date
+# and the Florida certificate date must be <= todayUtc; past10 also >=
+# todayUtc-3660). DATE-15: keyed to UTC, not the later of local/UTC, which
+# let a UTC+10 visitor pick a date the worker then 400s.
 _DATE_BOUND_RUNTIME_JS = """<script>
 (function () {
   var inputs = document.querySelectorAll('input[type="date"][data-dr-bound]');
@@ -5135,16 +5136,14 @@ _DATE_BOUND_RUNTIME_JS = """<script>
     return iso(d);
   }
   var utc = iso(now);
-  var local = iso(new Date(now.getTime() - now.getTimezoneOffset() * 60000));
-  var latest = local > utc ? local : utc;
   inputs.forEach(function (el) {
     var kind = el.getAttribute('data-dr-bound');
     if (kind === 'future') {
       el.min = addDays(utc, 1);
       el.max = addDays(utc, """ + str(_USER_DEADLINE_MAX_DAYS) + """);
     } else if (kind === 'past' || kind === 'past10') {
-      el.max = latest;
-      if (kind === 'past10') el.min = addDays(latest, -3660);
+      el.max = utc;
+      if (kind === 'past10') el.min = addDays(utc, -3660);
     }
   });
 })();
