@@ -23065,7 +23065,7 @@ def build_firm_dashboard_page(
         <div id="dr-team-list"><p class="dr-panel-empty">Loading&hellip;</p></div>
         <p id="dr-team-error" role="alert" class="dr-account-err" hidden></p>
         <p id="dr-team-upgrade-notice" class="signup-microcopy" hidden>Adding team members requires a
-        paid plan. <a href="#account">Upgrade your plan</a> to invite your team &mdash; once you're on
+        paid plan. <a href="#" data-view="account">Upgrade your plan</a> to invite your team &mdash; once you're on
         any paid tier, team members are included at no extra charge.</p>
         <form id="dr-team-invite-form" hidden>
           <label for="dr-team-invite-email">Invite someone by email</label>
