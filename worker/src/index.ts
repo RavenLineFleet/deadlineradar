@@ -3834,7 +3834,10 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   if (!minimumTier) {
     if (tierDef.planTier !== topTier.planTier) {
       return jsonResponse(400, {
-        error: `Your roster (${seatCount} staff) is above our named tiers -- pick the ${topTier.label} plan to add the per-seat rate for the rest.`,
+        // Copy only (BILL-55 rider, 2026-10-26): no per-seat rate is offered
+        // any more, so this matches /pricing/'s "Need more than 35? Contact
+        // us" (i18n.py pricing.card_more_detail) instead of naming one.
+        error: `Your roster (${seatCount} staff) is above ${topTier.label}'s ${topTier.seatCap}-staff limit, the largest plan you can start online. Contact us and we'll work out what fits.`,
       });
     }
     extraSeats = seatCount - topTier.seatCap;
@@ -3852,7 +3855,7 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
   if (extraSeats > 0) {
     perSeatAddonPriceId = stripePriceIdForPerSeatAddon(env, interval);
     if (!perSeatAddonPriceId) {
-      return jsonResponse(503, { error: "The per-seat rate for a roster this size isn't available for checkout yet." });
+      return jsonResponse(503, { error: "A roster this size can't be checked out online yet. Contact us and we'll work out what fits." });
     }
   }
 
