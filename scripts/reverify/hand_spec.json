@@ -828,6 +828,14 @@
     "field": null,
     "anchor": "(1) Annual permits to practice expire on the last day of",
     "expect_text": "September"
+   },
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-3",
+    "kind": "text",
+    "field": null,
+    "anchor": "the amount of the annual permit fee shall be",
+    "window": 240,
+    "expect_text": "no later than December 31 following expiration of the"
    }
   ]
  },

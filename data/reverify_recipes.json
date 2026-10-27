@@ -70,6 +70,15 @@
     "window": 49,
     "pattern": null,
     "expect_text": "September"
+   },
+   {
+    "url": "https://admincode.legislature.state.al.us/api/chapter/30-X-3",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "the amount of the annual permit fee shall be",
+    "window": 240,
+    "pattern": null,
+    "expect_text": "no later than December 31 following expiration of the"
    }
   ]
  },
