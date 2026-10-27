@@ -109,7 +109,7 @@
   ]
  },
  "alabama-reinstatement": {
-  "manual": "all three numeric fields are null (no published reinstatement fee or penalty CPE); nothing numeric to re-verify"
+  "manual": "all three numeric fields are null because fee and catch-up CPE are formulas, not single figures; nothing numeric to auto-check, but penalty_cpe_notes (40 h per lapsed year, cap 120, 20% A&A + 5% ethics) must be hand-checked against 30-X-5-.02(3)-(4) on every re-verify (SRC-99)"
  },
  "delaware-reinstatement": {
   "manual": "all three numeric fields are null (DE sets fees administratively); nothing numeric to re-verify"
