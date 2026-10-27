@@ -271,12 +271,15 @@ DRAFTS: dict[str, str] = {
         "en este sitio."
     ),
     "ppc.coverage_body": (
-        "Las 55 jurisdicciones de EE. UU. tienen una norma registrada, tanto para la pregunta "
-        "individual de arriba como para una <strong>verificación de registro a nivel de firma</strong> "
-        "separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene "
-        "oficina, incluso cuando el CPA individual está cubierto. Cuando la norma de una "
-        "jurisdicción está en transición o sus fuentes primarias se contradicen entre sí, la "
-        "verificación lo indica en lugar de tomar partido; confirme con la junta de ese estado."
+        "Junto a la pregunta individual de arriba hay una <strong>verificación de registro a "
+        "nivel de firma</strong> separada — si la FIRMA misma necesita registrarse en algún lugar "
+        "donde no tiene oficina, incluso cuando el CPA individual está cubierto. Ninguna de las "
+        "dos verificaciones tiene una respuesta definida para cada jurisdicción y cada servicio. "
+        "Cuando no la tiene — por ejemplo, la norma está en transición, sus fuentes primarias se "
+        "contradicen entre sí, la vía de calificación para CPA de otros estados aún no está "
+        "definida, o no tenemos una norma separada a nivel de firma para el servicio que eligió "
+        "(todavía no existe ninguna para otros servicios no certificados) — la verificación lo "
+        "indica en lugar de adivinar; confirme con la junta de ese estado."
     ),
     "ppc.free_tier_body": (
         "La verificación individual es gratuita en todos los niveles, para cualquier cuenta — "

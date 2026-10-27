@@ -285,11 +285,14 @@ EN: dict[str, str] = {
         "honesty standard as every renewal date on this site."
     ),
     "ppc.coverage_body": (
-        "All 55 U.S. jurisdictions have a rule on file, both for the individual question above and "
-        "a separate <strong>firm-level registration check</strong> — does the FIRM itself need to "
-        "register somewhere it has no office, even when the individual CPA is covered. Where a "
-        "jurisdiction's rule is mid-change or its primary sources disagree with each other, the "
-        "check says so instead of picking a side; confirm with that state's board."
+        "Alongside the individual question above there is a separate <strong>firm-level "
+        "registration check</strong> — does the FIRM itself need to register somewhere it has no "
+        "office, even when the individual CPA is covered. Neither check has a settled answer for "
+        "every jurisdiction and service. Where it doesn't — for example, the rule is mid-change, "
+        "its primary sources disagree with each other, the qualifying pathway for out-of-state "
+        "CPAs is still unsettled, or we hold no separate firm-level rule for the service you "
+        "picked (there is none yet for other non-attest work) — the check says so instead of "
+        "guessing; confirm with that state's board."
     ),
     "ppc.free_tier_body": (
         "The individual check is free on every tier, for any account — a free signup is all "
@@ -1241,8 +1244,8 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'ppc.coverage_body': {
-        "text": 'Las 55 jurisdicciones de EE. UU. tienen una norma registrada, tanto para la pregunta individual de arriba como para una <strong>verificación de registro a nivel de firma</strong> separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene oficina, incluso cuando el CPA individual está cubierto. Cuando la norma de una jurisdicción está en transición o sus fuentes primarias se contradicen entre sí, la verificación lo indica en lugar de tomar partido; confirme con la junta de ese estado.',
-        "en_hash": '30348f385651e107',
+        "text": 'Junto a la pregunta individual de arriba hay una <strong>verificación de registro a nivel de firma</strong> separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene oficina, incluso cuando el CPA individual está cubierto. Ninguna de las dos verificaciones tiene una respuesta definida para cada jurisdicción y cada servicio. Cuando no la tiene — por ejemplo, la norma está en transición, sus fuentes primarias se contradicen entre sí, la vía de calificación para CPA de otros estados aún no está definida, o no tenemos una norma separada a nivel de firma para el servicio que eligió (todavía no existe ninguna para otros servicios no certificados) — la verificación lo indica en lugar de adivinar; confirme con la junta de ese estado.',
+        "en_hash": 'ac79d7d4ad1d50d7',
         "reviewed": False,
     },
     'ppc.free_tier_body': {

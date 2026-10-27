@@ -11177,11 +11177,13 @@ state right now, without a local license &mdash; and what has to happen first?</
   We can't verify either input ourselves &mdash; the answer is only as good as what you tell it, same
   honesty standard as every renewal date on this site.</li>
 </ul>
-<p>All 55 U.S. jurisdictions have a rule on file, both for the individual question above and a separate
-<strong>firm-level registration check</strong> &mdash; does the FIRM itself need to register somewhere
-it has no office, even when the individual CPA is covered. Where a jurisdiction's rule is mid-change or
-its primary sources disagree with each other, the check says so instead of picking a side; confirm with
-that state's board.</p>
+<p>Alongside the individual question above there is a separate <strong>firm-level registration
+check</strong> &mdash; does the FIRM itself need to register somewhere it has no office, even when the
+individual CPA is covered. Neither check has a settled answer for every jurisdiction and service. Where
+it doesn't &mdash; for example, the rule is mid-change, its primary sources disagree with each other, the
+qualifying pathway for out-of-state CPAs is still unsettled, or we hold no separate firm-level rule for
+the service you picked (there is none yet for other non-attest work) &mdash; the check says so instead of
+guessing; confirm with that state's board.</p>
 <p>The individual check is free on every tier, for any account &mdash; a free signup is all it takes,
 no card, no paid plan required. <a href="../pricing/">The firm-level check and the multistate coverage
 map are part of a paid plan</a>. Staff across more than one state? See how Map, Practice Privilege
@@ -21252,10 +21254,20 @@ def build_firm_mobility_page(by_slug: dict[str, list[dict]]) -> str:
             + "\n</optgroup>"
         )
 
+    # AuditLab COPY-35 reopen (2026-10-27): "Verified in N of 55" read as
+    # "every pick gets a verified answer", but flux, pathway-unsettled and
+    # other decline arms return not_verified for selectable states. Say what
+    # selecting does and doesn't buy; no per-state count.
+    _not_yet_line = (
+        f" {len(uncovered)} jurisdictions aren't selectable yet: we add one only once a primary "
+        "source has been read and independently checked."
+        if uncovered else ""
+    )
     coverage_line = (
-        f"Verified in <strong>{len(covered)} of {len(all_slugs)}</strong> jurisdictions so far. "
-        "We add states only once a primary source has been read and independently checked, so the "
-        "list grows slowly on purpose."
+        "Picking a jurisdiction doesn't guarantee an answer. Where there's no settled one -- for "
+        "example, the rule is mid-change, its primary sources disagree, or the qualifying pathway "
+        "for out-of-state CPAs is still unsettled -- the result says so instead of guessing; "
+        "confirm with that state's board." + _not_yet_line
     )
 
     # Roadmap #318 (2026-08-09): the FIRM-level registration panel below --
@@ -21274,9 +21286,14 @@ def build_firm_mobility_page(by_slug: dict[str, list[dict]]) -> str:
             + "\n</optgroup>"
         )
     firm_coverage_line = (
-        f"Verified in <strong>{len(firm_covered)} of {len(all_slugs)}</strong> jurisdictions so far. "
-        "Separate dataset from the individual check above -- a state can be verified for one and not "
-        "yet the other."
+        "Separate dataset from the individual check above -- a state can have a settled answer for "
+        "one and not the other. Where we hold no firm-level rule for the jurisdiction and service "
+        "you picked -- including other non-attest services (consulting, advisory), which have none "
+        "anywhere yet -- the result says so rather than inferring one from another rule."
+        + (
+            f" {len(firm_uncovered)} jurisdictions aren't selectable yet."
+            if firm_uncovered else ""
+        )
     )
 
     sidebar_html = _dashboard_sidebar_html("mobility", tabs_live_here=False)
