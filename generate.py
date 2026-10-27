@@ -11177,9 +11177,11 @@ state right now, without a local license &mdash; and what has to happen first?</
   We can't verify either input ourselves &mdash; the answer is only as good as what you tell it, same
   honesty standard as every renewal date on this site.</li>
 </ul>
-<p>Verified in all 55 U.S. jurisdictions today, both for the individual question above and a separate
+<p>All 55 U.S. jurisdictions have a rule on file, both for the individual question above and a separate
 <strong>firm-level registration check</strong> &mdash; does the FIRM itself need to register somewhere
-it has no office, even when the individual CPA is covered.</p>
+it has no office, even when the individual CPA is covered. Where a jurisdiction's rule is mid-change or
+its primary sources disagree with each other, the check says so instead of picking a side; confirm with
+that state's board.</p>
 <p>The individual check is free on every tier, for any account &mdash; a free signup is all it takes,
 no card, no paid plan required. <a href="../pricing/">The firm-level check and the multistate coverage
 map are part of a paid plan</a>. Staff across more than one state? See how Map, Practice Privilege

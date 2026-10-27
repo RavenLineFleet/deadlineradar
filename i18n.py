@@ -285,9 +285,11 @@ EN: dict[str, str] = {
         "honesty standard as every renewal date on this site."
     ),
     "ppc.coverage_body": (
-        "Verified in all 55 U.S. jurisdictions today, both for the individual question above and "
+        "All 55 U.S. jurisdictions have a rule on file, both for the individual question above and "
         "a separate <strong>firm-level registration check</strong> — does the FIRM itself need to "
-        "register somewhere it has no office, even when the individual CPA is covered."
+        "register somewhere it has no office, even when the individual CPA is covered. Where a "
+        "jurisdiction's rule is mid-change or its primary sources disagree with each other, the "
+        "check says so instead of picking a side; confirm with that state's board."
     ),
     "ppc.free_tier_body": (
         "The individual check is free on every tier, for any account — a free signup is all "
@@ -1239,9 +1241,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'ppc.coverage_body': {
-        "text": 'Verificado en las 55 jurisdicciones de EE. UU. hoy, tanto para la pregunta individual de arriba como para una <strong>verificación de registro a nivel de firma</strong> separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene oficina, incluso cuando el CPA individual está cubierto.',
-        "en_hash": '02b1c73e5c9a0836',
-        "reviewed": True,
+        "text": 'Las 55 jurisdicciones de EE. UU. tienen una norma registrada, tanto para la pregunta individual de arriba como para una <strong>verificación de registro a nivel de firma</strong> separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene oficina, incluso cuando el CPA individual está cubierto. Cuando la norma de una jurisdicción está en transición o sus fuentes primarias se contradicen entre sí, la verificación lo indica en lugar de tomar partido; confirme con la junta de ese estado.',
+        "en_hash": '30348f385651e107',
+        "reviewed": False,
     },
     'ppc.free_tier_body': {
         "text": 'La verificación individual es gratuita en todos los niveles, para cualquier cuenta — un registro gratuito es todo lo que se necesita, sin tarjeta, sin plan de pago requerido. {pricing_link}.',

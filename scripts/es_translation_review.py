@@ -271,10 +271,12 @@ DRAFTS: dict[str, str] = {
         "en este sitio."
     ),
     "ppc.coverage_body": (
-        "Verificado en las 55 jurisdicciones de EE. UU. hoy, tanto para la pregunta individual "
-        "de arriba como para una <strong>verificación de registro a nivel de firma</strong> "
+        "Las 55 jurisdicciones de EE. UU. tienen una norma registrada, tanto para la pregunta "
+        "individual de arriba como para una <strong>verificación de registro a nivel de firma</strong> "
         "separada — si la FIRMA misma necesita registrarse en algún lugar donde no tiene "
-        "oficina, incluso cuando el CPA individual está cubierto."
+        "oficina, incluso cuando el CPA individual está cubierto. Cuando la norma de una "
+        "jurisdicción está en transición o sus fuentes primarias se contradicen entre sí, la "
+        "verificación lo indica en lugar de tomar partido; confirme con la junta de ese estado."
     ),
     "ppc.free_tier_body": (
         "La verificación individual es gratuita en todos los niveles, para cualquier cuenta — "
@@ -296,7 +298,7 @@ DRAFTS: dict[str, str] = {
     "ppc.meta_description": (
         "Qué significa el privilegio de práctica (movilidad) de CPA, cómo funciona la "
         "equivalencia sustancial, y cómo verificar si un CPA puede atender a un cliente en otro "
-        "estado sin una licencia local — gratis, verificado en las 55 jurisdicciones de EE. UU."
+        "estado sin una licencia local — gratis, 55 jurisdicciones."
     ),
     "calc.h1": "Calculadora de fechas límite de renovación de licencia de CPA",
     "calc.intro": (
