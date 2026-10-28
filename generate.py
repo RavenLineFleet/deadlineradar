@@ -554,7 +554,11 @@ JURISDICTION_COUNT = 51  # overwritten in main() from the real record count once
 # TERMS_LAST_CHANGED -- enforced by preship_gate.py's
 # check_terms_version_sync().
 TERMS_LAST_CHANGED = date(2026, 8, 5)
-PRIVACY_LAST_CHANGED = date(2026, 9, 2)  # 2026-09-02: GitHub (Microsoft) added to the provider list -- the
+PRIVACY_LAST_CHANGED = date(2026, 10, 28)  # 2026-10-28: AuditLab PRIV-1/PRIV-2 -- the individual-collection
+# list and the localStorage paragraph omitted migration 0082's first-touch attribution tag (dr_src ->
+# subscribers.first_touch_src) and migration 0092's optional "How did you hear about us?" answer. Both
+# added, in their own "not needed for reminders" list so the "only what's needed" list stays true.
+# Prior: 2026-09-02: GitHub (Microsoft) added to the provider list -- the
 # public static pages are GitHub Pages behind Cloudflare, not Cloudflare Pages; the omission was a real gap.
 # Prior: 2026-08-28, ASSIST-3 (AuditLab, same day): the chat-assistant bullet
 # added earlier today said "never your IP address ... or session identity" -- true when written, made
@@ -9870,7 +9874,8 @@ def build_privacy_page(updated: date) -> str:
     copy -- same standard this site holds its deadline data to."""
     body = f"""<h1>Privacy Policy</h1>
 <p class="intro"><strong>The short version:</strong> we collect only what's needed to run the reminder
-and license-tracking service you or your firm signed up for, we never sell or rent it, and every email
+and license-tracking service you or your firm signed up for, plus a little information about how you found
+us (described below), we never sell or rent it, and every email
 gives you a one-click way to stop. Firms have a few more data categories than individuals (a password,
 a staff roster, CPE hours, billing status) -- all covered below.</p>
 
@@ -9884,6 +9889,19 @@ a staff roster, CPE hours, billing status) -- all covered below.</p>
   exact deadline.</li>
   <li><strong>Your first name (optional)</strong> &mdash; only if you choose to provide it, so reminders
   can greet you by name.</li>
+</ul>
+<p>We also keep two small pieces of information that aren't needed to send reminders. We use them only
+to learn which channels bring people to the site:</p>
+<ul>
+  <li><strong>How you heard about us (optional)</strong> &mdash; if you answer the optional "How did you
+  hear about us?" question on the signup form, we keep your choice, plus the short note you can add if
+  you pick "Referred by someone" or "Other", with your signup. If someone referred you, please don't
+  include their name or contact details in that note &mdash; "a colleague" is plenty.</li>
+  <li><strong>The tagged link that first brought you here, if any</strong> &mdash; our own posts and
+  emails link here with a short channel tag (for example, "li" for LinkedIn). If the first time you
+  arrive is through one of those links, your browser remembers that tag (see "Cookies and analytics"
+  below), and if you later sign up, it's saved with your signup. It is only ever one of our own fixed
+  tags &mdash; never the page you came from or anything about other sites you visit.</li>
 </ul>
 <p>We do not build a profile of who you are from this.</p>
 
@@ -9964,7 +9982,14 @@ Web Analytics) to understand aggregate traffic &mdash; this does not track you a
 you personally. The "Ask Deadline-Radar" chat bubble also uses your browser's own local storage (not a
 cookie, and never sent to anyone but our own assistant service) to hold your chat id, the conversation
 itself, and whether you left the panel open &mdash; so it's still there if you switch pages. This stays on
-your device; clearing your browser's site data removes it.</p>
+your device; clearing your browser's site data removes it. Separately, if you first arrived through one of
+our own tagged links, local storage also keeps that link's short channel tag, with
+no expiry, so it can be attached to a signup later (see "What we collect" above). Each page load
+through a tagged link also adds one to a daily count for that tag &mdash; a total per channel, not a
+record of you. Clearing your browser's site data removes the stored tag too. A few other parts of the site
+keep small interface settings in local storage as well &mdash; for example, that you dismissed a notice,
+a saved roster filter, or which plan you were about to check out with &mdash; so they don't reset on every
+page. These hold only interface state and are not used to identify or track you.</p>
 
 <h2>Your choices</h2>
 <p>Every reminder email includes a one-click link to stop all reminders instantly. Using it permanently
@@ -10022,8 +10047,8 @@ not a compliance-theater checklist. Every claim on this page describes something
 this product's code, not a policy aspiration.</p>
 
 <h2>Data handling</h2>
-<p>We collect only what the reminder and license-tracking service actually needs to work -- see the
-full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
+<p>We collect only what the reminder and license-tracking service actually needs to work, plus a little
+information about how you found us -- see the full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
 <ul>
   <li><strong>Scoped by firm.</strong> Roster data (staff names, emails, license states, CPE hours, any
   documents uploaded) is filtered by the requesting firm's own account id on every storage query -- not

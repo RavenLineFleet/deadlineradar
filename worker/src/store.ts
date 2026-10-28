@@ -16,6 +16,7 @@ import {
   MAX_OFFICE_TAG_LEN,
   MAX_INTERNAL_NOTES_LEN,
   MAX_HOW_HEARD_DETAIL_LEN,
+  HOW_HEARD_DETAIL_KEYS,
   sanitizeFirstName,
   sanitizeFreeText,
 } from "./validation";
@@ -560,7 +561,7 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
     first_touch_src: input.firstTouchSrc ?? null,
     // migration 0092: write-once at signup, see SubscriberRow's own comment.
     how_heard: input.howHeard ?? null,
-    how_heard_detail: input.howHeard ? sanitizeFreeText(input.howHeardDetail, MAX_HOW_HEARD_DETAIL_LEN) : null,
+    how_heard_detail: input.howHeard && HOW_HEARD_DETAIL_KEYS.has(input.howHeard) ? sanitizeFreeText(input.howHeardDetail, MAX_HOW_HEARD_DETAIL_LEN) : null,
     // migration 0086: a brand-new record is never paused at creation --
     // only reconcileRosterPauseState()/setRosterActivePicks() ever touch
     // this column, same "not part of the INSERT column list" posture as

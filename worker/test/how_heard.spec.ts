@@ -9,6 +9,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { buildSignupNotificationEmail } from "../src/emails";
+import { addPending } from "../src/store";
 
 const BASE = "https://deadline-radar.com";
 
@@ -72,6 +73,28 @@ describe("POST /subscribe -- how_heard", () => {
     const resp = await subscribe({ email, how_heard: "other", how_heard_detail: "line1\r\nBcc: x@example.com" }, "203.0.113.75");
     expect(resp.status).toBe(400);
     expect(await rowFor(email)).toBeNull();
+  });
+});
+
+describe("addPending -- how_heard_detail guard", () => {
+  // AuditLab (0092 review, LOW): the store layer re-applies the referral/other
+  // gate itself rather than trusting every caller to have nulled the detail.
+  it("drops a detail passed alongside a non-detail choice", async () => {
+    const email = `hh-store-search-${Date.now()}@example.com`;
+    await addPending(env.DB, {
+      email, stateSlug: "georgia", deadlineFields: {}, firstName: null,
+      howHeard: "search", howHeardDetail: "should not be stored",
+    });
+    expect(await rowFor(email)).toEqual({ how_heard: "search", how_heard_detail: null });
+  });
+
+  it("keeps a detail passed alongside referral", async () => {
+    const email = `hh-store-referral-${Date.now()}@example.com`;
+    await addPending(env.DB, {
+      email, stateSlug: "georgia", deadlineFields: {}, firstName: null,
+      howHeard: "referral", howHeardDetail: "a colleague",
+    });
+    expect(await rowFor(email)).toEqual({ how_heard: "referral", how_heard_detail: "a colleague" });
   });
 });
 
