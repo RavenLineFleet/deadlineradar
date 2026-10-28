@@ -9950,7 +9950,7 @@ database on Cloudflare's infrastructure. Passwords are never stored in plain tex
 on this website, never included in our public code, and never exposed to other visitors. Access is
 restricted to the service itself.</p>
 <p>To block abuse, our service also records your IP address and the time whenever you submit one of our
-forms (signing up, signing in or out, or contacting us), open a link from one of our emails, use the chat bubble, or load a page through one of our tagged
+forms (signing up, signing in or out, setting or changing a password, or contacting us), open a link from one of our emails, use the chat bubble, or load a page through one of our tagged
 links. It is used only to apply per-visitor rate limits, it isn't linked to your account, and a daily
 cleanup deletes anything older than 24 hours.</p>
 
@@ -10085,8 +10085,8 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   <li><strong>Cross-site forgery protection:</strong> every request that changes data -- adding staff,
   editing a record, changing a password -- is checked against the Origin header the browser itself
   sends, rejected before it reaches the database.</li>
-  <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account where one exists,
-  or your IP address for actions that happen before a session exists (signing up, signing in or out,
+  <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account for most signed-in
+  actions, or your IP address for the rest (signing up, signing in or out, setting or changing a password,
   contact forms, email links, the chat bubble) -- so a compromised session or a scripting bug can't be abused to hammer
   the system. Those IP records are deleted by a daily cleanup once they're more than 24 hours old.</li>
   <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
