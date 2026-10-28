@@ -26456,6 +26456,9 @@ so both clocks work for you instead of quietly running past you.</p>
         # for the full history.
         "slug": "massachusetts-cpa-license-renewal-guide",
         "published": "2026-09-19",
+        # AuditLab SRC-111 + SRC-101 (2026-10-27): reinstatement CPE paragraph now
+        # states Sec87B(c)'s no-credit clause and the 2.16 -> 2.14 ethics hours.
+        "content_modified": "2026-10-27",
         "title": "Massachusetts CPA Renewal: Every Two Years, Always June 30 — But No One Publishes Which Year Is Yours",
         "seo_title": "Massachusetts CPA Renewal: Your Year",
         "meta_description": (
@@ -26492,7 +26495,7 @@ so both clocks work for you instead of quietly running past you.</p>
   <li><strong>Lapsed more than one cycle, and practiced under another state's license</strong> (2.16(2)(c)): no back fees, the $57 late fee, the current $161 fee, and a certificate of good standing from that state — no re-examination required.</li>
 </ul>
 <p>Re-examination shows up in two of these four paths: (a) and (b), the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all. The two that skip it are the short-lapse case and (c) — the one where you kept practicing under another state's license. Practising under a live license somewhere else is what excuses the re-exam.</p>
-<p>A lapse of <strong>two or more renewal cycles</strong> (roughly 4+ years) also triggers an enhanced CPE requirement: <strong>160 hours</strong> within the 24 months before reissue — double the normal 80 — with at least <strong>80 of those hours in the attest function</strong>, per M.G.L. c. 112, &sect;87B(c). A shorter lapse only requires the normal CPE already due.</p>
+<p>A lapse of <strong>two or more renewal cycles</strong> (roughly 4+ years) also triggers an enhanced CPE requirement: <strong>160 hours</strong> within the 24 months before reissue — double the normal 80 — with at least <strong>80 of those hours in the attest function</strong>, per M.G.L. c. 112, &sect;87B(c). The same section gives those 160 hours no credit at your next biennial renewal, so that renewal's 80 hours must be earned fresh. A shorter lapse only requires the normal CPE already due. Either way, 252 CMR 2.16 requires the CPE to be CPE as provided in 252 CMR 2.14, which requires 4 hours in professional ethics.</p>
 
 <p><strong>Bottom line</strong>: Massachusetts CPAs renew every 2 years, always on June 30, for a flat $161 ($324 for firms) — but which year is yours is something no statute or rule states as a flat sentence, though a Board FAQ table plus a codified proration provision point toward an answer. Checking 9 real license records ourselves added more evidence: 8 fit a "second June 30 after issuance" pattern, and the newest one broke it. If you lapse, there's no flat reinstatement fee either — a short lapse owes back fees regardless of practice status, a longer one forks three further ways by whether and where you kept practicing, and re-examination applies to just two of those four paths — the longer-lapse cases where you either practiced in Massachusetts or didn't practice at all, not the one where you kept a license active in another state. Past a 4-year gap, CPE doubles too. <a href="../../massachusetts/">Set a reminder for your own Massachusetts deadline here</a> so you're not the one trying to reconstruct your renewal year from a license lookup tool.</p>
 """,
