@@ -9949,6 +9949,10 @@ ask for.</p>
 database on Cloudflare's infrastructure. Passwords are never stored in plain text. It is never published
 on this website, never included in our public code, and never exposed to other visitors. Access is
 restricted to the service itself.</p>
+<p>To block abuse, our service also records your IP address and the time whenever you submit one of our
+forms (signing up, signing in or out, or contacting us), open a link from one of our emails, use the chat bubble, or load a page through one of our tagged
+links. It is used only to apply per-visitor rate limits, it isn't linked to your account, and a daily
+cleanup deletes anything older than 24 hours.</p>
 
 <h2>Who we share it with</h2>
 <p>We do <strong>not</strong> sell, rent, or trade your information to anyone. We rely on a small number
@@ -10082,8 +10086,9 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   editing a record, changing a password -- is checked against the Origin header the browser itself
   sends, rejected before it reaches the database.</li>
   <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account where one exists,
-  or your IP address for the handful of actions (like signing out) that happen before a session exists
-  -- so a compromised session or a scripting bug can't be abused to hammer the system.</li>
+  or your IP address for actions that happen before a session exists (signing up, signing in or out,
+  contact forms, email links, the chat bubble) -- so a compromised session or a scripting bug can't be abused to hammer
+  the system. Those IP records are deleted by a daily cleanup once they're more than 24 hours old.</li>
   <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
   (X-Frame-Options plus a Content-Security-Policy <code>frame-ancestors</code> directive) on
   every response; a strict Content-Security-Policy against script injection on our API
