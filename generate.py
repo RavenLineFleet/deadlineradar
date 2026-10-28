@@ -26566,6 +26566,9 @@ so both clocks work for you instead of quietly running past you.</p>
     {
         "slug": "georgia-cpa-license-renewal-guide",
         "published": "2026-10-09",
+        # AuditLab SRC-102 (2026-10-27): reinstatement CPE clause now carries
+        # r. 20-10-.04(1)(b)1's "or since initial issuance, whichever is less".
+        "content_modified": "2026-10-27",
         "title": "Georgia CPA License Renewal: December 31 of Odd Years, 80 CPE Hours, and a Superseded 16-Hour Figure",
         "seo_title": "Georgia CPA License Renewal: December 31, Odd Years",
         "meta_description": (
@@ -26589,7 +26592,7 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><a href="../../georgia-cpa-cpe-requirements/">The full Georgia CPE breakdown is here</a>.</p>
 
 <h2>If you miss it: a four-month penalty period, then reinstatement</h2>
-<p>After the December 31 expiration, Georgia gives a <strong>four-month penalty period</strong> during which the license can still be renewed by paying a <strong>$100 penalty fee</strong> on top of the $100 renewal fee, $200 in all. Once that window closes, you're no longer renewing; you're reinstating, which is a different and much heavier process: a <strong>$300</strong> reinstatement fee (R. 20-10-.04(1)(a)) plus CPE catch-up of <strong>40 hours for each year</strong> since the license last renewed, capped at 160 hours. At least 20% of those hours must be in accounting and auditing, at least 80 of them must fall within the two years before you apply, and carryover hours don't count.</p>
+<p>After the December 31 expiration, Georgia gives a <strong>four-month penalty period</strong> during which the license can still be renewed by paying a <strong>$100 penalty fee</strong> on top of the $100 renewal fee, $200 in all. Once that window closes, you're no longer renewing; you're reinstating, which is a different and much heavier process: a <strong>$300</strong> reinstatement fee (R. 20-10-.04(1)(a)) plus CPE catch-up of <strong>40 hours for each year</strong> since the license last renewed or since it was first issued, whichever is less, capped at 160 hours. At least 20% of those hours must be in accounting and auditing, at least 80 of them must fall within the two years before you apply, and carryover hours don't count.</p>
 <p><a href="../../georgia-cpa-license-reinstatement/">Full Georgia reinstatement math here</a>.</p>
 
 <p><strong>Bottom line</strong>: Georgia individual CPA licenses expire December 31 of odd-numbered years (next: 2027) for $100, with 80 CPE hours per cycle, at least 40 of them technical. Firms renew on a separate June 30, even-year calendar, with their own rules for in-state and out-of-state offices. Miss the individual deadline and a four-month window lets you renew for $200 total; after that it's a $300 reinstatement plus up to 160 hours of catch-up CPE. <a href="../../georgia/">Set a reminder for your own Georgia deadline here</a> so a two-year cycle doesn't slip past you.</p>

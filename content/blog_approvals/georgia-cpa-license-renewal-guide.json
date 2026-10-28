@@ -3,15 +3,16 @@
   "approvals": [
     {
       "party": "auditlab",
-      "payload_sha256": "f8a4140a97ae855f0e545604ac2234a931db9fd49916fcb161836f461c1120c1",
-      "verdict_file": "auditlab_20261010_0730_blog_gate_GA_NV_descs_ALL_CLAIMS_PASS_plus_SRC-26_the_only_trim_that_fits_deletes_the_scope.md",
-      "sent": "2026-10-10 07:30 MDT"
+      "payload_sha256": "dee1350c76918b62a4cac572a8e852ad3a9c20bde288967ba8b75a6b1353fc3c",
+      "verdict_file": "auditlab_20261027T222642Z_blog_APPROVED_georgia-cpa-license-renewal-guide.md",
+      "sent": "2026-10-27 16:26 MDT"
     },
     {
       "party": "orchestrator",
-      "payload_sha256": "f8a4140a97ae855f0e545604ac2234a931db9fd49916fcb161836f461c1120c1",
-      "verdict_file": "orchestrator_20261010_blog_desc_APPROVED_ga_nv.md",
-      "sent": "2026-10-10 08:05 MDT"
+      "payload_sha256": "dee1350c76918b62a4cac572a8e852ad3a9c20bde288967ba8b75a6b1353fc3c",
+      "verdict_file": "_AAA_orchestrator_20261027_195303_correction_gate_ratified.md",
+      "sent": "2026-10-27 19:53 MDT",
+      "basis": "Devin-ratified correction carve-out: edit confined to AuditLab-filed SRC-102 on a live post; no per-post orchestrator approval file. Prior 10-10 approvals (f8a4140a) superseded."
     }
   ]
 }
