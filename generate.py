@@ -10087,7 +10087,7 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   sends, rejected before it reaches the database.</li>
   <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account for most signed-in
   actions, or your IP address for the rest (signing up, signing in or out, setting or changing a password,
-  contact forms, email links, the chat bubble) -- so a compromised session or a scripting bug can't be abused to hammer
+  contact forms, email links, the chat bubble, or loading a page through one of our tagged links) -- so a compromised session or a scripting bug can't be abused to hammer
   the system. Those IP records are deleted by a daily cleanup once they're more than 24 hours old.</li>
   <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
   (X-Frame-Options plus a Content-Security-Policy <code>frame-ancestors</code> directive) on
