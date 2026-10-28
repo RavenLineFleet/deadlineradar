@@ -126,6 +126,8 @@ import {
   RATE_LIMIT_ATTR_BEACON,
   RATE_LIMIT_ATTR_SUMMARY,
   ATTRIBUTION_SRC_ALLOWLIST,
+  HOW_HEARD_ALLOWLIST,
+  HOW_HEARD_DETAIL_KEYS,
   RATE_LIMIT_FIRM_LICENSE_CREATE,
   RATE_LIMIT_FIRM_LICENSE_PATCH,
   RATE_LIMIT_FIRM_LICENSE_DELETE,
@@ -887,7 +889,14 @@ const INTERNAL_NOTIFY_EMAIL = "support@deadline-radar.com";
 async function sendSignupNotification(
   env: Env,
   kind: "individual" | "firm",
-  details: { email: string; stateName?: string; firmName?: string; adminName?: string | null }
+  details: {
+    email: string;
+    stateName?: string;
+    firmName?: string;
+    adminName?: string | null;
+    howHeard?: string | null;
+    howHeardDetail?: string | null;
+  }
 ): Promise<void> {
   if (!env.RESEND_API_KEY) return;
   try {
@@ -1393,6 +1402,14 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
   // the gap instead" posture as every optional field on this form.
   const srcRaw = (form.src ?? "").trim();
   const firstTouchSrc = ATTRIBUTION_SRC_ALLOWLIST.has(srcRaw) ? srcRaw : null;
+  // Self-reported "How did you hear about us?" (migration 0092): optional,
+  // so an empty or off-allow-list value is just "not answered", never an
+  // error. The free-text follow-up is only kept for referral/other; the
+  // control-char sweep above already covered it, and store.addPending()
+  // re-sanitizes and caps it.
+  const howHeardRaw = (form.how_heard ?? "").trim();
+  const howHeard = HOW_HEARD_ALLOWLIST.has(howHeardRaw) ? howHeardRaw : null;
+  const howHeardDetail = howHeard && HOW_HEARD_DETAIL_KEYS.has(howHeard) ? (form.how_heard_detail ?? null) : null;
 
   if (!isValidEmail(email)) {
     return errorPage(400, "That doesn't look like a valid email address.");
@@ -1505,6 +1522,8 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
     deadlineSource,
     userDeadline,
     firstTouchSrc,
+    howHeard,
+    howHeardDetail,
   });
 
   // Send the double-opt-in confirmation email. Best-effort and fully isolated:
@@ -10208,6 +10227,8 @@ async function handleConfirm(env: Env, token: string | null): Promise<Response> 
     await sendSignupNotification(env, "individual", {
       email: subscriber.email,
       stateName: stateNameFromSlug(subscriber.state_slug),
+      howHeard: subscriber.how_heard ? (HOW_HEARD_ALLOWLIST.get(subscriber.how_heard) ?? null) : null,
+      howHeardDetail: subscriber.how_heard_detail,
     });
   }
   return htmlResponse(

@@ -2130,7 +2130,14 @@ export function buildFirmStaffAddedEmail(
  */
 export function buildSignupNotificationEmail(
   kind: "individual" | "firm",
-  details: { email: string; stateName?: string; firmName?: string; adminName?: string | null }
+  details: {
+    email: string;
+    stateName?: string;
+    firmName?: string;
+    adminName?: string | null;
+    howHeard?: string | null;
+    howHeardDetail?: string | null;
+  }
 ): BuiltEmail {
   // AuditLab EMAIL-1 (2026-08-04) fixed the same gap in
   // buildFirmStaffAddedEmail(): a subject line built from attacker-
@@ -2151,6 +2158,12 @@ export function buildSignupNotificationEmail(
   // rely on that alone for the SUBJECT line already, so it doesn't start
   // here either.
   const safeAdminName = details.adminName ? details.adminName.replace(/[\r\n]+/g, " ") : null;
+  // Self-reported "How did you hear about us?" (migration 0092), individual
+  // signups only. Same belt-and-braces CRLF strip as safeAdminName.
+  const howHeardLine = details.howHeard
+    ? details.howHeard.replace(/[\r\n]+/g, " ") +
+      (details.howHeardDetail ? ` -- ${details.howHeardDetail.replace(/[\r\n]+/g, " ")}` : "")
+    : "(not answered)";
 
   const textBody =
     kind === "firm"
@@ -2159,7 +2172,8 @@ export function buildSignupNotificationEmail(
         `Admin email: ${details.email}\n\n` +
         `This fired on their first successful sign-in (not the initial signup form), so the admin ` +
         `email is confirmed real.`
-      : `Email: ${details.email}\nState: ${details.stateName ?? "(unknown)"}\n\n` +
+      : `Email: ${details.email}\nState: ${details.stateName ?? "(unknown)"}\n` +
+        `How they heard: ${howHeardLine}\n\n` +
         `This fired on double-opt-in confirmation, so the address is confirmed real.`;
 
   const htmlBody =
@@ -2169,7 +2183,8 @@ export function buildSignupNotificationEmail(
       ? `<li>Firm: ${esc(details.firmName ?? "(no name)")}</li>` +
         (safeAdminName ? `<li>Admin name: ${esc(safeAdminName)}</li>` : "") +
         `<li>Admin email: ${esc(details.email)}</li>`
-      : `<li>Email: ${esc(details.email)}</li><li>State: ${esc(details.stateName ?? "(unknown)")}</li>`) +
+      : `<li>Email: ${esc(details.email)}</li><li>State: ${esc(details.stateName ?? "(unknown)")}</li>` +
+        `<li>How they heard: ${esc(howHeardLine)}</li>`) +
     `</ul>`;
 
   return { subject, textBody, htmlBody, headers: {} };

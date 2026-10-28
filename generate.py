@@ -1649,6 +1649,9 @@ PAGE_CSS = """
   }
   .remind-panel button:hover, .remind-panel .cta-button:hover { background: #9c7a3c; }
   .remind-panel .field-hint { color: #8fa7bb; }
+  .dr-how-heard-detail { display: none; }
+  form:has(.dr-how-heard option[value="referral"]:checked) .dr-how-heard-detail,
+  form:has(.dr-how-heard option[value="other"]:checked) .dr-how-heard-detail { display: block; }
   .cpe-affiliate-heading {
     font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--muted); margin: 1.6rem 0 0.5rem; padding-top: 1rem;
@@ -4165,6 +4168,36 @@ _FIRST_NAME_FIELD_HTML = (
 # the HTML at the same time (or before) the secret is set, because the Worker
 # fails CLOSED once the secret exists and would otherwise reject every real
 # submission that arrives without a widget token.
+# Optional self-reported "How did you hear about us?" (Orchestrator directive,
+# 2026-10-28, Devin-approved; Worker migration 0092). Never required -- one
+# real signup so far, so no added friction. Values must match the Worker's
+# HOW_HEARD_ALLOWLIST (validation.ts) by hand; anything else is stored NULL.
+# The follow-up text box is shown by PAGE_CSS's :has() rule only when
+# "Referred by someone" or "Other" is selected -- no JS; the Worker ignores
+# the detail for every other choice anyway.
+_HOW_HEARD_OPTIONS = (
+    ("search", "Google/Bing search"),
+    ("linkedin", "LinkedIn"),
+    ("x", "X (Twitter)"),
+    ("bluesky", "Bluesky"),
+    ("mastodon", "Mastodon"),
+    ("blog", "A blog or article"),
+    ("referral", "Referred by someone"),
+    ("other", "Other"),
+)
+_HOW_HEARD_FIELD_HTML = (
+    '<label for="{id_prefix}how_heard">How did you hear about us? (optional)</label>\n'
+    '    <select id="{id_prefix}how_heard" name="how_heard" class="dr-how-heard">\n'
+    '      <option value="">Choose one</option>\n'
+    + "".join(f'      <option value="{v}">{label}</option>\n' for v, label in _HOW_HEARD_OPTIONS)
+    + '    </select>\n'
+    '    <div class="dr-how-heard-detail">\n'
+    '      <label for="{id_prefix}how_heard_detail">Tell us a bit more (optional)</label>\n'
+    '      <input type="text" id="{id_prefix}how_heard_detail" name="how_heard_detail" maxlength="120" '
+    'autocomplete="off" placeholder="e.g. a colleague, a newsletter, a conference">\n'
+    '    </div>'
+)
+
 TURNSTILE_SITE_KEY = "0x4AAAAAADvxskBA78YAubz_"
 
 def _bot_defense_fields_html(id_suffix: str = "", shared_widget: bool = False) -> str:
@@ -4677,6 +4710,7 @@ def signup_form_for_state(state_slug: str, state_name: str, records: list[dict],
     <label for="email">Email address</label>
     <input type="email" id="email" name="email" required placeholder="you@example.com">
     {_extra_fields_html(state_slug, records, as_of)}
+    {_HOW_HEARD_FIELD_HTML.format(id_prefix="")}
     <button type="submit">Remind me</button>
   </form>
 </div>"""
@@ -4723,6 +4757,7 @@ def signup_form_homepage(by_slug: dict[str, list[dict]], as_of: date) -> str:
     {field_groups}
     <label for="home-email">Email address</label>
     <input type="email" id="home-email" name="email" required placeholder="you@example.com">
+    {_HOW_HEARD_FIELD_HTML.format(id_prefix="home-")}
     <button type="submit">Remind me</button>
   </form>
 </div>

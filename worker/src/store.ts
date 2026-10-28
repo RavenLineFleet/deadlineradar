@@ -15,6 +15,7 @@ import {
   MAX_STAFF_LABEL_LEN,
   MAX_OFFICE_TAG_LEN,
   MAX_INTERNAL_NOTES_LEN,
+  MAX_HOW_HEARD_DETAIL_LEN,
   sanitizeFirstName,
   sanitizeFreeText,
 } from "./validation";
@@ -196,6 +197,12 @@ export interface SubscriberRow {
   // for every row before this build and for any signup with no ?src= in its
   // history -- never a guess.
   first_touch_src: string | null;
+  // migration 0092 (Orchestrator directive, 2026-10-28): self-reported
+  // "How did you hear about us?" -- an HOW_HEARD_ALLOWLIST key or NULL, plus
+  // an optional sanitized follow-up (referral/other only). Write-once at
+  // signup, same as first_touch_src; never inferred.
+  how_heard: string | null;
+  how_heard_detail: string | null;
   // migration 0086 (PR6 round 2, 2026-10-02). NULL = active (gets
   // reminders, counts toward the roster same as today). Non-NULL = paused
   // by the trial over-cap picker -- set/cleared ONLY by
@@ -456,6 +463,12 @@ export interface AddPendingInput {
    * ATTRIBUTION_SRC_ALLOWLIST -- this function stores it as-is, same
    * trust-the-caller-already-validated posture as deadlineSource above. */
   firstTouchSrc?: string | null;
+  /** migration 0092. The caller has already validated howHeard against
+   * HOW_HEARD_ALLOWLIST and only passes howHeardDetail for referral/other;
+   * the detail is re-sanitized here regardless, same defense-in-depth as
+   * staffLabel/officeTag. */
+  howHeard?: string | null;
+  howHeardDetail?: string | null;
 }
 
 /**
@@ -545,6 +558,9 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
     ptin_tracking_enabled: 0,
     // migration 0082: write-once at signup, see SubscriberRow's own comment.
     first_touch_src: input.firstTouchSrc ?? null,
+    // migration 0092: write-once at signup, see SubscriberRow's own comment.
+    how_heard: input.howHeard ?? null,
+    how_heard_detail: input.howHeard ? sanitizeFreeText(input.howHeardDetail, MAX_HOW_HEARD_DETAIL_LEN) : null,
     // migration 0086: a brand-new record is never paused at creation --
     // only reconcileRosterPauseState()/setRosterActivePicks() ever touch
     // this column, same "not part of the INSERT column list" posture as
@@ -558,8 +574,8 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
         confirm_token, unsubscribe_token, renewed_token, created_at, confirmed_at,
         stopped_at, stop_reason, reminders_sent, cycle, deadline_source, user_deadline,
         last_resend_at, resend_count, firm_id, staff_label, renewal_fee_cents, office_tag, license_issue_date,
-        first_touch_src)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26)`
+        first_touch_src, how_heard, how_heard_detail)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28)`
     )
     .bind(
       record.id,
@@ -587,7 +603,9 @@ export async function addPending(db: D1Database, input: AddPendingInput): Promis
       record.renewal_fee_cents,
       record.office_tag,
       record.license_issue_date,
-      record.first_touch_src
+      record.first_touch_src,
+      record.how_heard,
+      record.how_heard_detail
     )
     .run();
   return record;

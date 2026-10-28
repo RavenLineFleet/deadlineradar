@@ -1065,6 +1065,27 @@ export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
   "em-w1", "em-b2", "li", "bs", "ma", "x", "blog", "rd",
 ]);
 
+// Self-reported "How did you hear about us?" (Orchestrator directive,
+// 2026-10-28, Devin-approved; migration 0092). Optional on the signup form;
+// any value not in this map is stored as NULL, never as-is -- same
+// bounded-column posture as ATTRIBUTION_SRC_ALLOWLIST above, but kept
+// separate from it on purpose: that list is what WE tagged, this is what the
+// visitor told us. Values map to the label the operator notification shows.
+// Keep in sync by hand with generate.py's _HOW_HEARD_OPTIONS.
+export const HOW_HEARD_ALLOWLIST: Map<string, string> = new Map([
+  ["search", "Google/Bing search"],
+  ["linkedin", "LinkedIn"],
+  ["x", "X (Twitter)"],
+  ["bluesky", "Bluesky"],
+  ["mastodon", "Mastodon"],
+  ["blog", "A blog or article"],
+  ["referral", "Referred by someone"],
+  ["other", "Other"],
+]);
+// The only how_heard values whose free-text follow-up is kept.
+export const HOW_HEARD_DETAIL_KEYS: Set<string> = new Set(["referral", "other"]);
+export const MAX_HOW_HEARD_DETAIL_LEN = 120;
+
 // POST /api/attr -- a page-load beacon, not a per-visitor action: a real
 // page view with a valid ?src= fires at most one beacon, so this only needs
 // to be generous enough for one visitor reloading or navigating several
