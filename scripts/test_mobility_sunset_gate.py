@@ -8,6 +8,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import preship_gate as gate  # noqa: E402
@@ -224,4 +226,48 @@ def test_pre_fix_dc_post_from_history_fires():
     raw = subprocess.run(["git", "show", "86ba28859:docs/blog/virginia-to-washington-dc-cpa-mobility/index.html"],
                          cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
     assert raw, "positive control unreadable"
-    assert gate._sunset_prose_dates(gate._published_text(raw), date(2026, 10, 29)) == ["2026-11-08"]
+    assert "2026-11-08" in gate._sunset_prose_dates(gate._published_text(raw), date(2026, 10, 29))
+
+
+# ---- SRC-123: copy outside element text, and a sunset that has already passed ----
+
+SENT = "D.C. rewrote it by emergency act that expires Nov. 8, 2026."
+
+
+@pytest.mark.parametrize("page", [
+    f'<head><meta name="description" content="{SENT}"></head><body><p>ok</p></body>',
+    f'<head><meta property="og:description" content=\'{SENT}\'></head>',
+    f'<script type="application/ld+json">{{"@type":"Article","description":"{SENT}"}}</script>',
+    f'<a href="/x/" title="{SENT}">x</a>',
+])
+def test_meta_attribute_and_ld_json_copy_is_seen(tmp_path, page):
+    errs = gate.check_published_sunset_prose(_site(tmp_path, {"blog/x/index.html": page}), today=date(2026, 10, 29))
+    assert len(errs) == 1 and "2026-11-08" in errs[0]
+
+
+def test_xml_feed_is_published_corpus(tmp_path):
+    feed = f"<rss><channel><item><description>{SENT}</description></item></channel></rss>"
+    errs = gate.check_published_sunset_prose(_site(tmp_path, {"feed.xml": feed}), today=date(2026, 10, 29))
+    assert len(errs) == 1 and "docs/feed.xml" in errs[0]
+
+
+@pytest.mark.parametrize("today", [date(2026, 11, 8), date(2026, 11, 9), date(2027, 6, 1)])
+def test_published_sunset_stays_red_after_the_date_passes(tmp_path, today):
+    root = _site(tmp_path, {"blog/x/index.html": DEAD}, [rec(state_slug="dc", rule_expires_on=None)])
+    assert len(gate.check_published_sunset_prose(root, today=today)) == 1
+
+
+def test_record_prose_still_drops_a_passed_sunset_control():
+    # include_past is published-copy only; record prose keeps REG-6's "a passed repeal is history"
+    assert gate._sunset_prose_dates(SENT, date(2026, 11, 9)) == []
+    assert gate._sunset_prose_dates(SENT, date(2026, 11, 9), include_past=True) == ["2026-11-08"]
+
+
+def test_pre_fix_dc_post_meta_copy_is_seen_and_stays_red_past_nov9():
+    import subprocess
+    raw = subprocess.run(["git", "show", "86ba28859:docs/blog/virginia-to-washington-dc-cpa-mobility/index.html"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
+    assert raw, "positive control unreadable"
+    text = gate._published_text(raw)
+    assert text.count("Nov. 8, 2026") >= 3  # meta, og, twitter descriptions; element text alone had 0
+    assert "2026-11-08" in gate._sunset_prose_dates(text, date(2026, 12, 1), include_past=True)

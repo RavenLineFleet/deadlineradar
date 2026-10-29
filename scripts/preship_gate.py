@@ -3223,12 +3223,14 @@ SUNSET_PROSE_EXEMPT = {
 }
 
 
-def _sunset_prose_dates(text: str, today: date) -> list:
+def _sunset_prose_dates(text: str, today: date, include_past: bool = False) -> list:
     """Every pending sunset date the prose names, as ISO strings, in order of appearance; None stands for a
     year-less date (pending, but not comparable to an exemption). Shape, not list (REG-7): a time-limit word
     (emergency/temporary/time-limited/interim/stopgap/sunset) and an end verb (expir*/sunset*/laps*/terminat*/
     repeal*/valid through/effective until) within 300 chars of each other in either order and across sentence
-    boundaries, with a date beside the verb that has NOT already passed (an already-passed repeal is history)."""
+    boundaries, with a date beside the verb that has NOT already passed (an already-passed repeal is history).
+    include_past (SRC-123b, published copy only) keeps passed dates: a page asserting a sunset is more wrong
+    after the date, not less."""
     out: list = []
     for v in _SUNSET_VERB_RE.finditer(text):
         if not _SUNSET_TRIG_RE.search(text[max(0, v.start() - _SUNSET_WINDOW): v.end() + _SUNSET_WINDOW]):
@@ -3246,7 +3248,7 @@ def _sunset_prose_dates(text: str, today: date) -> list:
                     continue
             except ValueError:
                 continue
-            if d >= today and d.isoformat() not in out:
+            if (include_past or d >= today) and d.isoformat() not in out:
                 out.append(d.isoformat())
     return out
 
@@ -3315,15 +3317,40 @@ def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> l
 SUNSET_PUBLISHED_EXEMPT: dict = {}
 
 
+_PUBLISHED_ATTR_RE = re.compile(r"""\b(?:content|title|alt|aria-label)\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.IGNORECASE)
+_LD_JSON_RE = re.compile(r"""(?is)<script\b[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>""")
+
+
+def _ld_json_strings(node) -> list:
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, dict):
+        node = list(node.values())
+    if isinstance(node, list):
+        return [t for v in node for t in _ld_json_strings(v)]
+    return []
+
+
 def _published_text(raw: str) -> str:
-    return html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw)))
+    """Element text plus the copy that lives outside it (SRC-123a): meta/og/twitter descriptions, title/alt/
+    aria-label attributes, and ld+json string values, each its own paragraph. Executable <script> and <style>
+    stay out -- code, not copy."""
+    parts = [re.sub(r"<[^>]+>", " ", re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw))]
+    parts += [m.group(1) if m.group(1) is not None else m.group(2) for m in _PUBLISHED_ATTR_RE.finditer(raw)]
+    for m in _LD_JSON_RE.finditer(raw):
+        try:
+            parts += _ld_json_strings(json.loads(m.group(1)))
+        except ValueError:
+            parts.append(m.group(1))  # unparseable ld+json is still scanned as text
+    return html.unescape("\n\n".join(parts))
 
 
 def check_published_sunset_prose(repo_root: Path, today: date | None = None) -> list[str]:
     """AuditLab SRC-122 addendum (2026-10-29): check_mobility_sunset_field reads only the record prose, so when
     D.C.'s rule went permanent and its record was rewritten the gate went green while the blog body, <h1>, meta
     description and /blog/ card still asserted the dead 2026-11-08 sunset. Same detector, published corpus:
-    every pending sunset date in the rendered text of docs/**/*.html must be the rule_expires_on of some
+    every sunset date, passed or pending (SRC-123b), in the published text of docs/**/*.html|xml (SRC-123a:
+    attributes and ld+json included) must be the rule_expires_on of some
     mobility record (a sunset the Worker is tracking), a SUNSET_PROSE_EXEMPT date, or a per-page
     SUNSET_PUBLISHED_EXEMPT date. A year-less date is never covered."""
     docs = repo_root / "docs"
@@ -3337,10 +3364,11 @@ def check_published_sunset_prose(repo_root: Path, today: date | None = None) -> 
             if r.get("rule_expires_on"):
                 backed.add(str(r["rule_expires_on"]))
     errors: list[str] = []
-    for page in sorted(docs.rglob("*.html")):
+    for page in sorted([*docs.rglob("*.html"), *docs.rglob("*.xml")]):
         rel = page.relative_to(docs).as_posix()
         page_ok = backed | {(SUNSET_PUBLISHED_EXEMPT.get(rel) or {}).get("date")}
-        bad = [d for d in _sunset_prose_dates(_published_text(page.read_text(encoding="utf-8", errors="replace")), today)
+        bad = [d for d in _sunset_prose_dates(_published_text(page.read_text(encoding="utf-8", errors="replace")), today,
+                                              include_past=True)
                if d is None or d not in page_ok]
         if bad:
             errors.append(
