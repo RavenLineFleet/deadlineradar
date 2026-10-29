@@ -124,7 +124,26 @@ interface AssistantReinstatementResult {
   data_gap_note: string | null;
   citation: string | null;
   citation_url: string | null;
+  citation_links: { url: string; label: string }[] | null;
   last_verified: string;
+}
+
+// SRC-120 (AuditLab, 2026-10-29): a record whose citation spans two chapters
+// (Hawaii: fees in HAR 16-53, CPE in HAR 16-71) carries citation_links, one
+// labeled link per chapter -- the page renders them (SRC-119), and the API has
+// to as well, or a consumer verifying the CPE claim lands in the fee chapter.
+// Each entry passes the same safeHttpUrl gate as citation_url; null when absent.
+function assistantCitationLinks(raw: unknown): { url: string; label: string }[] | null {
+  if (!Array.isArray(raw)) return null;
+  const links: { url: string; label: string }[] = [];
+  for (const c of raw) {
+    if (!c || typeof c !== "object") continue;
+    const entry = c as Record<string, unknown>;
+    const url = safeHttpUrl(typeof entry.url === "string" ? entry.url : null);
+    const label = typeof entry.label === "string" ? entry.label.trim() : "";
+    if (url && label) links.push({ url, label });
+  }
+  return links.length ? links : null;
 }
 
 export function lookupAssistantReinstatement(stateSlug: string): AssistantReinstatementResult | null {
@@ -143,6 +162,7 @@ export function lookupAssistantReinstatement(stateSlug: string): AssistantReinst
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
     citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
+    citation_links: assistantCitationLinks(r.citation_links),
     last_verified: String(r.last_verified ?? ""),
   };
 }
