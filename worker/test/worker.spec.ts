@@ -5231,7 +5231,9 @@ function computeExpectedMobilityNearing(now: Date): Array<{ state: string; type:
     consider(raw.state, raw.state_slug, "individual", raw.verified_date, thin ? MOBILITY_THIN_SOURCE_TTL_DAYS : MOBILITY_VERIFICATION_TTL_DAYS);
   }
   for (const raw of Object.values(firmMobilityRulesDataForTest as Record<string, Record<string, unknown>>)) {
-    consider(raw.state, raw.state_slug, "firm", raw.verified_date, MOBILITY_VERIFICATION_TTL_DAYS);
+    // GUARD-23: thin-source firm rows (single_source, or a non-empty prose source_disagreement) expire at 90 days.
+    const thin = raw.confidence === "single_source" || (typeof raw.source_disagreement === "string" && raw.source_disagreement.length > 0);
+    consider(raw.state, raw.state_slug, "firm", raw.verified_date, thin ? MOBILITY_THIN_SOURCE_TTL_DAYS : MOBILITY_VERIFICATION_TTL_DAYS);
   }
   rows.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return rows;
