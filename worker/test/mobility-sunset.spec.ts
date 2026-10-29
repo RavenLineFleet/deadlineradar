@@ -12,10 +12,13 @@ import {
  * REG-6 (AuditLab, 2026-10-12): D.C.'s mobility rule rests on emergency legislation that expires 2026-11-08. The
  * sunset used to exist only in prose, so nothing could fire on it. These pin the date-typed field's behavior:
  * a caveat on every answer until the date, and a fail-closed not_verified from the date until re-verified.
+ *
+ * GUARD-22 (2026-10-29): D.C. Law 26-183 made that rule permanent effective 2026-09-25, so the shipped record no
+ * longer carries a sunset. The mechanism tests below keep the real D.C. row but inject the old 2026-11-08 sunset.
  */
 function dc(over: Record<string, unknown> = {}): MobilityRuleRow {
   const raw = (rulesData as { records: Record<string, unknown>[] }).records.find((r) => r.state_slug === "dc");
-  const row = normalizeRuleRow({ ...raw, ...over });
+  const row = normalizeRuleRow({ ...raw, rule_expires_on: "2026-11-08", ...over });
   if (!row) throw new Error("dc row did not normalize");
   return row;
 }
@@ -32,9 +35,9 @@ const input = (over: Partial<MobilityInput> = {}): MobilityInput => ({
 const day = (iso: string) => new Date(iso + "T12:00:00Z");
 
 describe("REG-6: rule_expires_on", () => {
-  it("is on the shipped D.C. record and nowhere else", () => {
+  it("is on no shipped record now that D.C.'s rule is permanent (D.C. Law 26-183, eff. 2026-09-25)", () => {
     const withField = (rulesData as { records: Record<string, unknown>[] }).records.filter((r) => r.rule_expires_on);
-    expect(withField.map((r) => [r.state_slug, r.rule_expires_on])).toEqual([["dc", "2026-11-08"]]);
+    expect(withField.map((r) => [r.state_slug, r.rule_expires_on])).toEqual([]);
     expect(dc().rule_expires_on).toBe("2026-11-08");
   });
 
