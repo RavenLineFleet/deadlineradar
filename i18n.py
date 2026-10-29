@@ -818,7 +818,7 @@ ES: dict[str, dict] = {
     'calc.trust_records': {
         "text": 'registros con fecha en los conjuntos de datos de este sitio (fechas límite de renovación, horas de CPE, reincorporación, tarifas de renovación) re-verificados en los últimos 30 días',
         "en_hash": '5386639e7cdd5970',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.verification_writeup_link_text': {
         "text": 'el resumen completo de verificación',
