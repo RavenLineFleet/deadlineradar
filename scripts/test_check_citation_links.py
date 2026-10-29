@@ -101,3 +101,23 @@ def test_browser_verified_entry_clears_then_ages_out(monkeypatch):
     assert "human-verified" in ccl.browser_verified_note(u, today=dt.date(2026, 10, 13))
     assert ccl.browser_verified_note(u, today=dt.date(2027, 4, 20)) is None  # >180d: back to the queue
     assert ccl.browser_verified_note("https://example.gov/never-recorded.pdf", today=dt.date(2026, 10, 13)) is None
+
+
+def test_find_urls_walks_citation_links_entries():
+    # SRC-121(a) (AuditLab, 2026-10-29): a citation_links entry's bare "url"
+    # is published to readers, so the link-rot sweep must collect it even
+    # when no *_url sibling happens to duplicate it. Bare "url" outside a
+    # *_links list stays uncollected (reverify_recipes.json probes).
+    record = {
+        "citation": "HAR ch. 16-53",
+        "citation_url": "https://example.gov/ch-a.pdf",
+        "citation_links": [
+            {"url": "https://example.gov/ch-a.pdf", "label": "fee rule"},
+            {"url": "https://example.gov/ch-b-ONLY-HERE.pdf", "label": "CPE rule"},
+        ],
+        "probe": {"url": "https://example.gov/not-reader-facing"},
+    }
+    found = {(p, u) for p, u, _ in ccl.find_urls({"records": [record]})}
+    assert ("records[0].citation_links[1].url", "https://example.gov/ch-b-ONLY-HERE.pdf") in found
+    assert ("records[0].citation_links[0].url", "https://example.gov/ch-a.pdf") in found
+    assert not any(u == "https://example.gov/not-reader-facing" for _, u in found)
