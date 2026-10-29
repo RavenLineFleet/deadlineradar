@@ -3310,6 +3310,47 @@ def check_mobility_sunset_field(repo_root: Path, today: date | None = None) -> l
     return errors
 
 
+# SRC-122 (2026-10-29): published pages that name a pending sunset date no mobility record backs, keyed by
+# docs-relative path -> {"date", "reason"}. Empty: nothing published today needs one.
+SUNSET_PUBLISHED_EXEMPT: dict = {}
+
+
+def _published_text(raw: str) -> str:
+    return html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw)))
+
+
+def check_published_sunset_prose(repo_root: Path, today: date | None = None) -> list[str]:
+    """AuditLab SRC-122 addendum (2026-10-29): check_mobility_sunset_field reads only the record prose, so when
+    D.C.'s rule went permanent and its record was rewritten the gate went green while the blog body, <h1>, meta
+    description and /blog/ card still asserted the dead 2026-11-08 sunset. Same detector, published corpus:
+    every pending sunset date in the rendered text of docs/**/*.html must be the rule_expires_on of some
+    mobility record (a sunset the Worker is tracking), a SUNSET_PROSE_EXEMPT date, or a per-page
+    SUNSET_PUBLISHED_EXEMPT date. A year-less date is never covered."""
+    docs = repo_root / "docs"
+    if not docs.exists():
+        return []
+    today = today or date.today()
+    backed: set = {ex["date"] for ex in SUNSET_PROSE_EXEMPT.values()}
+    rules = repo_root / "worker" / "src" / "mobility_rules.json"
+    if rules.exists():
+        for r in json.loads(rules.read_text(encoding="utf-8"))["records"]:
+            if r.get("rule_expires_on"):
+                backed.add(str(r["rule_expires_on"]))
+    errors: list[str] = []
+    for page in sorted(docs.rglob("*.html")):
+        rel = page.relative_to(docs).as_posix()
+        page_ok = backed | {(SUNSET_PUBLISHED_EXEMPT.get(rel) or {}).get("date")}
+        bad = [d for d in _sunset_prose_dates(_published_text(page.read_text(encoding="utf-8", errors="replace")), today)
+               if d is None or d not in page_ok]
+        if bad:
+            errors.append(
+                f"[SRC-122][docs/{rel}] published text names a pending sunset {', '.join(d or 'with no year' for d in bad)} "
+                "that no mobility record's rule_expires_on backs -- the rule it describes is untracked or no longer "
+                "sunsets; correct the copy (generate.py) or record the date"
+            )
+    return errors
+
+
 def print_mobility_sunset_advisory(repo_root: Path, today: date | None = None) -> None:
     """Non-blocking countdown for every rule_expires_on still ahead, so the re-verify has a visible clock."""
     path = repo_root / "worker" / "src" / "mobility_rules.json"
@@ -9703,6 +9744,7 @@ def main():
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_mobility_sunset_field(repo_root)
+    all_errors += check_published_sunset_prose(repo_root)
     all_errors += check_mobility_flux_settled(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)

@@ -165,3 +165,63 @@ def test_a_changed_exempt_date_is_a_stale_exemption(monkeypatch):
     monkeypatch.setitem(gate.SUNSET_PROSE_EXEMPT, "new-mexico", {"date": "2031-07-01", "reason": "x"})
     errs = gate.check_mobility_sunset_field(REPO_ROOT, today=TODAY)
     assert any("new-mexico" in e for e in errs)
+
+
+# ---- SRC-122: the same detector over the published pages, not just the record prose ----
+
+def _site(tmp_path, pages, records=()):
+    _repo(tmp_path, list(records))
+    for rel, body in pages.items():
+        f = tmp_path / "docs" / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(body, encoding="utf-8")
+    return tmp_path
+
+
+DEAD = "<h1>The Catch</h1><p>D.C. rewrote it by <em>emergency</em> act that expires November 8, 2026.</p>"
+
+
+def test_shipped_pages_are_clean_today():
+    assert gate.check_published_sunset_prose(REPO_ROOT, today=date(2026, 10, 29)) == []
+
+
+def test_unbacked_published_sunset_fails_and_names_the_page(tmp_path):
+    errs = gate.check_published_sunset_prose(_site(tmp_path, {"blog/x/index.html": DEAD}), today=date(2026, 10, 29))
+    assert len(errs) == 1 and "docs/blog/x/index.html" in errs[0] and "2026-11-08" in errs[0]
+
+
+def test_a_record_tracking_the_date_backs_it_control(tmp_path):
+    root = _site(tmp_path, {"dc/index.html": DEAD}, [rec(state_slug="dc", rule_expires_on="2026-11-08")])
+    assert gate.check_published_sunset_prose(root, today=date(2026, 10, 29)) == []
+
+
+def test_the_dc_shape_clearing_the_record_field_turns_the_page_red(tmp_path):
+    # exactly SRC-122: the record went permanent (field cleared), the page did not
+    root = _site(tmp_path, {"blog/x/index.html": DEAD}, [rec(state_slug="dc", rule_expires_on=None)])
+    assert len(gate.check_published_sunset_prose(root, today=date(2026, 10, 29))) == 1
+
+
+def test_yearless_date_and_entity_escaped_text_are_seen(tmp_path):
+    card = "<p>by emergency act effective Aug. 10, expiring Nov. 8. Here&rsquo;s more.</p>"
+    errs = gate.check_published_sunset_prose(_site(tmp_path, {"blog/index.html": card}), today=date(2026, 10, 29))
+    assert len(errs) == 1 and "with no year" in errs[0]
+
+
+def test_script_and_style_are_not_published_prose(tmp_path):
+    page = "<script>var s='emergency act expires 2027-03-01'</script><style>/* temporary, expires 2027-03-01 */</style>"
+    assert gate.check_published_sunset_prose(_site(tmp_path, {"a/index.html": page}), today=date(2026, 10, 29)) == []
+
+
+def test_per_page_exemption_covers_only_its_date_and_page(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "SUNSET_PUBLISHED_EXEMPT", {"blog/x/index.html": {"date": "2026-11-08", "reason": "t"}})
+    root = _site(tmp_path, {"blog/x/index.html": DEAD, "blog/y/index.html": DEAD})
+    errs = gate.check_published_sunset_prose(root, today=date(2026, 10, 29))
+    assert len(errs) == 1 and "blog/y/" in errs[0]
+
+
+def test_pre_fix_dc_post_from_history_fires():
+    import subprocess
+    raw = subprocess.run(["git", "show", "86ba28859:docs/blog/virginia-to-washington-dc-cpa-mobility/index.html"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
+    assert raw, "positive control unreadable"
+    assert gate._sunset_prose_dates(gate._published_text(raw), date(2026, 10, 29)) == ["2026-11-08"]
