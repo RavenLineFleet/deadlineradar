@@ -3,6 +3,7 @@ import {
   evaluateFirmMobility,
   normalizeFirmRuleRow,
   isFirmRuleStale,
+  firmRuleTtlDays,
   type FirmMobilityInput,
   type FirmMobilityRuleRow,
   type FirmMobilityCondition,
@@ -187,6 +188,45 @@ describe("SAFETY: source disagreement and staleness block regardless of every ot
   it("a rule with no verified_date at all is treated as stale, not as freshly unknown-but-fine", () => {
     const noDate = verifiedRule({ verifiedDate: null });
     expect(isFirmRuleStale(noDate)).toBe(true);
+  });
+});
+
+describe("GUARD-23: thin-source firm rows expire on the 90-day bar", () => {
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+
+  it("positive control: a dual_source row with no disagreement keeps the 180-day bar at 100 days", () => {
+    const rule = verifiedRule({ confidence: "dual_source", sourceDisagreement: null, verifiedDate: daysAgo(100) });
+    expect(firmRuleTtlDays(rule)).toBe(180);
+    expect(isFirmRuleStale(rule)).toBe(false);
+    expect(evaluateFirmMobility(input(), rule, null).verdict).not.toBe("not_verified");
+  });
+
+  it("a single_source row is stale at 100 days and the copy names the 90-day bar", () => {
+    const rule = verifiedRule({ confidence: "single_source", verifiedDate: daysAgo(100) });
+    expect(firmRuleTtlDays(rule)).toBe(90);
+    expect(isFirmRuleStale(rule)).toBe(true);
+    const finding = evaluateFirmMobility(input(), rule, null);
+    expect(finding.verdict).toBe("not_verified");
+    expect(finding.requirements.join(" ")).toContain("every 90 days");
+  });
+
+  it("a single_source row at 80 days is not stale (the bar is 90, not lower)", () => {
+    expect(isFirmRuleStale(verifiedRule({ confidence: "single_source", verifiedDate: daysAgo(80) }))).toBe(false);
+  });
+
+  it("a non-empty prose sourceDisagreement takes the 90-day bar even on a dual_source row (no boolean field exists)", () => {
+    const rule = verifiedRule({ confidence: "dual_source", sourceDisagreement: "Statute and rule conflict.", verifiedDate: daysAgo(100) });
+    expect(firmRuleTtlDays(rule)).toBe(90);
+    expect(isFirmRuleStale(rule)).toBe(true);
+    expect(firmRuleTtlDays(verifiedRule({ confidence: "dual_source", sourceDisagreement: null }))).toBe(180);
+  });
+
+  it("the normalizer maps an empty-string source_disagreement to the 180-day bar, a real one to 90", () => {
+    const raw = { state: "Texas", state_slug: "texas", confidence: "dual_source", verified_date: daysAgo(100) };
+    const empty = normalizeFirmRuleRow({ ...raw, source_disagreement: "" });
+    const real = normalizeFirmRuleRow({ ...raw, source_disagreement: "Board FAQ contradicts the statute." });
+    expect(empty && firmRuleTtlDays(empty)).toBe(180);
+    expect(real && firmRuleTtlDays(real)).toBe(90);
   });
 });
 

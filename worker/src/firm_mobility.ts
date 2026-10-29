@@ -39,6 +39,7 @@ import {
   safeHttpUrl,
   MOBILITY_DISCLAIMER,
   MOBILITY_VERIFICATION_TTL_DAYS,
+  MOBILITY_THIN_SOURCE_TTL_DAYS,
 } from "./mobility";
 
 export type FirmMobilityVerdict = "clear" | "action_required" | "not_verified" | "not_applicable";
@@ -118,11 +119,25 @@ export function normalizeFirmRuleRow(raw: unknown): FirmMobilityRuleRow | null {
   };
 }
 
+/**
+ * GUARD-23 (AuditLab, 2026-10-29): GUARD-22's 90-day thin-source bar, applied
+ * to the firm dataset. Firm rows have no boolean source_conflict -- an
+ * authored disagreement is the prose `source_disagreement` field -- so the
+ * key is single_source OR a non-empty sourceDisagreement (same truthiness
+ * blockingFirmRuleCondition() uses). Reusing mobilityRuleTtlDays()'s
+ * `=== true` check here would compile and silently miss both prose rows.
+ */
+export function firmRuleTtlDays(rule: Pick<FirmMobilityRuleRow, "confidence" | "sourceDisagreement">): number {
+  return rule.confidence === "single_source" || Boolean(rule.sourceDisagreement)
+    ? MOBILITY_THIN_SOURCE_TTL_DAYS
+    : MOBILITY_VERIFICATION_TTL_DAYS;
+}
+
 export function isFirmRuleStale(rule: FirmMobilityRuleRow, now: Date = new Date()): boolean {
   if (!rule.verifiedDate) return true;
   const verified = Date.parse(rule.verifiedDate);
   if (Number.isNaN(verified)) return true;
-  return now.getTime() - verified > MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
+  return now.getTime() - verified > firmRuleTtlDays(rule) * 86_400_000;
 }
 
 export interface FirmMobilityInput {
@@ -211,7 +226,7 @@ function blockingFirmRuleCondition(rule: FirmMobilityRuleRow, now: Date): FirmMo
         "Our verification of this state's firm-registration rule is older than we are willing to rely on. " +
         "Confirm with the board.",
       requirements: [
-        `Last verified ${rule.verifiedDate ?? "never"}; we re-verify at least every ${MOBILITY_VERIFICATION_TTL_DAYS} days.`,
+        `Last verified ${rule.verifiedDate ?? "never"}; we re-verify at least every ${firmRuleTtlDays(rule)} days.`,
       ],
       citation: null,
       citationUrl: null,

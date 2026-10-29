@@ -104,8 +104,8 @@ import cpaDataForDripCourse from "./cpa_deadlines.json";
 import regChangeEventsData from "./reg_change_events.json";
 import mobilityRulesDataForStaleness from "./mobility_rules.json";
 import firmMobilityRulesDataForStaleness from "./firm_mobility_rules.json";
-import { MOBILITY_VERIFICATION_TTL_DAYS, mobilityRuleTtlDays, normalizeRuleRow as normalizeMobilityRuleRow, safeHttpUrl } from "./mobility";
-import { normalizeFirmRuleRow as normalizeFirmMobilityRuleRow } from "./firm_mobility";
+import { mobilityRuleTtlDays, normalizeRuleRow as normalizeMobilityRuleRow, safeHttpUrl } from "./mobility";
+import { firmRuleTtlDays, normalizeFirmRuleRow as normalizeFirmMobilityRuleRow } from "./firm_mobility";
 import cpeHoursDataForStaleness from "./cpe_hours.json";
 import reinstatementDataForStaleness from "./reinstatement.json";
 import renewalFeesDataForStaleness from "./renewal_fees.json";
@@ -2498,8 +2498,8 @@ export interface MobilityRowNearingExpiry {
   expiresOn: string;
 }
 
-/** Rows whose verification TTL (180 days; 90 for thin-source individual
- * rows, GUARD-22) will lapse within the next
+/** Rows whose verification TTL (180 days; 90 for thin-source rows, GUARD-22
+ * individual / GUARD-23 firm) will lapse within the next
  * MOBILITY_STALENESS_WARNING_DAYS, sorted soonest-first -- the data half
  * of STALE-10. Already-stale rows (daysUntilExpiry <= 0) are deliberately
  * excluded: those are the guard's own job (isRuleStale()/isFirmRuleStale()
@@ -2532,7 +2532,7 @@ export function mobilityRowsNearingExpiry(now: Date): MobilityRowNearingExpiry[]
   }
   for (const raw of Object.values(firmMobilityRulesDataForStaleness as Record<string, unknown>)) {
     const row = normalizeFirmMobilityRuleRow(raw);
-    if (row) consider(row.state, "firm", row.verifiedDate, MOBILITY_VERIFICATION_TTL_DAYS);
+    if (row) consider(row.state, "firm", row.verifiedDate, firmRuleTtlDays(row));
   }
   results.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return results;
