@@ -288,10 +288,32 @@ def test_present_tense_flux_summary_is_a_failure(tmp_path, summary):
     assert len(errs) == 1 and "[SRC-124][xx]" in errs[0]
 
 
-def test_period_named_summary_and_undated_flux_row_pass(tmp_path):
+def test_period_named_summary_and_stamped_undated_flux_row_pass(tmp_path):
     ok = rec(rule_changes_on="2026-11-01", flux_summary="Through October 31, 2026, the test is X. From November 1, 2026, it is Y.")
-    undated = rec(state_slug="yy", rule_changes_on=None, flux_summary="For now the sources disagree.")
+    undated = rec(state_slug="yy", rule_changes_on=None,
+                  flux_summary="As of our October 29, 2026 check, the bill was not law yet; comment ran through September 24, 2026.")
     assert gate.check_mobility_changeover_tense(_repo(tmp_path, [ok, undated])) == []
+
+
+# ---- SRC-125: an undated flux row is scanned too ----
+
+@pytest.mark.parametrize("summary", [
+    "The Board also has open rulemaking underway right now (public comment through September 24, 2026).",
+    "It is not law yet, and the current rule is unchanged for now.", "As of now, a CPA qualifies if ...",
+])
+def test_present_tense_undated_flux_summary_is_a_failure(tmp_path, summary):
+    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, [rec(rule_changes_on=None, flux_summary=summary)]))
+    assert len(errs) == 1 and "[SRC-124][xx]" in errs[0] and "SRC-125" in errs[0]
+
+
+def test_pre_fix_oregon_michigan_alabama_copy_is_seen(tmp_path):
+    import subprocess
+    raw = subprocess.run(["git", "show", "fe4d2cc8c:worker/src/mobility_rules.json"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
+    assert raw, "positive control unreadable"
+    recs = [r for r in json.loads(raw)["records"] if r["state_slug"] in ("oregon", "michigan", "alabama")]
+    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, recs))
+    assert sorted(e.split("]")[1] for e in errs) == ["[alabama", "[michigan", "[oregon"]
 
 
 def test_published_is_through_boundary_is_a_failure_and_period_naming_is_not(tmp_path):

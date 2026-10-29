@@ -3380,7 +3380,7 @@ def check_published_sunset_prose(repo_root: Path, today: date | None = None) -> 
 
 
 _CHANGEOVER_PRESENT_RE = re.compile(
-    r"\b(?:right now|currently|today(?:'s)?|at present|for now|in the meantime|is (?:replacing|changing|switching)|"
+    r"\b(?:right now|as of now|currently|today(?:'s)?|at present|for now|in the meantime|is (?:replacing|changing|switching)|"
     r"isn't changing)\b", re.IGNORECASE)
 _PRESENT_THROUGH_RE = re.compile(r"\b(?:is|are)\s+(?:[\w=-]+\s+){0,3}?through\s+", re.IGNORECASE)
 
@@ -3402,8 +3402,10 @@ def check_mobility_changeover_tense(repo_root: Path) -> list[str]:
     its blog metadata said the rule "is open through Oct. 31, 2026" -- both true until 2026-11-01 and false after,
     while the Worker keeps serving flux_summary verbatim (mobility.ts flux not_verified path) and GATE-60 only
     blocks the next ship. Copy around a dated changeover must name the period, not assert the present:
-      1. a record with rule_changes_on: flux_summary carries no present-tense marker (right now / currently /
-         today / for now / in the meantime / is replacing|changing|switching / isn't changing), whatever the date;
+      1. any record with a flux_summary: it carries no present-tense marker (right now / as of now / currently /
+         today / for now / in the meantime / is replacing|changing|switching / isn't changing), whatever the date.
+         SRC-125: this used to scan only rule_changes_on rows, so Oregon (no scheduled date) served a comment window
+         that closed 2026-09-24 as open "right now" -- an undated flux row is the case nothing else is watching;
       2. published docs text (meta/attr/ld+json included): no "is/are ... through <date>" where that date is the
          day before some record's rule_changes_on or is some rule_expires_on."""
     rules = repo_root / "worker" / "src" / "mobility_rules.json"
@@ -3419,13 +3421,15 @@ def check_mobility_changeover_tense(repo_root: Path) -> list[str]:
                 boundary.add((date.fromisoformat(str(rco)) - timedelta(days=1)).isoformat())
             except ValueError:
                 pass
-            hits = sorted({m.group(0).lower() for m in _CHANGEOVER_PRESENT_RE.finditer(r.get("flux_summary") or "")})
-            if hits:
-                errors.append(
-                    f"[SRC-124][{slug}] flux_summary says {', '.join(repr(h) for h in hits)} around a rule_changes_on="
-                    f"{rco} changeover -- it is served verbatim on both sides of that date; name the period instead "
-                    "(\"through <day before>, ...\" / \"from <date>, ...\")"
-                )
+        hits = sorted({m.group(0).lower() for m in _CHANGEOVER_PRESENT_RE.finditer(r.get("flux_summary") or "")})
+        if hits:
+            errors.append(
+                f"[SRC-124][{slug}] flux_summary says {', '.join(repr(h) for h in hits)} "
+                + (f"around a rule_changes_on={rco} changeover -- it is served verbatim on both sides of that date; "
+                   "name the period instead (\"through <day before>, ...\" / \"from <date>, ...\")" if rco else
+                   "with no scheduled date to bound it (SRC-125) -- it goes false silently on the next action; "
+                   "stamp it (\"As of our <verified_date> check, ...\") or put an elapsed step in the past tense")
+            )
         if r.get("rule_expires_on"):
             boundary.add(str(r["rule_expires_on"]))
     docs = repo_root / "docs"
