@@ -70,3 +70,16 @@ def test_assistant_leak_guard_fires_on_planted_leak(tmp_path):
     (tmp_path / "reg_change_events.json").write_text(json.dumps(d), encoding="utf-8")
     errs = g.check_assistant_api_fields_no_internal_notes(tmp_path)
     assert errs and "needs_reverification" in errs[0]
+
+
+def test_freshness_claim_scope_gate(tmp_path):
+    """COPY-53: an unqualified 'across this site's datasets' claim must fail; the scoped one passes."""
+    bad = tmp_path / "bad.html"
+    bad.write_text("<span>246 of 246 dated records across this site&#x27;s datasets re-checked</span>", encoding="utf-8")
+    good = tmp_path / "good.html"
+    good.write_text("dated records across this site's datasets\n(renewal deadlines, CPE hours) were", encoding="utf-8")
+    es_bad = tmp_path / "es.html"
+    es_bad.write_text("registros en los conjuntos de datos de este sitio re-verificados", encoding="utf-8")
+    assert g.check_freshness_claim_names_its_datasets([good]) == []
+    assert len(g.check_freshness_claim_names_its_datasets([bad])) == 1
+    assert len(g.check_freshness_claim_names_its_datasets([es_bad])) == 1

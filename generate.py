@@ -9162,7 +9162,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">{_hint_counts["birth_month"]}</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">{_hint_counts["varies"]}</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across this site's datasets re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
+    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
   <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
@@ -22352,7 +22352,7 @@ one. When a partner, a board, an insurer or your own file asks what the firm did
 answer shouldn't be a reconstructed email thread. The dashboard's Reports tab keeps the record as it
 happens &mdash; and hands it to you on request, on every tier, with no export limit.</p>
 <p class="field-hint"><strong>{verified_recent} of {total_citations}</strong> dated records across this site's datasets
-were individually re-checked against their source within the last {STALENESS_THRESHOLD_DAYS} days
+(renewal deadlines, CPE hours, reinstatement, renewal fees) were individually re-checked against their source within the last {STALENESS_THRESHOLD_DAYS} days
 &mdash; <a href="/methodology/">see exactly how we verify every deadline</a>.</p>
 
 <h2>1. The Compliance Summary &mdash; the roll-up</h2>

@@ -2563,7 +2563,7 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
 # this named exclusion map with the reason it is outside the claim. A new
 # dated dataset therefore fails the build until someone decides which.
 _FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
-    "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator (claim copy says 'this site's datasets' without enumerating them on /, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/; /for-firms/, /pricing/, /methodology/ do enumerate); /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening to 254 of 264 is an open product call (FRESH-4/5)",
+    "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator; every claim surface (/, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/, /for-firms/, /pricing/, /methodology/) names the 4 datasets in a parenthetical so the excluded ones (this file, and worker/src/mobility_rules.json which this data/ scan cannot see) sit outside the claim's stated scope -- COPY-53, enforced by check_freshness_claim_names_its_datasets; /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening the denominator is an open product call (FRESH-4/5)",
     "ptin_federal.json": "worker-side only, no static page renders its dates (FRESH-4 table)",
     "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
@@ -2609,6 +2609,24 @@ def check_freshness_denominator_covers_datasets(repo_root: Path) -> list[str]:
     for name in _FRESHNESS_DENOMINATOR_EXCLUSIONS:
         if name in covered:
             errors.append(f"[FRESH-5] {name} is both in _SITEWIDE_FRESHNESS_DATASETS and the exclusion map -- remove the stale exclusion")
+    return errors
+
+
+# COPY-53 (AuditLab, 2026-10-29): the homepage tile said "N of N dated records
+# across this site's datasets" with no scope, while the denominator is 4 of the
+# 6 dated datasets (reg_change_events + mobility_rules are excluded). The claim
+# is only true with the parenthetical that names the four, so every rendered
+# instance must carry it.
+_FRESHNESS_CLAIM_RE = re.compile(r"(across this site(?:&#x27;|&#39;|'|’)s datasets|conjuntos de datos de este sitio)(\s*)(.{0,20})", re.S)
+
+
+def check_freshness_claim_names_its_datasets(html_files) -> list[str]:
+    errors = []
+    for f in html_files:
+        text = Path(f).read_text(encoding="utf-8", errors="replace")
+        for m in _FRESHNESS_CLAIM_RE.finditer(text):
+            if not m.group(3).startswith(("(renewal deadlines", "(fechas l")):
+                errors.append(f"[COPY-53] {f}: '{m.group(1)}' is not followed by the 4-dataset parenthetical -- the N-of-N freshness claim overstates its scope")
     return errors
 
 
@@ -9680,6 +9698,7 @@ def main():
     all_errors += check_runtime_hidden_display_override(html_files, docs_dir)
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_freshness_denominator_covers_datasets(repo_root)
+    all_errors += check_freshness_claim_names_its_datasets(html_files)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
