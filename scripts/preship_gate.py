@@ -3379,6 +3379,74 @@ def check_published_sunset_prose(repo_root: Path, today: date | None = None) -> 
     return errors
 
 
+_CHANGEOVER_PRESENT_RE = re.compile(
+    r"\b(?:right now|currently|today(?:'s)?|at present|for now|in the meantime|is (?:replacing|changing|switching)|"
+    r"isn't changing)\b", re.IGNORECASE)
+_PRESENT_THROUGH_RE = re.compile(r"\b(?:is|are)\s+(?:[\w=-]+\s+){0,3}?through\s+", re.IGNORECASE)
+
+
+def _iso_from_date_match(dm) -> str | None:
+    try:
+        if dm.group("iso"):
+            return date(int(dm.group("iy")), int(dm.group("im")), int(dm.group("id"))).isoformat()
+        if dm.group("y"):
+            return date(int(dm.group("y")), _SUNSET_MONTHS.index(dm.group("mon")[:3].lower()) + 1,
+                        int(dm.group("d"))).isoformat()
+    except ValueError:
+        pass
+    return None
+
+
+def check_mobility_changeover_tense(repo_root: Path) -> list[str]:
+    """AuditLab SRC-124 (2026-10-29): Oklahoma's flux_summary said "Right now the test is close to universal" and
+    its blog metadata said the rule "is open through Oct. 31, 2026" -- both true until 2026-11-01 and false after,
+    while the Worker keeps serving flux_summary verbatim (mobility.ts flux not_verified path) and GATE-60 only
+    blocks the next ship. Copy around a dated changeover must name the period, not assert the present:
+      1. a record with rule_changes_on: flux_summary carries no present-tense marker (right now / currently /
+         today / for now / in the meantime / is replacing|changing|switching / isn't changing), whatever the date;
+      2. published docs text (meta/attr/ld+json included): no "is/are ... through <date>" where that date is the
+         day before some record's rule_changes_on or is some rule_expires_on."""
+    rules = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not rules.exists():
+        return []
+    errors: list[str] = []
+    boundary: set = set()
+    for r in json.loads(rules.read_text(encoding="utf-8"))["records"]:
+        slug = r.get("state_slug")
+        rco = r.get("rule_changes_on")
+        if rco:
+            try:
+                boundary.add((date.fromisoformat(str(rco)) - timedelta(days=1)).isoformat())
+            except ValueError:
+                pass
+            hits = sorted({m.group(0).lower() for m in _CHANGEOVER_PRESENT_RE.finditer(r.get("flux_summary") or "")})
+            if hits:
+                errors.append(
+                    f"[SRC-124][{slug}] flux_summary says {', '.join(repr(h) for h in hits)} around a rule_changes_on="
+                    f"{rco} changeover -- it is served verbatim on both sides of that date; name the period instead "
+                    "(\"through <day before>, ...\" / \"from <date>, ...\")"
+                )
+        if r.get("rule_expires_on"):
+            boundary.add(str(r["rule_expires_on"]))
+    docs = repo_root / "docs"
+    if docs.exists():
+        for page in sorted([*docs.rglob("*.html"), *docs.rglob("*.xml")]):
+            text = _published_text(page.read_text(encoding="utf-8", errors="replace"))
+            bad = []
+            for m in _PRESENT_THROUGH_RE.finditer(text):
+                dm = _SUNSET_DATE_RE.match(text, m.end())
+                iso = _iso_from_date_match(dm) if dm else None
+                if iso in boundary and iso not in bad:
+                    bad.append(iso)
+            if bad:
+                errors.append(
+                    f"[SRC-124][docs/{page.relative_to(docs).as_posix()}] published text says a rule \"is ... through\" "
+                    f"{', '.join(bad)}, a mobility changeover boundary -- false the day after; name both periods "
+                    "(generate.py)"
+                )
+    return errors
+
+
 def print_mobility_sunset_advisory(repo_root: Path, today: date | None = None) -> None:
     """Non-blocking countdown for every rule_expires_on still ahead, so the re-verify has a visible clock."""
     path = repo_root / "worker" / "src" / "mobility_rules.json"
@@ -9773,6 +9841,7 @@ def main():
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_mobility_sunset_field(repo_root)
     all_errors += check_published_sunset_prose(repo_root)
+    all_errors += check_mobility_changeover_tense(repo_root)
     all_errors += check_mobility_flux_settled(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)

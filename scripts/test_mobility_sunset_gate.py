@@ -271,3 +271,43 @@ def test_pre_fix_dc_post_meta_copy_is_seen_and_stays_red_past_nov9():
     text = gate._published_text(raw)
     assert text.count("Nov. 8, 2026") >= 3  # meta, og, twitter descriptions; element text alone had 0
     assert "2026-11-08" in gate._sunset_prose_dates(text, date(2026, 12, 1), include_past=True)
+
+
+# ---- SRC-124: present-tense copy around a dated changeover ----
+
+def test_shipped_changeover_copy_is_period_named():
+    assert gate.check_mobility_changeover_tense(REPO_ROOT) == []
+
+
+@pytest.mark.parametrize("summary", [
+    "Right now the test is close to universal.", "Massachusetts would replace today's test.",
+    "The Board currently treats both.", "Oklahoma is replacing how it decides.", "In the meantime, the Board ...",
+])
+def test_present_tense_flux_summary_is_a_failure(tmp_path, summary):
+    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, [rec(rule_changes_on="2026-11-01", flux_summary=summary)]))
+    assert len(errs) == 1 and "[SRC-124][xx]" in errs[0]
+
+
+def test_period_named_summary_and_undated_flux_row_pass(tmp_path):
+    ok = rec(rule_changes_on="2026-11-01", flux_summary="Through October 31, 2026, the test is X. From November 1, 2026, it is Y.")
+    undated = rec(state_slug="yy", rule_changes_on=None, flux_summary="For now the sources disagree.")
+    assert gate.check_mobility_changeover_tense(_repo(tmp_path, [ok, undated])) == []
+
+
+def test_published_is_through_boundary_is_a_failure_and_period_naming_is_not(tmp_path):
+    bad = '<meta name="description" content="The rule is open through Oct. 31, 2026 and switches Nov. 1.">'
+    good = '<meta name="description" content="Open practice through Oct. 31, 2026, individual criteria from Nov. 1, 2026.">'
+    other = '<p>Your license is valid through December 31, 2026.</p>'  # not a changeover boundary
+    root = _site(tmp_path, {"blog/a/index.html": bad, "blog/b/index.html": good, "blog/c/index.html": other},
+                 [rec(rule_changes_on="2026-11-01", flux_summary=None)])
+    errs = gate.check_mobility_changeover_tense(root)
+    assert len(errs) == 1 and "docs/blog/a/index.html" in errs[0] and "2026-10-31" in errs[0]
+
+
+def test_pre_fix_oklahoma_copy_is_seen():
+    import subprocess
+    raw = subprocess.run(["git", "show", "1083e3dca:worker/src/mobility_rules.json"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
+    assert raw, "positive control unreadable"
+    ok = [r for r in json.loads(raw)["records"] if r["state_slug"] == "oklahoma"][0]
+    assert gate._CHANGEOVER_PRESENT_RE.search(ok["flux_summary"])

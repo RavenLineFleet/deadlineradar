@@ -25703,11 +25703,14 @@ California renewal &mdash; it runs on a birth-month/odd-even cycle that's easy t
     {
         "slug": "texas-to-oklahoma-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab SRC-124 (2026-10-29): the description named the period in the present
+        # tense ("is open through Oct. 31"), false from Nov. 1; it now names both periods.
+        "content_modified": "2026-10-29",
         "title": "Texas CPA Practicing in Oklahoma — What Actually Applies (and What Changes Nov. 1, 2026)",
         "seo_title": "Texas CPA Mobility to Oklahoma",
         "meta_description": (
-            "Oklahoma's mobility rule is open through Oct. 31, 2026 and switches to individual "
-            "criteria on Nov. 1, 2026. Here's what a Texas CPA needs to know on either side."
+            "Oklahoma mobility: open CPA=CPA practice through Oct. 31, 2026, individual "
+            "criteria from Nov. 1, 2026. What a Texas CPA needs to know on either side."
         ),
         "body_html": """
 <p class="intro">Oklahoma is a genuinely useful example of why "check the current rule, not what you
