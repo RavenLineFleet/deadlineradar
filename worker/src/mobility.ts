@@ -216,6 +216,7 @@ export function normalizeRuleRow(raw: unknown): MobilityRuleRow | null {
     flux_summary: str(r.flux_summary),
     rule_changes_on: str(r.rule_changes_on),
     rule_expires_on: str(r.rule_expires_on),
+    source_conflict: r.source_conflict === true,
     forward_updated_for_change_on: str(r.forward_updated_for_change_on),
     home_state_substantially_equivalent: strictTriState(r.home_state_substantially_equivalent),
     home_state_substantially_equivalent_note: str(r.home_state_substantially_equivalent_note),
@@ -351,6 +352,11 @@ export interface MobilityRuleRow {
    * Optional so rows without a sunset (all but one) need no field.
    */
   rule_expires_on?: string | null;
+
+  /** GUARD-22: an authored `source_conflict: true` (the record's own primaries
+   * disagree, with no scheduled change date). Read only to pick the tighter
+   * verification TTL -- see mobilityRuleTtlDays(). Optional; absent = false. */
+  source_conflict?: boolean;
 
   /**
    * FLUX-3 (AuditLab, 2026-08-22): FLUX-2's `verified_date >= rule_changes_on`
@@ -494,11 +500,28 @@ export interface MobilityRuleRow {
  */
 export const MOBILITY_VERIFICATION_TTL_DAYS = 180;
 
+/**
+ * GUARD-22 (AuditLab, 2026-10-29): the tighter bar for THIN-SOURCE rows --
+ * single_source confidence, or an authored source_conflict. The re-
+ * verification schedule set this at 90 days because nothing else will ever
+ * trigger a re-check on them (no scheduled change, no second source to
+ * disagree), but nothing enforced it: every row got the uniform 180 above,
+ * so a thin row past its 90-day bar kept answering as verified for another
+ * ~90 days. Keyed on structured fields only, never on prose.
+ */
+export const MOBILITY_THIN_SOURCE_TTL_DAYS = 90;
+
+export function mobilityRuleTtlDays(rule: Pick<MobilityRuleRow, "confidence" | "source_conflict">): number {
+  return rule.confidence === "single_source" || rule.source_conflict === true
+    ? MOBILITY_THIN_SOURCE_TTL_DAYS
+    : MOBILITY_VERIFICATION_TTL_DAYS;
+}
+
 export function isRuleStale(rule: MobilityRuleRow, now: Date = new Date()): boolean {
   if (!rule.verified_date) return true;
   const verified = Date.parse(rule.verified_date);
   if (Number.isNaN(verified)) return true;
-  return now.getTime() - verified > MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
+  return now.getTime() - verified > mobilityRuleTtlDays(rule) * 86_400_000;
 }
 
 export interface MobilityInput {
@@ -760,7 +783,7 @@ function blockingRuleCondition(rule: MobilityRuleRow, now: Date): MobilityFindin
         "Last verified " +
           (rule.verified_date ?? "never") +
           "; we re-verify at least every " +
-          MOBILITY_VERIFICATION_TTL_DAYS +
+          mobilityRuleTtlDays(rule) +
           " days.",
       ],
       citation: rule.citation,

@@ -28,7 +28,7 @@ import {
   MOBILITY_STALENESS_WARNING_DAYS,
   REMINDER_PASS_SILENT_DROP_REASONS,
 } from "../src/scheduler";
-import { MOBILITY_VERIFICATION_TTL_DAYS } from "../src/mobility";
+import { MOBILITY_THIN_SOURCE_TTL_DAYS, MOBILITY_VERIFICATION_TTL_DAYS } from "../src/mobility";
 // Orchestrator ruling (2026-09-23, decoupling drifting test counts): these
 // are the SAME data files mobilityRowsNearingExpiry()/gatedDatasetRowsNearing
 // Expiry() read at runtime -- reading them here too doesn't reintroduce the
@@ -5209,9 +5209,9 @@ describe("store.claimMobilityStalenessAlertForMonth (AuditLab STALE-10)", () => 
 // stays a genuinely separate implementation, not a copy-paste that would
 // share the production code's own bugs.
 function computeExpectedMobilityNearing(now: Date): Array<{ state: string; type: "individual" | "firm"; daysUntilExpiry: number; expiresOn: string }> {
-  const ttlMs = MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
   const rows: Array<{ state: string; type: "individual" | "firm"; daysUntilExpiry: number; expiresOn: string }> = [];
-  const consider = (state: unknown, stateSlug: unknown, type: "individual" | "firm", verifiedDateStr: unknown) => {
+  const consider = (state: unknown, stateSlug: unknown, type: "individual" | "firm", verifiedDateStr: unknown, ttlDays: number) => {
+    const ttlMs = ttlDays * 86_400_000;
     if (typeof stateSlug !== "string" || stateSlug.length === 0) return;
     if (typeof verifiedDateStr !== "string" || verifiedDateStr.length === 0) return;
     const verified = Date.parse(verifiedDateStr);
@@ -5226,10 +5226,12 @@ function computeExpectedMobilityNearing(now: Date): Array<{ state: string; type:
     });
   };
   for (const raw of (mobilityRulesDataForTest.records ?? []) as Record<string, unknown>[]) {
-    consider(raw.state, raw.state_slug, "individual", raw.verified_date);
+    // GUARD-22: thin-source individual rows (single_source, or source_conflict === true) expire at 90 days.
+    const thin = raw.confidence === "single_source" || raw.source_conflict === true;
+    consider(raw.state, raw.state_slug, "individual", raw.verified_date, thin ? MOBILITY_THIN_SOURCE_TTL_DAYS : MOBILITY_VERIFICATION_TTL_DAYS);
   }
   for (const raw of Object.values(firmMobilityRulesDataForTest as Record<string, Record<string, unknown>>)) {
-    consider(raw.state, raw.state_slug, "firm", raw.verified_date);
+    consider(raw.state, raw.state_slug, "firm", raw.verified_date, MOBILITY_VERIFICATION_TTL_DAYS);
   }
   rows.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return rows;

@@ -5,6 +5,7 @@ import {
   evaluateMobility,
   isSubstantiveCitation,
   MOBILITY_VERIFICATION_TTL_DAYS,
+  MOBILITY_THIN_SOURCE_TTL_DAYS,
   type MobilityRuleRow,
 } from "../src/mobility";
 
@@ -255,11 +256,16 @@ describe("the engine's answers are conservative where they should be", () => {
   });
 
   it("every row is inside its verification TTL today", () => {
-    const cutoff = Date.now() - MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
     for (const row of rows) {
+      // GUARD-22: thin-source rows (single_source, or an authored source_conflict) carry the tighter bar.
+      const ttlDays =
+        row.confidence === "single_source" || row.source_conflict === true
+          ? MOBILITY_THIN_SOURCE_TTL_DAYS
+          : MOBILITY_VERIFICATION_TTL_DAYS;
+      const cutoff = Date.now() - ttlDays * 86_400_000;
       expect(
         Date.parse(row.verified_date as string),
-        `${row.state_slug} verified_date is already past the ${MOBILITY_VERIFICATION_TTL_DAYS}-day TTL`
+        `${row.state_slug} verified_date is already past the ${ttlDays}-day TTL`
       ).toBeGreaterThan(cutoff);
     }
   });

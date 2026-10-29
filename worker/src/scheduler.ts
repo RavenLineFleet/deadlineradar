@@ -104,7 +104,7 @@ import cpaDataForDripCourse from "./cpa_deadlines.json";
 import regChangeEventsData from "./reg_change_events.json";
 import mobilityRulesDataForStaleness from "./mobility_rules.json";
 import firmMobilityRulesDataForStaleness from "./firm_mobility_rules.json";
-import { MOBILITY_VERIFICATION_TTL_DAYS, normalizeRuleRow as normalizeMobilityRuleRow, safeHttpUrl } from "./mobility";
+import { MOBILITY_VERIFICATION_TTL_DAYS, mobilityRuleTtlDays, normalizeRuleRow as normalizeMobilityRuleRow, safeHttpUrl } from "./mobility";
 import { normalizeFirmRuleRow as normalizeFirmMobilityRuleRow } from "./firm_mobility";
 import cpeHoursDataForStaleness from "./cpe_hours.json";
 import reinstatementDataForStaleness from "./reinstatement.json";
@@ -2498,7 +2498,8 @@ export interface MobilityRowNearingExpiry {
   expiresOn: string;
 }
 
-/** Rows whose 180-day verification TTL will lapse within the next
+/** Rows whose verification TTL (180 days; 90 for thin-source individual
+ * rows, GUARD-22) will lapse within the next
  * MOBILITY_STALENESS_WARNING_DAYS, sorted soonest-first -- the data half
  * of STALE-10. Already-stale rows (daysUntilExpiry <= 0) are deliberately
  * excluded: those are the guard's own job (isRuleStale()/isFirmRuleStale()
@@ -2509,8 +2510,10 @@ export interface MobilityRowNearingExpiry {
  * FIRM_MOBILITY_RULES_BY_SLUG. */
 export function mobilityRowsNearingExpiry(now: Date): MobilityRowNearingExpiry[] {
   const results: MobilityRowNearingExpiry[] = [];
-  const ttlMs = MOBILITY_VERIFICATION_TTL_DAYS * 86_400_000;
-  const consider = (state: string, type: "individual" | "firm", verifiedDateStr: string | null) => {
+  // GUARD-22: individual rows expire on their own per-row TTL (90 days for
+  // thin-source rows), so the warning has to count down to that same date.
+  const consider = (state: string, type: "individual" | "firm", verifiedDateStr: string | null, ttlDays: number) => {
+    const ttlMs = ttlDays * 86_400_000;
     if (!verifiedDateStr) return;
     const verified = Date.parse(verifiedDateStr);
     if (Number.isNaN(verified)) return;
@@ -2525,11 +2528,11 @@ export function mobilityRowsNearingExpiry(now: Date): MobilityRowNearingExpiry[]
   };
   for (const raw of (mobilityRulesDataForStaleness.records ?? []) as unknown[]) {
     const row = normalizeMobilityRuleRow(raw);
-    if (row) consider(row.state, "individual", row.verified_date);
+    if (row) consider(row.state, "individual", row.verified_date, mobilityRuleTtlDays(row));
   }
   for (const raw of Object.values(firmMobilityRulesDataForStaleness as Record<string, unknown>)) {
     const row = normalizeFirmMobilityRuleRow(raw);
-    if (row) consider(row.state, "firm", row.verifiedDate);
+    if (row) consider(row.state, "firm", row.verifiedDate, MOBILITY_VERIFICATION_TTL_DAYS);
   }
   results.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   return results;

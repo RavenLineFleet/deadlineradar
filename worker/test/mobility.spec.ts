@@ -5,7 +5,10 @@ import {
   evaluateFirmRegistration,
   isValidServiceType,
   normalizeRuleRow,
+  mobilityRuleTtlDays,
   MOBILITY_DISCLAIMER,
+  MOBILITY_THIN_SOURCE_TTL_DAYS,
+  MOBILITY_VERIFICATION_TTL_DAYS,
   type MobilityInput,
   type MobilityRuleRow,
 } from "../src/mobility";
@@ -567,6 +570,27 @@ describe("SAFETY: rules that are in flux, stale, or of an unknown test kind", ()
     const res = evaluateMobility(input(), stale);
     expect(res.overall).toBe("not_verified");
     expect(res.individual.requirements.join(" ")).toMatch(/verified/i);
+  });
+
+  it("GUARD-22: holds thin-source rows (single_source / source_conflict) to the 90-day bar, others to 180", () => {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+    expect(MOBILITY_THIN_SOURCE_TTL_DAYS).toBeLessThan(MOBILITY_VERIFICATION_TTL_DAYS);
+    const past = daysAgo(MOBILITY_THIN_SOURCE_TTL_DAYS + 2);
+    const inside = daysAgo(MOBILITY_THIN_SOURCE_TTL_DAYS - 2);
+    // Positive control: the same age is still fresh for an ordinary dual_source row.
+    expect(evaluateMobility(input(), verifiedPermissiveRule({ verified_date: past })).overall).toBe("clear");
+    for (const over of [{ confidence: "single_source" as const }, { source_conflict: true }]) {
+      expect(evaluateMobility(input(), verifiedPermissiveRule({ ...over, verified_date: inside })).overall,
+        `${JSON.stringify(over)} inside the bar`).toBe("clear");
+      const res = evaluateMobility(input(), verifiedPermissiveRule({ ...over, verified_date: past }));
+      expect(res.overall, `${JSON.stringify(over)} past the bar`).toBe("not_verified");
+      expect(res.individual.requirements.join(" ")).toContain(`every ${MOBILITY_THIN_SOURCE_TTL_DAYS} days`);
+    }
+    // normalizeRuleRow carries only an exact `true` through; anything else is not a conflict.
+    const base = { ...verifiedPermissiveRule(), confidence: "dual_source" };
+    expect(mobilityRuleTtlDays(normalizeRuleRow({ ...base, source_conflict: true }) as MobilityRuleRow)).toBe(MOBILITY_THIN_SOURCE_TTL_DAYS);
+    expect(mobilityRuleTtlDays(normalizeRuleRow({ ...base, source_conflict: "true" }) as MobilityRuleRow)).toBe(MOBILITY_VERIFICATION_TTL_DAYS);
+    expect(mobilityRuleTtlDays(normalizeRuleRow(base) as MobilityRuleRow)).toBe(MOBILITY_VERIFICATION_TTL_DAYS);
   });
 
   it("treats a missing or unparseable verified_date as stale, not as fresh", () => {
