@@ -113,11 +113,13 @@ def test_no_year_date_counts_as_pending_a_dated_past_one_does_not():
     assert gate._sunset_prose_hit("emergency act expires 2026-10-12", date(2026, 10, 12))   # due today has not passed
 
 
-def test_corpus_measured_exactly_dc_and_new_mexico_fire_everything_else_silent():
+def test_corpus_measured_exactly_new_mexico_fires_everything_else_silent():
+    # GUARD-22 (2026-10-29): D.C. dropped out. D.C. Law 26-183 made its rule permanent (eff. 2026-09-25), and the
+    # record's sunset prose was rewritten.
     recs = json.loads((REPO_ROOT / "worker" / "src" / "mobility_rules.json").read_text(encoding="utf-8"))["records"]
     fired = {r["state_slug"] for r in recs
              if any(gate._sunset_prose_hit(r.get(f) or "", TODAY) for f in ("citation", "data_gap_note", "notes"))}
-    assert fired == {"dc", "new-mexico"}
+    assert fired == {"new-mexico"}
 
 
 def test_every_exemption_names_a_date_the_detector_still_finds_on_that_record():
