@@ -6311,10 +6311,25 @@ def _source_cite_html(record: dict) -> str:
     link_url = record["citation_url"]
     label = "Source of record (official records, not codified rule text)" if _is_operational_record(record) else "Source of record"
     link_text = "see the records &rarr;" if _is_operational_record(record) else "read the rule &rarr;"
+    links_html = f'<a href="{http_href(link_url)}" class="cite-link">{link_text}</a>'
+    # SRC-119 (AuditLab, 2026-10-29): a citation that spans two codified
+    # chapters (Hawaii: fees in HAR 16-53, CPE in HAR 16-71) can't be backed
+    # by one link -- a reader checking the CPE claim landed in the fee
+    # schedule. Optional `citation_links` renders one labeled link per
+    # chapter; citation_url must be among them so everything keyed on it
+    # (reverify recipes, the gate's host checks) still describes a link the
+    # page actually shows.
+    extra = record.get("citation_links")
+    if extra:
+        if link_url not in [c["url"] for c in extra]:
+            raise ValueError(f"{record.get('id')}: citation_links must include citation_url")
+        links_html = "\n  ".join(
+            f'<a href="{http_href(c["url"])}" class="cite-link">{esc(c["label"])} &rarr;</a>' for c in extra
+        )
     return f"""<div class="source-cite">
   <span class="cite-label">{label}</span>
   <span class="cite-stamp">{esc(citation)}</span>
-  <a href="{http_href(link_url)}" class="cite-link">{link_text}</a>
+  {links_html}
 </div>"""
 
 
