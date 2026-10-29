@@ -31,6 +31,28 @@ import { stateNameForSlug, resolvedNextDeadlineComputed, type CpaRecord } from "
 import type { MobilityResult } from "./mobility";
 import { safeHttpUrl } from "./mobility";
 
+// SRC-120 (AuditLab, 2026-10-29): a record whose citation spans two chapters
+// (Hawaii: fees in HAR 16-53, CPE in HAR 16-71) carries citation_links, one
+// labeled link per chapter -- the page renders them (SRC-119), and the API has
+// to as well, or a consumer verifying the CPE claim lands in the fee chapter.
+// Each entry passes the same safeHttpUrl gate as citation_url; null when absent.
+// SRC-121 (AuditLab, 2026-10-29): _source_cite_html in generate.py is generic
+// across datasets, so every assistant shape that carries citation_url carries
+// citation_links too -- otherwise a deadline/CPE/fee/rule-change record that
+// gains a second chapter repeats SRC-120 one surface over.
+function assistantCitationLinks(raw: unknown): { url: string; label: string }[] | null {
+  if (!Array.isArray(raw)) return null;
+  const links: { url: string; label: string }[] = [];
+  for (const c of raw) {
+    if (!c || typeof c !== "object") continue;
+    const entry = c as Record<string, unknown>;
+    const url = safeHttpUrl(typeof entry.url === "string" ? entry.url : null);
+    const label = typeof entry.label === "string" ? entry.label.trim() : "";
+    if (url && label) links.push({ url, label });
+  }
+  return links.length ? links : null;
+}
+
 interface AssistantDeadlineResult {
   state: string;
   state_slug: string;
@@ -41,6 +63,7 @@ interface AssistantDeadlineResult {
   data_gap_note: string | null;
   citation: string | null;
   citation_url: string | null;
+  citation_links: { url: string; label: string }[] | null;
   last_verified: string;
 }
 
@@ -68,6 +91,7 @@ export function lookupAssistantDeadlines(
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
+      citation_links: assistantCitationLinks(r.citation_links),
       last_verified: String(r.last_verified ?? ""),
     }));
 }
@@ -87,6 +111,7 @@ interface AssistantCpeResult {
   data_gap_note: string | null;
   citation: string | null;
   citation_url: string | null;
+  citation_links: { url: string; label: string }[] | null;
   verified_date: string;
 }
 
@@ -108,6 +133,7 @@ export function lookupAssistantCpe(stateSlug: string): AssistantCpeResult | null
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
     citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
+    citation_links: assistantCitationLinks(r.citation_links),
     verified_date: String(r.verified_date ?? ""),
   };
 }
@@ -126,24 +152,6 @@ interface AssistantReinstatementResult {
   citation_url: string | null;
   citation_links: { url: string; label: string }[] | null;
   last_verified: string;
-}
-
-// SRC-120 (AuditLab, 2026-10-29): a record whose citation spans two chapters
-// (Hawaii: fees in HAR 16-53, CPE in HAR 16-71) carries citation_links, one
-// labeled link per chapter -- the page renders them (SRC-119), and the API has
-// to as well, or a consumer verifying the CPE claim lands in the fee chapter.
-// Each entry passes the same safeHttpUrl gate as citation_url; null when absent.
-function assistantCitationLinks(raw: unknown): { url: string; label: string }[] | null {
-  if (!Array.isArray(raw)) return null;
-  const links: { url: string; label: string }[] = [];
-  for (const c of raw) {
-    if (!c || typeof c !== "object") continue;
-    const entry = c as Record<string, unknown>;
-    const url = safeHttpUrl(typeof entry.url === "string" ? entry.url : null);
-    const label = typeof entry.label === "string" ? entry.label.trim() : "";
-    if (url && label) links.push({ url, label });
-  }
-  return links.length ? links : null;
 }
 
 export function lookupAssistantReinstatement(stateSlug: string): AssistantReinstatementResult | null {
@@ -176,6 +184,7 @@ interface AssistantRenewalFeeResult {
   confidence: string | null;
   citation: string | null;
   citation_url: string | null;
+  citation_links: { url: string; label: string }[] | null;
   verified_date: string;
 }
 
@@ -192,6 +201,7 @@ export function lookupAssistantRenewalFee(stateSlug: string): AssistantRenewalFe
     confidence: typeof r.confidence === "string" ? r.confidence : null,
     citation: typeof r.citation === "string" ? r.citation : null,
     citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
+    citation_links: assistantCitationLinks(r.citation_links),
     verified_date: String(r.verified_date ?? ""),
   };
 }
@@ -242,6 +252,7 @@ interface AssistantRuleChangeResult {
   summary_public: string;
   citation: string | null;
   citation_url: string | null;
+  citation_links: { url: string; label: string }[] | null;
   effective_date: string | null;
   status: string | null;
   verified_date: string;
@@ -307,6 +318,7 @@ export function lookupAssistantRuleChanges(
       summary_public: String(e.summary_public ?? ""),
       citation: typeof e.citation === "string" ? e.citation : null,
       citation_url: safeHttpUrl(typeof e.citation_url === "string" ? e.citation_url : null),
+      citation_links: assistantCitationLinks(e.citation_links),
       effective_date: typeof e.effective_date === "string" ? e.effective_date : null,
       status: typeof e.status === "string" ? e.status : null,
       verified_date: String(e.verified_date ?? ""),

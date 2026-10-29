@@ -553,3 +553,100 @@ describe("SRC-80 regression -- in_force_status/needs_reverification mirror the H
     expect(result[0]!.in_force_status).toBe("pending_reverification");
   });
 });
+
+// SRC-121 (AuditLab, 2026-10-29): _source_cite_html renders citation_links for
+// any dataset, so every assistant shape must serve it -- not just reinstatement.
+// Each case mocks one dataset with a two-chapter record (plus a javascript:
+// entry the safeHttpUrl gate must drop) and asserts the second chapter survives.
+describe("SRC-121 regression -- citation_links is served by every assistant shape", () => {
+  const links = [
+    { url: "javascript:alert(1)", label: "evil" },
+    { url: "https://example.gov/fee.pdf", label: "read the fee rule" },
+    { url: "https://example.gov/cpe.pdf", label: "read the CPE rule" },
+  ];
+  const expected = [
+    { url: "https://example.gov/fee.pdf", label: "read the fee rule" },
+    { url: "https://example.gov/cpe.pdf", label: "read the CPE rule" },
+  ];
+  const base = {
+    state: "Test State",
+    state_slug: "xx-test-state",
+    citation: "Test Code s 1",
+    citation_url: "https://example.gov/fee.pdf",
+    citation_links: links,
+  };
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("lookupAssistantDeadlines", async () => {
+    vi.resetModules();
+    vi.doMock("../src/cpa_deadlines.json", () => ({
+      default: { records: [{ ...base, license_type: "individual", last_verified: "2026-01-01" }] },
+    }));
+    const { lookupAssistantDeadlines } = await import("../src/assistant");
+    const result = lookupAssistantDeadlines("xx-test-state");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.citation_links).toEqual(expected);
+    vi.doUnmock("../src/cpa_deadlines.json");
+  });
+
+  it("lookupAssistantCpe", async () => {
+    vi.resetModules();
+    vi.doMock("../src/cpe_hours.json", () => ({
+      default: { records: [{ ...base, verified_date: "2026-01-01" }] },
+    }));
+    const { lookupAssistantCpe } = await import("../src/assistant");
+    expect(lookupAssistantCpe("xx-test-state")!.citation_links).toEqual(expected);
+    vi.doUnmock("../src/cpe_hours.json");
+  });
+
+  it("lookupAssistantRenewalFee", async () => {
+    vi.resetModules();
+    vi.doMock("../src/renewal_fees.json", () => ({
+      default: { records: [{ ...base, verified_date: "2026-01-01" }] },
+    }));
+    const { lookupAssistantRenewalFee } = await import("../src/assistant");
+    expect(lookupAssistantRenewalFee("xx-test-state")!.citation_links).toEqual(expected);
+    vi.doUnmock("../src/renewal_fees.json");
+  });
+
+  it("lookupAssistantRuleChanges", async () => {
+    vi.resetModules();
+    vi.doMock("../src/reg_change_events.json", () => ({
+      default: {
+        events: [
+          {
+            jurisdiction: "Test State",
+            jurisdiction_slug: "xx-test-state",
+            citation: base.citation,
+            citation_url: base.citation_url,
+            citation_links: links,
+            verified_date: "2026-01-01",
+          },
+        ],
+      },
+    }));
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.citation_links).toEqual(expected);
+    vi.doUnmock("../src/reg_change_events.json");
+  });
+
+  it("a real single-chapter record serves citation_links: null on every shape", async () => {
+    for (const path of [
+      "/api/assistant/deadline?state=texas&license_type=individual",
+      "/api/assistant/cpe?state=texas",
+      "/api/assistant/renewal-fee?state=texas",
+    ]) {
+      const resp = await getAssistant(path);
+      expect(resp.status, path).toBe(200);
+      const body = (await resp.json()) as Record<string, unknown> & { records?: Record<string, unknown>[] };
+      const rec = body.records ? body.records[0]! : body;
+      expect(Object.prototype.hasOwnProperty.call(rec, "citation_links"), path).toBe(true);
+      expect(rec.citation_links, path).toBeNull();
+    }
+  });
+});

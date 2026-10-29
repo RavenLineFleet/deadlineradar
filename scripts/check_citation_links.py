@@ -130,7 +130,7 @@ REQUEST_HEADERS = {
 CONTENT_SAMPLE_BYTES = 1_000_000
 
 
-def find_urls(obj, path=""):
+def find_urls(obj, path="", in_links=False):
     """Yields (path, url, citation) for every string value at a key ending
     in "_url" that looks like an http(s) link. Deliberately generic (no
     hand-kept field-name list) so a newly added *_url field is covered
@@ -144,18 +144,26 @@ def find_urls(obj, path=""):
     carries this pairing; other *_url fields (secondary_url,
     status_source_url, source_url) don't have a reliably-paired citation
     string, so they get None and skip content-assertion (AuditLab CITE-66).
+
+    A list under a key ending in "_links" (citation_links: [{url, label}])
+    is a published link list too, so its entries' bare "url" key counts --
+    AuditLab SRC-121: Hawaii's second chapter was only covered because the
+    record happened to repeat it in secondary_source_url. Bare "url" is
+    NOT collected elsewhere (reverify_recipes.json's probe checks use it
+    and aren't reader-facing).
     """
     if isinstance(obj, dict):
         citation = obj.get("citation") if isinstance(obj.get("citation"), str) else None
         for k, v in obj.items():
             key_path = f"{path}.{k}" if path else k
-            if isinstance(v, str) and k.lower().endswith("_url") and v.startswith("http"):
+            is_url_key = k.lower().endswith("_url") or (in_links and k == "url")
+            if isinstance(v, str) and is_url_key and v.startswith("http"):
                 yield key_path, v, (citation if k == "citation_url" else None)
             else:
-                yield from find_urls(v, key_path)
+                yield from find_urls(v, key_path, k.lower().endswith("_links"))
     elif isinstance(obj, list):
         for i, item in enumerate(obj):
-            yield from find_urls(item, f"{path}[{i}]")
+            yield from find_urls(item, f"{path}[{i}]", in_links)
 
 
 def _fetch(url: str) -> tuple[int | None, bytes | None, str]:
