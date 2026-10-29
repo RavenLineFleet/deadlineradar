@@ -26113,21 +26113,27 @@ renewal date here</a>.</p>
     {
         "slug": "virginia-to-washington-dc-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
-        "title": "Virginia CPA Practicing in Washington, D.C. — What Actually Applies (and the November 8 Catch)",
+        # AuditLab SRC-122 (2026-10-29): D.C. Law 26-183 made the 47-2853.49 rewrite
+        # permanent eff. 2026-09-25; the "November 8 catch" framing and the 08-10
+        # grandfather anchor are retired.
+        "content_modified": "2026-10-29",
+        "title": "Virginia CPA Practicing in Washington, D.C. — What Actually Applies",
         "seo_title": "Virginia CPA Mobility to D.C.",
         "meta_description": (
-            "D.C. rewrote its CPA practice-privilege rule by emergency act effective Aug. 10, "
-            "2026, expiring Nov. 8, 2026. Here's what a Virginia CPA needs to know."
+            "D.C. rewrote its CPA practice-privilege rule effective Aug. 10, 2026, and made it "
+            "permanent law on Sept. 25, 2026. Here's what a Virginia CPA needs to know."
         ),
         "body_html": """
-<p class="intro">Of every state pair covered in this series, Virginia-to-D.C. is the one where the
-rule is most actively in motion &mdash; D.C. rewrote its practice-privilege test by <em>emergency</em>
-legislation that took effect August 10, 2026 and, by its own terms, expires November 8, 2026. Here's
-what applies right now, what's grandfathered, and exactly where the ground could shift.</p>
+<p class="intro">Of every state pair covered in this series, Virginia-to-D.C. is the one that moved
+most recently. D.C. rewrote its practice-privilege test by <em>emergency</em> legislation that took
+effect August 10, 2026, and the same test became permanent law on September 25, 2026. Here's what
+applies now, who's grandfathered, and where a genuine gray zone remains.</p>
 
-<h2>The rule in effect right now: individual criteria, effective August 10, 2026</h2>
+<h2>The rule in effect now: individual criteria, permanent since September 25, 2026</h2>
 <p>D.C. Act 26-399 (the Business Licensing Reform and Accountancy Practice Emergency Amendment Act of
-2026) rewrote D.C. Official Code &sect; 47-2853.49. Under the amended section, an out-of-state CPA
+2026) first rewrote D.C. Official Code &sect; 47-2853.49 effective August 10, 2026, and D.C. Law 26-183
+(the Business Licensing Reform and Accountancy Practice Amendment Act of 2026) made that rewrite
+permanent, effective September 25, 2026. Under the amended section, an out-of-state CPA
 whose principal place of business is not in the District has <strong>all the privileges of a D.C.
 licensee with no D.C. license required</strong>, provided the individual holds a valid, unrestricted
 CPA license in good standing from any state, and at the time of initial licensure was required to show
@@ -26144,22 +26150,18 @@ cessation if your Virginia license lapses, and Virginia's board as your agent fo
 process.</p>
 
 <h2>Already working in D.C.? You're grandfathered</h2>
-<p>The amended section carries an explicit grandfather clause: an out-of-state CPA who had D.C.
-practice privileges under the old rule immediately before August 10, 2026 <strong>keeps them</strong>,
-regardless of whether they meet the new criteria.</p>
+<p>The amended section carries an explicit grandfather clause: an out-of-state CPA in good standing who
+had D.C. practice privileges under the version of the section in effect immediately before September
+25, 2026 <strong>keeps them</strong>, regardless of whether they meet the new criteria.</p>
 
-<h2>The November 8 catch &mdash; read this part</h2>
-<p>Here's what most summaries will miss: this is <em>emergency</em> legislation, and D.C.'s own code
-compilation carries a note that the amendments <strong>expire November 8, 2026</strong>. A permanent
-version (Bill 26-494) passed the D.C. Council unanimously in July 2026, but D.C. permanent acts must
-complete congressional review before taking effect &mdash; a process with no fixed end date. If the
-permanent act (or a bridging temporary act) isn't in force when the emergency act lapses, the section
-reverts to its prior NASBA-based text until it is. If you're structuring anything that depends on this
-privilege past early November 2026, re-confirm the rule's status at that time rather than assuming
-this page's snapshot still holds.</p>
+<h2>What changed since this page first ran</h2>
+<p>When this page was first published, the August 10 rewrite rested on emergency legislation with a
+fixed end date, while the permanent version (Bill 26-494) was still in congressional review. That
+review has finished: D.C. Law 26-183 took effect September 25, 2026, and the code's history note for
+&sect; 47-2853.49 now cites it. The emergency act's end date no longer governs this rule.</p>
 
 <h2>Bringing a firm: registration for attest work &mdash; and a genuine gray zone on the rest</h2>
-<p>The firm-side rules were not rewritten by the emergency act. A firm with no D.C. office performing
+<p>Neither the emergency act nor D.C. Law 26-183 amended the firm registration section, &sect; 47-2853.44. A firm with no D.C. office performing
 <strong>attest</strong> services (audits, SSARS reviews, SSAE examinations, PCAOB engagements) for a
 client with its home office in the District must register with the D.C. Board (&sect; 47-2853.44), and
 a privilege-holding individual may only perform that work through a registered firm. For
@@ -26170,12 +26172,10 @@ conflict is genuinely unresolved; the cautious course for a firm doing ongoing n
 clients is to confirm directly with the D.C. Board rather than relying on either reading.</p>
 
 <p><strong>The honest caveat</strong>: this page is sourced to the amended text of D.C. Official Code
-&sect; 47-2853.49 as published in the D.C. Law Library following D.C. Act 26-399, and to
-&sect; 47-2853.44 for the firm rules &mdash; not to the D.C. Board's own web pages, which are thin on
-mobility guidance. The emergency-expiry date above comes from the code compilation's own notice. This
-is general orientation, not a determination for your specific engagement type &mdash; and for this
-particular pair, anything past early November 2026 deserves a fresh check. Run your own situation
-through <a href="../../practice-privilege-check/">our Practice Privilege Check tool</a>, or confirm
+&sect; 47-2853.49 as published in the D.C. Law Library, whose history note cites D.C. Law 26-183
+(effective September 25, 2026), and to &sect; 47-2853.44 for the firm rules &mdash; not to the D.C.
+Board's own web pages, which are thin on mobility guidance. This is general orientation, not a
+determination for your specific engagement type. Run your own situation through <a href="../../practice-privilege-check/">our Practice Privilege Check tool</a>, or confirm
 with the D.C. Board of Accountancy directly. And keep your own Virginia renewal on track &mdash; it's
 due every June 30. <a href="../../virginia/">Check your Virginia renewal date here</a>.</p>
 """,
