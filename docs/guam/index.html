@@ -23,7 +23,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Deadline-Radar", "item": "https://deadline-radar.com/"}, {"@type": "ListItem", "position": 2, "name": "Guam CPA Renewal", "item": "https://deadline-radar.com/guam/"}]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does Guam's CPA license renewal cycle work?", "acceptedAnswer": {"@type": "Answer", "text": "22 Guam Code Ann. (GCA) 35106(b): individual licenses are issued and renewed for periods of not more than three years, but in any event expire on the last day of June. The specific year within your own up-to-3-year term is printed on your license, not published statewide -- but 25 GAR 2105(a)(1)(A) confirms the administrative filing deadline, whenever yours is due, always lands on June 30."}}, {"@type": "Question", "name": "How much does it cost to renew a CPA license in Guam?", "acceptedAnswer": {"@type": "Answer", "text": "$100. Flat $100.00 annual renewal fee for an Active (or Inactive) individual CPA license. 25 GAR §2103(d)(2)(B)(i)-(ii). Firm Permit to Practice renewal is a separate, higher $225.00/year fee, per 25 GAR §2103(d)(3)(B) (22 GCA §35107(d))."}}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=f5be79798b">
+<link rel="stylesheet" href="/styles.css?v=f27710b6a5">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -159,6 +159,22 @@
 </select>
 <p class="field-hint">Your renewal always lands on June 30, that many years
 after your anchor year &mdash; works whether you mean your own individual license or your firm's permit.</p>
+    <label for="how_heard">How did you hear about us? (optional)</label>
+    <select id="how_heard" name="how_heard" class="dr-how-heard">
+      <option value="">Choose one</option>
+      <option value="search">Google/Bing search</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="x">X (Twitter)</option>
+      <option value="bluesky">Bluesky</option>
+      <option value="mastodon">Mastodon</option>
+      <option value="blog">A blog or article</option>
+      <option value="referral">Referred by someone</option>
+      <option value="other">Other</option>
+    </select>
+    <div class="dr-how-heard-detail">
+      <label for="how_heard_detail">Tell us a bit more (optional)</label>
+      <input type="text" id="how_heard_detail" name="how_heard_detail" maxlength="120" autocomplete="off" placeholder="e.g. a colleague, a newsletter, a conference">
+    </div>
     <button type="submit">Remind me</button>
   </form>
 </div>

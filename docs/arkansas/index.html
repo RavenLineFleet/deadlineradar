@@ -23,7 +23,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Deadline-Radar", "item": "https://deadline-radar.com/"}, {"@type": "ListItem", "position": 2, "name": "Arkansas CPA Renewal", "item": "https://deadline-radar.com/arkansas/"}]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does Arkansas's CPA license renewal cycle work?", "acceptedAnswer": {"@type": "Answer", "text": "Annual. All Arkansas individual CPA/PA licenses expire December 31 of each year and renew annually for a one-year term."}}, {"@type": "Question", "name": "How much does it cost to renew a CPA license in Arkansas?", "acceptedAnswer": {"@type": "Answer", "text": "$110. $110 annual renewal fee for an individual active license to practice, per the Board's own current rules (17 CAR 236-1101(c)(3)). Firm renewal is also $110/year -- the same rule sets identical individual and firm renewal fees. Late renewal adds $25 per month. Note a widely-cited $150 figure is the REINSTATEMENT fee in the same rule, not the renewal fee."}}, {"@type": "Question", "name": "Does Arkansas require CPE hours to renew a CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, with conditions. Arkansas requires 120 hours of CPE every 3 years. That includes 4 ethics hours. CPE hours are prorated in a licensee's first calendar year of licensure, and new licensees are exempt from the ethics requirement until their first full calendar year of licensure. Confirm with the Board which applies to you. See the full Arkansas CPE requirements page for the exact citation."}}, {"@type": "Question", "name": "What does it cost to reinstate a lapsed Arkansas CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "$150. Flat, non-refundable $150 reinstatement fee (17 CAR § 236-1101) if reinstated within 3 years of expiration -- distinct from the separate $25/month late-renewal fee that accrues in the first 3 months after the December 31 expiration, before the license actually lapses."}}, {"@type": "Question", "name": "Does a CPA firm need to register separately in Arkansas?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, Arkansas has its own firm-level registration or permit requirement, separate from an individual CPA's license renewal. See the full Arkansas firm renewal page for the exact cycle and citation."}}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=f5be79798b">
+<link rel="stylesheet" href="/styles.css?v=f27710b6a5">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -131,6 +131,22 @@
   <option value="ar-individual">Individual CPA/PA license</option>
 <option value="ar-firm">Firm registration</option>
 </select>
+    <label for="how_heard">How did you hear about us? (optional)</label>
+    <select id="how_heard" name="how_heard" class="dr-how-heard">
+      <option value="">Choose one</option>
+      <option value="search">Google/Bing search</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="x">X (Twitter)</option>
+      <option value="bluesky">Bluesky</option>
+      <option value="mastodon">Mastodon</option>
+      <option value="blog">A blog or article</option>
+      <option value="referral">Referred by someone</option>
+      <option value="other">Other</option>
+    </select>
+    <div class="dr-how-heard-detail">
+      <label for="how_heard_detail">Tell us a bit more (optional)</label>
+      <input type="text" id="how_heard_detail" name="how_heard_detail" maxlength="120" autocomplete="off" placeholder="e.g. a colleague, a newsletter, a conference">
+    </div>
     <button type="submit">Remind me</button>
   </form>
 </div>

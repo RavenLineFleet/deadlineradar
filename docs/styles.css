@@ -672,6 +672,9 @@
   }
   .remind-panel button:hover, .remind-panel .cta-button:hover { background: #9c7a3c; }
   .remind-panel .field-hint { color: #8fa7bb; }
+  .dr-how-heard-detail { display: none; }
+  form:has(.dr-how-heard option[value="referral"]:checked) .dr-how-heard-detail,
+  form:has(.dr-how-heard option[value="other"]:checked) .dr-how-heard-detail { display: block; }
   .cpe-affiliate-heading {
     font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--muted); margin: 1.6rem 0 0.5rem; padding-top: 1rem;

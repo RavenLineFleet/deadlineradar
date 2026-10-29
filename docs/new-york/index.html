@@ -23,7 +23,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Deadline-Radar", "item": "https://deadline-radar.com/"}, {"@type": "ListItem", "position": 2, "name": "New York CPA Renewal", "item": "https://deadline-radar.com/new-york/"}]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does New York's CPA license renewal cycle work?", "acceptedAnswer": {"@type": "Answer", "text": "Mandatory triennial registration (distinct from the license itself) expires in the month prior to the licensee's own birth month, 2-3 years after first registration."}}, {"@type": "Question", "name": "How much does it cost to renew a CPA license in New York?", "acceptedAnswer": {"@type": "Answer", "text": "$292. Individual CPA \"Re-Registration\" total fee is $292 ($50 continuing-education fee + $242 registration fee) per triennial (3-year) cycle."}}, {"@type": "Question", "name": "Does New York require CPE hours to renew a CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, New York requires 40 hours of CPE every 1 year. That includes 4 ethics hours. See the full New York CPE requirements page for the exact citation."}}, {"@type": "Question", "name": "What does it cost to reinstate a lapsed New York CPA license?", "acceptedAnswer": {"@type": "Answer", "text": "No flat fee -- a lapsed/reactivating CPA owes the normal triennial re-registration fee ($292 total: $242 registration incl. surcharge + $50 CE processing fee) PLUS a $10 late-filing fee for each month registration was delayed (N.Y. Educ. Law Sec6502(3))."}}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=f5be79798b">
+<link rel="stylesheet" href="/styles.css?v=f27710b6a5">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -107,6 +107,22 @@
   min="2026-10-30" max="2030-05-01" data-dr-bound="future" required>
 <p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p>
+    <label for="how_heard">How did you hear about us? (optional)</label>
+    <select id="how_heard" name="how_heard" class="dr-how-heard">
+      <option value="">Choose one</option>
+      <option value="search">Google/Bing search</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="x">X (Twitter)</option>
+      <option value="bluesky">Bluesky</option>
+      <option value="mastodon">Mastodon</option>
+      <option value="blog">A blog or article</option>
+      <option value="referral">Referred by someone</option>
+      <option value="other">Other</option>
+    </select>
+    <div class="dr-how-heard-detail">
+      <label for="how_heard_detail">Tell us a bit more (optional)</label>
+      <input type="text" id="how_heard_detail" name="how_heard_detail" maxlength="120" autocomplete="off" placeholder="e.g. a colleague, a newsletter, a conference">
+    </div>
     <button type="submit">Remind me</button>
   </form>
 </div>

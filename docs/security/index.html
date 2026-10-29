@@ -22,7 +22,7 @@
 <script>(function(){var SRC="https://challenges.cloudflare.com/turnstile/v0/api.js";var EVENTS=["focusin","pointerdown","keydown","touchstart","scroll"];var started=false;function load(){if(started)return;started=true;EVENTS.forEach(function(t){window.removeEventListener(t,load,true)});var s=document.createElement("script");s.src=SRC;s.async=true;document.head.appendChild(s)}window.drTurnstileLoad=load;EVENTS.forEach(function(t){window.addEventListener(t,load,{capture:true,passive:true})});document.addEventListener("DOMContentLoaded",function(){if(document.querySelector(".dr-turnstile-slot"))load()});document.addEventListener("submit",function(e){var f=e.target;if(!f||f.tagName!=="FORM"||typeof f.requestSubmit!=="function")return;if(!f.querySelector(".cf-turnstile")||f.drTsPass)return;function token(){var i=f.querySelector("input[name=cf-turnstile-response]");return i?i.value:""}if(token()&&!f.drTsWaiting)return;e.preventDefault();e.stopImmediatePropagation();if(f.drTsWaiting)return;f.drTsWaiting=true;load();var sub=e.submitter||null;var waited=0;var poll=setInterval(function(){waited+=150;if(!token()&&waited<8e3)return;clearInterval(poll);f.drTsWaiting=false;f.drTsPass=true;try{if(sub)f.requestSubmit(sub);else f.requestSubmit()}finally{f.drTsPass=false}},150)},true)})();</script>
 
 
-<link rel="stylesheet" href="/styles.css?v=f5be79798b">
+<link rel="stylesheet" href="/styles.css?v=f27710b6a5">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -67,8 +67,8 @@ not a compliance-theater checklist. Every claim on this page describes something
 this product's code, not a policy aspiration.</p>
 
 <h2>Data handling</h2>
-<p>We collect only what the reminder and license-tracking service actually needs to work -- see the
-full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
+<p>We collect only what the reminder and license-tracking service actually needs to work, plus a little
+information about how you found us -- see the full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
 <ul>
   <li><strong>Scoped by firm.</strong> Roster data (staff names, emails, license states, CPE hours, any
   documents uploaded) is filtered by the requesting firm's own account id on every storage query -- not
@@ -101,9 +101,10 @@ full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
   <li><strong>Cross-site forgery protection:</strong> every request that changes data -- adding staff,
   editing a record, changing a password -- is checked against the Origin header the browser itself
   sends, rejected before it reaches the database.</li>
-  <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account where one exists,
-  or your IP address for the handful of actions (like signing out) that happen before a session exists
-  -- so a compromised session or a scripting bug can't be abused to hammer the system.</li>
+  <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account for most signed-in
+  actions, or your IP address for the rest (signing up, signing in or out, setting or changing a password,
+  contact forms, email links, the chat bubble, or loading a page through one of our tagged links) -- so a compromised session or a scripting bug can't be abused to hammer
+  the system. Those IP records are deleted by a daily cleanup once they're more than 24 hours old.</li>
   <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
   (X-Frame-Options plus a Content-Security-Policy <code>frame-ancestors</code> directive) on
   every response; a strict Content-Security-Policy against script injection on our API
