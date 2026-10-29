@@ -3383,6 +3383,11 @@ _CHANGEOVER_PRESENT_RE = re.compile(
     r"\b(?:right now|as of now|currently|today(?:'s)?|at present|for now|in the meantime|is (?:replacing|changing|switching)|"
     r"isn't changing)\b", re.IGNORECASE)
 _PRESENT_THROUGH_RE = re.compile(r"\b(?:is|are)\s+(?:[\w=-]+\s+){0,3}?through\s+", re.IGNORECASE)
+# SRC-126: an undated flux row (no rule_changes_on) must carry this stamp, dated its verified_date -- an absence
+# test, because banning present-tense phrases (limb 1) misses every other wording of a transient status.
+_FLUX_STAMP_RE = re.compile(r"\bas of our\s+(?P<when>[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s+check\b", re.IGNORECASE)
+# slug -> reason: an undated flux row that genuinely states standing law and needs no as-of date.
+SRC126_EXEMPT: dict = {}
 
 
 def _iso_from_date_match(dm) -> str | None:
@@ -3407,7 +3412,10 @@ def check_mobility_changeover_tense(repo_root: Path) -> list[str]:
          SRC-125: this used to scan only rule_changes_on rows, so Oregon (no scheduled date) served a comment window
          that closed 2026-09-24 as open "right now" -- an undated flux row is the case nothing else is watching;
       2. published docs text (meta/attr/ld+json included): no "is/are ... through <date>" where that date is the
-         day before some record's rule_changes_on or is some rule_expires_on."""
+         day before some record's rule_changes_on or is some rule_expires_on;
+      3. SRC-126: limb 1 is a vocabulary test, so "hasn't published anything yet" passed unstamped. Every flux row
+         with no rule_changes_on (and not in SRC126_EXEMPT) must say "As of our <Month D, YYYY> check", and that
+         date must equal its verified_date -- re-verifying a row forces its copy to be re-dated too."""
     rules = repo_root / "worker" / "src" / "mobility_rules.json"
     if not rules.exists():
         return []
@@ -3430,6 +3438,20 @@ def check_mobility_changeover_tense(repo_root: Path) -> list[str]:
                    "with no scheduled date to bound it (SRC-125) -- it goes false silently on the next action; "
                    "stamp it (\"As of our <verified_date> check, ...\") or put an elapsed step in the past tense")
             )
+        flux = r.get("flux_summary") or ""
+        if flux and not rco and slug not in SRC126_EXEMPT:
+            sm = _FLUX_STAMP_RE.search(flux)
+            dm = _SUNSET_DATE_RE.fullmatch(sm.group("when")) if sm else None
+            stamped = _iso_from_date_match(dm) if dm else None
+            if not sm:
+                errors.append(
+                    f"[SRC-126][{slug}] flux_summary has no rule_changes_on and no \"As of our <date> check\" stamp -- "
+                    "a transient status in any wording goes false silently on the board's next action; stamp it with "
+                    "the verified_date, or add the slug to SRC126_EXEMPT with the reason it is standing law")
+            elif stamped != str(r.get("verified_date")):
+                errors.append(
+                    f"[SRC-126][{slug}] flux_summary stamp {sm.group('when')!r} ({stamped}) != verified_date "
+                    f"{r.get('verified_date')} -- re-date the copy when the row is re-verified")
         if r.get("rule_expires_on"):
             boundary.add(str(r["rule_expires_on"]))
     docs = repo_root / "docs"

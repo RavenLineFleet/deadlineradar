@@ -290,7 +290,7 @@ def test_present_tense_flux_summary_is_a_failure(tmp_path, summary):
 
 def test_period_named_summary_and_stamped_undated_flux_row_pass(tmp_path):
     ok = rec(rule_changes_on="2026-11-01", flux_summary="Through October 31, 2026, the test is X. From November 1, 2026, it is Y.")
-    undated = rec(state_slug="yy", rule_changes_on=None,
+    undated = rec(state_slug="yy", rule_changes_on=None, verified_date="2026-10-29",
                   flux_summary="As of our October 29, 2026 check, the bill was not law yet; comment ran through September 24, 2026.")
     assert gate.check_mobility_changeover_tense(_repo(tmp_path, [ok, undated])) == []
 
@@ -302,7 +302,8 @@ def test_period_named_summary_and_stamped_undated_flux_row_pass(tmp_path):
     "It is not law yet, and the current rule is unchanged for now.", "As of now, a CPA qualifies if ...",
 ])
 def test_present_tense_undated_flux_summary_is_a_failure(tmp_path, summary):
-    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, [rec(rule_changes_on=None, flux_summary=summary)]))
+    errs = [e for e in gate.check_mobility_changeover_tense(_repo(tmp_path, [rec(rule_changes_on=None, flux_summary=summary)]))
+            if e.startswith("[SRC-124]")]
     assert len(errs) == 1 and "[SRC-124][xx]" in errs[0] and "SRC-125" in errs[0]
 
 
@@ -312,8 +313,47 @@ def test_pre_fix_oregon_michigan_alabama_copy_is_seen(tmp_path):
                          cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
     assert raw, "positive control unreadable"
     recs = [r for r in json.loads(raw)["records"] if r["state_slug"] in ("oregon", "michigan", "alabama")]
-    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, recs))
+    errs = [e for e in gate.check_mobility_changeover_tense(_repo(tmp_path, recs)) if e.startswith("[SRC-124]")]
     assert sorted(e.split("]")[1] for e in errs) == ["[alabama", "[michigan", "[oregon"]
+
+
+# ---- SRC-126: an undated flux row must carry an "As of our <date> check" stamp dated its verified_date ----
+
+@pytest.mark.parametrize("summary", [
+    "The Board's own rules haven't been updated to match the new law yet.",
+    "The Board is required to update its regulations but hasn't published anything yet.",
+    "One unconfirmed secondary source claims an update is in progress.",
+])
+def test_unstamped_undated_flux_row_is_a_failure_whatever_the_wording(tmp_path, summary):
+    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, [rec(rule_changes_on=None, flux_summary=summary)]))
+    assert len(errs) == 1 and errs[0].startswith("[SRC-126][xx]") and "no rule_changes_on" in errs[0]
+
+
+def test_stamp_must_equal_verified_date(tmp_path):
+    stale = rec(rule_changes_on=None, verified_date="2026-11-15", flux_summary="As of our October 29, 2026 check, X.")
+    errs = gate.check_mobility_changeover_tense(_repo(tmp_path, [stale]))
+    assert len(errs) == 1 and "[SRC-126][xx]" in errs[0] and "2026-11-15" in errs[0]
+
+
+def test_exempt_slug_and_dated_changeover_row_need_no_stamp(tmp_path, monkeypatch):
+    monkeypatch.setitem(gate.SRC126_EXEMPT, "xx", "standing law")
+    root = _repo(tmp_path, [rec(rule_changes_on=None, flux_summary="Plain standing law."),
+                            rec(state_slug="yy", rule_changes_on="2026-11-01", flux_summary="Plain copy.")])
+    assert gate.check_mobility_changeover_tense(root) == []
+
+
+def test_pre_fix_unstamped_rows_are_seen_and_oregon_minus_its_stamp_is_red(tmp_path):
+    import subprocess
+    raw = subprocess.run(["git", "show", "215d5e550:worker/src/mobility_rules.json"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8").stdout
+    assert raw, "positive control unreadable"
+    recs = json.loads(raw)["records"]
+    for r in recs:
+        if r["state_slug"] == "oregon":  # AuditLab mutant F: SRC-125's own fix with the stamp stripped
+            r["flux_summary"] = r["flux_summary"].replace("as of our October 29, 2026 check, ", "")
+    errs = [e for e in gate.check_mobility_changeover_tense(_repo(tmp_path, recs)) if e.startswith("[SRC-126]")]
+    assert sorted(e.split("]")[1] for e in errs) == [
+        "[guam", "[louisiana", "[northern-mariana-islands", "[oregon", "[puerto-rico", "[us-virgin-islands"]
 
 
 def test_published_is_through_boundary_is_a_failure_and_period_naming_is_not(tmp_path):
