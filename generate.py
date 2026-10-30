@@ -26281,6 +26281,8 @@ specifically, the current, cited figures are on our
         # (orchestrator 18:26, AuditLab 18:28 MDT), no changes required.
         "slug": "colorado-cpa-license-renewal-guide",
         "published": "2026-09-01",  # first-introduction commit date, from git history
+        # SRC-130 (2026-10-30): CR&R locator Rule 1.1(B) -> 1.4(B).
+        "content_modified": "2026-10-30",
         "title": "Colorado CPA License Renewal: Two Different Clocks for Individuals and Firms",
         "seo_title": "Colorado CPA License Renewal: Two Clocks",
         "meta_description": (
@@ -26337,7 +26339,7 @@ same one.</p>
 Colorado Rules and Regulations (CR&amp;R) course specifically (Rule 1.9(G)(2)(b)). CR&amp;R has a
 precise definition in the rules: CPE covering Colorado's own accountancy statute (C.R.S. &sect;
 12-100-101 through &sect; 12-100-130 and &sect; 13-90-107(1)(f)) and the Board's own rules and
-policies, following a content outline the Board publishes (Rule 1.1(B); Rule 1.10(H)). This is a
+policies, following a content outline the Board publishes (Rule 1.4(B); Rule 1.10(H)). This is a
 Colorado-specific carve-out, not something every state builds into its ethics hours &mdash; worth
 flagging for anyone who has renewed in another state and assumes "four hours of ethics" means any
 ethics course qualifies for all of it.</p>
