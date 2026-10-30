@@ -509,16 +509,29 @@ BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
 # both constants below are updated to match -- that is the point: the edit
 # becomes a visible, reviewable act in a diff, not a silent way to skip
 # review for a new post.
-BLOG_GRANDFATHERED_COUNT = 30
-BLOG_GRANDFATHERED_SHA256 = "e4bc83971df2229ce503c784ce2c3326d957dafab7251cbb2cc1ee570ed40af2"
+# GUARD-24 (AuditLab, 2026-10-30): the exemption was keyed to the slug alone,
+# so it also waived review for every later rewrite of a grandfathered post (30
+# of 35 posts; exercised on colorado 10-30). Each line is now
+# "<slug> <payload_sha256>" and the exemption holds only while the shipping
+# payload still hashes to that pin. The first edit fails until the slug moves
+# out of this file and into a two-party approval record. Pins were taken at
+# origin/main bbf8d14b7, not at the gate's own commit 00ef0114b -- 24 of the
+# 30 slugs had already changed by then, and that history is disclosed in the
+# GUARD-24 reply rather than reverted. florida left the list for its SRC-90
+# approval record (29 remain).
+BLOG_GRANDFATHERED_COUNT = 29
+BLOG_GRANDFATHERED_SHA256 = "47787d255467b290fda678a27475cac1692f454e189707be8077677dbe9701a3"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def _load_blog_grandfathered(approvals_dir: Path) -> tuple[set[str], list[str]]:
+def _load_blog_grandfathered(approvals_dir: Path) -> tuple[dict[str, str | None], list[str]]:
+    """slug -> pinned payload_sha256. A line whose pin is missing or not 64
+    lowercase hex maps to None, which never matches, so that slug needs an
+    approval file instead of silently staying exempt."""
     path = approvals_dir / BLOG_GRANDFATHERED_FILENAME
     if not path.exists():
-        return set(), [f"[BLOG-GATE] {path} is missing"]
+        return {}, [f"[BLOG-GATE] {path} is missing"]
     raw = path.read_text(encoding="utf-8").replace("\r\n", "\n")
     lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
     normalized = ("\n".join(lines) + "\n").encode("utf-8")
@@ -535,7 +548,18 @@ def _load_blog_grandfathered(approvals_dir: Path) -> tuple[set[str], list[str]]:
             f"[BLOG-GATE] {path} content hash {digest} != expected {BLOG_GRANDFATHERED_SHA256} -- "
             f"an undeclared edit to the grandfathered list, or the constant is stale"
         )
-    return set(lines), errors
+    pins: dict[str, str | None] = {}
+    for ln in lines:
+        parts = ln.split()
+        slug = parts[0]
+        pin = parts[1] if len(parts) == 2 and _SHA256_HEX_RE.match(parts[1]) else None
+        if pin is None:
+            errors.append(
+                f"[BLOG-GATE] {path} line {ln!r} is not '<slug> <64-hex payload_sha256>' -- "
+                f"a grandfathered slug with no pin is exempt from nothing"
+            )
+        pins[slug] = pin
+    return pins, errors
 
 
 # --- CRAWL-12 gate (AuditLab, 2026-10-23): the Alabama Oct-1 correction
@@ -663,7 +687,31 @@ def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None =
         if not is_grandfathered and not has_approval_file:
             errors.append(f"[BLOG-GATE][{slug}] not grandfathered and no approval file at {approval_path}")
             continue
+
+        try:
+            fields = {
+                "slug": article["slug"],
+                "published": article["published"],
+                "title": article["title"],
+                "seo_title": article.get("seo_title", ""),
+                "meta_description": article["meta_description"],
+                "body_html": article["body_html"],
+            }
+        except KeyError as e:
+            errors.append(f"[BLOG-GATE][{slug}] BLOG_ARTICLES entry is missing required field {e} -- cannot compute its payload digest")
+            continue
+        computed = _bph.payload_sha256_from_fields(fields)
+
         if is_grandfathered:
+            pin = grandfathered[slug]
+            if pin is not None and computed == pin:
+                continue
+            errors.append(
+                f"[BLOG-GATE][{slug}] grandfathered at payload {pin} but the content that would ship "
+                f"today hashes to {computed} -- the exemption covers only the pre-gate post, not an "
+                f"edit (GUARD-24). Get two-party approval, then remove the slug from "
+                f"{BLOG_GRANDFATHERED_FILENAME} (updating both constants) and add {approval_path}"
+            )
             continue
 
         try:
@@ -706,19 +754,6 @@ def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None =
         if malformed:
             continue
 
-        try:
-            fields = {
-                "slug": article["slug"],
-                "published": article["published"],
-                "title": article["title"],
-                "seo_title": article.get("seo_title", ""),
-                "meta_description": article["meta_description"],
-                "body_html": article["body_html"],
-            }
-        except KeyError as e:
-            errors.append(f"[BLOG-GATE][{slug}] BLOG_ARTICLES entry is missing required field {e} -- cannot compute its payload digest")
-            continue
-        computed = _bph.payload_sha256_from_fields(fields)
         for entry in approvals:
             recorded = entry.get("payload_sha256")
             if recorded != computed:

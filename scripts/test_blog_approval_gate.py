@@ -16,6 +16,10 @@ the count check or the hash check be deleted without going red):
     8a. grandfathered hash mismatch, count still correct          -> ERROR (isolated)
     8b. grandfathered count mismatch, hash still "correct"        -> ERROR (isolated)
     9. draft-mode and slug-mode digests agree on a real post      -> PASS
+   10. GUARD-24: grandfathered slug, body edited after its pin    -> ERROR
+   11. GUARD-24: grandfathered line with no pin                   -> ERROR, not exempt
+   12. GUARD-24: real tree passes, and editing a real grandfathered
+       post (colorado, the slug AuditLab exercised) fails         -> PASS / ERROR
 
 AuditLab separately proved a STRONGER version of case 9 against the real
 Nevada draft + live BLOG_ARTICLES entry (not a fixture) and found test 9
@@ -62,10 +66,19 @@ def _approval_file(tmp_path, slug, approvals):
     return d
 
 
+_DUMMY_PIN = "a" * 64
+
+
 def _write_grandfathered(tmp_path, slugs):
+    """Each entry is a slug (pinned to _DUMMY_PIN) or a (slug, pin) pair;
+    pin None writes a bare slug line with no pin at all."""
     d = tmp_path / "content" / "blog_approvals"
     d.mkdir(parents=True, exist_ok=True)
-    text = "\n".join(slugs) + "\n"
+    lines = []
+    for entry in slugs:
+        slug, pin = entry if isinstance(entry, tuple) else (entry, _DUMMY_PIN)
+        lines.append(slug if pin is None else f"{slug} {pin}")
+    text = "\n".join(lines) + "\n"
     (d / gate.BLOG_GRANDFATHERED_FILENAME).write_bytes(text.encode("utf-8"))
     return d, hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -161,7 +174,7 @@ def test_6_truncated_sha_is_error(tmp_path):
 
 def test_7_grandfathered_slug_no_approval_file_passes(tmp_path):
     article = _article()
-    _write_grandfathered(tmp_path, [article["slug"]])
+    _write_grandfathered(tmp_path, [(article["slug"], _digest(article))])
     # No <slug>.json written at all.
     errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[article])
     slug_errors = [e for e in errors if article["slug"] in e]
@@ -209,6 +222,52 @@ def test_8b_grandfathered_count_mismatch_isolated(tmp_path, monkeypatch):
     errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[])
     assert len(errors) == 1, f"expected exactly one isolated error, got {errors}"
     assert "has 3 slug(s), expected 2" in errors[0], errors[0]
+
+
+# --- 10-12. GUARD-24: the exemption is pinned to the pre-gate payload -------
+
+def _pin_constants(monkeypatch, tmp_path, entries):
+    _, digest = _write_grandfathered(tmp_path, entries)
+    monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_COUNT", len(entries))
+    monkeypatch.setattr(gate, "BLOG_GRANDFATHERED_SHA256", digest)
+
+
+def test_10_grandfathered_body_edit_is_error(tmp_path, monkeypatch):
+    article = _article()
+    _pin_constants(monkeypatch, tmp_path, [(article["slug"], _digest(article))])
+    assert gate.check_blog_approval_gate(tmp_path, blog_articles=[article]) == []
+
+    edited = _article(body_html="\n<p>Body content, edited after the gate.</p>\n")
+    assert _digest(edited) != _digest(article)
+    errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[edited])
+    assert len(errors) == 1, errors
+    assert "grandfathered at payload" in errors[0] and "GUARD-24" in errors[0], errors[0]
+
+
+def test_11_grandfathered_line_without_pin_is_error_and_not_exempt(tmp_path, monkeypatch):
+    article = _article()
+    _pin_constants(monkeypatch, tmp_path, [(article["slug"], None)])
+    errors = gate.check_blog_approval_gate(tmp_path, blog_articles=[article])
+    assert any("is not '<slug> <64-hex payload_sha256>'" in e for e in errors), errors
+    assert any("grandfathered at payload None" in e for e in errors), errors
+
+
+def test_12_real_tree_passes_and_real_grandfathered_edit_fails():
+    sys.path.insert(0, REPO_ROOT)
+    import generate  # noqa: E402
+    from pathlib import Path
+
+    root = Path(REPO_ROOT)
+    articles = [dict(a) for a in generate.BLOG_ARTICLES]
+    assert gate.check_blog_approval_gate(root, blog_articles=articles) == []
+
+    slug = "colorado-cpa-license-renewal-guide"
+    grandfathered, _ = gate._load_blog_grandfathered(root / "content" / gate.BLOG_APPROVALS_DIRNAME)
+    assert slug in grandfathered
+    target = next(a for a in articles if a["slug"] == slug)
+    target["body_html"] = target["body_html"] + "<p>unreviewed</p>"
+    errors = gate.check_blog_approval_gate(root, blog_articles=articles)
+    assert len(errors) == 1 and slug in errors[0] and "GUARD-24" in errors[0], errors
 
 
 # --- 9. draft-mode and slug-mode digests agree on a real post ----------------

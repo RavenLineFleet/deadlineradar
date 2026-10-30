@@ -1,0 +1,17 @@
+{
+  "slug": "florida-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "723f6a3edb826aea36b11bd253a7e76b2ab54658d6cb920cbebc1a1e1cd99d66",
+      "verdict_file": "auditlab_20261024T212327Z_blog_APPROVED_florida-cpa-license-renewal-guide_r2_all_claims_pass_one_advisory_initial_period.md",
+      "sent": "2026-10-24 21:23 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "723f6a3edb826aea36b11bd253a7e76b2ab54658d6cb920cbebc1a1e1cd99d66",
+      "verdict_file": "orchestrator_20261030T183000Z_SRC90_SIGNED_ship_go_florida_r2.md",
+      "sent": "2026-10-30 18:30 UTC"
+    }
+  ]
+}
