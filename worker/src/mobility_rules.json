@@ -439,7 +439,7 @@
       "equivalence_test": "other",
       "citation": "Haw. Rev. Stat. ch. 466, esp. §§ 466-3 (definitions), 466-5(a), 466-7(a), (c), (d), 466-34; Haw. Admin. R. §§ 16-71-8, 16-71-24, 16-71-27. Former Haw. Rev. Stat. § 466-5.5 repealed by 2025 Haw. Sess. Laws Act 14, § 3 (education section, not mobility).",
       "citation_url": "https://www.capitol.hawaii.gov/hrscurrent/Vol10_Ch0436-0474/HRS0466/HRS_0466-0007.htm",
-      "source_url": "https://cca.hawaii.gov/pvl/boards/accountancy/",
+      "source_url": "https://cca.hawaii.gov/wp-content/uploads/2026/01/Temp-Permit-to-Practice-CPA-13_10.16R.pdf",
       "verified_date": "2026-07-31",
       "confidence": "dual_source",
       "rule_in_flux": false,
@@ -450,7 +450,8 @@
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
       "verified_method": "manual",
-      "last_manual_verified_date": "2026-07-31"
+      "last_manual_verified_date": "2026-07-31",
+      "verification_history": "2026-10-30 (SRC-132, AuditLab 21:50Z): source_url pointed at the board's landing page (cca.hawaii.gov/pvl/boards/accountancy/), which carries no practice-privilege, temporary-permit or out-of-state text, so the dual_source label rested on a page that did not carry the claim. Repointed to the board's own form CPA-13 (Temporary Permit to Practice, rev. 10.16R), linked from the board's Application Forms & Publications page (HTTP 200, application/pdf, 633,615 B). Its text carries the facts this row takes from it: the temporary permit, the 'client that is located outside the State of Hawaii? ... (If \"NO\", you do not qualify for a temporary permit to practice)' test, 'Pursuant to Hawaii Revised Statutes section 466-7, your CPA firm must hold a current Hawaii firm permit to practice', the 60-day filing rule and the $269 total fee. The statute side (HRS 466-7) is unchanged. No field other than source_url changed, and verified_date stays 2026-07-31 because no field was re-verified beyond what the form shows."
     },
     {
       "state": "Idaho",
