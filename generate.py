@@ -5303,8 +5303,8 @@ _SHOW_PASSWORD_TOGGLE_HTML = """<script>
 # Roadmap #57 (2026-08-07): a cookie NOTICE, not a consent-with-reject-
 # button flow -- the Privacy page (see "Cookies and analytics" section)
 # already discloses that this site uses only strictly-necessary session
-# cookies and (at most) cookie-less analytics, no advertising/tracking
-# cookies. Strictly-necessary cookies don't legally require opt-in consent
+# cookies and (at most) cookie-less analytics, no ad-targeting/tracking
+# cookies (a first-party src=ga channel tag is not one). Strictly-necessary cookies don't legally require opt-in consent
 # under GDPR/ePrivacy, only disclosure, which the Privacy page already
 # provides -- building a full accept/reject consent flow here would imply
 # non-essential cookies exist when they don't. This is purely a trust/
@@ -9899,8 +9899,9 @@ to learn which channels bring people to the site:</p>
   hear about us?" question on the signup form, we keep your choice, plus the short note you can add if
   you pick "Referred by someone" or "Other", with your signup. If someone referred you, please don't
   include their name or contact details in that note &mdash; "a colleague" is plenty.</li>
-  <li><strong>The tagged link that first brought you here, if any</strong> &mdash; our own posts and
-  emails link here with a short channel tag (for example, "li" for LinkedIn). If the first time you
+  <li><strong>The tagged link that first brought you here, if any</strong> &mdash; our own posts,
+  emails and ads link here with a short channel tag (for example, "li" for LinkedIn, "ga" for our
+  Google ads). If the first time you
   arrive is through one of those links, your browser remembers that tag (see "Cookies and analytics"
   below), and if you later sign up, it's saved with your signup. It is only ever one of our own fixed
   tags &mdash; never the page you came from or anything about other sites you visit.</li>
@@ -9943,8 +9944,10 @@ to your Google Drive, contacts, or anything beyond basic sign-in identity.</p>
 <h2>How we use it</h2>
 <p>Your information is used solely to operate the service you or your firm signed up for: sending
 confirmation and reminder emails, showing your roster/CPE/renewal status, processing billing, and letting
-you stop any of it at any time. We never use it for advertising, and never for any purpose you didn't
-ask for.</p>
+you stop any of it at any time. The one exception is the channel tag described above: we count which
+of our own channels (ads included) bring in signups, so we know which ones are worth keeping. We never
+use your information to advertise to you, never share it with advertisers, and never use it for any
+other purpose you didn't ask for.</p>
 
 <h2>How it's stored and protected</h2>
 <p>Your data is encrypted in transit (this site and every form use HTTPS) and stored in a private
@@ -10059,8 +10062,8 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   <li><strong>Scoped by firm.</strong> Roster data (staff names, emails, license states, CPE hours, any
   documents uploaded) is filtered by the requesting firm's own account id on every storage query -- not
   just checked once at the door.</li>
-  <li><strong>Never sold or shared.</strong> No third-party data sales, no advertising, no cross-site
-  tracking of any kind (see our <a href="/privacy/">cookie disclosure</a>).</li>
+  <li><strong>Never sold or shared.</strong> No third-party data sales, nothing shared with advertisers or
+  used to target ads at you, no cross-site tracking of any kind (see our <a href="/privacy/">cookie disclosure</a>).</li>
 </ul>
 
 <h2>Encryption</h2>
