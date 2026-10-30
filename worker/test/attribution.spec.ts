@@ -99,6 +99,18 @@ describe("POST /attr", () => {
     expect(after?.hit_count).toBe(startCount + 1);
   });
 
+  // GTM decision B (2026-10-30): Google Ads clicks are attributed by a src=ga
+  // Final URL suffix instead of a Google tag, so the Worker must count it.
+  it("accepts the ga Google Ads tag and counts it", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const before = await attrRow(today, "ga");
+    const startCount = before?.hit_count ?? 0;
+    const resp = await postAttr("ga", "203.0.113.45");
+    expect(resp.status).toBe(204);
+    const after = await attrRow(today, "ga");
+    expect(after?.hit_count).toBe(startCount + 1);
+  });
+
   it("keeps separate counters per src on the same day", async () => {
     const ip = "203.0.113.43";
     const today = new Date().toISOString().slice(0, 10);
