@@ -57,10 +57,10 @@
       "body_modified": "2026-08-04"
     },
     "florida-cpa-license-renewal-guide": {
-      "last_reviewed": "2026-09-19",
-      "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "e857e16225b21d2c797f40d1f8c8cac9dfb09c26fa7207da465517588ef9e1e0",
-      "body_modified": "2026-09-19"
+      "last_reviewed": "2026-10-30",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-src90-r2-review",
+      "body_sha256": "02474d638b8978370812de36d6cf39b6f26015ee85e34f7751e706ed0fea2fca",
+      "body_modified": "2026-10-30"
     },
     "minnesota-cpa-license-renewal-guide": {
       "last_reviewed": "2026-08-22",

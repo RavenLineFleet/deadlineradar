@@ -25419,17 +25419,18 @@ actually applies to you.</p>
 61H1-33.003): at least 8 hours in accounting/auditing, at least 4 hours of Board-approved ethics (a
 review of Chapters 455 and 473, Florida Statutes, and related rules), and no more than 20 hours in
 behavioral subjects. There's no separate annual minimum written into the rule itself — the 80-hour
-count is checked against the full 2-year period. One date worth flagging separately from your license
-renewal itself: CPE reporting is due <strong>July 31</strong>, ahead of the biennial renewal, not on
-the renewal date itself — <strong>through September 29, 2026</strong>. An adopted rule amendment moves
-that reporting deadline to <strong>December 31</strong> starting September 30, 2026 (Fla. Admin. Code
-R. 61H1-33.003, amended); if you're reading this on or after that date, December 31 is correct.</p>
+count is checked against the full 2-year period. Reporting: proof of CPE completion goes into DBPR's
+online portal on or before <strong>December 31</strong> following the re-establishment period, and
+before the biennial license renewal (Fla. Admin. Code R. 61H1-33.003). For an individual license, that
+December 31 is also the renewal date itself, so report your CPE before you renew; which year it falls
+in depends on your own license's expiration. That December 31 date took effect September 30, 2026,
+when the Board's amended rule replaced the earlier July 31 date.</p>
 
 <p><strong>Bottom line</strong>: if you're an individual Florida CPA, don't trust an odd/even guess —
 confirm your exact date on DBPR's own license lookup, since it's tied to your personal certificate
 date, not a public calendar rule. If you're tracking a firm license instead, December 31 of odd years
-is the real, confirmed date. Either way, your 80-hour/2-year CPE count (with its July 31 reporting
-deadline through September 29, 2026, then December 31 after) runs on its own separate clock.
+is the real, confirmed date. Either way, your 80-hour/2-year CPE count accrues over its own July 1 to
+June 30 re-establishment period, with proof reported by December 31 and before you renew.
 <a href="../../florida/">See the full sourcing and set a reminder for your Florida deadline here</a>.</p>
 """,
     },
