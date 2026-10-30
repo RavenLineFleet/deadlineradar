@@ -9210,6 +9210,11 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # then reads as leftover from THAT stat instead. Named the footnote's
     # subject explicitly so it's correct regardless of render order or which
     # counts coincide, rather than relying on proximity.
+    # AuditLab COPY-54 (MEDIUM, 2026-10-30): the footnote glued "you enter the
+    # date on your license" to the 18-state "varies" count, but the form only
+    # asks for a date where isStateComputable() is false -- the 6 byod states.
+    # The promise now carries _cov["byod"]; check_manual_date_promise_count in
+    # preship_gate.py ties that number to the rendered date-input census.
     stats_band_html = f"""<section class="band-section band-section--alt dr-reveal home-stats">
   <p class="eyebrow">Where this site stands right now</p>
   <h2>A live snapshot of coverage, and how recently we keep it checked.</h2>
@@ -9222,7 +9227,9 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     {_extra_stat_items_html}
   </div>
   <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
-  license type or cohort, you enter the date on your license and we track it from there.</p>
+  license type or cohort, there's no one date to list, but we still compute most of them from what you
+  tell us at signup. In {_cov["byod"]}, the board's rule doesn't let us compute a date at all, so you
+  enter the date on your license and we track it from there.</p>
 </section>"""
 
     # ShopLab cold-read (2026-08-20, orchestrator-approved, "same fix batch" as
@@ -26856,7 +26863,9 @@ above &mdash; it carries a direct link to the board page and codified rule, per 
 """
     # AuditLab COPY-21 (2026-09-26): a hand-kept "{BYOD_COUNT}" placeholder in
     # one article's body_html (rather than a literal number) so this figure
-    # can't drift from the same derived stat the homepage footnote uses --
+    # can't drift from _coverage_counts()["byod"], the stat the homepage
+    # footnote's manual-entry sentence uses too since COPY-54 (before that the
+    # footnote used _home_list_hint_counts()["varies"], a different set) --
     # the exact hand-kept-copy-of-a-derived-number gap GATE-6 already closed
     # in the homepage code, re-opened once in blog prose. Fails loudly
     # (rather than silently shipping the literal placeholder text) if a
@@ -27238,8 +27247,10 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
 - {hint_counts["birth_month"]} renew on a birth-month cycle (the exact date depends on your birth
   month, computed automatically once you provide it).
 - {hint_counts["varies"]} depend on your specific license type or cohort, or have no
-  independently verifiable published date, so the visitor enters their own license's date and we
-  track it from there rather than guess or round up.
+  independently verifiable published date; for most of these we still compute the date from details
+  the visitor supplies (a cohort, license type or birth month).
+- In {cov["byod"]}, the rule doesn't let us compute a date, so the visitor enters their own license's
+  date and we track it from there rather than guess or round up.
 
 ## How dates are verified
 

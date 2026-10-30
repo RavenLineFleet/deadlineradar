@@ -2665,6 +2665,58 @@ def check_freshness_claim_names_its_datasets(html_files) -> list[str]:
     return errors
 
 
+# AuditLab COPY-54 (MEDIUM, 2026-10-30): the homepage footnote promised "you
+# enter the date on your license" to the 18 "varies" jurisdictions while the
+# signup form asks for a date in only the 6 where isStateComputable() is false.
+# Any sentence on / or /llms.txt that promises manual date entry must name the
+# number of state pages that actually render the license_expiration_date input,
+# and no other count (the jurisdiction total is allowed). A missing promise,
+# or one that names no count at all, is fine; a wrong count is an ERROR.
+_MANUAL_DATE_PROMISE_RE = re.compile(r"\benters? (?:the|their own|your)\b[^.]{0,40}?\bdate\b", re.I)
+_DATE_INPUT_MARKER = 'id="license_expiration_date" name="license_expiration_date"'
+
+
+def check_manual_date_promise_count(repo_root: Path, docs_dir: Path | None = None) -> list[str]:
+    docs_dir = docs_dir or (repo_root / "docs")
+    slugs = {r["state_slug"] for r in json.loads(
+        (repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))["records"]}
+    pages = [docs_dir / slug / "index.html" for slug in sorted(slugs)]
+    missing = [p for p in pages if not p.exists()]
+    if missing or not pages:
+        return [f"[COPY-54] {len(missing)} of {len(pages)} state pages missing under {docs_dir} -- the date-input census is measuring nothing"]
+    census = sum(1 for p in pages if _DATE_INPUT_MARKER in p.read_text(encoding="utf-8", errors="replace"))
+    if census == 0:
+        return [f"[COPY-54] 0 of {len(pages)} state pages carry {_DATE_INPUT_MARKER!r} -- the marker drifted, so the census is measuring nothing"]
+    allowed = {census, len(slugs)}
+    errors = []
+    for rel in ("index.html", "llms.txt"):
+        f = docs_dir / rel
+        if not f.exists():
+            errors.append(f"[COPY-54] {f} missing")
+            continue
+        raw = f.read_text(encoding="utf-8", errors="replace")
+        if rel.endswith(".html"):
+            # Block-level closers end a sentence, so the stat tiles above the
+            # footnote can't merge into it.
+            raw = re.sub(r"</(?:p|div|li|h[1-6]|span|label|td|th)>", ". ", raw, flags=re.I)
+            text = _extract_rendered_prose(raw)
+        else:
+            text = raw
+        text = re.sub(r"\s+", " ", text)
+        for sentence in re.split(r"(?<=[.;])\s+", text):
+            if not _MANUAL_DATE_PROMISE_RE.search(sentence):
+                continue
+            nums = {int(n) for n in re.findall(r"\b\d+\b", sentence)}
+            # A count-less promise (a form label, "bring your own date") names
+            # no population, so it can't name the wrong one.
+            if nums and (census not in nums or nums - allowed):
+                errors.append(
+                    f"[COPY-54] /{rel}: manual date-entry promise names {sorted(nums)} but {census} state "
+                    f"pages render the date input -- {sentence.strip()[:160]!r}"
+                )
+    return errors
+
+
 def check_cpe_hours_currency(repo_root: Path) -> list[str]:
     """AuditLab BADGE-1 (MEDIUM, 2026-08-09): roadmap #47 upgraded the public
     CPE badge from a bare "Verified" to a dated "Verified 2026-07-15" on 50
@@ -9904,6 +9956,7 @@ def main():
     all_errors += check_cpe_hours_currency(repo_root)
     all_errors += check_freshness_denominator_covers_datasets(repo_root)
     all_errors += check_freshness_claim_names_its_datasets(html_files)
+    all_errors += check_manual_date_promise_count(repo_root, docs_dir)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)

@@ -12,8 +12,10 @@
 - 6 renew on a birth-month cycle (the exact date depends on your birth
   month, computed automatically once you provide it).
 - 18 depend on your specific license type or cohort, or have no
-  independently verifiable published date, so the visitor enters their own license's date and we
-  track it from there rather than guess or round up.
+  independently verifiable published date; for most of these we still compute the date from details
+  the visitor supplies (a cohort, license type or birth month).
+- In 6, the rule doesn't let us compute a date, so the visitor enters their own license's
+  date and we track it from there rather than guess or round up.
 
 ## How dates are verified
 
