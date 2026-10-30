@@ -113,14 +113,14 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     .map((r) => normalizeFirmRuleRow(r))
     .filter((r): r is FirmMobilityRuleRow => r !== null);
 
-  it("exactly 4 states have a genuinely unclear (null) attest_exemption -- Maine, Massachusetts, Ohio, Tennessee", () => {
+  it("exactly 6 states have a genuinely unclear (null) attest_exemption -- Idaho, Maine, Massachusetts, Ohio, Tennessee, Wisconsin (2026-10-30 thin-source re-verify: ID 54-214(1) vs 54-221(3) unreconciled; WI 442.025(4) is written for persons)", () => {
     const unclear = rows.filter((r) => r.attestExemption.exists === null).map((r) => r.stateSlug).sort();
-    expect(unclear).toEqual(["maine", "massachusetts", "ohio", "tennessee"]);
+    expect(unclear).toEqual(["idaho", "maine", "massachusetts", "ohio", "tennessee", "wisconsin"]);
   });
 
-  it("exactly 3 states have an unverified physical_office_trigger -- Guam, Utah, Wisconsin (2026-08-17: US Virgin Islands filled in)", () => {
+  it("exactly 2 states have an unverified physical_office_trigger -- Guam, Wisconsin (2026-08-17: US Virgin Islands filled in; 2026-10-30: Utah filled in from 58-26a-302(3)(b), 58-26a-501(1)(b))", () => {
     const unclear = rows.filter((r) => r.physicalOfficeTrigger.exists === null).map((r) => r.stateSlug).sort();
-    expect(unclear).toEqual(["guam", "utah", "wisconsin"]);
+    expect(unclear).toEqual(["guam", "wisconsin"]);
   });
 
   it("exactly these states carry a real source_disagreement note (2026-08-17: WV, AZ, NJ, NM, NY, PA, USVI, VT, NH resolved via direct primary-source text -- NE/OH genuinely unresolved)", () => {

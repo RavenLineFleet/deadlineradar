@@ -79,25 +79,25 @@
       "exists": null,
       "citation": "32 M.R.S. section 12252(1); section 12253",
       "citation_url": "https://www.mainelegislature.org/legis/statutes/32/title32sec12252.html",
-      "notes": "Unclear -- section 12253 exempts no-office out-of-state firms meeting substantial-equivalency standards without an explicit attest/non-attest carve-out in the retrieved text. Marked null rather than guess; only the statute itself was confirmed, a board rules PDF could not be parsed."
+      "notes": "A firm with no Maine office needs a Maine license to perform audit, examination or other services in section 12201(3-A)(A), (C) or (D) for a client with its home office in Maine, unless it qualifies for a firm license under subsections 3 and 8 and works through an individual with practice privileges, or it meets the substantial-equivalency requirements of section 12253 (section 12252(1)(A)(3)). Review and compilation engagements and SSAE examination, review and agreed-upon-procedures engagements (section 12201(3-A)(B), (F)) carry the same two alternative conditions (section 12252(1)(B)), and non-attest services under the CPA title require section 12253 or work through a practice-privilege individual (section 12252(1)(C)). Whether your firm qualifies turns on those conditions; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "32 M.R.S. section 12252(1)",
       "citation_url": "https://www.mainelegislature.org/legis/statutes/32/title32sec12252.html",
-      "notes": "Qualified trigger: ME office performing attest services (per section 12201(3-A)(A-D)) OR ME office using CPA/CPA-firm title triggers licensure -- narrower than Kansas."
+      "notes": "A firm must hold a Maine license if it has a Maine office performing any of the services in section 12201(3-A)(A)-(D), or a Maine office that uses the title 'CPA' or 'CPA firm' (section 12252(1)(A))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "32 M.R.S. section 12252(8)",
       "citation_url": "https://www.mainelegislature.org/legis/statutes/32/title32sec12252.html",
-      "notes": "Firms providing attest services other than compilations must complete approved peer review as a licensure/renewal condition -- initial review within 18 months, then every 3 years. Single-source only."
+      "notes": "As a condition of granting or renewing a firm license, a firm that provides attest services other than compilations must participate in an approved peer review program: a review within 18 months of initial licensure, then every 3 years (section 12252(8))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "maine",
     "state": "Maine",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "maryland": {
     "attest_exemption": {
@@ -279,25 +279,25 @@
       "exists": null,
       "citation": "Tenn. Code Ann. section 62-1-108(a)",
       "citation_url": "https://law.justia.com/codes/tennessee/title-62/chapter-1/part-1/section-62-1-108/",
-      "notes": "A firm must hold a permit to provide attest services or use CPA/PA titling; by negative implication a non-attest, non-titled firm wouldn't need one, but this wasn't confirmed as an explicit stated exemption for out-of-state/no-office firms. Official statute site 403'd; this is inference from secondary excerpts, flagged for future direct verification."
+      "notes": "A firm must hold a permit to provide attest services or to use the titles 'CPAs', 'CPA firm', 'PAs' or 'PA firm' (section 62-1-108(a)). The section does not separately address a firm with no Tennessee office performing attest work for a Tennessee client; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Tenn. Code Ann. section 62-1-108",
       "citation_url": "https://law.justia.com/codes/tennessee/title-62/chapter-1/part-1/section-62-1-108/",
-      "notes": "Board grants/renews permits to out-of-state firms that establish a TN office; a firm with multiple locations must obtain a permit for each location."
+      "notes": "The board grants permits to firms originally licensed in another state that establish an office in Tennessee, and a firm with multiple locations must obtain a permit for each location in Tennessee (section 62-1-108(a), (e))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Tenn. Comp. R. & Regs. 0020-01-.11; Ch. 0020-06",
-      "citation_url": "https://www.law.cornell.edu/regulations/tennessee/Tenn-Comp-R-Regs-0020-01-.11",
-      "notes": "Firm permit renewal applications must disclose the peer review program participated in plus proof of compliance. Secondary source (TN Dept of Commerce Peer Review FAQ) confirms compliance mandatory for renewal."
+      "citation": "Tenn. Comp. R. & Regs. 0020-01-.11(3)(j); 0020-06-.04(1)",
+      "citation_url": "https://publications.tnsosfiles.com/rules/0020/0020-06.20250928.pdf",
+      "notes": "Enrollment in an approved peer review program is a condition for renewal of a permit for firms that issue attest work (Rule 0020-06-.04(1)), and a firm permit application must state the firm's peer review program with proof of compliance (Rule 0020-01-.11(3)(j))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "tennessee",
     "state": "Tennessee",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "texas": {
     "attest_exemption": {
@@ -327,27 +327,27 @@
   "utah": {
     "attest_exemption": {
       "exists": false,
-      "citation": "Utah Code section 58-26a-305; Utah Admin. Code R156-26a-305",
-      "citation_url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-305",
-      "notes": "Exemption is service-neutral, not attest-vs-non-attest based: a no-UT-principal-place-of-business firm meeting home-jurisdiction license/ownership/peer-review requirements is exempt regardless of service type. The operative test is principal-place-of-business location, not service mix. Raw statutory PDF text couldn't be fetched directly; based on secondary (Cornell LII) rendering."
+      "citation": "Utah Admin. Code R156-26a-305(3); Utah Code section 58-26a-305(1)(a)",
+      "citation_url": "https://commerce.utah.gov/wp-content/uploads/2026/06/proposed-rule-r156-accountancy-oar-58008.pdf",
+      "notes": "A CPA firm not licensed in Utah may perform attest or non-attest services in Utah through mobility without a Utah license if its principal place of business is not in Utah and it meets the other conditions of Rule R156-26a-305(3), including Utah's ownership requirement (section 58-26a-302(3)(a)(iii)) and peer review requirement (Rule R156-26a-303a). The rule was amended effective July 8, 2026, after 2025 legislation (SB 15, effective July 1, 2026) rewrote section 58-26a-305(1)(a) to refer only to individuals. Otherwise a firm must register with the Division to engage in the practice of public accounting in Utah (section 58-26a-301(2))."
     },
     "physical_office_trigger": {
-      "exists": null,
-      "citation": "Utah Code section 58-26a-305 / R156-26a-305 (principal-place-of-business test)",
-      "citation_url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-305",
-      "notes": "Rule conditions the exemption on principal place of business being outside Utah, not literally 'physical office' -- whether a secondary (non-principal) UT office alone independently triggers registration wasn't confirmed. Marked unclear pending direct statutory text."
+      "exists": true,
+      "citation": "Utah Code sections 58-26a-501(1)(b), 58-26a-302(3)(b)",
+      "citation_url": "https://le.utah.gov/xcode/Title58/Chapter26A/C58-26a_1800010118000101.xml",
+      "notes": "A firm may not use the title 'certified public accountant' or 'CPA' unless each of its Utah offices is registered with the division (section 58-26a-501(1)(b)), and each separate Utah location of a firm seeking registration must register separately (section 58-26a-302(3)(b))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Utah Admin. Code R156-26a-303a",
-      "citation_url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-303a",
-      "notes": "Peer review is a condition for license renewal for firms in the practice of public accounting, at least once every 3 years; firms outside scope must notify the Division of exemption at renewal."
+      "citation_url": "https://commerce.utah.gov/wp-content/uploads/2026/06/proposed-rule-r156-accountancy-oar-58008.pdf",
+      "notes": "A firm engaged in the practice of public accounting must undergo a peer review at least once every three years; a firm outside the peer review requirement must notify the Division of its exemption when it renews its registration (Rule R156-26a-303a, as amended effective July 8, 2026)."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "utah",
     "state": "Utah",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "vermont": {
     "attest_exemption": {
@@ -377,102 +377,102 @@
   "massachusetts": {
     "attest_exemption": {
       "exists": null,
-      "citation": "Mass. Gen. Laws c. 112, section 87B1/2",
-      "citation_url": "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B%201~2",
-      "notes": "Statute (per consistent secondary quoting) requires firms to register each MA office and show attest/compilation services are under the charge of a licensed person; separately, out-of-state firms with no MA physical office/principal place of business may provide services without a MA license if maintaining a valid home-state license. Reads as a broader office-based exemption rather than a clean attest/non-attest split. Not independently confirmed against the primary statute text -- treat as unverified rather than a settled reading."
+      "citation": "252 CMR 2.13; Mass. Gen. Laws c. 112, section 87D(a)",
+      "citation_url": "https://www.mass.gov/doc/252-cmr-2-requirements-for-certification/download",
+      "notes": "Only a person or firm holding a valid Massachusetts license may issue an audit, review or compilation report, but that bar does not apply to an individual practicing under the section 87B(h)(2) mobility provision (section 87D). Under 252 CMR 2.13, an out-of-state firm cannot enter Massachusetts under section 87B(h)(2) to provide 'restricted services', meaning services its home state's board restricts for Massachusetts CPAs, and a firm whose home board requires firm registration for such services must obtain a Massachusetts license. How this applies depends on your home state's rules; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Mass. Gen. Laws c. 112, section 87B1/2",
       "citation_url": "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXVI/Chapter112/Section87B%201~2",
-      "notes": "Firms must register each MA office as part of firm permit issuance/renewal -- maintaining an MA office brings the firm into the registration system. Not independently verified against full primary text (fetch blocked), based on consistent secondary quoting."
+      "notes": "A firm applying for or renewing a Massachusetts permit must register each of its Massachusetts offices with the board (section 87B1/2(c)). The statute's licensing triggers are issuing reports and using the CPA title (section 87D), not having an office as such; confirm with the board whether your office's work falls within them."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "252 CMR 2.15",
       "citation_url": "https://www.mass.gov/doc/252-cmr-2-requirements-for-certification/download",
-      "notes": "As a condition for license renewal, practice unit must certify completion of a quality review within the preceding 3 years for audit/attest services; firms issuing no attest/compilation reports are exempt. Confirmed via two independent search passes, primary fetch not directly verified verbatim."
+      "notes": "As a condition of license renewal, a licensee must certify that its practice unit completed, within the preceding three years, a quality review accepted by a report acceptance body (252 CMR 2.15(2)(a)). A practice unit that conducted no attest or compilation engagements in those three years may instead certify that, and must undergo a review within eighteen months of undertaking one."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "massachusetts",
     "state": "Massachusetts",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "michigan": {
     "attest_exemption": {
       "exists": false,
       "citation": "MCL 339.728(4) and (5)",
       "citation_url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-728",
-      "notes": "Does not map to a clean split: a no-MI-office firm can perform review/compilation (subsection 4) AND full attest/other professional services (subsection 5) without a MI license, each 'only if' meeting stated conditions (individual practice privilege, lawful home-state practice, likely peer-review-related conditions). Conditional/gated exemption for attest, not force-registered."
+      "notes": "A firm with no Michigan office may perform reviews, compilations, examinations and agreed-upon procedures (section 728(4)), or audits and other attest services while using the CPA firm title (section 728(5)), without a Michigan license only if it works through an individual with Michigan practice privileges, is authorized to perform those services where that individual has a principal place of business, and meets the ownership and supervision requirements of section 728(2)(a)-(b) and the peer review requirement of section 729(2). A firm that does not meet every condition must be licensed."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "MCL 339.728(1)",
       "citation_url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-728",
-      "notes": "A firm that establishes/maintains a MI office must obtain a MI license to practice public accounting -- unconditional, service-type-independent. Confirmed via two independent fetches."
+      "notes": "A firm that establishes or maintains an office in Michigan must obtain a Michigan license to practice public accounting in Michigan (section 728(1))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "MCL 339.729",
       "citation_url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-729",
-      "notes": "Renewal applicant must submit proof of peer review obtained within the preceding 3 years; must enroll with a sponsoring org within 1 year of initial licensure or performing services requiring peer review, report fail/2nd-consecutive-deficiency ratings within 30 days."
+      "notes": "A firm that performs audits, reviews, or compilations relied on by third parties must undergo peer review (section 729(2)). A renewal applicant submits proof of peer review obtained within the preceding 3 years (section 729(3)) and must notify the department within 30 days of a fail rating or a second consecutive pass-with-deficiencies rating (section 729(4))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "michigan",
     "state": "Michigan",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "minnesota": {
     "attest_exemption": {
       "exists": false,
       "citation": "Minn. Stat. section 326A.05, subd. 1(a)(4) and subd. 1(b)-(c)",
       "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
-      "notes": "Subd 1(a)(4) requires a permit for a no-office firm performing attest for an MN-headquartered client, BUT subd 1(b) exempts a no-office firm with a valid home-state permit from needing an MN permit (including for attest) if the HOME state requires equivalent peer review as a renewal condition and work is via a practice-privileged individual. Attest doesn't unconditionally trigger registration -- gated on home-state peer review regime."
+      "notes": "A firm with no Minnesota office needs a Minnesota permit to perform, for a client headquartered in Minnesota, an audit or other engagement under Statements on Auditing Standards, an examination of prospective financial information, or a PCAOB engagement (subd. 1(a)(4), with section 326A.01, subd. 2, clauses (1), (4), (5)). A firm holding a valid permit from another state may perform government-auditing-standards engagements, PCAOB engagements and compilations for such a client without a Minnesota permit only if it meets the subd. 3(b) ownership requirements, its home state requires equivalent peer review for permit renewal, and it works through an individual with practice privileges under section 326A.14 (subd. 1(b)). The statute lists PCAOB engagements in both paragraphs; confirm with the board. Other services under the CPA title are governed by subd. 1(c)."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Minn. Stat. section 326A.05, subd. 1(a)(1)",
       "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
-      "notes": "Any firm with an MN office performing attest services must hold a permit; MN office also triggers title-registration (CPA/CPA-firm title use) requirements independently."
+      "notes": "A firm with a Minnesota office that performs attest services or uses the title 'CPA' or 'CPA firm' must hold a permit, as must one with a Minnesota office that performs compilations to the extent section 326A.10(k) requires (section 326A.05, subd. 1(a)(1)-(3))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Minn. Stat. section 326A.05, subd. 8(a)",
       "citation_url": "https://www.revisor.mn.gov/statutes/cite/326A.05",
-      "notes": "Permit holders must undergo peer review no more than once every 3 years, in a board-specified manner, as a renewal condition."
+      "notes": "As a condition of permit renewal, the board by rule requires firms to undergo peer review no more often than once every three years, in a manner the board specifies (section 326A.05, subd. 8(a))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "minnesota",
     "state": "Minnesota",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "mississippi": {
     "attest_exemption": {
       "exists": false,
-      "citation": "Miss. Code Ann. section 73-33-1(3)(a)-(c)",
+      "citation": "Miss. Code Ann. section 73-33-1(3)(a)-(b); section 73-33-17(4)",
       "citation_url": "https://law.justia.com/codes/mississippi/title-73/chapter-33/section-73-33-1/",
-      "notes": "Subsection (a) requires a permit for a no-office firm performing attest/review/compilation for an MS-headquartered client, BUT subsection (b) creates a conditional exemption for such firms 'only if' peer-review-compliant per board rule. Attest/review work by a no-office firm is not unconditionally force-registered -- gated on peer review, same pattern as MN/MO/MI."
+      "notes": "A firm with no Mississippi office needs a Mississippi permit to perform a financial statement audit or other engagement under Statements on Auditing Standards, an examination of prospective financial information, or a PCAOB engagement for a client whose home office is in Mississippi (section 73-33-1(3)(a), with section 73-33-17(4)). It may perform reviews and compilations without a permit only if it has the subsection (4) ownership qualifications, complies with the board's peer review rules, and works through an individual with practice privileges under section 73-33-17 (section 73-33-1(3)(b)). HB 1137 (2026), effective July 1, 2026, changed the education and experience requirements for those individual practice privileges."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Miss. Code Ann. section 73-33-1(3)(a)",
       "citation_url": "https://law.justia.com/codes/mississippi/title-73/chapter-33/section-73-33-1/",
-      "notes": "Any firm with an MS office practicing public accountancy or using CPA/CPA-firm title must hold a permit -- unconditional office-based trigger."
+      "notes": "Any firm with a Mississippi office that practices public accountancy or uses the title 'CPA' or 'CPA firm' must hold a permit (section 73-33-1(3)(a))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Miss. Code Ann. section 73-33-1(3)(b)",
+      "citation": "Miss. Code Ann. section 73-33-1(3)(b); Miss. State Board of Public Accountancy Rule 5.3.2",
       "citation_url": "https://law.justia.com/codes/mississippi/title-73/chapter-33/section-73-33-1/",
-      "notes": "No-office/review-compilation exemption explicitly conditioned on peer review compliance per board rule; secondary sourcing confirms peer review as a standing renewal condition for attest/compilation firms."
+      "notes": "Reviews and compilations by a no-office firm are permitted only if the firm complies with the board's peer review rules (section 73-33-1(3)(b)). Under Board Rule 5.3.2, each practice unit, other than one that performed no accounting or auditing engagements in the 12 months before registration (Rule 5.3.1), must complete a peer review once every three years in order to register with the board."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "mississippi",
     "state": "Mississippi",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "missouri": {
     "attest_exemption": {
@@ -501,28 +501,28 @@
   },
   "puerto-rico": {
     "attest_exemption": {
-      "exists": true,
-      "citation": "20 L.P.R.A. sections 772(12), 775, 778 (Ley Num. 293 de 1945, Secciones 4, 5, 18(12))",
+      "exists": false,
+      "citation": "20 L.P.R.A. sections 772(12), 775, 778, 784 (Ley Num. 293 de 1945, Secciones 4, 5, 11(b), 18(12))",
       "citation_url": "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
-      "notes": "PR statute defines 'practice of public accounting' narrowly as attest-type services only (Seccion 18(12)) -- explicitly excludes tax prep/consulting/bookkeeping. Firm registration (Seccion 5) is triggered only by that narrow attest definition; non-attest-only firms fall outside the mandatory trigger entirely."
+      "notes": "Any firm engaged in Puerto Rico in the practice of public accounting must register with the Junta as a firm of public accountants (Seccion 5(a)), and the practice of public accounting is defined as attest services (Seccion 18(12)). The practice-privilege provision of Seccion 4(a) applies to individuals ('persona natural'), not firms, and an individual practicing under it may perform attest services for an entity headquartered in Puerto Rico only through a firm holding a permit (Seccion 4(a)(3)). So attest work in Puerto Rico requires firm registration even without a Puerto Rico office. Services outside the Seccion 18(12) definition, such as tax preparation, consulting and bookkeeping, do not by themselves trigger registration, but a firm may not use the title 'contadores publicos autorizados' or 'CPAs' unless it is registered under Seccion 5 (Seccion 11(b))."
     },
     "physical_office_trigger": {
       "exists": false,
       "citation": "20 L.P.R.A. section 778 (Seccion 5)",
       "citation_url": "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
-      "notes": "Registration is framed around engaging in PR in the (narrow, attest-only) practice of public accounting, not around office presence. No language makes a bare office an independent trigger."
+      "notes": "Registration turns on engaging in Puerto Rico in the practice of public accounting (Seccion 5(a)), not on having an office. An office appears only as a condition: each resident manager in charge of a firm office in Puerto Rico must be a Puerto Rico-licensed CPA or public accountant (Seccion 5(a)(4))."
     },
     "peer_review_conditions_permit": {
       "exists": false,
       "citation": "20 L.P.R.A. section 779 (Seccion 6)",
       "citation_url": "https://bvirtualogp.pr.gov/ogp/Bvirtual/leyesreferencia/PDF/293-1945.pdf",
-      "notes": "License renewal conditions only on CPE evidence from the Colegio de CPA; no peer review mention in the 21-section statute as reviewed. A peer-review mandate could exist in Junta regulations not reached by this research -- not found in the primary law itself."
+      "notes": "Renewal of an individual CPA license is conditioned on continuing education evidence (Seccion 6(b)); the statute, as amended through Ley 174-2025, contains no peer review requirement for firms."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "puerto-rico",
     "state": "Puerto Rico",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "guam": {
     "attest_exemption": {
@@ -576,28 +576,28 @@
   },
   "northern-mariana-islands": {
     "attest_exemption": {
-      "exists": true,
-      "citation": "CNMI Public Law 13-52 (Accountancy Act of 2002), Section 13(a) with Section 7(a)",
+      "exists": false,
+      "citation": "CNMI Public Law 13-52 (Accountancy Act of 2002), Section 13(a), (e), with Section 7(a)",
       "citation_url": "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
-      "notes": "Full primary text read directly. Section 7(a) requires a permit to practice public accountancy (broadly defined to include non-attest per Section 3(g)), but Section 13(a)'s operative prohibition only bars issuing a report on financial statements without a permit, and explicitly does NOT prohibit non-attest services (tax returns, management advisory, financial statement prep without report issuance). Net effect: non-attest services are lawful without a CNMI firm permit; only report/attest issuance is gated. Synthesis of two interacting provisions, flagged as such."
+      "notes": "Only a person or firm holding a valid CNMI certificate, permit or registration may issue a report on financial statements (Section 13(a)), and no firm may practice public accountancy or use the CPA title in the CNMI without a CNMI firm permit (Section 13(e)). The Act has no exception for firms without a CNMI office, so attest work there requires a CNMI permit. Tax return preparation and management advisory services fall outside the Section 13(a) prohibition, but a firm holding itself out as a CPA firm while providing them is practicing public accountancy (Section 3(g)) and needs a CNMI permit (Section 13(e))."
     },
     "physical_office_trigger": {
       "exists": false,
-      "citation": "CNMI Public Law 13-52, Section 7(d)(4)",
+      "citation": "CNMI Public Law 13-52, Section 7(d)",
       "citation_url": "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
-      "notes": "Requires a permitted firm to register each CNMI office -- a sub-requirement of firms already needing a permit, not an independent standalone trigger. This 2002-vintage Act lacks any UAA-style no-notice mobility/practice-privilege provision, unlike Guam/DC/USVI's more modern statutes."
+      "notes": "A firm holding a CNMI permit must register each of its CNMI offices with the Board (Section 7(d)); that is a condition of the permit rather than a separate trigger. The permit itself is required to practice public accountancy in the CNMI (Sections 7(a), 13(e))."
     },
     "peer_review_conditions_permit": {
       "exists": null,
-      "citation": "CNMI Public Law 13-52, Section 7(g)",
+      "citation": "CNMI Public Law 13-52, Section 7(g); NMIAC sections 1-10-710, 1-10-715",
       "citation_url": "https://www.cnmilaw.org/pdf/public_laws/13/pl13-52.pdf",
-      "notes": "Statute only AUTHORIZES the Board to require peer review as a renewal condition by rule -- not self-executing. Whether the CNMI Board has actually adopted such a rule could not be confirmed; this fleet's prior research found the CNMI Board has minimal-to-no public web presence and per NASBA is not currently accepting CPA exam applications."
+      "notes": "The Act authorizes the Board to require quality review as a condition of permit renewal (Section 7(g)), and the Board's rules provide that it may require a peer review as a condition of renewed licensing, with an exception for a firm that had a satisfactory peer review under a Board-approved program within the preceding three years (NMIAC sections 1-10-710, 1-10-715). The rules make peer review discretionary rather than a fixed renewal condition; confirm with the Board."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "northern-mariana-islands",
     "state": "Northern Mariana Islands",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "oklahoma": {
     "attest_exemption": {
@@ -801,28 +801,28 @@
   },
   "wisconsin": {
     "attest_exemption": {
-      "exists": true,
-      "citation": "Wis. Stat. sections 442.025(6)-(7), 442.08(2)(c)1",
+      "exists": null,
+      "citation": "Wis. Stat. sections 442.025(4), (6)-(7), 442.03 (as amended by 2025 Wis. Act 166), 442.08(2)(c)1",
       "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/442/025",
-      "notes": "Section 442.025 exempts non-attest services (management advisory, tax prep, financial statement prep without report issuance) from any ch. 442 license requirement; firm licensure under 442.08 ties to attest services being under the charge of a WI-licensed individual. Inferred by cross-referencing two sections, not one dispositive sentence -- WI has no single explicit 'no Wisconsin office' clause like WV/WY/VA/WA."
+      "notes": "Wisconsin does not require a certificate or license for services involving accounting skills, such as management advisory services, tax preparation and preparing financial statements without issuing reports on them, or for statements that do not purport to comply with SSARS (section 442.025(6)-(7)). It requires that all attest services a licensed firm provides in Wisconsin be under the charge of a Wisconsin-licensed individual (section 442.08(2)(c)1), and section 442.03 (as amended by 2025 Wisconsin Act 166) bars practice unless 'the person or firm has complied with all of the provisions of this chapter, including licensure'. Its out-of-state mobility provision, section 442.025(4), is written for a person holding a CPA certificate or license from another state, and the statute does not say whether it reaches a firm. Whether a firm with no Wisconsin office may perform attest work without a Wisconsin license is therefore unresolved; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": null,
       "citation": "Wis. Stat. section 442.02(1m)(b) vs section 442.025(6)-(7)",
       "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/442/02",
-      "notes": "Unclear/conflicting: section 442.02(1m)(b) lists office maintenance as one way a firm is deemed 'in practice,' suggesting office alone could trigger licensure, but 442.025(6)-(7)'s non-attest exemption appears to override this for firms doing no attest/report work regardless of office. No agency guidance/case law found resolving the interaction."
+      "notes": "A person is in practice as a CPA if, among other things, it maintains an office for the transaction of business as a certified public accountant (section 442.02(1m)(b)), and a firm applying for a license must identify each of its Wisconsin offices (section 442.08(2)(a)). Section 442.025(6)-(7) separately exempts certain accounting-skill services, such as tax preparation and financial statements prepared without a report, from licensure, and the statute does not say how the two interact for an office doing only that work."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Wis. Stat. section 442.087(2)",
       "citation_url": "https://docs.legis.wisconsin.gov/statutes/statutes/442/087",
-      "notes": "Department may not renew a firm's license unless, at least once every 3 years, the firm undergoes peer review -- explicit statutory renewal condition, directly quoted."
+      "notes": "The department may not renew a firm's license unless, at least once every 3 years, the firm undergoes peer review (section 442.087(2))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "wisconsin",
     "state": "Wisconsin",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "wyoming": {
     "attest_exemption": {
@@ -876,28 +876,28 @@
   },
   "idaho": {
     "attest_exemption": {
-      "exists": true,
-      "citation": "Idaho Code section 54-214(1); section 54-227",
+      "exists": null,
+      "citation": "Idaho Code sections 54-214(1), 54-221(3)",
       "citation_url": "https://legislature.idaho.gov/statutesrules/idstat/title54/t54ch2/sect54-214/",
-      "notes": "Registration trigger is framed around attest/compilation services or restricted CPA/LPA titling, not physical presence. A no-office firm doing only non-attest work without a CPA-style name isn't required to register. Attest/compilation work must run through a firm registered in Idaho or an equivalent other-state law."
+      "notes": "A firm must be registered with the board to provide attest services or compilation reports, or to use the titles 'CPAs', 'CPA firm', 'LPAs' or 'LPA firm' (section 54-214(1)). Separately, section 54-221(3) bars individuals, including those with Idaho practice privileges, from performing attest services through a business that is not registered under section 54-214 or an equivalent provision of another state's law, which implies attest work through a firm registered only in another state. The statute does not reconcile the two provisions, so whether a firm with no Idaho office must register to perform attest work here is unresolved; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": false,
       "citation": "Idaho Code section 54-214(1)",
       "citation_url": "https://legislature.idaho.gov/statutesrules/idstat/title54/t54ch2/sect54-214/",
-      "notes": "Registration requirement ties to performing attest/compilation or using restricted titles, not office presence per se; office-establishment language in the statute is procedural/administrative, not an independent substantive trigger."
+      "notes": "Registration is triggered by providing attest services or compilation reports, or by using the CPA or LPA firm titles (section 54-214(1)), not by an office as such. A registered firm must also register each of its Idaho offices (section 54-214(3))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Idaho Code section 54-214",
+      "citation": "Idaho Code section 54-214(6); IDAPA 24.30.01",
       "citation_url": "https://legislature.idaho.gov/statutesrules/idstat/title54/t54ch2/sect54-214/",
-      "notes": "As a condition of registration renewal, board by rule requires firms to comply with peer review requirements. Confirmed via official Idaho Legislature page but through an AI-summarized fetch rather than verbatim capture -- flagged for a currency check against IDAPA 24.30.01 before shipping."
+      "notes": "As a condition of registration renewal, the board by rule requires firms to comply with peer review requirements (section 54-214(6)). Individuals practicing in Idaho under practice privileges follow the peer review requirements of their principal place of business (IDAPA 24.30.01, Rule 207.02)."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "idaho",
     "state": "Idaho",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "illinois": {
     "attest_exemption": {
@@ -916,13 +916,13 @@
       "exists": true,
       "citation": "225 ILCS 450/16(e)",
       "citation_url": "https://www.ilga.gov/legislation/ilcs/documents/022504500K16.htm",
-      "notes": "As a condition for renewal license for CPA firms/sole practitioners performing accountancy activities under 8.05(a)(1), department requires satisfactory peer review completion during the preceding 3-year period. Confirmed verbatim against official IL General Assembly text."
+      "notes": "As a condition of renewal, CPA firms and sole practitioners performing accountancy activities under section 8.05(a)(1) must satisfactorily complete a peer review during the preceding 3-year period, accepted by a Peer Review Administrator, unless exempt under section 16(i) (225 ILCS 450/16(e))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "illinois",
     "state": "Illinois",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "indiana": {
     "attest_exemption": {
@@ -1079,7 +1079,7 @@
       "exists": null,
       "citation": "Ohio Rev. Code section 4701.04(A); section 4701.14; Ohio Admin. Code 4701-13-02",
       "citation_url": "https://codes.ohio.gov/ohio-revised-code/section-4701.04",
-      "notes": "Statute requires registration only for a firm 'located in this state,' with no explicit attest carve-out for no-office firms, but OAC 4701-13-02 separately requires any firm issuing attest reports to notify/register as a peer review firm within 90 days without clearly limiting that duty to Ohio-located firms. Could not resolve the tension from primary text alone -- marked unclear rather than guessed. OAC 4701-13-02(C) requires 'any' attest-performing firm to 'register with the board as a peer review firm pursuant to section 4701.04,' with no explicit location qualifier in (C)/(D)/(E) themselves. One plausible reading: 'pursuant to section 4701.04' imports that section's own location-scoped registration mechanism, so a no-Ohio-office firm has nothing to register into. An equally plausible reading: (C) creates an independent trigger and 'pursuant to section 4701.04' means only 'via that section's process,' not its scope. Genuinely unresolved either way."
+      "notes": "Section 4701.04(A) requires registration of a public accounting firm 'located in this state'. Ohio Admin. Code 4701-13-02(C) requires any public accounting firm that performs or offers engagements resulting in an attest report to notify the board within ninety days and register as a peer review firm 'pursuant to section 4701.04', with no location qualifier. Read one way, that phrase imports 4701.04's location limit; read the other, it creates a separate duty for out-of-state firms. The text does not settle which; confirm with the board."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -1094,35 +1094,35 @@
       "notes": "As a condition for initial/renewal registration, the board requires peer review by rule unless an exception in division (J) applies. OAC 4701-13-02 requires documentation of approved peer review by the October 31 renewal deadline."
     },
     "confidence": "single_source",
-    "source_disagreement": "Statute ties firm registration to being located in Ohio (implying no attest-specific trigger for no-office firms), but OAC 4701-13-02's 90-day notify-and-register duty for attest reports isn't clearly scoped to location -- unresolved tension drove the unclear call.",
+    "source_disagreement": "Ohio Rev. Code section 4701.04(A) requires registration only for a firm located in Ohio, but Ohio Admin. Code 4701-13-02(C) requires any firm that performs engagements resulting in an attest report to notify the board within ninety days and register as a peer review firm, without a stated location limit.",
     "state_slug": "ohio",
     "state": "Ohio",
-    "verified_date": "2026-08-17"
+    "verified_date": "2026-10-30"
   },
   "montana": {
     "attest_exemption": {
       "exists": false,
       "citation": "Mont. Code Ann. section 37-50-335(4)(a)-(b)",
       "citation_url": "https://mca.legmt.gov/bills/mca/title_0370/chapter_0500/part_0030/section_0350/0370-0500-0030-0350.html",
-      "notes": "No-MT-office firm exempt from registration for BOTH attest and non-attest work; attest doesn't independently force registration. No-office firms doing attest/compilation must satisfy substantive conditions instead (peer review, ownership quals, practice-privilege individual, home-state licensure). Dual-sourced: statute + Board FAQ."
+      "notes": "A firm with no Montana office may use the CPA firm title without registering, and may offer attest services and compilations in Montana if it complies with Montana's peer review and firm ownership qualifications, works through an individual with practice privileges under section 37-50-325, and has practice privileges that include attest and compilation services in the state of its principal place of business (section 37-50-335(4)(a)). Confirm with the board how a firm that does not meet those conditions may proceed."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Mont. Code Ann. section 37-50-335(1)",
       "citation_url": "https://mca.legmt.gov/bills/mca/title_0370/chapter_0500/part_0030/section_0350/0370-0500-0030-0350.html",
-      "notes": "All firms establishing/maintaining an MT office for public accounting practice must register annually -- unconditional, service-agnostic. Dual-sourced: statute + Board Mobility page."
+      "notes": "All firms that establish or maintain offices in Montana for the practice of public accounting must register annually with the department (section 37-50-335(1))."
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Admin. R. Mont. 24.201.1103; 24.201.2410",
+      "citation": "Admin. R. Mont. 24.201.1103; 24.201.2410; Mont. Code Ann. section 37-50-335(4)(a)",
       "citation_url": "https://www.law.cornell.edu/regulations/montana/ARM-24-201-1103",
-      "notes": "Registered firms performing attest engagements must enroll in peer review; noncompliance/failing reports are disciplinable, threatening registration -- enforcement-based rather than explicit renewal-denial clause. Single-source."
+      "notes": "Registered firms that perform audits, reviews or compilations, SSAE examination, review or agreed-upon-procedures engagements, or PCAOB-standards engagements for non-issuers must enroll in a board-approved peer review program (ARM 24.201.1103(1)). Failing to comply with the peer review rules, or receiving a fail report or a second or subsequent pass-with-deficiency report, may be cause for disciplinary action (ARM 24.201.2410). For a firm with no Montana office, compliance with Montana's peer review qualifications is a condition of practicing without registering (section 37-50-335(4)(a))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "montana",
     "state": "Montana",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "nebraska": {
     "attest_exemption": {
@@ -1227,27 +1227,27 @@
   "colorado": {
     "attest_exemption": {
       "exists": true,
-      "citation": "C.R.S. section 12-100-116(1)(a)(II) with section 12-100-117(2)(a)(II); 3 CCR 705-1, Rule 1.15(A)(5)-(6)",
+      "citation": "C.R.S. sections 12-100-116(1)(a)(III), 12-100-117(2)(a)(II); 3 CCR 705-1, Rule 1.14(B)(2)",
       "citation_url": "https://law.justia.com/codes/colorado/title-12/business-professions-and-occupations/article-100/section-12-100-117/",
-      "notes": "Inferred by combining the unlawful-acts list (unregistered attest/audit prohibited) with the firm-mobility exemption (non-attest CO work 'incident to' out-of-state practice doesn't require registration) -- not one explicit sentence. Board FAQ blocked (403), statute-only."
+      "notes": "A firm may practice in Colorado without registering with the board if the practice is incident to its regular practice outside Colorado (section 12-100-117(2)(a)(II)), and board Rule 1.14(B)(2) applies this to a firm holding an active firm license or registration in another state. Section 12-100-116(1)(a)(III) lifts the registration requirement for audit and attest work by a firm practicing under section 12-100-117(2). Confirm with the board that your engagement qualifies."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "C.R.S. section 12-100-114 with section 12-100-117(2)(a)(II); 3 CCR 705-1 Rule 1.15(C)(1)(a)",
       "citation_url": "https://law.justia.com/codes/colorado/title-12/business-professions-and-occupations/article-100/section-12-100-114/",
-      "notes": "Inferred: a standing CO office isn't 'incidental' to out-of-state practice, falls outside the exemption, triggers resident-manager/registration obligations. Single source, Board FAQ blocked."
+      "notes": "A firm practicing in Colorado must register unless the section 12-100-117(2)(a)(II) exemption for practice incident to regular practice outside Colorado applies (section 12-100-114(1), as amended by SB 26-076 in 2026), and each resident manager in charge of a Colorado office must be a Colorado CPA (section 12-100-114(1)(d)). Our reading: a standing Colorado office is unlikely to qualify as practice incident to out-of-state practice, though neither the statute nor the board's rules say so expressly. Confirm with the board."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "3 CCR 705-1, Rule 1.15(D)(3); C.R.S. section 12-100-114(7)",
       "citation_url": "https://www.law.cornell.edu/regulations/colorado/3-CCR-705-1.15",
-      "notes": "Board cannot renew registration for a firm issuing attest/compilation reports unless it has attested to peer review. Board's live PeerReview page 403'd, corroborated via cache only."
+      "notes": "The board cannot renew the registration of a firm that issues attest or compilation reports unless the firm has attested to undergoing a peer review (Rule 1.15(D)(3); section 12-100-114(7))."
     },
     "confidence": "single_source",
     "source_disagreement": null,
     "state_slug": "colorado",
     "state": "Colorado",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-30"
   },
   "connecticut": {
     "attest_exemption": {
