@@ -205,6 +205,12 @@
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
       "body_sha256": "503cd0ff7b4475a86b3c2ed90aa246f981829a5215d59393954f751a1f404f27",
       "body_modified": "2026-10-23"
+    },
+    "virginia-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-10-23",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "c1e330cdfb0b95c675f9c5c1c592953e824024362eb5817af619c23697964782",
+      "body_modified": "2026-10-30"
     }
   }
 }

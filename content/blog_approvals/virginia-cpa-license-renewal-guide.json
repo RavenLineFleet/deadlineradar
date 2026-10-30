@@ -1,0 +1,17 @@
+{
+  "slug": "virginia-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "974a53a97fa3e6db0346f6029195aad0a396243eac789f4ee8d030420fea5bfa",
+      "verdict_file": "auditlab_20261023_blog_APPROVED_virginia-cpa-license-renewal-guide.md",
+      "sent": "2026-10-23 14:29 MDT"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "974a53a97fa3e6db0346f6029195aad0a396243eac789f4ee8d030420fea5bfa",
+      "verdict_file": "_AAA_orchestrator_20261023_154849_orch-approval-va-r3-al-r3.md",
+      "sent": "2026-10-23 15:48 MDT"
+    }
+  ]
+}
