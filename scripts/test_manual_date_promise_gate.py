@@ -1,5 +1,5 @@
-"""COPY-54 (AuditLab, 2026-10-30): a manual date-entry promise on / or
-/llms.txt must name the number of state pages that render the date input.
+"""COPY-54 (AuditLab, 2026-10-30): a manual date-entry promise on any built
+page or /llms.txt must name the number of state pages that render the date input.
 
     python -m pytest scripts/test_manual_date_promise_gate.py -q
 """
@@ -65,6 +65,24 @@ def test_census_of_the_full_page_count_passes(tmp_path):
     # GUARD-25: len(slugs) stays allowed, so honest "6 of the 55" copy passes.
     root = _tree(tmp_path, "In 1 of the 3 jurisdictions, you enter the date on your license.")
     assert gate.check_manual_date_promise_count(root) == []
+
+
+def test_promise_naming_only_the_full_page_count_is_error(tmp_path):
+    # GUARD-27: "in all 3" names only len(slugs), which is in `allowed`, so
+    # only the `census not in nums` disjunct catches this overclaim.
+    root = _tree(tmp_path, "In all 3 jurisdictions, you enter the date on your license.")
+    errors = gate.check_manual_date_promise_count(root)
+    assert len(errors) == 1 and "[3]" in errors[0], errors
+
+
+def test_promise_on_a_blog_post_is_scanned(tmp_path):
+    # GUARD-26: the population is the whole built tree, not just / and llms.txt.
+    root = _tree(tmp_path, "In 1, you enter the date on your license.")
+    post = root / "docs" / "blog" / "some-post" / "index.html"
+    post.parent.mkdir(parents=True)
+    post.write_text("<p>In the 2 that vary, you enter the date from your license.</p>", encoding="utf-8")
+    errors = gate.check_manual_date_promise_count(root)
+    assert len(errors) == 1 and "/blog/some-post/index.html" in errors[0], errors
 
 
 def test_census_of_zero_is_error_not_pass(tmp_path):

@@ -2672,6 +2672,8 @@ def check_freshness_claim_names_its_datasets(html_files) -> list[str]:
 # number of state pages that actually render the license_expiration_date input,
 # and no other count (the jurisdiction total is allowed). A missing promise,
 # or one that names no count at all, is fine; a wrong count is an ERROR.
+# GUARD-26: the population is every built index.html plus llms.txt, not just
+# / and /llms.txt -- the renewal-reminders blog post carries the same promise.
 _MANUAL_DATE_PROMISE_RE = re.compile(r"\benters? (?:the|their own|your)\b[^.]{0,40}?\bdate\b", re.I)
 _DATE_INPUT_MARKER = 'id="license_expiration_date" name="license_expiration_date"'
 
@@ -2688,12 +2690,13 @@ def check_manual_date_promise_count(repo_root: Path, docs_dir: Path | None = Non
     if census == 0:
         return [f"[COPY-54] 0 of {len(pages)} state pages carry {_DATE_INPUT_MARKER!r} -- the marker drifted, so the census is measuring nothing"]
     allowed = {census, len(slugs)}
-    errors = []
-    for rel in ("index.html", "llms.txt"):
-        f = docs_dir / rel
-        if not f.exists():
-            errors.append(f"[COPY-54] {f} missing")
-            continue
+    errors = [f"[COPY-54] {docs_dir / rel} missing" for rel in ("index.html", "llms.txt")
+              if not (docs_dir / rel).exists()]
+    surfaces = sorted(docs_dir.rglob("index.html"))
+    if (docs_dir / "llms.txt").exists():
+        surfaces.append(docs_dir / "llms.txt")
+    for f in surfaces:
+        rel = f.relative_to(docs_dir).as_posix()
         raw = f.read_text(encoding="utf-8", errors="replace")
         if rel.endswith(".html"):
             # Block-level closers end a sentence, so the stat tiles above the
