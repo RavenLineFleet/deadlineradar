@@ -5,7 +5,9 @@
       "party": "auditlab",
       "payload_sha256": "723f6a3edb826aea36b11bd253a7e76b2ab54658d6cb920cbebc1a1e1cd99d66",
       "verdict_file": "auditlab_20261024T212327Z_blog_APPROVED_florida-cpa-license-renewal-guide_r2_all_claims_pass_one_advisory_initial_period.md",
-      "sent": "2026-10-24 21:23 UTC"
+      "sent": "2026-10-24 21:23 UTC",
+      "covers": "The 10-24 r2 verdict predates bbf8d14b7 (SRC-90, 2026-10-30), which changed this body. The pinned payload is r2 plus that remedy; AuditLab verified the delta on served bytes in the file below and ratified this pin (19:09Z GUARD-24 close).",
+      "covers_verdict_file": "auditlab_20261030T190300Z_SRC90_VERIFIED_FIXED_CLOSED_signature_half_folds_into_GUARD24.md"
     },
     {
       "party": "orchestrator",

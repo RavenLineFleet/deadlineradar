@@ -9228,7 +9228,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   </div>
   <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
   license type or cohort, there's no one date to list, but we still compute most of them from what you
-  tell us at signup. In {_cov["byod"]}, the board's rule doesn't let us compute a date at all, so you
+  tell us at signup. In {_cov["byod"]} jurisdictions overall, the board's rule doesn't let us compute a date at all, so you
   enter the date on your license and we track it from there.</p>
 </section>"""
 
@@ -27249,7 +27249,7 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
 - {hint_counts["varies"]} depend on your specific license type or cohort, or have no
   independently verifiable published date; for most of these we still compute the date from details
   the visitor supplies (a cohort, license type or birth month).
-- In {cov["byod"]}, the rule doesn't let us compute a date, so the visitor enters their own license's
+- In {cov["byod"]} jurisdictions overall, the rule doesn't let us compute a date, so the visitor enters their own license's
   date and we track it from there rather than guess or round up.
 
 ## How dates are verified

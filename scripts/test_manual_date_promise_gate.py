@@ -8,6 +8,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import preship_gate as gate  # noqa: E402
@@ -55,3 +57,7 @@ def test_census_of_zero_is_error_not_pass(tmp_path):
     page.write_text("<p>alpha</p>", encoding="utf-8")
     errors = gate.check_manual_date_promise_count(root)
     assert len(errors) == 1 and "measuring nothing" in errors[0], errors
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-v"]))
