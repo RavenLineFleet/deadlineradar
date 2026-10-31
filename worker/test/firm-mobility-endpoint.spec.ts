@@ -115,10 +115,10 @@ describe("POST /firm/mobility/firm-check -- server-side peer-review read", () =>
     expect(resp.status).toBe(200);
     const body = (await resp.json()) as { verdict: string; requirements: string[] };
     // If the client-supplied date were honoured, the peer-review line would
-    // read "current" (SRC-153: the verdict is action_required either way, so
+    // read "current" (SRC-153: the verdict is depends_on_facts either way, so
     // the requirement line is what discriminates). The firm's REAL on-file
     // date is null.
-    expect(body.verdict).toBe("action_required");
+    expect(body.verdict).toBe("depends_on_facts");
     expect(body.requirements.join(" ")).toContain("no peer-review due date on file");
     expect(body.requirements.join(" ")).not.toContain("due date is current");
   });
@@ -132,7 +132,7 @@ describe("POST /firm/mobility/firm-check -- server-side peer-review read", () =>
     );
     expect(resp.status).toBe(200);
     const body = (await resp.json()) as { verdict: string; requirements: string[] };
-    expect(body.verdict).toBe("action_required");
+    expect(body.verdict).toBe("depends_on_facts");
     expect(body.requirements).toContain("Your firm's on-file peer-review due date is current (self-reported, not independently verified).");
     expect(body.requirements.join(" ")).not.toContain("no peer-review due date on file");
   });

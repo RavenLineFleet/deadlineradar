@@ -352,7 +352,7 @@
   },
   "vermont": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "26 V.S.A. section 74(a)-(b)",
       "citation_url": "https://legislature.vermont.gov/statutes/section/26/001/00074",
       "notes": "Registration required for a VT-office firm (practicing/using CPA titling), and for a no-office firm performing attest-type services for a VT-home-office client. No-office firm performing non-attest/limited categories for a VT-home-office client is exempt, subject to ownership/practice-privilege conditions. 26 V.S.A. 74(a)-(b): (a)(1)-(2) office-based triggers, (a)(3) the no-office attest trigger for a VT-home-office client, (b) the no-office non-attest exemption."

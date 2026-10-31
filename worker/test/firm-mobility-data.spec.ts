@@ -138,12 +138,12 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     expect(unclear).toEqual(["idaho", "maine", "massachusetts", "ohio", "tennessee", "wisconsin"]);
   });
 
-  it("exactly 20 states require firm registration for no-office attest work (attest_exemption=false) -- SRC-140 2026-10-31 flipped 14 split-encoded rows to true; SRC-141 2026-10-31 flipped 13 rows whose own notes say no-office attest work must register back to false; SRC-143 2026-10-31 Alaska to false under its statute-vs-rule source_disagreement", () => {
+  it("exactly 21 states require firm registration for no-office attest work (attest_exemption=false) -- SRC-154 2026-10-31 vermont to false (its exemption is non-attest only); SRC-140 2026-10-31 flipped 14 split-encoded rows to true; SRC-141 2026-10-31 flipped 13 rows whose own notes say no-office attest work must register back to false; SRC-143 2026-10-31 Alaska to false under its statute-vs-rule source_disagreement", () => {
     const required = rows.filter((r) => r.attestExemption.exists === false).map((r) => r.stateSlug).sort();
     expect(required).toEqual([
       "alaska", "arkansas", "california", "connecticut", "dc", "georgia", "guam", "hawaii", "indiana", "kansas",
       "minnesota", "mississippi", "nebraska", "new-york", "northern-mariana-islands", "puerto-rico",
-      "rhode-island", "south-dakota", "us-virgin-islands", "west-virginia",
+      "rhode-island", "south-dakota", "us-virgin-islands", "vermont", "west-virginia",
     ]);
   });
 
@@ -308,7 +308,7 @@ describe("the engine's answers are conservative where they should be, across the
       );
       expect(finding.verdict, `${row.stateSlug} told an office-having firm 'clear'`).not.toBe("clear");
       if (row.physicalOfficeTrigger.exists === false && !row.sourceDisagreement) {
-        expect(finding.verdict, row.stateSlug).toBe("action_required");
+        expect(finding.verdict, row.stateSlug).toBe("depends_on_facts");
         expect(finding.requirements, row.stateSlug).toEqual([row.physicalOfficeTrigger.notes]);
       }
     }
@@ -320,13 +320,13 @@ describe("the engine's answers are conservative where they should be, across the
     const nv = rows.find((r) => r.stateSlug === "nevada")!;
     expect(nv.attestExemption.exists).toBe(true);
     expect(nv.peerReviewConditionsPermit.exists).not.toBe(true);
-    // Positive control: the live row answers (action_required since SRC-153) and shows its notes.
+    // Positive control: the live row answers (depends_on_facts since SRC-153) and shows its notes.
     const live = evaluateFirmMobility(
       { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false },
       nv,
       null
     );
-    expect(live.verdict).toBe("action_required");
+    expect(live.verdict).toBe("depends_on_facts");
     expect(live.requirements).toEqual([nv.attestExemption.notes]);
     for (const notes of [null, "", "   ", "\n\t "]) {
       const finding = evaluateFirmMobility(
@@ -355,7 +355,7 @@ describe("the engine's answers are conservative where they should be, across the
         row,
         null
       );
-      if (finding.verdict !== "action_required") continue; // disagreement rows render their own text
+      if (finding.verdict !== "depends_on_facts") continue; // disagreement rows render their own text
       expect(finding.summary, row.stateSlug).not.toMatch(/attest|title|titling|principal place|depends on what the office does/i);
       summaries.add(finding.summary);
       checked++;
@@ -386,7 +386,7 @@ describe("the engine's answers are conservative where they should be, across the
         row,
         null
       );
-      expect(finding.verdict, row.stateSlug).toBe("action_required");
+      expect(finding.verdict, row.stateSlug).toBe("depends_on_facts");
       expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
       expect(finding.requirements, row.stateSlug).toEqual([row.physicalOfficeTrigger.notes]);
       summaries.add(finding.summary);
@@ -418,7 +418,7 @@ describe("the engine's answers are conservative where they should be, across the
     // Positive control: the pre-fix headline is caught by BANNED.
     expect(BANNED.test("This state requires firm registration for attest work, even without a physical office here.")).toBe(true);
     const attestFalse = rows.filter((r) => r.attestExemption.exists === false);
-    expect(attestFalse.length).toBe(20);
+    expect(attestFalse.length).toBe(21);
     const CLIENT_CONDITIONED = [
       "arkansas", "california", "connecticut", "dc", "kansas", "minnesota", "mississippi",
       "south-dakota", "us-virgin-islands", "west-virginia",
@@ -438,7 +438,7 @@ describe("the engine's answers are conservative where they should be, across the
         suppressed.push(row.stateSlug);
         continue;
       }
-      expect(finding.verdict, row.stateSlug).toBe("action_required");
+      expect(finding.verdict, row.stateSlug).toBe("depends_on_facts");
       expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
       expect(finding.requirements, row.stateSlug).toEqual([row.attestExemption.notes]);
       summaries.add(finding.summary);
@@ -446,7 +446,7 @@ describe("the engine's answers are conservative where they should be, across the
     }
     // Discriminating control: only the attest-scoped source disagreements suppress.
     expect(suppressed.sort()).toEqual(["alaska", "nebraska"]);
-    expect(checked).toBe(18);
+    expect(checked).toBe(19); // SRC-154: vermont moved here from attest-true
     expect(summaries.size, "the attest-false summary is one constant").toBe(1);
     expect([...summaries], "GATE-80: pinned verbatim").toEqual([GATE80_PINNED.attestFalse]);
   });
@@ -454,8 +454,9 @@ describe("the engine's answers are conservative where they should be, across the
   it("SRC-153: the no-office attest-TRUE path never answers clear; one constant headline that names no exemption or condition", () => {
     // 26 of the 28 peer-review-conditioned rows name conditions beyond peer
     // review, and 6 say a no-office firm doing attest work for an in-state
-    // client DOES register unless a narrow carve-out applies (vermont's
-    // exemption is non-attest only). The input knows none of that.
+    // client DOES register unless a narrow carve-out applies. The input knows
+    // none of that. (SRC-154: vermont's exemption is non-attest only, so it
+    // is now exists:false; the other 5 keep a narrow attest carve-out.)
     const BANNED = /exempts?|conditioned on|requires?|must|not required|no requirement|haven't identified|is current|peer.review/i;
     // Positive controls: both pre-fix headlines are caught by BANNED.
     expect(BANNED.test(
@@ -464,8 +465,8 @@ describe("the engine's answers are conservative where they should be, across the
     )).toBe(true);
     expect(BANNED.test("We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.")).toBe(true);
     const attestTrue = rows.filter((r) => r.attestExemption.exists === true);
-    expect(attestTrue.length).toBe(29);
-    const OVERCLAIMED = ["vermont", "new-jersey", "florida", "new-hampshire", "south-carolina", "oklahoma"];
+    expect(attestTrue.length).toBe(28);
+    const OVERCLAIMED = ["new-jersey", "florida", "new-hampshire", "south-carolina", "oklahoma"];
     expect(attestTrue.map((r) => r.stateSlug)).toEqual(expect.arrayContaining([...OVERCLAIMED, "nevada"]));
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
     const past = "2020-01-01";
@@ -485,7 +486,7 @@ describe("the engine's answers are conservative where they should be, across the
           suppressed.add(row.stateSlug);
           continue;
         }
-        expect(finding.verdict, `${row.stateSlug} @ ${due}`).toBe("action_required");
+        expect(finding.verdict, `${row.stateSlug} @ ${due}`).toBe("depends_on_facts");
         expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
         expect(finding.requirements[0], `${row.stateSlug}: exemption conditions lead`).toBe(row.attestExemption.notes);
         if (row.peerReviewConditionsPermit.exists === true) {
@@ -501,7 +502,7 @@ describe("the engine's answers are conservative where they should be, across the
         checked++;
       }
     }
-    // Discriminating control: nothing on live data is suppressed, so all 29 x 3 answer.
+    // Discriminating control: nothing on live data is suppressed, so all 28 x 3 answer.
     expect([...suppressed]).toEqual([]);
     expect(checked).toBe(attestTrue.length * 3);
     expect(summaries.size, "the attest-true summary is one constant").toBe(1);
@@ -512,7 +513,7 @@ describe("the engine's answers are conservative where they should be, across the
     const nv = rows.find((r) => r.stateSlug === "nevada")!;
     const input = { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false };
     // Positive control: cited live row answers.
-    expect(evaluateFirmMobility(input, nv, null).verdict).toBe("action_required");
+    expect(evaluateFirmMobility(input, nv, null).verdict).toBe("depends_on_facts");
     for (const citation of [null, "", "   "]) {
       const finding = evaluateFirmMobility(input, { ...nv, attestExemption: { ...nv.attestExemption, citation } }, null);
       expect(finding.verdict, JSON.stringify(citation)).toBe("not_verified");
@@ -566,7 +567,7 @@ describe("the engine's answers are conservative where they should be, across the
         row,
         null
       );
-      expect(office.verdict, slug).toBe("action_required");
+      expect(office.verdict, slug).toBe("depends_on_facts");
       const noOffice = evaluateFirmMobility(
         { firmHomeStateSlug: "texas", targetStateSlug: slug, hasPhysicalOfficeInTargetState: false },
         row,
@@ -628,5 +629,45 @@ describe("the engine's answers are conservative where they should be, across the
         expect(finding.requirements, `${row.stateSlug} (${finding.verdict}, due=${due}) hid its exemption conditions`).toContain(row.attestExemption.notes);
       }
     }
+  });
+});
+
+describe("SRC-154: the firm verdict never asserts an outcome the engine can't decide", () => {
+  const rows = Object.values(records)
+    .map((r) => normalizeFirmRuleRow(r))
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  it("every verified-row answer is depends_on_facts; nothing is clear or action_required", () => {
+    const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
+    const seen: Record<string, number> = {};
+    for (const row of rows) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      for (const office of [true, false]) {
+        for (const due of [future, "2020-01-01", null]) {
+          const v = evaluateFirmMobility(
+            { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: office },
+            row,
+            due
+          ).verdict as string;
+          seen[v] = (seen[v] ?? 0) + 1;
+        }
+      }
+    }
+    expect(Object.keys(seen).sort()).toEqual(["depends_on_facts", "not_verified"]);
+    expect(seen.depends_on_facts ?? 0).toBeGreaterThan(seen.not_verified ?? 0);
+  });
+
+  it("vermont is exists:false -- its note documents a NON-attest exemption only", () => {
+    const vt = rows.find((r) => r.stateSlug === "vermont")!;
+    expect(vt.attestExemption.exists).toBe(false);
+    expect(vt.attestExemption.notes).toMatch(/no-office firm performing attest-type services for a VT-home-office client/);
+    const f = evaluateFirmMobility(
+      { firmHomeStateSlug: "texas", targetStateSlug: "vermont", hasPhysicalOfficeInTargetState: false },
+      vt,
+      null
+    );
+    expect(f.verdict).toBe("depends_on_facts");
+    expect(f.summary).toBe(GATE80_PINNED.attestFalse);
+    expect(f.requirements).toEqual([vt.attestExemption.notes]); // no peer-review line
   });
 });

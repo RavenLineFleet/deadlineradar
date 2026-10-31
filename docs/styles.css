@@ -1045,6 +1045,7 @@
   .dr-verdict-clear { background: #e6f4ec; color: #1f6b43; }
   .dr-verdict-action { background: #fdf0e6; color: #9a5312; }
   .dr-verdict-unverified { background: var(--row-alt); color: var(--muted); }
+  .dr-verdict-depends { background: var(--gold-bg); color: var(--gold); }
   .dr-verdict-reqs { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
   .dr-verdict-reqs li { margin-bottom: 0.3rem; }
   .dr-verdict-cite { font-size: 0.8rem; color: var(--muted); margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }

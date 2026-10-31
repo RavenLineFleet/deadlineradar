@@ -2141,6 +2141,7 @@ PAGE_CSS = """
   .dr-verdict-clear { background: #e6f4ec; color: #1f6b43; }
   .dr-verdict-action { background: #fdf0e6; color: #9a5312; }
   .dr-verdict-unverified { background: var(--row-alt); color: var(--muted); }
+  .dr-verdict-depends { background: var(--gold-bg); color: var(--gold); }
   .dr-verdict-reqs { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
   .dr-verdict-reqs li { margin-bottom: 0.3rem; }
   .dr-verdict-cite { font-size: 0.8rem; color: var(--muted); margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
@@ -20952,9 +20953,10 @@ _FIRM_MOBILITY_JS_HTML = """<script>
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // SRC-154: the firm engine returns only depends_on_facts / not_verified /
+  // not_applicable, so there is no Clear or Action required badge here.
   function badge(verdict) {
-    if (verdict === 'clear') return '<span class="dr-verdict-badge dr-verdict-clear">Clear</span>';
-    if (verdict === 'action_required') return '<span class="dr-verdict-badge dr-verdict-action">Action required</span>';
+    if (verdict === 'depends_on_facts') return '<span class="dr-verdict-badge dr-verdict-depends">Depends on your facts</span>';
     if (verdict === 'not_applicable') return '<span class="dr-verdict-badge dr-verdict-unverified">Not applicable</span>';
     return '<span class="dr-verdict-badge dr-verdict-unverified">Not verified</span>';
   }

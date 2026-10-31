@@ -21,7 +21,7 @@ function condition(over: Partial<FirmMobilityCondition> = {}): FirmMobilityCondi
 
 /** A fully-verified rule where attest work by a no-office firm is
  * exempt with no peer-review condition. Since SRC-153 it answers
- * action_required with its notes (the exemption's conditions) as the
+ * depends_on_facts with its notes (the exemption's conditions) as the
  * requirement -- never "clear"; blank notes are not_verified (SRC-152). */
 function verifiedRule(over: Partial<FirmMobilityRuleRow> = {}): FirmMobilityRuleRow {
   return {
@@ -56,26 +56,26 @@ describe("SAFETY: the engine must never assert a clearance it cannot cite", () =
     expect(finding.confidence).toBeNull();
   });
 
-  it("does NOT downgrade action_required or not_verified for a missing citation -- only clear requires one", () => {
+  it("does NOT downgrade depends_on_facts or not_verified for a missing citation -- only clear requires one", () => {
     const notExempt = verifiedRule({ attestExemption: condition({ exists: false, citation: null, notes: "Attest work here requires a firm permit." }) });
     const finding = evaluateFirmMobility(input(), notExempt, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
   });
 });
 
 describe("no physical office -- the no-office attest-work case this dataset targets", () => {
-  it("SRC-153: attest_exemption true, no peer-review condition is action_required with the exemption's conditions, never clear", () => {
+  it("SRC-153: attest_exemption true, no peer-review condition is depends_on_facts with the exemption's conditions, never clear", () => {
     const rule = verifiedRule();
     const finding = evaluateFirmMobility(input(), rule, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual([rule.attestExemption.notes]);
     expect(finding.citation).toBe(rule.attestExemption.citation);
   });
 
-  it("action_required: attest_exemption false -- must register regardless of peer review", () => {
+  it("depends_on_facts: attest_exemption false -- must register regardless of peer review", () => {
     const rule = verifiedRule({ attestExemption: condition({ exists: false, notes: "Attest work here requires a firm permit." }) });
     const finding = evaluateFirmMobility(input(), rule, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual(["Attest work here requires a firm permit."]);
   });
 
@@ -98,11 +98,11 @@ describe("the peer-review-conditional exemption -- the case this feature exists 
     });
   }
 
-  it("SRC-153: a current peer-review due date is a requirement line, not a clearance -- verdict stays action_required", () => {
+  it("SRC-153: a current peer-review due date is a requirement line, not a clearance -- verdict stays depends_on_facts", () => {
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
     const rule = conditionalRule();
     const finding = evaluateFirmMobility(input(), rule, future);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual([
       rule.attestExemption.notes,
       rule.peerReviewConditionsPermit.notes,
@@ -112,16 +112,16 @@ describe("the peer-review-conditional exemption -- the case this feature exists 
     expect(evaluateFirmMobility(input(), rule, null).summary).toBe(finding.summary);
   });
 
-  it("downgrades to action_required when no peer-review due date is on file", () => {
+  it("downgrades to depends_on_facts when no peer-review due date is on file", () => {
     const finding = evaluateFirmMobility(input(), conditionalRule(), null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements.join(" ")).toMatch(/no peer-review due date on file/i);
   });
 
-  it("downgrades to action_required when the on-file peer-review due date is in the PAST", () => {
+  it("downgrades to depends_on_facts when the on-file peer-review due date is in the PAST", () => {
     const past = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
     const finding = evaluateFirmMobility(input(), conditionalRule(), past);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements.join(" ")).toContain(past);
   });
 
@@ -145,21 +145,21 @@ describe("the peer-review-conditional exemption -- the case this feature exists 
 });
 
 describe("physical office in the target state -- evaluated before the no-office exemption", () => {
-  it("action_required when physical_office_trigger is true, REGARDLESS of attest exemption", () => {
+  it("depends_on_facts when physical_office_trigger is true, REGARDLESS of attest exemption", () => {
     const rule = verifiedRule({
       attestExemption: condition({ exists: true }), // would be clear/exempt for the no-office case
       physicalOfficeTrigger: condition({ exists: true, notes: "A firm with an office here registers." }),
     });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual(["A firm with an office here registers."]);
   });
 
-  it("SRC-145: physical_office_trigger false is NEVER clear -- action_required carrying the row's own trigger notes", () => {
+  it("SRC-145: physical_office_trigger false is NEVER clear -- depends_on_facts carrying the row's own trigger notes", () => {
     const notes = "Registration required only if the office performs attest work or uses the CPA title.";
     const rule = verifiedRule({ physicalOfficeTrigger: condition({ exists: false, notes }) });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual([notes]);
     expect(finding.summary).not.toMatch(/haven't identified/);
     expect(finding.citation).toBe("Tex. Occ. Code s 901.462");
@@ -187,7 +187,7 @@ describe("physical office in the target state -- evaluated before the no-office 
       physicalOfficeTrigger: condition({ exists: false, notes: "Office plus attest work triggers registration." }),
     });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(finding.verdict).toBe("action_required");
+    expect(finding.verdict).toBe("depends_on_facts");
     expect(finding.requirements).toEqual(["Office plus attest work triggers registration."]);
   });
 });
@@ -216,14 +216,14 @@ describe("SAFETY: source disagreement and staleness block regardless of every ot
     expect(noOffice.verdict).toBe("not_verified");
     expect(noOffice.requirements).toContain("Attest-exemption question only: statute and rule conflict.");
     const office = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(office.verdict).toBe("action_required");
+    expect(office.verdict).toBe("depends_on_facts");
     expect(office.summary).not.toMatch(/disagree/);
   });
 
   it("SRC-146: an office-scoped disagreement blocks the office limb only", () => {
     const rule = verifiedRule({ sourceDisagreement: "Office question conflict.", sourceDisagreementScope: "physical_office_trigger" });
     expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null).verdict).toBe("not_verified");
-    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null).verdict).toBe("action_required");
+    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null).verdict).toBe("depends_on_facts");
   });
 
   it("SRC-146: the normalizer defaults a missing or unrecognized scope to 'all' (blocks both limbs)", () => {

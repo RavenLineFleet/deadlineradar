@@ -42,7 +42,16 @@ import {
   MOBILITY_THIN_SOURCE_TTL_DAYS,
 } from "./mobility";
 
-export type FirmMobilityVerdict = "clear" | "action_required" | "not_verified" | "not_applicable";
+/** SRC-154 (AuditLab 2026-10-31): every answer this engine gives from a
+ * verified row defers to that row's notes, because the rule turns on facts
+ * the input does not carry (attest scope, CPA-title use, where the client is
+ * based, ownership, peer review). Calling those "action_required" told a
+ * firm it must act where the engine declines to decide -- the restrictive
+ * mirror of SRC-147/149/150/153. So the engine has one verdict for "rule on
+ * file, decide it from the notes" and none that asserts an outcome ("clear"
+ * or "action_required"). Narrowed so the compiler forbids re-adding one
+ * without a reviewed type change. */
+export type FirmMobilityVerdict = "depends_on_facts" | "not_verified" | "not_applicable";
 
 /** One yes/no/unknown question about a state, always carrying its own
  * citation -- unlike mobility.ts's one-citation-per-row shape, this
@@ -79,7 +88,7 @@ export interface FirmMobilityRuleRow {
    * test/firm-mobility-data.spec.ts. */
   physicalOfficeTrigger: FirmMobilityCondition;
   /** Is the attest exemption above CONDITIONED on peer-review compliance?
-   * When true, a "clear" verdict is not unconditional -- see
+   * When true, the exemption is not unconditional -- see
    * evaluateFirmMobility()'s own handling below. */
   peerReviewConditionsPermit: FirmMobilityCondition;
   confidence: "dual_source" | "single_source" | "unverified" | null;
@@ -186,7 +195,8 @@ export interface FirmMobilityFinding {
 
 /** SRC-153: the one headline for every non-not_verified answer on the
  * attest-exemption-true path. Names no exemption, no condition, no outcome:
- * vermont's own note says its exemption is non-attest only. Pinned verbatim
+ * vermont's note said its exemption was non-attest only (SRC-154 moved
+ * vermont to false; the other carve-out rows still need the neutral text). Pinned verbatim
  * in firm-mobility-data.spec.ts (GATE80_PINNED.attestTrue). */
 const ATTEST_TRUE_SUMMARY =
   "This state's firm-registration rule for attest work by a firm without an office here, and the conditions " +
@@ -215,13 +225,13 @@ function notVerified(rule: FirmMobilityRuleRow | null, reason: string): FirmMobi
   };
 }
 
-/** Same guard as mobility.ts's requireCitationOrDowngrade(): a "clear"
- * verdict without a substantive citation is force-downgraded to
- * not_verified, provenance cleared rather than carried over. The
- * attest-exemption-true path passes mustCite (SRC-153): it no longer answers
- * "clear", but an exemption it cannot cite is still not served. */
+/** Same guard as mobility.ts's requireCitationOrDowngrade(): an exemption
+ * answer without a substantive citation is force-downgraded to not_verified,
+ * provenance cleared rather than carried over. The attest-exemption-true
+ * path passes mustCite (SRC-153): it no longer answers "clear", but an
+ * exemption it cannot cite is still not served. */
 function requireCitationOrDowngrade(finding: FirmMobilityFinding, mustCite = false): FirmMobilityFinding {
-  const needsCitation = finding.verdict === "clear" || (mustCite && finding.verdict !== "not_verified");
+  const needsCitation = mustCite && finding.verdict !== "not_verified";
   if (needsCitation && !isSubstantiveCitation(finding.citation)) {
     return {
       ...finding,
@@ -363,7 +373,7 @@ export function evaluateFirmMobility(
         );
       }
       return {
-        verdict: "action_required",
+        verdict: "depends_on_facts",
         summary:
           "Having an office here is not, on its own, what this state's rule turns on. The state's rule below " +
           "says what does require firm registration; check it against your firm's facts.",
@@ -389,7 +399,7 @@ export function evaluateFirmMobility(
       );
     }
     return {
-      verdict: "action_required",
+      verdict: "depends_on_facts",
       summary:
         "This state's firm-registration rule for a firm with an office here is below; check it against " +
         "your firm's facts.",
@@ -428,7 +438,7 @@ export function evaluateFirmMobility(
       );
     }
     return {
-      verdict: "action_required",
+      verdict: "depends_on_facts",
       summary:
         "This state's firm-registration rule for attest work by a firm without an office here is below; check it " +
         "against your firm's facts, including where the client is based.",
@@ -471,10 +481,10 @@ export function evaluateFirmMobility(
   // SRC-147/149/150: action_required under one constant summary that asserts
   // nothing beyond what is common to the population and defers to the
   // notes. The peer-review status is a requirement line, not the headline.
-  // This was the only "clear" the firm engine could return; the verdict
-  // stays in the type for the individual-mobility side and the UI.
+  // This was the only "clear" the firm engine could return. SRC-154: the
+  // verdict is depends_on_facts, never action_required either.
   const requirements: string[] = [exemption.notes];
-  let verdict: FirmMobilityVerdict = "action_required";
+  let verdict: FirmMobilityVerdict = "depends_on_facts";
   let summary = ATTEST_TRUE_SUMMARY;
 
   if (permit.exists === true) {
