@@ -184,6 +184,14 @@ export interface FirmMobilityFinding {
   disclaimer: string;
 }
 
+/** SRC-153: the one headline for every non-not_verified answer on the
+ * attest-exemption-true path. Names no exemption, no condition, no outcome:
+ * vermont's own note says its exemption is non-attest only. Pinned verbatim
+ * in firm-mobility-data.spec.ts (GATE80_PINNED.attestTrue). */
+const ATTEST_TRUE_SUMMARY =
+  "This state's firm-registration rule for attest work by a firm without an office here, and the conditions " +
+  "of any exemption from it, are below; check them against your firm's facts, including where the client is based.";
+
 const NOT_VERIFIED_SUMMARY =
   "We haven't verified this state's firm-registration rule against a primary source yet, so we're not " +
   "going to guess. Confirm directly with the state board before relying on this.";
@@ -209,9 +217,12 @@ function notVerified(rule: FirmMobilityRuleRow | null, reason: string): FirmMobi
 
 /** Same guard as mobility.ts's requireCitationOrDowngrade(): a "clear"
  * verdict without a substantive citation is force-downgraded to
- * not_verified, provenance cleared rather than carried over. */
-function requireCitationOrDowngrade(finding: FirmMobilityFinding): FirmMobilityFinding {
-  if (finding.verdict === "clear" && !isSubstantiveCitation(finding.citation)) {
+ * not_verified, provenance cleared rather than carried over. The
+ * attest-exemption-true path passes mustCite (SRC-153): it no longer answers
+ * "clear", but an exemption it cannot cite is still not served. */
+function requireCitationOrDowngrade(finding: FirmMobilityFinding, mustCite = false): FirmMobilityFinding {
+  const needsCitation = finding.verdict === "clear" || (mustCite && finding.verdict !== "not_verified");
+  if (needsCitation && !isSubstantiveCitation(finding.citation)) {
     return {
       ...finding,
       verdict: "not_verified",
@@ -430,8 +441,8 @@ export function evaluateFirmMobility(
     };
   }
 
-  // exemption.exists === true -- base case is clear, but the exemption may
-  // be conditioned on peer-review compliance. Surfaced as an explicit,
+  // exemption.exists === true -- the exemption has conditions (SRC-153), and
+  // may be conditioned on peer-review compliance. Surfaced as an explicit,
   // separately-cited requirement rather than folded into a single enum
   // value, so the condition can never be silently hidden.
   const permit = rule.peerReviewConditionsPermit;
@@ -450,10 +461,21 @@ export function evaluateFirmMobility(
       "We haven't verified the conditions on this state's exemption from firm registration for attest work by a firm without an office here."
     );
   }
+  // SRC-153 (AuditLab 2026-10-31): exists:true is NOT a clearance. 26 of the
+  // 28 peer-review-conditioned rows name conditions beyond peer review
+  // (practice-privileged individual, ownership, home-state licensure), and 6
+  // (vermont, new-jersey, florida, new-hampshire, south-carolina, oklahoma)
+  // say a no-office firm doing attest work for an in-state client DOES
+  // register unless it meets a narrow carve-out. The input carries none of
+  // those facts, so the engine never answers "clear" here. Same remedy as
+  // SRC-147/149/150: action_required under one constant summary that asserts
+  // nothing beyond what is common to the population and defers to the
+  // notes. The peer-review status is a requirement line, not the headline.
+  // This was the only "clear" the firm engine could return; the verdict
+  // stays in the type for the individual-mobility side and the UI.
   const requirements: string[] = [exemption.notes];
-  let verdict: FirmMobilityVerdict = "clear";
-  let summary =
-    "We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.";
+  let verdict: FirmMobilityVerdict = "action_required";
+  let summary = ATTEST_TRUE_SUMMARY;
 
   if (permit.exists === true) {
     // SRC-151 (AuditLab 2026-10-31): the peer-review condition's own text is
@@ -467,21 +489,13 @@ export function evaluateFirmMobility(
     }
     const compliant = isPeerReviewCurrent(firmPeerReviewDueDate, now);
     requirements.push(permit.notes);
-    if (!compliant) {
-      verdict = "action_required";
-      summary =
-        "This state's exemption from firm registration requires current peer-review compliance, and your " +
-        "firm doesn't have a current peer-review due date on file (self-reported, not independently verified).";
-      requirements.push(
-        firmPeerReviewDueDate
+    requirements.push(
+      compliant
+        ? "Your firm's on-file peer-review due date is current (self-reported, not independently verified)."
+        : firmPeerReviewDueDate
           ? `Your firm's on-file peer-review due date (${firmPeerReviewDueDate}) has passed -- update it once your review is current.`
           : "Your firm has no peer-review due date on file -- set one from the dashboard's Account tab once your review is current."
-      );
-    } else {
-      summary =
-        "This state exempts attest work by a no-office firm from registration, conditioned on peer-review " +
-        "compliance -- your firm's on-file peer-review due date is current (self-reported, not independently verified).";
-    }
+    );
   } else if (permit.exists === null) {
     requirements.push(
       "Whether this exemption is conditioned on peer-review compliance hasn't been verified -- confirm with the board."
@@ -490,6 +504,8 @@ export function evaluateFirmMobility(
     summary = NOT_VERIFIED_SUMMARY;
   }
 
+  // The exemption claim still has to be cited, as it was when this path
+  // answered "clear": an uncited exemption row is not_verified.
   return requireCitationOrDowngrade({
     verdict,
     summary,
@@ -499,5 +515,5 @@ export function evaluateFirmMobility(
     verifiedDate: rule.verifiedDate,
     confidence: rule.confidence,
     disclaimer: MOBILITY_DISCLAIMER,
-  });
+  }, true);
 }

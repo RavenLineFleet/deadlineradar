@@ -20,9 +20,9 @@ function condition(over: Partial<FirmMobilityCondition> = {}): FirmMobilityCondi
 }
 
 /** A fully-verified rule where attest work by a no-office firm is
- * exempt with no peer-review condition -- the ONLY shape that should ever
- * produce a "clear" verdict with no peer-review requirement attached. Its
- * notes always ride along (SRC-140); blank notes are not_verified (SRC-152). */
+ * exempt with no peer-review condition. Since SRC-153 it answers
+ * action_required with its notes (the exemption's conditions) as the
+ * requirement -- never "clear"; blank notes are not_verified (SRC-152). */
 function verifiedRule(over: Partial<FirmMobilityRuleRow> = {}): FirmMobilityRuleRow {
   return {
     state: "Texas",
@@ -48,7 +48,7 @@ function input(over: Partial<FirmMobilityInput> = {}): FirmMobilityInput {
 }
 
 describe("SAFETY: the engine must never assert a clearance it cannot cite", () => {
-  it("downgrades a would-be CLEAR verdict to not_verified when the attest exemption has NO citation", () => {
+  it("downgrades an attest-exemption answer to not_verified when the exemption has NO citation (SRC-153: still enforced off the clear verdict)", () => {
     const uncited = verifiedRule({ attestExemption: condition({ exists: true, citation: null, notes: "Exempt attest work runs through a CPA with practice privileges." }) });
     const finding = evaluateFirmMobility(input(), uncited, null);
     expect(finding.verdict).toBe("not_verified");
@@ -64,11 +64,12 @@ describe("SAFETY: the engine must never assert a clearance it cannot cite", () =
 });
 
 describe("no physical office -- the no-office attest-work case this dataset targets", () => {
-  it("clear, unconditional: attest_exemption true, no peer-review condition", () => {
+  it("SRC-153: attest_exemption true, no peer-review condition is action_required with the exemption's conditions, never clear", () => {
     const rule = verifiedRule();
     const finding = evaluateFirmMobility(input(), rule, null);
-    expect(finding.verdict).toBe("clear");
+    expect(finding.verdict).toBe("action_required");
     expect(finding.requirements).toEqual([rule.attestExemption.notes]);
+    expect(finding.citation).toBe(rule.attestExemption.citation);
   });
 
   it("action_required: attest_exemption false -- must register regardless of peer review", () => {
@@ -97,12 +98,18 @@ describe("the peer-review-conditional exemption -- the case this feature exists 
     });
   }
 
-  it("stays clear when the firm's own peer-review due date is set and in the future", () => {
+  it("SRC-153: a current peer-review due date is a requirement line, not a clearance -- verdict stays action_required", () => {
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
-    const finding = evaluateFirmMobility(input(), conditionalRule(), future);
-    expect(finding.verdict).toBe("clear");
-    expect(finding.requirements.length).toBeGreaterThan(0); // condition still visible, not hidden
-    expect(finding.requirements.join(" ")).toContain("peer review");
+    const rule = conditionalRule();
+    const finding = evaluateFirmMobility(input(), rule, future);
+    expect(finding.verdict).toBe("action_required");
+    expect(finding.requirements).toEqual([
+      rule.attestExemption.notes,
+      rule.peerReviewConditionsPermit.notes,
+      "Your firm's on-file peer-review due date is current (self-reported, not independently verified).",
+    ]);
+    // Same headline whether or not peer review is current: it names no condition.
+    expect(evaluateFirmMobility(input(), rule, null).summary).toBe(finding.summary);
   });
 
   it("downgrades to action_required when no peer-review due date is on file", () => {
@@ -216,7 +223,7 @@ describe("SAFETY: source disagreement and staleness block regardless of every ot
   it("SRC-146: an office-scoped disagreement blocks the office limb only", () => {
     const rule = verifiedRule({ sourceDisagreement: "Office question conflict.", sourceDisagreementScope: "physical_office_trigger" });
     expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null).verdict).toBe("not_verified");
-    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null).verdict).toBe("clear");
+    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null).verdict).toBe("action_required");
   });
 
   it("SRC-146: the normalizer defaults a missing or unrecognized scope to 'all' (blocks both limbs)", () => {

@@ -113,13 +113,17 @@ describe("POST /firm/mobility/firm-check -- server-side peer-review read", () =>
       cookie
     );
     expect(resp.status).toBe(200);
-    const body = (await resp.json()) as { verdict: string };
-    // If the client-supplied date were honoured, this would be "clear".
-    // The firm's REAL on-file date is null, so it must be action_required.
+    const body = (await resp.json()) as { verdict: string; requirements: string[] };
+    // If the client-supplied date were honoured, the peer-review line would
+    // read "current" (SRC-153: the verdict is action_required either way, so
+    // the requirement line is what discriminates). The firm's REAL on-file
+    // date is null.
     expect(body.verdict).toBe("action_required");
+    expect(body.requirements.join(" ")).toContain("no peer-review due date on file");
+    expect(body.requirements.join(" ")).not.toContain("due date is current");
   });
 
-  it("reflects a real, current on-file peer-review due date as clear", async () => {
+  it("reflects a real, current on-file peer-review due date as a current requirement line (SRC-153: never clear)", async () => {
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
     const { cookie } = await firmOnTier("firm", future);
     const resp = await postFirmCheck(
@@ -127,8 +131,10 @@ describe("POST /firm/mobility/firm-check -- server-side peer-review read", () =>
       cookie
     );
     expect(resp.status).toBe(200);
-    const body = (await resp.json()) as { verdict: string };
-    expect(body.verdict).toBe("clear");
+    const body = (await resp.json()) as { verdict: string; requirements: string[] };
+    expect(body.verdict).toBe("action_required");
+    expect(body.requirements).toContain("Your firm's on-file peer-review due date is current (self-reported, not independently verified).");
+    expect(body.requirements.join(" ")).not.toContain("no peer-review due date on file");
   });
 });
 

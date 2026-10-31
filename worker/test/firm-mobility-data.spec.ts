@@ -22,6 +22,9 @@ const GATE80_PINNED = {
   attestFalse:
     "This state's firm-registration rule for attest work by a firm without an office here is below; check it " +
     "against your firm's facts, including where the client is based.",
+  attestTrue:
+    "This state's firm-registration rule for attest work by a firm without an office here, and the conditions " +
+    "of any exemption from it, are below; check them against your firm's facts, including where the client is based.",
 };
 
 /**
@@ -311,19 +314,19 @@ describe("the engine's answers are conservative where they should be, across the
     }
   });
 
-  it("SRC-152: an attest-exempt row with blank notes is not_verified, never a clear with no conditions", () => {
+  it("SRC-152: an attest-exempt row with blank notes is not_verified, never an answer with no conditions", () => {
     // nevada: attest exemption true, peer-review permit not true, so no later
     // limb would catch a blank note.
     const nv = rows.find((r) => r.stateSlug === "nevada")!;
     expect(nv.attestExemption.exists).toBe(true);
     expect(nv.peerReviewConditionsPermit.exists).not.toBe(true);
-    // Positive control: the live row is clear and shows its notes.
+    // Positive control: the live row answers (action_required since SRC-153) and shows its notes.
     const live = evaluateFirmMobility(
       { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false },
       nv,
       null
     );
-    expect(live.verdict).toBe("clear");
+    expect(live.verdict).toBe("action_required");
     expect(live.requirements).toEqual([nv.attestExemption.notes]);
     for (const notes of [null, "", "   ", "\n\t "]) {
       const finding = evaluateFirmMobility(
@@ -446,6 +449,75 @@ describe("the engine's answers are conservative where they should be, across the
     expect(checked).toBe(18);
     expect(summaries.size, "the attest-false summary is one constant").toBe(1);
     expect([...summaries], "GATE-80: pinned verbatim").toEqual([GATE80_PINNED.attestFalse]);
+  });
+
+  it("SRC-153: the no-office attest-TRUE path never answers clear; one constant headline that names no exemption or condition", () => {
+    // 26 of the 28 peer-review-conditioned rows name conditions beyond peer
+    // review, and 6 say a no-office firm doing attest work for an in-state
+    // client DOES register unless a narrow carve-out applies (vermont's
+    // exemption is non-attest only). The input knows none of that.
+    const BANNED = /exempts?|conditioned on|requires?|must|not required|no requirement|haven't identified|is current|peer.review/i;
+    // Positive controls: both pre-fix headlines are caught by BANNED.
+    expect(BANNED.test(
+      "This state exempts attest work by a no-office firm from registration, conditioned on peer-review " +
+      "compliance -- your firm's on-file peer-review due date is current (self-reported, not independently verified)."
+    )).toBe(true);
+    expect(BANNED.test("We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.")).toBe(true);
+    const attestTrue = rows.filter((r) => r.attestExemption.exists === true);
+    expect(attestTrue.length).toBe(29);
+    const OVERCLAIMED = ["vermont", "new-jersey", "florida", "new-hampshire", "south-carolina", "oklahoma"];
+    expect(attestTrue.map((r) => r.stateSlug)).toEqual(expect.arrayContaining([...OVERCLAIMED, "nevada"]));
+    const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
+    const past = "2020-01-01";
+    const summaries = new Set<string>();
+    const suppressed = new Set<string>();
+    let checked = 0;
+    for (const row of attestTrue) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      for (const due of [future, past, null]) {
+        const finding = evaluateFirmMobility(
+          { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: false },
+          row,
+          due
+        );
+        expect(finding.verdict, `${row.stateSlug} @ ${due}`).not.toBe("clear");
+        if (finding.verdict === "not_verified") {
+          suppressed.add(row.stateSlug);
+          continue;
+        }
+        expect(finding.verdict, `${row.stateSlug} @ ${due}`).toBe("action_required");
+        expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
+        expect(finding.requirements[0], `${row.stateSlug}: exemption conditions lead`).toBe(row.attestExemption.notes);
+        if (row.peerReviewConditionsPermit.exists === true) {
+          expect(finding.requirements[1], row.stateSlug).toBe(row.peerReviewConditionsPermit.notes);
+          expect(finding.requirements.length, row.stateSlug).toBe(3);
+          expect(finding.requirements[2], `${row.stateSlug} @ ${due}`).toMatch(
+            due === future ? /is current/ : due === past ? /has passed/ : /no peer-review due date on file/
+          );
+        } else {
+          expect(finding.requirements, row.stateSlug).toEqual([row.attestExemption.notes]);
+        }
+        summaries.add(finding.summary);
+        checked++;
+      }
+    }
+    // Discriminating control: nothing on live data is suppressed, so all 29 x 3 answer.
+    expect([...suppressed]).toEqual([]);
+    expect(checked).toBe(attestTrue.length * 3);
+    expect(summaries.size, "the attest-true summary is one constant").toBe(1);
+    expect([...summaries], "GATE-80: pinned verbatim").toEqual([GATE80_PINNED.attestTrue]);
+  });
+
+  it("SRC-153: an uncited attest-exemption row is still not_verified now that the path no longer answers clear", () => {
+    const nv = rows.find((r) => r.stateSlug === "nevada")!;
+    const input = { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false };
+    // Positive control: cited live row answers.
+    expect(evaluateFirmMobility(input, nv, null).verdict).toBe("action_required");
+    for (const citation of [null, "", "   "]) {
+      const finding = evaluateFirmMobility(input, { ...nv, attestExemption: { ...nv.attestExemption, citation } }, null);
+      expect(finding.verdict, JSON.stringify(citation)).toBe("not_verified");
+      expect(finding.citation).toBeNull();
+    }
   });
 
   it("SRC-151: a null, empty, or whitespace-only note on any limb is not_verified, never a blank or invented requirement", () => {
