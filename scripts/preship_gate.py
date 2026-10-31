@@ -4852,6 +4852,114 @@ def check_attribution_src_allowlist_sync(repo_root: Path) -> list[str]:
     return errors
 
 
+def _py_module_literal(py_text: str, name: str):
+    """Return the literal value of a top-level `name = <literal>` assignment
+    in a Python source, read with ast (so quote style, trailing commas and
+    line breaks don't matter). Returns an error string instead if the
+    assignment is missing, repeated, or not a plain literal."""
+    import ast
+    try:
+        tree = ast.parse(py_text)
+    except SyntaxError as e:
+        return f"source does not parse ({e.msg})"
+    hits = [n for n in tree.body if isinstance(n, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)]
+    if not hits:
+        return "top-level assignment not found"
+    if len(hits) > 1:
+        return f"assigned {len(hits)} times at top level (the last one wins at runtime)"
+    try:
+        return ast.literal_eval(hits[0].value)
+    except ValueError:
+        return "value is not a plain literal"
+
+
+_TS_STR = r"""(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')"""
+
+
+def _ts_string_tuples(block: str, width: int):
+    """Parse a TS array body of string literals (width=1: `"a", 'b',`) or
+    string tuples (width=2: `["a", 'A'],`). Either quote style, trailing
+    commas, // comments and any line breaks are accepted. Returns
+    (items, leftover): leftover is whatever non-separator text was NOT
+    consumed, so an entry the parser can't read is reported, never silently
+    dropped."""
+    block = re.sub(r"//[^\n]*", "", block)
+    if width == 1:
+        pat = _TS_STR
+    else:
+        pat = r"\[\s*" + r"\s*,\s*".join([_TS_STR] * width) + r"\s*,?\s*\]"
+    items = []
+    for m in re.finditer(pat, block):
+        g = m.groups()
+        vals = [g[i] if g[i] is not None else g[i + 1] for i in range(0, len(g), 2)]
+        items.append(vals[0] if width == 1 else tuple(vals))
+    leftover = re.sub(pat, "", block)
+    leftover = re.sub(r"[\s,]", "", leftover)
+    return items, leftover
+
+
+def check_how_heard_detail_keys_sync(repo_root: Path) -> list[str]:
+    """AuditLab GATE-82 (LOW, 2026-10-31): which how_heard answers SHOW the
+    free-text box is decided by generate.py's PAGE_CSS
+    (`.dr-how-heard option[value=K]:checked ... .dr-how-heard-detail`); which
+    answers KEEP that text is validation.ts's HOW_HEARD_DETAIL_KEYS (index.ts
+    and store.ts null it otherwise). Two hand-kept copies, no gate. If the CSS
+    gains a key the server lacks, the visitor types into a visible box and the
+    text is silently discarded. Fails on either direction, and on any detail
+    key that is not a real how_heard option."""
+    generate_py = repo_root / "generate.py"
+    validation_ts = repo_root / "worker" / "src" / "validation.ts"
+    if not validation_ts.exists():
+        print("  (skipping how-heard-detail-keys-sync check -- worker/ tree not present in this checkout)")
+        return []
+    py_text = generate_py.read_text(encoding="utf-8")
+    ts_text = validation_ts.read_text(encoding="utf-8")
+
+    css_keys = re.findall(
+        r"""\.dr-how-heard\s+option\[\s*value\s*=\s*["']?([^"'\]\s]+)["']?\s*\]\s*:checked\s*\)\s*\.dr-how-heard-detail""",
+        py_text,
+    )
+    # Every :checked rule that reveals the box must be one the regex above
+    # read; a selector spelled some other way would otherwise pass unseen.
+    reveal_rules = len(re.findall(r":checked[^{,]*\.dr-how-heard-detail", py_text))
+    if reveal_rules != len(css_keys):
+        return [f"[HOW-DETAIL-SYNC] generate.py has {reveal_rules} :checked rule(s) revealing .dr-how-heard-detail but this check parsed {len(css_keys)} -- repair the check or the selector"]
+    if not css_keys:
+        return ["[HOW-DETAIL-SYNC] found NO CSS rule revealing .dr-how-heard-detail in generate.py -- this check is measuring nothing and must be repaired."]
+
+    ts_block = re.search(r"HOW_HEARD_DETAIL_KEYS:\s*Set<string>\s*=\s*new Set\(\[(.*?)\]\);", ts_text, re.S)
+    if not ts_block:
+        return ["[HOW-DETAIL-SYNC] worker/src/validation.ts's HOW_HEARD_DETAIL_KEYS set not found -- can't verify sync with generate.py"]
+    ts_keys, leftover = _ts_string_tuples(ts_block.group(1), 1)
+    if leftover:
+        return [f"[HOW-DETAIL-SYNC] validation.ts's HOW_HEARD_DETAIL_KEYS has an entry this check can't parse ({leftover[:60]!r})"]
+    if not ts_keys:
+        return ["[HOW-DETAIL-SYNC] parsed an EMPTY HOW_HEARD_DETAIL_KEYS -- this check is measuring nothing and must be repaired."]
+
+    errors = []
+    css_set, ts_set = set(css_keys), set(ts_keys)
+    only_css = sorted(css_set - ts_set)
+    only_ts = sorted(ts_set - css_set)
+    if only_css:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] the form shows the free-text box for how_heard key(s) the Worker discards the text of: "
+            f"{', '.join(only_css)} -- visitors type into it and the answer is silently dropped"
+        )
+    if only_ts:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] HOW_HEARD_DETAIL_KEYS keeps text for key(s) whose box the form never shows: "
+            f"{', '.join(only_ts)} -- drifted"
+        )
+    opts = _py_module_literal(py_text, "_HOW_HEARD_OPTIONS")
+    if isinstance(opts, tuple):
+        option_keys = {e[0] for e in opts if isinstance(e, tuple) and e}
+        bogus = sorted((css_set | ts_set) - option_keys)
+        if bogus:
+            errors.append(f"[HOW-DETAIL-SYNC] detail key(s) that are not a how_heard option at all: {', '.join(bogus)}")
+    return errors
+
+
 def check_how_heard_options_sync(repo_root: Path) -> list[str]:
     """AuditLab GATE-81 (LOW, 2026-10-31): generate.py's `_HOW_HEARD_OPTIONS`
     (the signup form's <select>) and worker/src/validation.ts's
@@ -4870,15 +4978,25 @@ def check_how_heard_options_sync(repo_root: Path) -> list[str]:
     py_text = generate_py.read_text(encoding="utf-8")
     ts_text = validation_ts.read_text(encoding="utf-8")
 
-    py_block = re.search(r"^_HOW_HEARD_OPTIONS\s*=\s*\((.*?)^\)", py_text, re.M | re.S)
-    if not py_block:
-        return ["[HOW-HEARD-SYNC] generate.py's _HOW_HEARD_OPTIONS tuple not found -- can't verify sync with worker/src/validation.ts"]
-    py_pairs = re.findall(r'\(\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\)', py_block.group(1))
+    # GATE-81 parser gap (AuditLab 22:31Z): a regex over the py tuple missed
+    # single quotes, trailing commas and pairs split across lines -- each a
+    # legal spelling that still renders a live <option>. Read the tuple the
+    # way Python does instead.
+    py_value = _py_module_literal(py_text, "_HOW_HEARD_OPTIONS")
+    if isinstance(py_value, str):
+        return [f"[HOW-HEARD-SYNC] generate.py's _HOW_HEARD_OPTIONS: {py_value} -- can't verify sync with worker/src/validation.ts"]
+    if not isinstance(py_value, tuple) or not all(
+        isinstance(e, tuple) and len(e) == 2 and all(isinstance(x, str) for x in e) for e in py_value
+    ):
+        return ["[HOW-HEARD-SYNC] generate.py's _HOW_HEARD_OPTIONS is not a tuple of (key, label) string pairs -- can't verify sync"]
+    py_pairs = [tuple(e) for e in py_value]
 
     ts_block = re.search(r"HOW_HEARD_ALLOWLIST:\s*Map<string,\s*string>\s*=\s*new Map\(\[(.*?)\]\);", ts_text, re.S)
     if not ts_block:
         return ["[HOW-HEARD-SYNC] worker/src/validation.ts's HOW_HEARD_ALLOWLIST map not found -- can't verify sync with generate.py"]
-    ts_pairs = re.findall(r'\[\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\]', ts_block.group(1))
+    ts_pairs, ts_leftover = _ts_string_tuples(ts_block.group(1), 2)
+    if ts_leftover:
+        return [f"[HOW-HEARD-SYNC] validation.ts's HOW_HEARD_ALLOWLIST has an entry this check can't parse ({ts_leftover[:60]!r}) -- repair the check or the entry"]
 
     if not py_pairs or not ts_pairs:
         return ["[HOW-HEARD-SYNC] parsed an EMPTY option list from one or both sides -- this check is measuring nothing and must be repaired."]
@@ -10056,6 +10174,7 @@ def main():
     all_errors += check_sms_consent_version_sync(repo_root)
     all_errors += check_attribution_src_allowlist_sync(repo_root)
     all_errors += check_how_heard_options_sync(repo_root)
+    all_errors += check_how_heard_detail_keys_sync(repo_root)
     all_errors += check_cpe_cycle_window_sync(repo_root)
     all_errors += check_signin_ttl_copy_sync(repo_root)
     all_errors += check_rate_limit_defined_only_in_validation_ts(repo_root)
