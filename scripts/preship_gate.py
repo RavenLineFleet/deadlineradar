@@ -4852,6 +4852,65 @@ def check_attribution_src_allowlist_sync(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_how_heard_options_sync(repo_root: Path) -> list[str]:
+    """AuditLab GATE-81 (LOW, 2026-10-31): generate.py's `_HOW_HEARD_OPTIONS`
+    (the signup form's <select>) and worker/src/validation.ts's
+    `HOW_HEARD_ALLOWLIST` are two hand-kept copies of the same key/label
+    pairs -- the same shape as ATTR-SYNC above, but it had no gate. Drift is
+    silent by construction: handleSubscribe stores an off-allowlist key as
+    NULL with no error, and the operator email then prints "(not answered)"
+    for a visitor who did answer. Labels are compared too, because the
+    operator email prints the server's label, so a label-only drift
+    mislabels the answer. Fails on either direction, on keys and labels."""
+    generate_py = repo_root / "generate.py"
+    validation_ts = repo_root / "worker" / "src" / "validation.ts"
+    if not validation_ts.exists():
+        print("  (skipping how-heard-options-sync check -- worker/ tree not present in this checkout)")
+        return []
+    py_text = generate_py.read_text(encoding="utf-8")
+    ts_text = validation_ts.read_text(encoding="utf-8")
+
+    py_block = re.search(r"^_HOW_HEARD_OPTIONS\s*=\s*\((.*?)^\)", py_text, re.M | re.S)
+    if not py_block:
+        return ["[HOW-HEARD-SYNC] generate.py's _HOW_HEARD_OPTIONS tuple not found -- can't verify sync with worker/src/validation.ts"]
+    py_pairs = re.findall(r'\(\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\)', py_block.group(1))
+
+    ts_block = re.search(r"HOW_HEARD_ALLOWLIST:\s*Map<string,\s*string>\s*=\s*new Map\(\[(.*?)\]\);", ts_text, re.S)
+    if not ts_block:
+        return ["[HOW-HEARD-SYNC] worker/src/validation.ts's HOW_HEARD_ALLOWLIST map not found -- can't verify sync with generate.py"]
+    ts_pairs = re.findall(r'\[\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\]', ts_block.group(1))
+
+    if not py_pairs or not ts_pairs:
+        return ["[HOW-HEARD-SYNC] parsed an EMPTY option list from one or both sides -- this check is measuring nothing and must be repaired."]
+
+    errors = []
+    for side, pairs in (("generate.py", py_pairs), ("validation.ts", ts_pairs)):
+        keys = [k for k, _ in pairs]
+        dups = sorted({k for k in keys if keys.count(k) > 1})
+        if dups:
+            errors.append(f"[HOW-HEARD-SYNC] {side} lists how_heard key(s) more than once: {', '.join(dups)}")
+    py_map, ts_map = dict(py_pairs), dict(ts_pairs)
+    only_py = sorted(set(py_map) - set(ts_map))
+    only_ts = sorted(set(ts_map) - set(py_map))
+    if only_py:
+        errors.append(
+            f"[HOW-HEARD-SYNC] the signup form offers how_heard key(s) the Worker drops to NULL: {', '.join(only_py)} "
+            "-- those visitors' answers are lost and the operator email says \"(not answered)\""
+        )
+    if only_ts:
+        errors.append(
+            f"[HOW-HEARD-SYNC] validation.ts's HOW_HEARD_ALLOWLIST has key(s) the form never offers: "
+            f"{', '.join(only_ts)} -- dead server-side entries, drifted"
+        )
+    for k in sorted(set(py_map) & set(ts_map)):
+        if py_map[k] != ts_map[k]:
+            errors.append(
+                f"[HOW-HEARD-SYNC] label drift for how_heard key {k!r}: form shows {py_map[k]!r}, "
+                f"operator email prints {ts_map[k]!r}"
+            )
+    return errors
+
+
 # AuditLab CPE-5 (LOW, 2026-08-21, orchestrator-approved): six dr* helpers
 # are authored twice in generate.py, one copy per bundle (the pages have no
 # shared module system to import from) -- but "authored twice" splits into
@@ -9996,6 +10055,7 @@ def main():
     all_errors += check_terms_version_sync(repo_root)
     all_errors += check_sms_consent_version_sync(repo_root)
     all_errors += check_attribution_src_allowlist_sync(repo_root)
+    all_errors += check_how_heard_options_sync(repo_root)
     all_errors += check_cpe_cycle_window_sync(repo_root)
     all_errors += check_signin_ttl_copy_sync(repo_root)
     all_errors += check_rate_limit_defined_only_in_validation_ts(repo_root)
