@@ -128,8 +128,8 @@
     "attest_exemption": {
       "exists": true,
       "citation": "Ala. Code sections 34-1-6, 34-1-10, 34-1-11, 34-1-16(12); Ala. Admin. Code r. 30-X-3-.04",
-      "citation_url": "https://codes.findlaw.com/al/title-34-professions-and-businesses/al-code-sect-34-1-16.html",
-      "notes": "VERIFIED, directive citation confirmed correct. Section 34-1-16's chapeau bars a firm 'with an office in this state' from providing attest services/using CPA title unless registered. Board's own rule (r. 30-X-3-.04, fetched verbatim): 'No firm or office not located in this state...shall be required to register as a firm with this Board.' Nonresident CPAs may render non-attest services without notice/fee (section 34-1-7)."
+      "citation_url": "https://www.law.cornell.edu/regulations/alabama/Ala-Admin-Code-r-30-X-3-.04",
+      "notes": "Section 34-1-16's chapeau bars a firm 'with an office in this state' from providing attest services/using CPA title unless registered. Board's own rule (r. 30-X-3-.04): 'No firm or office not located in this state...shall be required to register as a firm with this Board.' Nonresident CPAs may render non-attest services without notice/fee (section 34-1-7)."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -465,8 +465,8 @@
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Miss. Code Ann. section 73-33-1(3)(b); Miss. State Board of Public Accountancy Rule 5.3.2",
-      "citation_url": "https://law.justia.com/codes/mississippi/title-73/chapter-33/section-73-33-1/",
-      "notes": "Reviews and compilations by a no-office firm are permitted only if the firm complies with the board's peer review rules (section 73-33-1(3)(b)). Under Board Rule 5.3.2, each practice unit, other than one that performed no accounting or auditing engagements in the 12 months before registration (Rule 5.3.1), must complete a peer review once every three years in order to register with the board."
+      "citation_url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf#page=77",
+      "notes": "Reviews and compilations by a no-office firm are permitted only if the firm complies with the board's peer review rules (section 73-33-1(3)(b)). Under Board Rule 5.3.2, each ongoing practice unit, other than one that performed no accounting or auditing engagements in the 12 months before registration (Rule 5.3.1), must complete a peer review once every three years in order to register with the board."
     },
     "confidence": "single_source",
     "source_disagreement": null,
@@ -1078,7 +1078,7 @@
     "attest_exemption": {
       "exists": null,
       "citation": "Ohio Rev. Code section 4701.04(A); section 4701.14; Ohio Admin. Code 4701-13-02",
-      "citation_url": "https://codes.ohio.gov/ohio-revised-code/section-4701.04",
+      "citation_url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-13-02",
       "notes": "Section 4701.04(A) requires registration of a public accounting firm 'located in this state'. Ohio Admin. Code 4701-13-02(C) requires any public accounting firm that performs or offers engagements resulting in an attest report to notify the board within ninety days and register as a peer review firm 'pursuant to section 4701.04', with no location qualifier. Read one way, that phrase imports 4701.04's location limit; read the other, it creates a separate duty for out-of-state firms. The text does not settle which; confirm with the board."
     },
     "physical_office_trigger": {
@@ -1090,7 +1090,7 @@
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Ohio Rev. Code section 4701.04(F); Ohio Admin. Code 4701-13-02",
-      "citation_url": "https://codes.ohio.gov/ohio-revised-code/section-4701.04",
+      "citation_url": "https://codes.ohio.gov/ohio-administrative-code/rule-4701-13-02",
       "notes": "As a condition for initial/renewal registration, the board requires peer review by rule unless an exception in division (J) applies. OAC 4701-13-02 requires documentation of approved peer review by the October 31 renewal deadline."
     },
     "confidence": "single_source",
@@ -1128,19 +1128,19 @@
     "attest_exemption": {
       "exists": false,
       "citation": "288 Neb. Admin. Code ch. 11, section 005.01; ch. 3, section 001; Neb. Rev. Stat. section 1-125.01(4)",
-      "citation_url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-125.01",
+      "citation_url": "https://www.law.cornell.edu/regulations/nebraska/288-Neb-Admin-Code-ch-11-SS-005",
       "notes": "Admin rule + Board guidance require firm registration for ANY public accounting work for an NE client, attest or not -- no clean no-office/non-attest exemption. Caveat: firm-registration statute is permissive ('may register') and individual-mobility statute (section 1-125.01) ties routing-through-a-permitted-firm specifically to attestation, creating internal tension with the stricter rule/guidance (resolved in favor of the rule). Section 1-125.01(4): 'Any person who exercises the practice privilege afforded under this section and who, for any entity with its home office in this state, performs attestation services, may only do so through a firm or an affiliated entity which holds a permit issued under section 1-136.' This conditions firm-permit routing on attestation specifically and is silent on non-attest work -- it doesn't affirmatively exempt non-attest work from all registration, but its silence is genuinely readable either way. Unlike Arizona (which had an express 'except as provided in' cross-reference), nothing in 1-125.01 or the admin rule itself resolves the silence one way or the other."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "Neb. Rev. Stat. section 1-135; 288 Neb. Admin. Code ch. 10, section 001",
-      "citation_url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-135",
+      "citation_url": "https://www.law.cornell.edu/regulations/nebraska/288-Neb-Admin-Code-ch-10-SS-001",
       "notes": "Each office established/maintained in NE for public accountancy practice must be registered annually, independent of services performed. Dual-sourced: statute + near-identical implementing rule."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "Neb. Rev. Stat. section 1-153; 288 Neb. Admin. Code ch. 13, section 004.01/.03(B)",
-      "citation_url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-153",
+      "citation_url": "https://www.law.cornell.edu/regulations/nebraska/288-Neb-Admin-Code-ch-13-SS-004",
       "notes": "Board may restrict permits based on peer review results; attest/compilation firms must furnish peer review evidence with renewal application; preparation-only firms exempt. Dual-sourced."
     },
     "confidence": "dual_source",
@@ -1228,12 +1228,12 @@
     "attest_exemption": {
       "exists": true,
       "citation": "C.R.S. sections 12-100-116(1)(a)(III), 12-100-117(2)(a)(II); 3 CCR 705-1, Rule 1.14(B)(2)",
-      "citation_url": "https://law.justia.com/codes/colorado/title-12/business-professions-and-occupations/article-100/section-12-100-117/",
+      "citation_url": "https://www.law.cornell.edu/regulations/colorado/3-CCR-705-1.14",
       "notes": "A firm may practice in Colorado without registering with the board if the practice is incident to its regular practice outside Colorado (section 12-100-117(2)(a)(II)), and board Rule 1.14(B)(2) applies this to a firm holding an active firm license or registration in another state. Section 12-100-116(1)(a)(III) lifts the registration requirement for audit and attest work by a firm practicing under section 12-100-117(2). Confirm with the board that your engagement qualifies."
     },
     "physical_office_trigger": {
       "exists": true,
-      "citation": "C.R.S. section 12-100-114 with section 12-100-117(2)(a)(II); 3 CCR 705-1 Rule 1.15(C)(1)(a)",
+      "citation": "C.R.S. section 12-100-114 with section 12-100-117(2)(a)(II)",
       "citation_url": "https://law.justia.com/codes/colorado/title-12/business-professions-and-occupations/article-100/section-12-100-114/",
       "notes": "A firm practicing in Colorado must register unless the section 12-100-117(2)(a)(II) exemption for practice incident to regular practice outside Colorado applies (section 12-100-114(1), as amended by SB 26-076 in 2026), and each resident manager in charge of a Colorado office must be a Colorado CPA (section 12-100-114(1)(d)). Our reading: a standing Colorado office is unlikely to qualify as practice incident to out-of-state practice, though neither the statute nor the board's rules say so expressly. Confirm with the board."
     },
@@ -1278,7 +1278,7 @@
     "attest_exemption": {
       "exists": false,
       "citation": "24 Del. C. sections 109(c), 111(b); 24 Del. Admin. Code 100 section 10.1",
-      "citation_url": "https://delcode.delaware.gov/title24/c001/index.html",
+      "citation_url": "https://www.law.cornell.edu/regulations/delaware/24-Del-Admin-Code-SS-100-10.0",
       "notes": "Broader than the framed split: a no-DE-office firm practicing through a practice-privileged individual has no firm-permit obligation at all, drawing no attest/non-attest line and no 'client home office in DE' carve-out. Attest work via a practice-privileged individual is ALSO exempt -- marked false since DE doesn't force registration specifically for attest work. Dual-sourced: statute + admin code, verbatim agreement."
     },
     "physical_office_trigger": {
