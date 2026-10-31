@@ -7,6 +7,23 @@ import {
   type FirmMobilityRuleRow,
 } from "../src/firm_mobility";
 
+/** GATE-80 (AuditLab 2026-10-31): the three constant headlines, pinned
+ * verbatim. SRC-147/149/150 were one defect three times -- a constant that
+ * overclaims past its population -- and a phrase list cannot see a reworded
+ * recurrence. Each literal is reviewed against every row it serves; editing
+ * one here is the review trigger. Do not import these from the source. */
+const GATE80_PINNED = {
+  officeFalse:
+    "Having an office here is not, on its own, what this state's rule turns on. The state's rule below " +
+    "says what does require firm registration; check it against your firm's facts.",
+  officeTrue:
+    "This state's firm-registration rule for a firm with an office here is below; check it against " +
+    "your firm's facts.",
+  attestFalse:
+    "This state's firm-registration rule for attest work by a firm without an office here is below; check it " +
+    "against your firm's facts, including where the client is based.",
+};
+
 /**
  * Data-integrity tests for the firm-level registration ruleset (roadmap
  * #318, DiffLab's 2026-08-07/08 research pass). Same split as
@@ -294,6 +311,30 @@ describe("the engine's answers are conservative where they should be, across the
     }
   });
 
+  it("SRC-152: an attest-exempt row with blank notes is not_verified, never a clear with no conditions", () => {
+    // nevada: attest exemption true, peer-review permit not true, so no later
+    // limb would catch a blank note.
+    const nv = rows.find((r) => r.stateSlug === "nevada")!;
+    expect(nv.attestExemption.exists).toBe(true);
+    expect(nv.peerReviewConditionsPermit.exists).not.toBe(true);
+    // Positive control: the live row is clear and shows its notes.
+    const live = evaluateFirmMobility(
+      { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false },
+      nv,
+      null
+    );
+    expect(live.verdict).toBe("clear");
+    expect(live.requirements).toEqual([nv.attestExemption.notes]);
+    for (const notes of [null, "", "   ", "\n\t "]) {
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: "texas", targetStateSlug: "nevada", hasPhysicalOfficeInTargetState: false },
+        { ...nv, attestExemption: { ...nv.attestExemption, notes } },
+        null
+      );
+      expect(finding.verdict, JSON.stringify(notes)).toBe("not_verified");
+    }
+  });
+
   it("SRC-147: the office-false summary names no trigger -- what the trigger is lives only in each row's notes", () => {
     // hawaii / puerto-rico / northern-mariana-islands attach registration to
     // any practice regardless of office; iowa / washington / virginia name
@@ -302,6 +343,7 @@ describe("the engine's answers are conservative where they should be, across the
     const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false && r.physicalOfficeTrigger.notes);
     expect(officeFalse.map((r) => r.stateSlug)).toEqual(expect.arrayContaining(["hawaii", "puerto-rico", "virginia"]));
     expect(officeFalse.length).toBe(16); // GATE-78
+    const summaries = new Set<string>();
     let checked = 0;
     for (const row of officeFalse) {
       const home = row.stateSlug === "texas" ? "california" : "texas";
@@ -312,9 +354,14 @@ describe("the engine's answers are conservative where they should be, across the
       );
       if (finding.verdict !== "action_required") continue; // disagreement rows render their own text
       expect(finding.summary, row.stateSlug).not.toMatch(/attest|title|titling|principal place|depends on what the office does/i);
+      summaries.add(finding.summary);
       checked++;
     }
     expect(checked, "GATE-78: every office-false row must reach the summary check").toBe(officeFalse.length);
+    // GATE-80: pinned verbatim. The phrase check above is a tripwire only; a
+    // reword that keeps clear of it can still overclaim. Any change to this
+    // text must edit this literal, so it is a reviewed diff, never silent.
+    expect([...summaries]).toEqual([GATE80_PINNED.officeFalse]);
   });
 
   it("SRC-149: the office-true summary asserts nothing beyond what is common to all 37 true rows; every one serves its own notes", () => {
@@ -344,6 +391,7 @@ describe("the engine's answers are conservative where they should be, across the
     }
     expect(checked, "every office-true row must reach the summary check").toBe(officeTrue.length);
     expect(summaries.size, "the office-true summary is one constant").toBe(1);
+    expect([...summaries], "GATE-80: pinned verbatim").toEqual([GATE80_PINNED.officeTrue]);
   });
 
   it("SRC-149: an office-true row with no notes is not_verified, never an invented requirement", () => {
@@ -397,6 +445,7 @@ describe("the engine's answers are conservative where they should be, across the
     expect(suppressed.sort()).toEqual(["alaska", "nebraska"]);
     expect(checked).toBe(18);
     expect(summaries.size, "the attest-false summary is one constant").toBe(1);
+    expect([...summaries], "GATE-80: pinned verbatim").toEqual([GATE80_PINNED.attestFalse]);
   });
 
   it("SRC-151: a null, empty, or whitespace-only note on any limb is not_verified, never a blank or invented requirement", () => {

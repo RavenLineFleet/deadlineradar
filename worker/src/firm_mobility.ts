@@ -441,7 +441,16 @@ export function evaluateFirmMobility(
   // every verdict from this branch -- a "clear" that shows only the
   // peer-review condition, or nothing, would hide what the firm has to meet
   // to rely on the exemption at all.
-  const requirements: string[] = hasText(exemption.notes) ? [exemption.notes] : [];
+  // SRC-152 (AuditLab 2026-10-31): blank notes mean the exemption's
+  // conditions are unknown, so this is not_verified -- never a "clear" with
+  // zero conditions shown.
+  if (!hasText(exemption.notes)) {
+    return notVerified(
+      rule,
+      "We haven't verified the conditions on this state's exemption from firm registration for attest work by a firm without an office here."
+    );
+  }
+  const requirements: string[] = [exemption.notes];
   let verdict: FirmMobilityVerdict = "clear";
   let summary =
     "We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.";

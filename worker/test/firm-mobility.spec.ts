@@ -20,13 +20,14 @@ function condition(over: Partial<FirmMobilityCondition> = {}): FirmMobilityCondi
 }
 
 /** A fully-verified rule where attest work by a no-office firm is
- * unconditionally exempt -- the ONLY shape that should ever produce a bare
- * "clear" verdict with no peer-review requirement attached. */
+ * exempt with no peer-review condition -- the ONLY shape that should ever
+ * produce a "clear" verdict with no peer-review requirement attached. Its
+ * notes always ride along (SRC-140); blank notes are not_verified (SRC-152). */
 function verifiedRule(over: Partial<FirmMobilityRuleRow> = {}): FirmMobilityRuleRow {
   return {
     state: "Texas",
     stateSlug: "texas",
-    attestExemption: condition({ exists: true }),
+    attestExemption: condition({ exists: true, notes: "Exempt attest work runs through a CPA with practice privileges." }),
     physicalOfficeTrigger: condition({ exists: true, citation: "Tex. Occ. Code s 901.461", notes: "A firm with an office here registers." }),
     peerReviewConditionsPermit: condition({ exists: false, citation: null }),
     confidence: "dual_source",
@@ -48,7 +49,7 @@ function input(over: Partial<FirmMobilityInput> = {}): FirmMobilityInput {
 
 describe("SAFETY: the engine must never assert a clearance it cannot cite", () => {
   it("downgrades a would-be CLEAR verdict to not_verified when the attest exemption has NO citation", () => {
-    const uncited = verifiedRule({ attestExemption: condition({ exists: true, citation: null }) });
+    const uncited = verifiedRule({ attestExemption: condition({ exists: true, citation: null, notes: "Exempt attest work runs through a CPA with practice privileges." }) });
     const finding = evaluateFirmMobility(input(), uncited, null);
     expect(finding.verdict).toBe("not_verified");
     expect(finding.citation).toBeNull();
@@ -67,7 +68,7 @@ describe("no physical office -- the no-office attest-work case this dataset targ
     const rule = verifiedRule();
     const finding = evaluateFirmMobility(input(), rule, null);
     expect(finding.verdict).toBe("clear");
-    expect(finding.requirements).toEqual([]);
+    expect(finding.requirements).toEqual([rule.attestExemption.notes]);
   });
 
   it("action_required: attest_exemption false -- must register regardless of peer review", () => {
@@ -87,7 +88,7 @@ describe("no physical office -- the no-office attest-work case this dataset targ
 describe("the peer-review-conditional exemption -- the case this feature exists to get right", () => {
   function conditionalRule(): FirmMobilityRuleRow {
     return verifiedRule({
-      attestExemption: condition({ exists: true, citation: "State Code s 1" }),
+      attestExemption: condition({ exists: true, citation: "State Code s 1", notes: "Exempt attest work runs through a CPA with practice privileges." }),
       peerReviewConditionsPermit: condition({
         exists: true,
         citation: "State Code s 2",
