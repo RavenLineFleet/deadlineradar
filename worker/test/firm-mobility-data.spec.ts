@@ -167,6 +167,51 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     expect(unclear).toEqual(["guam", "wisconsin"]);
   });
 
+  // GATE-78 (AuditLab 2026-10-31): pin the office-false census exactly, and
+  // check each physical_office_trigger boolean against its own notes, the
+  // way SRC-141 does for attest_exemption. Without this, re-encoding 12
+  // office-false rows as true (notes untouched) passed every office guard
+  // and served "requires firm registration for a firm with a physical
+  // office" above a note saying an office alone is insufficient.
+  // 2026-10-31: Massachusetts flipped true -> false (its note says the
+  // triggers are reports and the CPA title, "not having an office as such").
+  const OFFICE_FALSE = [
+    "dc", "hawaii", "idaho", "illinois", "indiana", "iowa", "massachusetts", "new-jersey", "new-york",
+    "northern-mariana-islands", "oregon", "puerto-rico", "rhode-island", "us-virgin-islands", "virginia", "washington",
+  ];
+  it("exactly 16 states say an office alone does not trigger firm registration (physical_office_trigger=false) -- GATE-78 2026-10-31; Massachusetts added 2026-10-31", () => {
+    const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false).map((r) => r.stateSlug).sort();
+    expect(officeFalse).toEqual(OFFICE_FALSE);
+  });
+
+  // Phrases the notes use to say an office is not sufficient on its own.
+  // Every office-false note matches; no office-true note may.
+  const OFFICE_NOT_SUFFICIENT = /\b(?:not|isn't|is not)\s+(?:truly\s+)?independent\b|\bisn't unconditional\b|regardless of office|\bnot\s+(?:by\s+|on\s+)?(?:having\s+)?an office\b|\bnot\s+(?:mere\s+|bare\s+)?office presence\b|\boffice alone (?:is insufficient|isn't|doesn't|does not)\b|\balone does not trigger\b|\bnot an independent trigger\b|\brather than a separate trigger\b|\bnot a trigger on its own\b|\bno provision makes\b[^.]{0,40}\bindependently trigger/i;
+  const officeBooleanOffenders = (rs: FirmMobilityRuleRow[]) =>
+    rs
+      .filter((r) => r.physicalOfficeTrigger.exists !== null && r.physicalOfficeTrigger.notes)
+      .filter((r) => (r.physicalOfficeTrigger.exists === false) !== OFFICE_NOT_SUFFICIENT.test(r.physicalOfficeTrigger.notes!))
+      .map((r) => r.stateSlug)
+      .sort();
+  it("GATE-78: every physical_office_trigger boolean agrees with its own notes", () => {
+    expect(officeBooleanOffenders(rows)).toEqual([]);
+  });
+  it("GATE-78 positive control: AuditLab's mutation (12 office-false rows re-encoded true, notes untouched) is caught", () => {
+    const mutated12 = [
+      "dc", "idaho", "illinois", "indiana", "iowa", "new-jersey", "new-york",
+      "northern-mariana-islands", "oregon", "rhode-island", "us-virgin-islands", "washington",
+    ];
+    const mutated = rows.map((r) =>
+      mutated12.includes(r.stateSlug) ? { ...r, physicalOfficeTrigger: { ...r.physicalOfficeTrigger, exists: true } } : r
+    );
+    expect(officeBooleanOffenders(mutated)).toEqual(mutated12.slice().sort());
+    // And the reverse direction: an office-true row re-encoded false is caught too.
+    const flippedTexas = rows.map((r) =>
+      r.stateSlug === "texas" ? { ...r, physicalOfficeTrigger: { ...r.physicalOfficeTrigger, exists: false } } : r
+    );
+    expect(officeBooleanOffenders(flippedTexas)).toEqual(["texas"]);
+  });
+
   it("exactly these states carry a real source_disagreement note (2026-08-17: WV, AZ, NJ, NM, NY, PA, USVI, VT, NH resolved via direct primary-source text -- NE/OH genuinely unresolved; 2026-10-31 SRC-143: AK statute vs unconformed 12 AAC 04.245(a)(2))", () => {
     const disagreeing = rows.filter((r) => r.sourceDisagreement !== null).map((r) => r.stateSlug).sort();
     expect(disagreeing).toEqual(["alaska", "nebraska", "ohio"].sort());
@@ -224,7 +269,7 @@ describe("the engine's answers are conservative where they should be, across the
 
   it("SRC-145: no state answers 'clear' for a firm with an office there; every office-false row serves its own trigger notes", () => {
     const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false);
-    expect(officeFalse.length).toBeGreaterThan(0); // positive control: the population is non-empty
+    expect(officeFalse.length).toBe(16); // GATE-78: pinned to the census above, not just non-empty
     for (const row of rows) {
       const home = row.stateSlug === "texas" ? "california" : "texas";
       const finding = evaluateFirmMobility(
@@ -247,6 +292,8 @@ describe("the engine's answers are conservative where they should be, across the
     // CPA title contradicts or overreaches on those rows.
     const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false && r.physicalOfficeTrigger.notes);
     expect(officeFalse.map((r) => r.stateSlug)).toEqual(expect.arrayContaining(["hawaii", "puerto-rico", "virginia"]));
+    expect(officeFalse.length).toBe(16); // GATE-78
+    let checked = 0;
     for (const row of officeFalse) {
       const home = row.stateSlug === "texas" ? "california" : "texas";
       const finding = evaluateFirmMobility(
@@ -256,7 +303,9 @@ describe("the engine's answers are conservative where they should be, across the
       );
       if (finding.verdict !== "action_required") continue; // disagreement rows render their own text
       expect(finding.summary, row.stateSlug).not.toMatch(/attest|title|titling|principal place|depends on what the office does/i);
+      checked++;
     }
+    expect(checked, "GATE-78: every office-false row must reach the summary check").toBe(officeFalse.length);
   });
 
   it("SRC-146: exactly AK/NE/OH scope their disagreement to the attest limb, and their office answer is not suppressed", () => {
