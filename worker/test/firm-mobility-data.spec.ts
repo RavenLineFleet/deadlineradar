@@ -222,6 +222,48 @@ describe("the engine's answers are conservative where they should be, across the
     }
   });
 
+  it("SRC-145: no state answers 'clear' for a firm with an office there; every office-false row serves its own trigger notes", () => {
+    const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false);
+    expect(officeFalse.length).toBeGreaterThan(0); // positive control: the population is non-empty
+    for (const row of rows) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: true },
+        row,
+        null
+      );
+      expect(finding.verdict, `${row.stateSlug} told an office-having firm 'clear'`).not.toBe("clear");
+      if (row.physicalOfficeTrigger.exists === false && !row.sourceDisagreement) {
+        expect(finding.verdict, row.stateSlug).toBe("action_required");
+        expect(finding.requirements, row.stateSlug).toEqual([row.physicalOfficeTrigger.notes]);
+      }
+    }
+  });
+
+  it("SRC-146: exactly AK/NE/OH scope their disagreement to the attest limb, and their office answer is not suppressed", () => {
+    const scoped = rows
+      .filter((r) => r.sourceDisagreement && r.sourceDisagreementScope === "attest_exemption")
+      .map((r) => r.stateSlug)
+      .sort();
+    expect(scoped).toEqual(["alaska", "nebraska", "ohio"]);
+    for (const slug of scoped) {
+      const row = rows.find((r) => r.stateSlug === slug)!;
+      expect(row.physicalOfficeTrigger.exists, slug).toBe(true);
+      const office = evaluateFirmMobility(
+        { firmHomeStateSlug: "texas", targetStateSlug: slug, hasPhysicalOfficeInTargetState: true },
+        row,
+        null
+      );
+      expect(office.verdict, slug).toBe("action_required");
+      const noOffice = evaluateFirmMobility(
+        { firmHomeStateSlug: "texas", targetStateSlug: slug, hasPhysicalOfficeInTargetState: false },
+        row,
+        null
+      );
+      expect(noOffice.verdict, slug).toBe("not_verified");
+    }
+  });
+
   it("a state with no record at all is not_verified, never a guess", () => {
     const finding = evaluateFirmMobility(
       { firmHomeStateSlug: "ohio", targetStateSlug: "atlantis", hasPhysicalOfficeInTargetState: false },

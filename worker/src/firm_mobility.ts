@@ -67,9 +67,11 @@ export interface FirmMobilityRuleRow {
    * verdict). Counts live in test/firm-mobility-data.spec.ts, not here. */
   attestExemption: FirmMobilityCondition;
   /** Does having a physical office in this state trigger firm registration
-   * regardless of service type? true for 37 of 55 jurisdictions, false for
-   * 14, and genuinely unverified (null) for 4 (Utah, Guam, US Virgin
-   * Islands, Wisconsin) as of this dataset's current pass. */
+   * regardless of service type? false = an office is not BY ITSELF the
+   * trigger; the requirement turns on what the office does (attest work,
+   * CPA titling). This check is attest-scoped, so false is never rendered
+   * as "clear" -- see the office branch (SRC-145). Counts live in
+   * test/firm-mobility-data.spec.ts. */
   physicalOfficeTrigger: FirmMobilityCondition;
   /** Is the attest exemption above CONDITIONED on peer-review compliance?
    * When true, a "clear" verdict is not unconditional -- see
@@ -79,11 +81,18 @@ export interface FirmMobilityRuleRow {
   /** Non-null means this state's primary sources genuinely disagree with
    * each other (11 states in the current dataset) -- same "we will not
    * pick a side" posture as mobility.ts's `rule_in_flux`, applied to this
-   * dataset's own conflict signal. Forces not_verified regardless of every
-   * other field on the row. */
+   * dataset's own conflict signal. Forces not_verified on the limb(s)
+   * named by sourceDisagreementScope. */
   sourceDisagreement: string | null;
+  /** SRC-146 (AuditLab 2026-10-31): which limb the disagreement is about.
+   * "all" (the default for a missing or unrecognized value) blocks both the
+   * office and the no-office answer; a named limb blocks only that limb, so
+   * an undisputed answer on the other limb is not suppressed. */
+  sourceDisagreementScope: FirmDisagreementScope;
   verifiedDate: string | null;
 }
+
+export type FirmDisagreementScope = "all" | "attest_exemption" | "physical_office_trigger";
 
 function normalizeCondition(raw: unknown): FirmMobilityCondition {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -119,6 +128,10 @@ export function normalizeFirmRuleRow(raw: unknown): FirmMobilityRuleRow | null {
     peerReviewConditionsPermit: normalizeCondition(r.peer_review_conditions_permit),
     confidence: conf === "dual_source" || conf === "single_source" || conf === "unverified" ? conf : null,
     sourceDisagreement: str(r.source_disagreement),
+    sourceDisagreementScope:
+      r.source_disagreement_scope === "attest_exemption" || r.source_disagreement_scope === "physical_office_trigger"
+        ? r.source_disagreement_scope
+        : "all",
     verifiedDate: str(r.verified_date),
   };
 }
@@ -204,12 +217,20 @@ function requireCitationOrDowngrade(finding: FirmMobilityFinding): FirmMobilityF
   return finding;
 }
 
-/** Conditions that make a row untrustworthy AS A WHOLE, checked before any
+/** Conditions that make a row untrustworthy, checked before any
  * condition-specific field is read -- mirrors mobility.ts's
- * blockingRuleCondition(). A state with disagreeing primary sources or a
- * stale verification cannot produce an answer through any path. */
-function blockingFirmRuleCondition(rule: FirmMobilityRuleRow, now: Date): FirmMobilityFinding | null {
-  if (rule.sourceDisagreement) {
+ * blockingRuleCondition(). A stale verification blocks every path. A source
+ * disagreement blocks the limb it is scoped to (both, unless the row names
+ * one limb -- SRC-146), because a disagreement about the no-office attest
+ * exemption says nothing about whether an office here triggers registration. */
+function blockingFirmRuleCondition(
+  rule: FirmMobilityRuleRow,
+  now: Date,
+  limb: "attest_exemption" | "physical_office_trigger"
+): FirmMobilityFinding | null {
+  const disagreementApplies =
+    rule.sourceDisagreementScope === "all" || rule.sourceDisagreementScope === limb;
+  if (rule.sourceDisagreement && disagreementApplies) {
     return {
       verdict: "not_verified",
       summary:
@@ -259,7 +280,8 @@ function isPeerReviewCurrent(dueDate: string | null, now: Date): boolean {
  * handleFirmMobilityFirmCheck.
  *
  * Ordering: home==target short-circuits first (not a mobility question);
- * then the whole-row blocking conditions (source disagreement, staleness);
+ * then the blocking conditions (staleness for the whole row, source
+ * disagreement for the limb it is scoped to);
  * then physical-office-trigger, which is evaluated BEFORE the no-office
  * attest exemption because it's a separate, unconditional trigger -- a
  * firm with a physical office in the target state doesn't get to claim the
@@ -286,7 +308,11 @@ export function evaluateFirmMobility(
   if (!rule) {
     return notVerified(null, "This state isn't in our verified firm-registration dataset yet.");
   }
-  const blocked = blockingFirmRuleCondition(rule, now);
+  const blocked = blockingFirmRuleCondition(
+    rule,
+    now,
+    input.hasPhysicalOfficeInTargetState ? "physical_office_trigger" : "attest_exemption"
+  );
   if (blocked) return blocked;
 
   if (input.hasPhysicalOfficeInTargetState) {
@@ -298,17 +324,32 @@ export function evaluateFirmMobility(
       );
     }
     if (trigger.exists === false) {
-      return requireCitationOrDowngrade({
-        verdict: "clear",
+      // SRC-145 (AuditLab 2026-10-31): false means the office is not BY
+      // ITSELF the trigger -- every such row's notes say attest work or CPA
+      // titling from an office here does require registration. This check is
+      // for attest engagements, so that is the customer's fact pattern: never
+      // "clear", and the row's own notes (the actual trigger) always shown.
+      // The no-office attest exemption does not apply to a firm with an
+      // office here, so attestExemption is still not consulted.
+      if (!trigger.notes) {
+        return notVerified(
+          rule,
+          "We haven't verified what triggers firm registration for a firm with an office in this state."
+        );
+      }
+      return {
+        verdict: "action_required",
         summary:
-          "We haven't identified a firm-registration requirement in this state for a firm with a physical office here.",
-        requirements: [],
+          "In this state an office doesn't trigger firm registration by itself. The requirement depends on what " +
+          "the office does: attest work, or use of the CPA title, from an office here brings the firm under it. " +
+          "The state's rule is below.",
+        requirements: [trigger.notes],
         citation: trigger.citation,
         citationUrl: trigger.citationUrl,
         verifiedDate: rule.verifiedDate,
         confidence: rule.confidence,
         disclaimer: MOBILITY_DISCLAIMER,
-      });
+      };
     }
     return {
       verdict: "action_required",

@@ -31,6 +31,7 @@ function verifiedRule(over: Partial<FirmMobilityRuleRow> = {}): FirmMobilityRule
     peerReviewConditionsPermit: condition({ exists: false, citation: null }),
     confidence: "dual_source",
     sourceDisagreement: null,
+    sourceDisagreementScope: "all",
     verifiedDate: new Date().toISOString().slice(0, 10),
     ...over,
   };
@@ -144,10 +145,20 @@ describe("physical office in the target state -- a separate, unconditional trigg
     expect(finding.verdict).toBe("action_required");
   });
 
-  it("clear when physical_office_trigger is false and cited", () => {
-    const rule = verifiedRule({ physicalOfficeTrigger: condition({ exists: false }) });
+  it("SRC-145: physical_office_trigger false is NEVER clear -- action_required carrying the row's own trigger notes", () => {
+    const notes = "Registration required only if the office performs attest work or uses the CPA title.";
+    const rule = verifiedRule({ physicalOfficeTrigger: condition({ exists: false, notes }) });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(finding.verdict).toBe("clear");
+    expect(finding.verdict).toBe("action_required");
+    expect(finding.requirements).toEqual([notes]);
+    expect(finding.summary).not.toMatch(/haven't identified/);
+    expect(finding.citation).toBe("Tex. Occ. Code s 901.462");
+  });
+
+  it("SRC-145: physical_office_trigger false with no notes is not_verified (we cannot state the trigger), never clear", () => {
+    const rule = verifiedRule({ physicalOfficeTrigger: condition({ exists: false, notes: null }) });
+    const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
+    expect(finding.verdict).toBe("not_verified");
   });
 
   it("not_verified when physical_office_trigger is unverified", () => {
@@ -163,10 +174,11 @@ describe("physical office in the target state -- a separate, unconditional trigg
     // condition it doesn't read.
     const rule = verifiedRule({
       attestExemption: condition({ exists: null, citation: null }),
-      physicalOfficeTrigger: condition({ exists: false }),
+      physicalOfficeTrigger: condition({ exists: false, notes: "Office plus attest work triggers registration." }),
     });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
-    expect(finding.verdict).toBe("clear");
+    expect(finding.verdict).toBe("action_required");
+    expect(finding.requirements).toEqual(["Office plus attest work triggers registration."]);
   });
 });
 
@@ -176,6 +188,41 @@ describe("SAFETY: source disagreement and staleness block regardless of every ot
     const finding = evaluateFirmMobility(input(), rule, null);
     expect(finding.verdict).toBe("not_verified");
     expect(finding.requirements).toContain("Statute and board guidance conflict on this point.");
+  });
+
+  it("an unscoped ('all') disagreement blocks the has-office limb too", () => {
+    const rule = verifiedRule({ sourceDisagreement: "Statute and rule conflict." });
+    const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
+    expect(finding.verdict).toBe("not_verified");
+    expect(finding.requirements).toContain("Statute and rule conflict.");
+  });
+
+  it("SRC-146: an attest-scoped disagreement blocks the no-office limb only; the undisputed office answer still renders", () => {
+    const rule = verifiedRule({
+      sourceDisagreement: "Attest-exemption question only: statute and rule conflict.",
+      sourceDisagreementScope: "attest_exemption",
+    });
+    const noOffice = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null);
+    expect(noOffice.verdict).toBe("not_verified");
+    expect(noOffice.requirements).toContain("Attest-exemption question only: statute and rule conflict.");
+    const office = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
+    expect(office.verdict).toBe("action_required");
+    expect(office.summary).not.toMatch(/disagree/);
+  });
+
+  it("SRC-146: an office-scoped disagreement blocks the office limb only", () => {
+    const rule = verifiedRule({ sourceDisagreement: "Office question conflict.", sourceDisagreementScope: "physical_office_trigger" });
+    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null).verdict).toBe("not_verified");
+    expect(evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: false }), rule, null).verdict).toBe("clear");
+  });
+
+  it("SRC-146: the normalizer defaults a missing or unrecognized scope to 'all' (blocks both limbs)", () => {
+    const raw = { state: "Texas", state_slug: "texas", confidence: "dual_source", source_disagreement: "x conflicts y" };
+    expect(normalizeFirmRuleRow(raw)?.sourceDisagreementScope).toBe("all");
+    expect(normalizeFirmRuleRow({ ...raw, source_disagreement_scope: "attest" })?.sourceDisagreementScope).toBe("all");
+    expect(normalizeFirmRuleRow({ ...raw, source_disagreement_scope: "attest_exemption" })?.sourceDisagreementScope).toBe(
+      "attest_exemption"
+    );
   });
 
   it("a rule verified more than the TTL window ago is not_verified regardless of its booleans", () => {

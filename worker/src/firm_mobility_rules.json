@@ -170,6 +170,7 @@
     },
     "confidence": "dual_source",
     "source_disagreement": "Alaska statute AS 08.04.420(d) and AS 08.04.565(2) let a firm with no Alaska office, whose principal place of business is in another state and which is more than one-half owned by CPAs in good standing, perform attest work under a firm practice privilege with no permit, notice or fee. The out-of-state attest permit in AS 08.04.240(k) was repealed effective January 1, 2026. The board regulation 12 AAC 04.245(a)(2) has not been updated and still requires a permit for attest work by a firm with no Alaska office. Confirm with the Alaska Board of Public Accountancy before performing attest work for an Alaska client without a permit.",
+    "source_disagreement_scope": "attest_exemption",
     "state_slug": "alaska",
     "state": "Alaska",
     "verified_date": "2026-10-31"
@@ -1095,6 +1096,7 @@
     },
     "confidence": "single_source",
     "source_disagreement": "Ohio Rev. Code section 4701.04(A) requires registration only for a firm located in Ohio, but Ohio Admin. Code 4701-13-02(C) requires any firm that performs engagements resulting in an attest report to notify the board within ninety days and register as a peer review firm, without a stated location limit.",
+    "source_disagreement_scope": "attest_exemption",
     "state_slug": "ohio",
     "state": "Ohio",
     "verified_date": "2026-10-30"
@@ -1145,6 +1147,7 @@
     },
     "confidence": "dual_source",
     "source_disagreement": "Attest-exemption question only: the individual-mobility statute (Neb. Rev. Stat. 1-125.01(4)) conditions firm-permit routing on attestation specifically and is silent on non-attest work; the administrative rule (288 NAC ch. 11 section 005.01) requires registration for ANY public accounting work, attest or not, with no such carve-out. Genuinely unresolved by the statute's own text -- the stricter administrative rule is used as the primary answer, a conservative reading, not a forced resolution of the tension.",
+    "source_disagreement_scope": "attest_exemption",
     "state_slug": "nebraska",
     "state": "Nebraska",
     "verified_date": "2026-08-17"
