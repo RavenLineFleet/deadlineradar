@@ -151,16 +151,16 @@
   },
   "alaska": {
     "attest_exemption": {
-      "exists": true,
-      "citation": "AS 08.04.420 (firm permit); AS 08.04.421 (out-of-state permits/exemptions)",
-      "citation_url": "https://law.justia.com/codes/alaska/title-8/chapter-04/article-3/section-08-04-421/",
-      "notes": "No-office firms exempt from the ordinary firm-permit requirement. Attest work for an AK-headquartered client requires a lighter 'out-of-state permit' (notice+fee+verification) rather than a full firm permit; non-attest work needs only quality-review participation, no filing. Split exists but with an intermediate step for attest."
+      "exists": false,
+      "citation": "AS 08.04.420(c)-(d); AS 08.04.565(2); AS 08.04.240(k) (repealed, sec. 22, ch. 22, SLA 2025); 12 AAC 04.245(a)(2)",
+      "citation_url": "https://www.commerce.alaska.gov/web/portals/5/pub/CPARegulations.pdf",
+      "notes": "Alaska's statute and its board regulation give opposite answers for attest work by a firm with no Alaska office. Under AS 08.04.420(d), a firm that is more than one-half owned by CPAs in good standing, has its principal place of business in another state and has no Alaska office may practice in Alaska under a firm practice privilege, and AS 08.04.565(2) allows attest work through such a firm. AS 08.04.420(c) says no notice, fee or documentation is required. The former out-of-state attest permit in AS 08.04.240(k) was repealed effective January 1, 2026. The board regulation 12 AAC 04.245(a)(2) has not been updated and still says a firm with no Alaska office must obtain a permit to provide attest functions under AS 08.04.240(k). Non-attest work by such a firm needs no permit under either source."
     },
     "physical_office_trigger": {
       "exists": true,
-      "citation": "AS 08.04.420; AS 08.04.421",
-      "citation_url": "https://law.justia.com/codes/alaska/title-8/chapter-04/article-3/section-08-04-421/",
-      "notes": "Opening an AK office requires a full firm permit; the no-office exemptions only apply to firms with no AK office."
+      "citation": "AS 08.04.240(a); 12 AAC 04.245(a)(1)",
+      "citation_url": "https://www.commerce.alaska.gov/web/portals/5/pub/CPARegulations.pdf",
+      "notes": "A firm with an Alaska office needs an Alaska firm permit. The firm practice privilege in AS 08.04.420(d) covers only a firm with no office in the state."
     },
     "peer_review_conditions_permit": {
       "exists": true,
@@ -169,10 +169,10 @@
       "notes": "Board may require peer review as a condition of firm-permit renewal, not more than once every 3 years. Corroborated by renewal-instructions PDF requiring the most recent peer-review acceptance report attached."
     },
     "confidence": "dual_source",
-    "source_disagreement": null,
+    "source_disagreement": "Alaska statute AS 08.04.420(d) and AS 08.04.565(2) let a firm with no Alaska office, whose principal place of business is in another state and which is more than one-half owned by CPAs in good standing, perform attest work under a firm practice privilege with no permit, notice or fee. The out-of-state attest permit in AS 08.04.240(k) was repealed effective January 1, 2026. The board regulation 12 AAC 04.245(a)(2) has not been updated and still requires a permit for attest work by a firm with no Alaska office. Confirm with the Alaska Board of Public Accountancy before performing attest work for an Alaska client without a permit.",
     "state_slug": "alaska",
     "state": "Alaska",
-    "verified_date": "2026-08-07"
+    "verified_date": "2026-10-31"
   },
   "arizona": {
     "attest_exemption": {
@@ -752,9 +752,9 @@
   "washington": {
     "attest_exemption": {
       "exists": true,
-      "citation": "RCW 18.04.195(3)",
+      "citation": "RCW 18.04.195(1)(a)(ii), (1)(b)",
       "citation_url": "https://app.leg.wa.gov/rcw/default.aspx?cite=18.04.195",
-      "notes": "No-WA-office firm may perform compilation/non-attest services under CPA title without a license only via a practice-privileged individual; attest services subject to separate licensing/mobility conditions."
+      "notes": "A firm with no Washington office may perform attest services in Washington without a firm license only if it meets all four conditions in RCW 18.04.195(1)(a)(ii): (A) it meets the firm ownership requirement in RCW 18.04.195(2)(a); (B) it meets the board's quality assurance review (peer review) requirements; (C) it performs the work through an individual with practice privileges under RCW 18.04.350; and (D) it can lawfully do so in the state where that individual has their principal place of business. Otherwise it must hold a Washington firm license. Compilations and other non-attest services under the CPA title need only conditions (C) and (D) (RCW 18.04.195(1)(b))."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -1354,7 +1354,7 @@
       "exists": false,
       "citation": "O.C.G.A. section 43-3-16(b)(1)(C) and (b)(2)-(3); Ga. Comp. R. & Regs. r. 20-8-.01(1) and r. 20-8-.02(1)",
       "citation_url": "https://rules.sos.ga.gov/gac/20-8",
-      "notes": "A firm with no Georgia office is never exempt for audits or other engagements under SAS, SSAE or PCAOB standards. Compilations and reviews are exempt only if the firm is enrolled in peer review. Other non-attest services are exempt if performed through a substantial-equivalency individual. Dual-sourced: statute+rule + GA Board Statement of Policy No. 11."
+      "notes": "A firm with no Georgia office is never exempt for audits or other engagements under SAS, SSAE or PCAOB standards. Compilations and reviews are exempt only if the firm meets Georgia's firm ownership requirement, is enrolled in peer review, and performs the work through a substantial-equivalency individual. Other non-attest services are exempt if performed through a substantial-equivalency individual. Dual-sourced: statute+rule + GA Board Statement of Policy No. 11."
     },
     "physical_office_trigger": {
       "exists": true,

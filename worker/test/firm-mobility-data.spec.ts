@@ -118,10 +118,10 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     expect(unclear).toEqual(["idaho", "maine", "massachusetts", "ohio", "tennessee", "wisconsin"]);
   });
 
-  it("exactly 19 states require firm registration for no-office attest work (attest_exemption=false) -- SRC-140 2026-10-31 flipped 14 split-encoded rows to true; SRC-141 2026-10-31 flipped 13 rows whose own notes say no-office attest work must register back to false", () => {
+  it("exactly 20 states require firm registration for no-office attest work (attest_exemption=false) -- SRC-140 2026-10-31 flipped 14 split-encoded rows to true; SRC-141 2026-10-31 flipped 13 rows whose own notes say no-office attest work must register back to false; SRC-143 2026-10-31 Alaska to false under its statute-vs-rule source_disagreement", () => {
     const required = rows.filter((r) => r.attestExemption.exists === false).map((r) => r.stateSlug).sort();
     expect(required).toEqual([
-      "arkansas", "california", "connecticut", "dc", "georgia", "guam", "hawaii", "indiana", "kansas",
+      "alaska", "arkansas", "california", "connecticut", "dc", "georgia", "guam", "hawaii", "indiana", "kansas",
       "minnesota", "mississippi", "nebraska", "new-york", "northern-mariana-islands", "puerto-rico",
       "rhode-island", "south-dakota", "us-virgin-islands", "west-virginia",
     ]);
@@ -131,12 +131,28 @@ describe("locked-in dataset facts -- a change here should only come from a real 
   // no-office attest work MUST register, so the paid check printed "exempt"
   // directly above "you must register". An exempt row's note may name a
   // registration requirement only alongside a real conditional carve-out.
-  const REQUIRES_REGISTRATION = /\b(must (register|hold a permit)|needs? a permit|requires? (a permit|one|registration)|never exempt|only through a firm registered|never for a firm)\b/i;
-  const CARVE_OUT = /\b(unless|otherwise)\b/i; // UT: "Otherwise a firm must register" follows its exemption (AuditLab ruled correct)
+  // GATE-77 (AuditLab 2026-10-31): allow up to three modifier / proper-noun
+  // tokens before the noun, so "needs a Guam Firm Permit", "requires a lighter
+  // 'out-of-state permit'" and "requires firm registration" are all caught.
+  // Negated forms ("does not need a Texas firm license", "needs no Iowa
+  // permit") are excluded. On the pre-SRC-141 bytes (bf8f4dbc7) this flags
+  // all 13 SRC-141 rows plus Alaska (SRC-143); at the fix it flags none.
+  const REQUIRES_REGISTRATION = /\b((?<!\bnot\s)(?<!n't\s)(?:must|needs?|requires?)\s+(?!no\b)(?:(?:a|an|one)\s+)?(?:(?!no\b)[\w'-]+\s+){0,3}?(?:register|registration|permit|license|one)\b|must hold a permit|never exempt|only through a firm registered|never for a firm)/i;
+  // UT: "Otherwise a firm must register" follows its exemption (AuditLab ruled correct).
+  // OK: names its own 15.12A/15.30 mobility carve-out (AuditLab ruled sound 2026-10-31).
+  const CARVE_OUT = /\b(unless|otherwise|carve-out)\b/i;
   it("SRC-141 positive control: the guard pattern catches the pre-fix Kansas and West Virginia phrasing", () => {
     expect(REQUIRES_REGISTRATION.test("any firm without a Kansas office that performs attest services for a Kansas client MUST register -- unconditional trigger")).toBe(true);
     expect(REQUIRES_REGISTRATION.test("relief from the permit specifically for a lone individual practitioner, never for a firm as such")).toBe(true);
     expect(REQUIRES_REGISTRATION.test("a no-office firm doing attest work for a CT-headquartered client needs a permit")).toBe(true);
+    // GATE-77 controls: the three phrasings the first version of the pattern missed.
+    expect(REQUIRES_REGISTRATION.test("A firm needs a Guam Firm Permit to Practice to provide attest services")).toBe(true);
+    expect(REQUIRES_REGISTRATION.test("Attest work for an AK-headquartered client requires a lighter 'out-of-state permit' (notice+fee+verification)")).toBe(true);
+    expect(REQUIRES_REGISTRATION.test("Oklahoma requires firm registration in three cases")).toBe(true);
+    // Negative control: an ordinary exemption sentence must not trip the guard.
+    expect(REQUIRES_REGISTRATION.test("A firm with no office here may perform attest work without a firm permit")).toBe(false);
+    expect(REQUIRES_REGISTRATION.test("a firm with no Texas office does not need a Texas firm license")).toBe(false);
+    expect(REQUIRES_REGISTRATION.test("needs no Iowa permit for any service")).toBe(false);
   });
   it("SRC-141: no exempt row's note says no-office attest work must register without naming a conditional carve-out", () => {
     const offenders = rows
@@ -151,9 +167,9 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     expect(unclear).toEqual(["guam", "wisconsin"]);
   });
 
-  it("exactly these states carry a real source_disagreement note (2026-08-17: WV, AZ, NJ, NM, NY, PA, USVI, VT, NH resolved via direct primary-source text -- NE/OH genuinely unresolved)", () => {
+  it("exactly these states carry a real source_disagreement note (2026-08-17: WV, AZ, NJ, NM, NY, PA, USVI, VT, NH resolved via direct primary-source text -- NE/OH genuinely unresolved; 2026-10-31 SRC-143: AK statute vs unconformed 12 AAC 04.245(a)(2))", () => {
     const disagreeing = rows.filter((r) => r.sourceDisagreement !== null).map((r) => r.stateSlug).sort();
-    expect(disagreeing).toEqual(["nebraska", "ohio"].sort());
+    expect(disagreeing).toEqual(["alaska", "nebraska", "ohio"].sort());
   });
 });
 
