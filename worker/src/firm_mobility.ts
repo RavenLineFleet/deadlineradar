@@ -68,8 +68,8 @@ export interface FirmMobilityRuleRow {
   attestExemption: FirmMobilityCondition;
   /** Does having a physical office in this state trigger firm registration
    * regardless of service type? false = an office is not BY ITSELF the
-   * trigger; the requirement turns on what the office does (attest work,
-   * CPA titling). This check is attest-scoped, so false is never rendered
+   * trigger; what is differs by row and lives only in its notes (SRC-147).
+   * This check is attest-scoped, so false is never rendered
    * as "clear" -- see the office branch (SRC-145). Counts live in
    * test/firm-mobility-data.spec.ts. */
   physicalOfficeTrigger: FirmMobilityCondition;
@@ -79,7 +79,7 @@ export interface FirmMobilityRuleRow {
   peerReviewConditionsPermit: FirmMobilityCondition;
   confidence: "dual_source" | "single_source" | "unverified" | null;
   /** Non-null means this state's primary sources genuinely disagree with
-   * each other (11 states in the current dataset) -- same "we will not
+   * each other (counts live in test/firm-mobility-data.spec.ts) -- same "we will not
    * pick a side" posture as mobility.ts's `rule_in_flux`, applied to this
    * dataset's own conflict signal. Forces not_verified on the limb(s)
    * named by sourceDisagreementScope. */
@@ -325,10 +325,13 @@ export function evaluateFirmMobility(
     }
     if (trigger.exists === false) {
       // SRC-145 (AuditLab 2026-10-31): false means the office is not BY
-      // ITSELF the trigger -- every such row's notes say attest work or CPA
-      // titling from an office here does require registration. This check is
-      // for attest engagements, so that is the customer's fact pattern: never
-      // "clear", and the row's own notes (the actual trigger) always shown.
+      // ITSELF the trigger. What the trigger IS differs by row (service type,
+      // titling, principal place of business, or registration attaching to
+      // any practice regardless of office), so it is never "clear" and the
+      // row's own notes carry the rule. SRC-147: the summary is a constant,
+      // so it may only say what is common to every false row (the office
+      // alone is not the test) and defer to the notes -- never name a
+      // trigger set.
       // The no-office attest exemption does not apply to a firm with an
       // office here, so attestExemption is still not consulted.
       if (!trigger.notes) {
@@ -340,9 +343,8 @@ export function evaluateFirmMobility(
       return {
         verdict: "action_required",
         summary:
-          "In this state an office doesn't trigger firm registration by itself. The requirement depends on what " +
-          "the office does: attest work, or use of the CPA title, from an office here brings the firm under it. " +
-          "The state's rule is below.",
+          "Having an office here is not, on its own, what this state's rule turns on. The state's rule below " +
+          "says what does require firm registration; check it against your firm's facts.",
         requirements: [trigger.notes],
         citation: trigger.citation,
         citationUrl: trigger.citationUrl,

@@ -240,6 +240,25 @@ describe("the engine's answers are conservative where they should be, across the
     }
   });
 
+  it("SRC-147: the office-false summary names no trigger -- what the trigger is lives only in each row's notes", () => {
+    // hawaii / puerto-rico / northern-mariana-islands attach registration to
+    // any practice regardless of office; iowa / washington / virginia name
+    // different trigger sets. A constant headline naming attest work or the
+    // CPA title contradicts or overreaches on those rows.
+    const officeFalse = rows.filter((r) => r.physicalOfficeTrigger.exists === false && r.physicalOfficeTrigger.notes);
+    expect(officeFalse.map((r) => r.stateSlug)).toEqual(expect.arrayContaining(["hawaii", "puerto-rico", "virginia"]));
+    for (const row of officeFalse) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: true },
+        row,
+        null
+      );
+      if (finding.verdict !== "action_required") continue; // disagreement rows render their own text
+      expect(finding.summary, row.stateSlug).not.toMatch(/attest|title|titling|principal place|depends on what the office does/i);
+    }
+  });
+
   it("SRC-146: exactly AK/NE/OH scope their disagreement to the attest limb, and their office answer is not suppressed", () => {
     const scoped = rows
       .filter((r) => r.sourceDisagreement && r.sourceDisagreementScope === "attest_exemption")
