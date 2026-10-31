@@ -327,7 +327,7 @@
   "utah": {
     "attest_exemption": {
       "exists": false,
-      "citation": "Utah Admin. Code R156-26a-305(3); Utah Code section 58-26a-305(1)(a)",
+      "citation": "Utah Admin. Code R156-26a-305(3), as amended by Filing No. 58008 (published Utah State Bulletin, June 1, 2026; effective July 8, 2026 per the Bulletin of July 15, 2026); Utah Code section 58-26a-305(1)(a)",
       "citation_url": "https://commerce.utah.gov/wp-content/uploads/2026/06/proposed-rule-r156-accountancy-oar-58008.pdf",
       "notes": "A CPA firm not licensed in Utah may perform attest or non-attest services in Utah through mobility without a Utah license if its principal place of business is not in Utah and it meets the other conditions of Rule R156-26a-305(3), including Utah's ownership requirement (section 58-26a-302(3)(a)(iii)) and peer review requirement (Rule R156-26a-303a). The rule was amended effective July 8, 2026, after 2025 legislation (SB 15, effective July 1, 2026) rewrote section 58-26a-305(1)(a) to refer only to individuals. Otherwise a firm must register with the Division to engage in the practice of public accounting in Utah (section 58-26a-301(2))."
     },
@@ -339,7 +339,7 @@
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Utah Admin. Code R156-26a-303a",
+      "citation": "Utah Admin. Code R156-26a-303a, as amended by Filing No. 58008 (published Utah State Bulletin, June 1, 2026; effective July 8, 2026 per the Bulletin of July 15, 2026)",
       "citation_url": "https://commerce.utah.gov/wp-content/uploads/2026/06/proposed-rule-r156-accountancy-oar-58008.pdf",
       "notes": "A firm engaged in the practice of public accounting must undergo a peer review at least once every three years; a firm outside the peer review requirement must notify the Division of its exemption when it renews its registration (Rule R156-26a-303a, as amended effective July 8, 2026)."
     },
