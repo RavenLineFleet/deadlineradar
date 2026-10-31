@@ -20558,7 +20558,7 @@ _MOBILITY_JS_HTML = """<script>
         ? '<a href="' + esc(f.citationUrl) + '" rel="noopener noreferrer" target="_blank">' + esc(f.citation) + '</a>'
         : esc(f.citation);
       if (f.sourceUrl) {
-        cite += ' &middot; <a href="' + esc(f.sourceUrl) + '" rel="noopener noreferrer" target="_blank">board page</a>';
+        cite += ' &middot; <a href="' + esc(f.sourceUrl) + '" rel="noopener noreferrer" target="_blank">second source</a>';
       }
       if (f.verifiedDate) { cite += ' &middot; verified ' + esc(f.verifiedDate); }
       // MOB-2 (AuditLab, 2026-08-05, LOW): confidence was already on every
