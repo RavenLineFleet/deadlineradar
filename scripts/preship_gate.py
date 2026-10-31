@@ -4958,8 +4958,30 @@ def check_how_heard_detail_keys_sync(repo_root: Path) -> list[str]:
         if bogus:
             errors.append(f"[HOW-DETAIL-SYNC] detail key(s) that are not a how_heard option at all: {', '.join(bogus)}")
     errors += _how_heard_detail_reveal_shape(py_text)
-    errors += _how_heard_detail_maxlen_sync(py_text, ts_text)
+    store_ts = repo_root / "worker" / "src" / "store.ts"
+    if not store_ts.exists():
+        return errors + ["[HOW-DETAIL-SYNC] worker/src/store.ts not found -- can't verify the how_heard_detail truncation length"]
+    errors += _how_heard_detail_maxlen_sync(py_text, ts_text, store_ts.read_text(encoding="utf-8"))
     return errors
+
+
+def _py_toplevel_assigns(py_text: str, names: tuple):
+    """One ast.parse (generate.py costs ~1.3s each) for several names:
+    {name: (first_line, last_line, node)}, 1-based inclusive, of each single
+    top-level `name = ...` assignment, or an error string."""
+    import ast
+    try:
+        tree = ast.parse(py_text)
+    except SyntaxError as e:
+        return f"source does not parse ({e.msg})"
+    out = {}
+    for name in names:
+        hits = [n for n in tree.body if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)]
+        if len(hits) != 1:
+            return f"{name}: top-level assignment found {len(hits)}x (need exactly 1)"
+        out[name] = (hits[0].lineno, hits[0].end_lineno, hits[0].value)
+    return out
 
 
 def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
@@ -4971,28 +4993,65 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     parser read, (b) a bare `.dr-how-heard-detail { display: none }` hide rule
     exists, (c) every rule that sets a non-none display on the class does so
     ONLY through :checked option selectors, and (d) the form's detail <div>
-    carries no inline style/hidden attribute that would override the CSS."""
+    carries no inline style/hidden attribute that would override the CSS.
+
+    GATE-84 (2026-10-31): (c) only reads CSS, so a JS reveal
+    (`querySelector(".dr-how-heard-detail").style.display = "block"`) passed.
+    The rules are now read from the PAGE_CSS literal ONLY, and (e) the
+    how_heard hooks a script would grab (`dr-how-heard*`, `how_heard_detail`)
+    may appear nowhere in generate.py outside PAGE_CSS and
+    _HOW_HEARD_FIELD_HTML, and that field markup may carry no <script>.
+    CSS property names are matched case-insensitively.
+    GATE-85 (2026-10-31): a selector split across lines is read whole (CSS
+    comments stripped, whitespace collapsed), not by its last line only."""
     errors = []
+    import ast
+    found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML"))
+    if isinstance(found, str):
+        return [f"[HOW-DETAIL-SYNC] generate.py {found} -- can't verify the detail-box reveal path"]
+    try:
+        css = ast.literal_eval(found["PAGE_CSS"][2])
+    except ValueError:
+        css = None
+    if not isinstance(css, str):
+        return ["[HOW-DETAIL-SYNC] generate.py PAGE_CSS is not a plain string literal -- can't verify the detail-box reveal rules"]
+    spans = {name: v[:2] for name, v in found.items()}
+    lines = py_text.split("\n")
+    field_src = "\n".join(lines[spans["_HOW_HEARD_FIELD_HTML"][0] - 1:spans["_HOW_HEARD_FIELD_HTML"][1]])
+    outside = "\n".join(
+        ln for i, ln in enumerate(lines, 1)
+        if not any(a <= i <= b for a, b in spans.values())
+    )
+    hooks = re.findall(r"(?<![\w-])(dr-how-heard[\w-]*|how_heard_detail)(?![\w-])", outside)
+    if hooks:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] generate.py references {hooks[0]!r} outside PAGE_CSS and _HOW_HEARD_FIELD_HTML "
+            f"({len(hooks)}x) -- a script or inline style could reveal the free-text box where the CSS check can't see it"
+        )
+    if re.search(r"(?i)<\s*script\b|\bon[a-z]+\s*=", field_src):
+        errors.append("[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries a <script> or inline on* handler -- the detail box must be revealed by PAGE_CSS :checked rules only")
+
+    css = re.sub(r"/\*.*?\*/", " ", css, flags=re.S)
     sel_re = re.compile(
         r"""\.dr-how-heard\s+option\[\s*value\s*=\s*["']?[^"'\]\s]+["']?\s*\]\s*:checked\s*\)\s*\.dr-how-heard-detail\s*$"""
     )
-    # Anchor on each occurrence (a [^{}]* scan over the whole file is
-    # quadratic on generate.py): its rule's selector text runs back to the
-    # previous brace, its body from the next "{" to the following "}".
+    # Anchor on each occurrence (a [^{}]* scan over the whole sheet is
+    # quadratic): its rule's selector text runs back to the previous brace,
+    # its body from the next "{" to the following "}".
     rules = {}
-    for occ in re.finditer(r"\.dr-how-heard-detail(?![\w-])", py_text):
+    for occ in re.finditer(r"\.dr-how-heard-detail(?![\w-])", css):
         p = occ.start()
-        open_i, close_i = py_text.find("{", p), py_text.find("}", p)
+        open_i, close_i = css.find("{", p), css.find("}", p)
         if open_i == -1 or (close_i != -1 and close_i < open_i):
-            return [f"[HOW-DETAIL-SYNC] generate.py mentions .dr-how-heard-detail outside a CSS selector this check can read (offset {p}) -- repair the check or the CSS"]
-        start = max(py_text.rfind("{", 0, p), py_text.rfind("}", 0, p)) + 1
-        end = py_text.find("}", open_i)
-        rules[start] = (py_text[start:open_i], py_text[open_i + 1:end])
+            return [f"[HOW-DETAIL-SYNC] PAGE_CSS mentions .dr-how-heard-detail outside a CSS selector this check can read (offset {p}) -- repair the check or the CSS"]
+        start = max(css.rfind("{", 0, p), css.rfind("}", 0, p)) + 1
+        end = css.find("}", open_i)
+        rules[start] = (css[start:open_i], css[open_i + 1:end])
     hide_rules = 0
     for sel_text, body in rules.values():
-        sels = [x.strip() for x in sel_text.split(",")]
-        sels = [x.splitlines()[-1].strip() for x in sels if ".dr-how-heard-detail" in x]
-        disp = re.findall(r"display\s*:\s*([^;}\s]+)", body)
+        sels = [" ".join(x.split()) for x in sel_text.split(",")]
+        sels = [x for x in sels if ".dr-how-heard-detail" in x]
+        disp = [d.lower() for d in re.findall(r"(?i)(?<![\w-])display\s*:\s*([^;}\s]+)", body)]
         if not disp:
             continue
         if all(d == "none" for d in disp):
@@ -5018,7 +5077,7 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     return errors
 
 
-def _how_heard_detail_maxlen_sync(py_text: str, ts_text: str) -> list[str]:
+def _how_heard_detail_maxlen_sync(py_text: str, ts_text: str, store_text: str) -> list[str]:
     """AuditLab GATE-83 (LOW, 2026-10-31): the form's how_heard_detail
     `maxlength` and validation.ts MAX_HOW_HEARD_DETAIL_LEN are hand-kept
     copies. sanitizeFreeText truncates silently, so form > server means the
@@ -5036,6 +5095,13 @@ def _how_heard_detail_maxlen_sync(py_text: str, ts_text: str) -> list[str]:
     if int(form_len[0]) != int(srv[0]):
         return [f"[HOW-DETAIL-SYNC] how_heard_detail maxlength={form_len[0]} in the form but MAX_HOW_HEARD_DETAIL_LEN={srv[0]} in validation.ts -- "
                 "the Worker truncates silently, so keep them equal"]
+    # GATE-84 M1 (2026-10-31): the constant only binds if it is the length
+    # store.ts actually truncates at; a literal there passed while the
+    # declaration still read 120.
+    calls = re.findall(r"sanitizeFreeText\(\s*input\.howHeardDetail\s*,\s*([^)]*?)\s*\)", store_text)
+    if calls != ["MAX_HOW_HEARD_DETAIL_LEN"]:
+        return [f"[HOW-DETAIL-SYNC] store.ts must truncate howHeardDetail with exactly one sanitizeFreeText(input.howHeardDetail, MAX_HOW_HEARD_DETAIL_LEN); "
+                f"found length arg(s) {calls!r} -- the form's maxlength is checked against a constant the Worker doesn't use"]
     return []
 
 
