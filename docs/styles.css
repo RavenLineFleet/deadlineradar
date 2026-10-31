@@ -709,6 +709,11 @@
     width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--verified-green);
     box-shadow: 0 0 0 3px var(--verified-green-bg); display: inline-block; flex: none;
   }
+  
+  .guide-verified-stamp.verified-stale { color: var(--muted); flex-wrap: wrap; }
+  .guide-verified-stamp.verified-stale .dot {
+    background: transparent; box-shadow: none; border: 1.5px solid var(--muted);
+  }
   .state-links { padding-left: 1.2rem; margin: 0.75rem 0 1.5rem; }
   .state-links li { margin-bottom: 0.3rem; }
   .mock-status {

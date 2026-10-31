@@ -1693,6 +1693,11 @@ PAGE_CSS = """
     width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--verified-green);
     box-shadow: 0 0 0 3px var(--verified-green-bg); display: inline-block; flex: none;
   }
+  /* PROSE-2: past _STALE_DAYS the stamp is no longer a green assurance. */
+  .guide-verified-stamp.verified-stale { color: var(--muted); flex-wrap: wrap; }
+  .guide-verified-stamp.verified-stale .dot {
+    background: transparent; box-shadow: none; border: 1.5px solid var(--muted);
+  }
   .state-links { padding-left: 1.2rem; margin: 0.75rem 0 1.5rem; }
   .state-links li { margin-bottom: 0.3rem; }
   .mock-status {
@@ -5199,6 +5204,11 @@ _SEAL_STALE_DAYS = _STALE_DAYS  # kept as an alias; existing call sites read thi
 # "Verified" caveat directly beside a red "RE-VERIFY NEEDED" seal for the
 # SAME fact -- a visible self-contradiction. One number, one story. Both
 # surfaces now read _STALE_DAYS; do not reintroduce a second constant.
+# PROSE-2: one copy of the caveat text, shared by this script and by markers
+# already stale at build time (_guide_verified_stamp_html), which the script
+# skips (they carry .verified-stale) so the note is never added twice.
+_STALE_NOTE_TEXT = (" " + chr(0xB7) + " re-verification overdue " + chr(0x2014)
+                    + " confirm with the state board")
 _STALE_BADGE_RUNTIME_JS = """<script>
 (function () {
   // A11Y-32 (AuditLab, 2026-10-26): .dr-seal also carries data-verified
@@ -5224,9 +5234,10 @@ _STALE_BADGE_RUNTIME_JS = """<script>
     // (age >= 30.5), not just read the same _STALE_DAYS constant.
     var ageDays = Math.round((now - then) / 86400000);
     if (ageDays <= RUNTIME_STALE_DAYS) return;
+    if (el.classList.contains('verified-stale')) return;
     var note = document.createElement('span');
     note.className = 'verified-stale-note';
-    note.textContent = ' \\u00b7 re-verification overdue \\u2014 confirm with the state board';
+    note.textContent = """ + json.dumps(_STALE_NOTE_TEXT) + """;
     el.appendChild(note);
     el.classList.add('verified-stale');
   });
@@ -26816,6 +26827,25 @@ so both clocks work for you instead of quietly running past you.</p>
 ]
 
 
+# AuditLab PROSE-2 (MEDIUM, 2026-10-31): the guide stamp rendered green with a
+# status dot at any age (88 days live), while the only guard on it was an
+# advisory 90-day print. Same 30-day bar (_STALE_DAYS) and same caveat as every
+# other dated verification marker: past it, the stamp drops the green and says
+# re-verification is overdue. Build time marks it when already stale; the
+# data-verified attribute lets _STALE_BADGE_RUNTIME_JS flip it at view time for
+# a page built while still fresh. UTC date, same basis as the seal (SRC-83).
+def _guide_verified_stamp_html(reviewed_iso: str) -> str:
+    reviewed = date.fromisoformat(reviewed_iso)
+    age = (datetime.now(timezone.utc).date() - reviewed).days
+    stale = age > _STALE_DAYS
+    cls = "guide-verified-stamp" + (" verified-stale" if stale else "")
+    note = f'<span class="verified-stale-note">{_STALE_NOTE_TEXT}</span>' if stale else ""
+    return (
+        f'<div class="{cls}" data-verified="{esc(reviewed_iso)}"><span class="dot"></span>'
+        f'Last verified {esc(fmt_date(reviewed))}{note}</div>'
+    )
+
+
 def build_blog_article_page(article: dict, byod_count: int | None = None) -> str:
     # AuditLab PROSE-1 (2026-08-07): every guide's factual claims now carry a
     # visible review date from data/guide_reviews.json -- the same registry
@@ -26846,10 +26876,7 @@ def build_blog_article_page(article: dict, byod_count: int | None = None) -> str
         )
     reviewed_iso = review_row["last_reviewed"]
     reviewed_on = fmt_date(date.fromisoformat(reviewed_iso))
-    stamp_html = (
-        f'<div class="guide-verified-stamp"><span class="dot"></span>'
-        f'Last verified {esc(reviewed_on)}</div>'
-    )
+    stamp_html = _guide_verified_stamp_html(reviewed_iso)
     body = f"""<h1>{esc(article['title'])}</h1>
 {stamp_html}
 {article['body_html']}
@@ -26953,11 +26980,7 @@ def build_blog_index_page(articles: list[dict]) -> str:
     rest = [a for a in articles if a is not featured]
 
     def _date_stamp_html(slug: str) -> str:
-        reviewed_on = fmt_date(date.fromisoformat(_review_row(slug)["last_reviewed"]))
-        return (
-            f'<div class="guide-verified-stamp"><span class="dot"></span>'
-            f'Last verified {esc(reviewed_on)}</div>'
-        )
+        return _guide_verified_stamp_html(_review_row(slug)["last_reviewed"])
 
     featured_html = ""
     if featured:
