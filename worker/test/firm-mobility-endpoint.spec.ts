@@ -98,14 +98,14 @@ describe("POST /firm/mobility/firm-check -- pay gate", () => {
 
 describe("POST /firm/mobility/firm-check -- server-side peer-review read", () => {
   it("uses the FIRM'S OWN stored peer_review_due_date, not a client-supplied one", async () => {
-    // Kansas: attest_exemption + peer_review_conditions_permit both true,
+    // Alabama (was Kansas until SRC-141 flipped it to false): attest_exemption + peer_review_conditions_permit both true,
     // no source disagreement -- a clean peer-review-conditional fixture.
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
     const { cookie } = await firmOnTier("firm", null); // no due date on file
     const resp = await postFirmCheck(
       {
         firm_home_state_slug: "california",
-        target_state_slug: "kansas",
+        target_state_slug: "alabama",
         has_physical_office: false,
         // Attacker-supplied field the endpoint must never read.
         firm_peer_review_due_date: future,
@@ -123,7 +123,7 @@ describe("POST /firm/mobility/firm-check -- server-side peer-review read", () =>
     const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
     const { cookie } = await firmOnTier("firm", future);
     const resp = await postFirmCheck(
-      { firm_home_state_slug: "california", target_state_slug: "kansas", has_physical_office: false },
+      { firm_home_state_slug: "california", target_state_slug: "alabama", has_physical_office: false },
       cookie
     );
     expect(resp.status).toBe(200);

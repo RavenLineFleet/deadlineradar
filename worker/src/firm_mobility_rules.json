@@ -1,10 +1,10 @@
 {
   "kansas": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "K.S.A. 1-308(a)/(c), referencing K.S.A. 1-321(d) and K.S.A. 1-321(r)/1-322(a)",
       "citation_url": "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0008.html",
-      "notes": "A firm with no Kansas office may perform non-attest services for a Kansas client without registering if the work is performed through an individual with practice privileges under K.S.A. 1-322(a). By contrast, any firm without a Kansas office that performs attest services for a Kansas client MUST register -- unconditional trigger. Dual-sourced: statute + KS Board out-of-state firm registration guidance."
+      "notes": "A firm with no Kansas office must register to perform attest services for a Kansas client; there is no exemption for this. It may perform non-attest services for a Kansas client without registering if the work is done through an individual with practice privileges under K.S.A. 1-322(a). Dual-sourced: statute + KS Board out-of-state firm registration guidance."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -201,10 +201,10 @@
   },
   "arkansas": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "A.C.A. section 17-12-401(b)",
       "citation_url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-401/",
-      "notes": "No-office firms must register if performing attest services for an AR-headquartered client. No-office firms may provide non-attest services/use CPA title without registering if via practice-privilege individuals + peer-review + home-state licensure compliance. Dual-sourced (statute + independent summary)."
+      "notes": "A firm with no Arkansas office must register to perform attest services for a client headquartered in Arkansas. A no-office firm may provide non-attest services, and use the CPA title, without registering if the work is done through a practice-privilege individual and the firm meets peer-review and home-state licensing requirements. Dual-sourced (statute + independent summary)."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -226,10 +226,10 @@
   },
   "california": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "Cal. Bus. & Prof. Code sections 5096(d), 5096.12",
       "citation_url": "https://california.public.law/codes/business_and_professions_code_section_5096",
-      "notes": "Out-of-state individual practice-privilege holder may perform non-attest services without CA license/firm registration; may perform an audit/review for a CA-headquartered entity ONLY through a firm registered under section 5096.12. Confirmed independently via CBA's own out-of-state-firm-registrant guidance."
+      "notes": "A firm may perform an audit or review for a California-headquartered entity only if it is registered under section 5096.12. An out-of-state individual with a practice privilege may perform non-attest services without a California license or firm registration. The California Board of Accountancy's guidance for out-of-state firm registrants says the same."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -251,10 +251,10 @@
   },
   "south-dakota": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "SDCL 36-20B-32.1 through 36-20B-32.3",
       "citation_url": "https://sdlegislature.gov/Statutes/36-20B-32.1",
-      "notes": "No-SD-office firm doing non-attest/compilation work via a practice-privileged individual is exempt from a permit; a firm doing attest work (with or without an SD office) for SD clients needs a permit. Net effect matches the framed question."
+      "notes": "A firm needs a South Dakota permit to do attest work for South Dakota clients, whether or not it has an office in South Dakota. A firm with no South Dakota office may do non-attest and compilation work without a permit if the work is done through a practice-privileged individual."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -526,10 +526,10 @@
   },
   "guam": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "22 G.C.A. section 35107; 25 GAR section 2106(c)",
       "citation_url": "https://col.guamcourts.gov/sites/default/files/25GAR002.pdf",
-      "notes": "A firm needs a Firm Permit to Practice only to provide attest services or use CPA/CPA-firm titling -- UAA-style framework. Non-attest services without the CPA title fall outside the permit requirement."
+      "notes": "A firm needs a Guam Firm Permit to Practice to provide attest services or to use the CPA or CPA-firm title. Non-attest services without the CPA title fall outside the permit requirement."
     },
     "physical_office_trigger": {
       "exists": null,
@@ -551,16 +551,16 @@
   },
   "us-virgin-islands": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "27 V.I.C. section 250d(a)(1)(C), (a)(2)-(3) (Public Accountancy Act of 2014, Act No. 7596)",
       "citation_url": "https://dlca.vi.gov/pdf/UAALegislationpass.pdf",
-      "notes": "Section 250d(a)(1)(C): a no-VI-office firm performing attest services for a VI-home-office client MUST hold a permit -- no office-based exemption for attest. Section 250d(a)(2)-(3): a no-office firm may perform OTHER (non-attest) services via a practice-privileged individual without a firm permit. Same UAA-model shape as most other states in this dataset."
+      "notes": "Under section 250d(a)(1)(C), a firm with no Virgin Islands office must hold a permit to perform attest services for a client whose home office is in the Virgin Islands; there is no office-based exemption for attest work. Under section 250d(a)(2)-(3), a no-office firm may perform other (non-attest) services without a firm permit if the work is done through a practice-privileged individual."
     },
     "physical_office_trigger": {
       "exists": false,
       "citation": "27 V.I.C. section 250d(a)(1)(A)-(B)",
       "citation_url": "https://dlca.vi.gov/pdf/UAALegislationpass.pdf",
-      "notes": "Section 250d(a)(1)(A)-(B) requires a permit for 'any firm with an office in the Territory performing attest services' or 'with an office... that uses the title CPA or CPA firm' -- office presence alone is not an independent trigger, it's always paired with attest work or CPA-title use, matching the majority pattern in this dataset."
+      "notes": "Section 250d(a)(1)(A)-(B) requires a permit for 'any firm with an office in the Territory performing attest services' or 'with an office... that uses the title CPA or CPA firm'. Having an office is not a trigger on its own; it is always paired with attest work or use of the CPA title."
     },
     "peer_review_conditions_permit": {
       "exists": true,
@@ -604,7 +604,7 @@
       "exists": true,
       "citation": "59 O.S. sections 15.15(A)(3) and 15.15C",
       "citation_url": "https://oklahoma.gov/content/dam/ok/en/oab/documents/rules---law/September%202026%20OAB%20Statutes%20and%20Rules.pdf",
-      "notes": "CONFIRMS the directive's original lead against the actual OAB statutes/rules PDF. Registration required only for: OK-office+practice/attest (1), OK-office+CPA/PA titling (2), or no-office+attest for an OK client (3, with its own mobility carve-out via 15.12A/15.30). A no-office firm doing ONLY non-attest work is captured by no trigger. Section 15.15C states the safe harbor explicitly."
+      "notes": "Oklahoma requires firm registration in three cases: a firm with an Oklahoma office that practices or performs attest work (1); a firm with an Oklahoma office that uses the CPA or PA title (2); or a firm with no Oklahoma office that performs attest work for an Oklahoma client (3), which has its own mobility carve-out under sections 15.12A and 15.30. A firm with no Oklahoma office doing only non-attest work falls under none of these. Section 15.15C states this safe harbor explicitly."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -676,10 +676,10 @@
   },
   "rhode-island": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "R.I. Gen. Laws section 5-3.1-9",
       "citation_url": "https://webserver.rilegislature.gov/Statutes/TITLE5/5-3.1/5-3.1-9.HTM",
-      "notes": "Practice unit must hold a permit to provide attest/compilation services or use CPA/CPA-firm titling. Trigger is framed around service-type/title-use rather than explicitly 'no office,' but practical result for an out-of-state no-office firm matches the framed question."
+      "notes": "A firm must hold a Rhode Island permit to provide attest or compilation services, or to use the CPA or CPA-firm title. The statute applies by type of service and title use, so it covers an out-of-state firm with no Rhode Island office."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -729,7 +729,7 @@
       "exists": true,
       "citation": "Va. Code section 54.1-4412.1(A)-(C)",
       "citation_url": "https://law.lis.virginia.gov/vacode/title54.1/chapter44/section54.1-4412.1/",
-      "notes": "Firm-licensing statute is scoped only to attest/compilation/financial-statement-prep services (subsection A); non-attest services fall outside the statute entirely regardless of office. Subsection C lets a firm with principal place of business elsewhere provide those same services without a VA license if home-state licensed and practice-privilege conditions (section 54.1-4411) are met -- this is the SAME statute already confirmed as a real event in the reg-change pipeline."
+      "notes": "Virginia's firm-licensing statute covers only attest, compilation and financial-statement-preparation services (subsection A); non-attest services fall outside it regardless of office. Under subsection C, a firm whose principal place of business is in another state may provide those covered services without a Virginia license if it is licensed in its home state and the practice-privilege conditions in section 54.1-4411 are met."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -776,10 +776,10 @@
   },
   "west-virginia": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "W. Va. Code section 30-9-17(d); section 30-9-16(f)-(g) (mobility attest carve-out)",
       "citation_url": "https://code.wvlegislature.gov/30-9-16/",
-      "notes": "A no-WV-office firm not performing attest/compilation for a WV-home-office client may perform other professional services using the CPA/CPA-firm title without a permit, via a practice-privileged individual. Section 30-9-16 (the mobility section): for WV-home-office attest work specifically, subsection (f) requires it be performed through a firm holding BOTH a section 30-9-17 permit AND a section 30-9-19 authorization -- but subsection (g) carves out an individual substantial-equivalency practitioner: that individual may perform the same (f) attest services WITHOUT the 30-9-17 firm permit, but MUST still obtain the 30-9-19 authorization. So mobility grants relief from the permit specifically for a lone individual practitioner, never from the authorization, and never for a firm as such -- the two credentials are not granted or withheld together."
+      "notes": "A firm with no West Virginia office must hold a section 30-9-17 permit and a section 30-9-19 authorization to perform attest or compilation work for a client whose home office is in West Virginia (section 30-9-16(f)). The only relief is for a lone individual practitioner with substantial equivalency, who may do that work without the firm permit but must still get the 30-9-19 authorization (section 30-9-16(g)); there is no such relief for a firm. A no-office firm not doing attest or compilation work for a West Virginia client may perform other services under the CPA title without a permit, through a practice-privileged individual."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -926,10 +926,10 @@
   },
   "indiana": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "Ind. Code section 25-2.1-12-5; section 25-2.1-12-2",
       "citation_url": "https://codes.findlaw.com/in/title-25-professions-and-occupations/in-code-sect-25-2-1-12-5/",
-      "notes": "DIRECTIVE'S CITATION CONFIRMED ACCURATE against current codification, cross-checked with Justia historical text (dual-sourced). A no-IN-office firm doing only non-attest work (no attest reports, no CPA title) needs no permit; attest work, report issuance, or CPA title use requires one."
+      "notes": "A firm with no Indiana office needs a permit to perform attest work, issue reports, or use the CPA title. A no-office firm doing only non-attest work (no attest reports, no CPA title) needs no permit. Dual-sourced: current codification + Justia historical text."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -941,7 +941,7 @@
       "exists": true,
       "citation": "Ind. Code section 25-2.1-5-8; 872 IAC 1-6-9",
       "citation_url": "https://www.law.cornell.edu/regulations/indiana/872-IAC-1-6-9",
-      "notes": "DIRECTIVE'S CITATIONS CONFIRMED ACCURATE. Board must adopt rules requiring peer review (not more than once every 3 years) as a condition to renew a permit; 872 IAC 1-6-9 makes enrollment a renewal condition for attest/compilation-report firms, with a narrow carve-out for firms doing only financial-statement-prep."
+      "notes": "The board must adopt rules requiring peer review (not more than once every 3 years) as a condition of renewing a permit. 872 IAC 1-6-9 makes peer-review enrollment a renewal condition for firms that do attest work or issue compilation reports, with a narrow exception for firms doing only financial-statement preparation."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
@@ -954,7 +954,7 @@
       "exists": true,
       "citation": "Iowa Code section 542.7(1)(a)-(b); section 542.20(5)-(6)",
       "citation_url": "https://www.legis.iowa.gov/docs/code/542.7.pdf",
-      "notes": "No-office, non-CPA-titled firm exempt from a permit for any service. More permissive than a strict binary: current Iowa Code section 542.20(6)(c) lets an individual practice-privilege holder provide ATTEST services through an out-of-state firm (validly licensed at home, ownership/peer-review compliant) without that firm needing an Iowa permit. Note: an older admin rule (193A-13.4(2), 2017 text) reads narrower (limits to 'review' services) -- current Code text is broader per a 2017 amendment; flagged for a currency check on the rule text."
+      "notes": "A firm with no Iowa office that does not use the CPA title needs no Iowa permit for any service. Current Iowa Code section 542.20(6)(c) also lets an individual with a practice privilege provide attest services through an out-of-state firm without that firm needing an Iowa permit, if the firm is validly licensed in its home state and meets the ownership and peer-review requirements. An older administrative rule (193A-13.4(2), 2017 text; Iowa's 193A accountancy rules have since been transferred to chapter 481) reads narrower and limits this to review services; the current Code text is broader following a 2017 amendment. Confirm with the board before relying on the broader reading."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -1001,10 +1001,10 @@
   },
   "new-york": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "NY Education Law section 7406(2)(c); section 7408(3)",
       "citation_url": "https://www.nysenate.gov/legislation/laws/EDN/7408",
-      "notes": "Firm registration required if engaging in attest/compilation practice or using CPA/PA in its name; a firm limited to non-attest services may register but isn't required to. Confirmed by NYSED's own guidance pages and by NY Education Law 7408(3)(a) directly: 'Any firm... uses the title \"CPA\" or \"CPA firm\"... must register with the department,' with no office-presence qualifier anywhere in that clause."
+      "notes": "A firm must register to perform attest or compilation services, or to use CPA or PA in its name. Education Law 7408(3)(a) requires any firm that uses the title CPA or CPA firm to register, with no exception based on office location. A firm limited to non-attest services may register but is not required to. NYSED's own guidance pages say the same."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -1216,7 +1216,7 @@
       "exists": true,
       "citation": "N.J.A.C. 13:29-1A.11(a)(2); 13:29-5.4(a); N.J.S.A. 45:2B-59(a)(3), (c)(1)",
       "citation_url": "https://www.law.cornell.edu/regulations/new-jersey/N-J-A-C-13-29-1A-11",
-      "notes": "Triennial registration application must include peer review compliance forms; Peer Review Program participation mandatory for attest/accounting-and-auditing firms (report-free-compilation-only firms exempt). No explicit 'shall refuse to renew' clause found -- inferred from application-bundling + mandatory-participation rules rather than one unambiguous sentence. 45:2B-59 sets out two DIFFERENT peer-review mechanisms, not one in tension with itself: (c)(1) lets the board order a peer review as a discretionary REMEDY/SANCTION in a disciplinary proceeding ('in lieu of or in addition to' other discipline) -- that's a case-specific tool, not the standing requirement. Separately and independently, (a)(3) lets the board refuse to renew a registration for 'failure... to maintain compliance with the requirements for issuance or renewal' -- a general ground that reaches the STANDING peer-review-program participation mandate in 13:29-5.4(a), since that's one of the requirements for renewal. The two subsections describe different things; neither undermines the other. Peer review compliance is a real renewal gate via (a)(3), not merely remedial via (c)(1)."
+      "notes": "The triennial registration application must include peer-review compliance forms, and Peer Review Program participation is mandatory for firms doing attest or accounting-and-auditing work (firms doing only compilations without a report are exempt). Under N.J.S.A. 45:2B-59(a)(3) the board may refuse to renew a registration for failure to maintain compliance with the requirements for renewal, which include the participation mandate in N.J.A.C. 13:29-5.4(a). Separately, 45:2B-59(c)(1) lets the board order a peer review as a sanction in a disciplinary case. No single sentence says renewal is refused for missing peer review; that follows from these provisions together. Confirm with the board."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
@@ -1251,10 +1251,10 @@
   },
   "connecticut": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "Conn. Gen. Stat. section 20-281e(g)(3) and (h)",
       "citation_url": "https://www.cga.ct.gov/current/pub/chap_389.htm",
-      "notes": "No-CT-office firm doing attest work for a CT-headquartered client needs a permit; no-office firm doing only non-attest work may use CPA titling without a permit if quality-review-qualified and working via a practice-privilege individual. Dual-sourced: statute + portal.ct.gov firm-permit page."
+      "notes": "A firm with no Connecticut office needs a permit to do attest work for a client headquartered in Connecticut. A no-office firm doing only non-attest work may use the CPA title without a permit if it meets quality-review requirements and works through a practice-privilege individual. Dual-sourced: statute + portal.ct.gov firm-permit page."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -1301,10 +1301,10 @@
   },
   "dc": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "D.C. Code section 47-2853.44",
       "citation_url": "https://code.dccouncil.gov/us/dc/council/code/sections/47-2853.44",
-      "notes": "No-DC-office firm may perform non-attest services without registering via a practice-privileged individual; same no-office firm MUST register for attest services for a DC-headquartered client. Directly on point, unambiguous."
+      "notes": "A firm with no DC office must register to perform attest services for a DC-headquartered client. The same firm may perform non-attest services without registering if the work is done through a practice-privileged individual."
     },
     "physical_office_trigger": {
       "exists": false,
@@ -1316,7 +1316,7 @@
       "exists": true,
       "citation": "17 DCMR section 2548; renewal mechanics at 17 DCMR section 2547",
       "citation_url": "https://dcregs.dc.gov/Common/DCMR/SectionList.aspx?SectionNumber=17-2548",
-      "notes": "Firms performing audits/reviews/compilations/SSAE-SAS-SSARS engagements must enroll in/complete board-approved peer review. Direct 'condition of renewal' cross-reference in section 2547 not found verbatim in the excerpt retrieved -- inferred from the regulatory scheme."
+      "notes": "Firms performing audits, reviews, compilations or other SSAE/SAS/SSARS engagements must enroll in and complete a board-approved peer review. We did not find an explicit statement in section 2547 that peer review is a condition of renewal; that reading follows from the overall rules. Confirm with the board."
     },
     "confidence": "dual_source",
     "source_disagreement": null,
@@ -1351,10 +1351,10 @@
   },
   "georgia": {
     "attest_exemption": {
-      "exists": true,
+      "exists": false,
       "citation": "O.C.G.A. section 43-3-16(b)(1)(C) and (b)(2)-(3); Ga. Comp. R. & Regs. r. 20-8-.01(1) and r. 20-8-.02(1)",
       "citation_url": "https://rules.sos.ga.gov/gac/20-8",
-      "notes": "Actual line is 3-way not binary: audit/SAS/SSAE/PCAOB attest never exempt for no-office firms; compilation/review conditionally exempt with peer-review enrollment; other non-attest fully exempt via a substantial-equivalency individual. Practical answer matches the framed question. Dual-sourced: statute+rule + GA Board Statement of Policy No. 11."
+      "notes": "A firm with no Georgia office is never exempt for audits or other engagements under SAS, SSAE or PCAOB standards. Compilations and reviews are exempt only if the firm is enrolled in peer review. Other non-attest services are exempt if performed through a substantial-equivalency individual. Dual-sourced: statute+rule + GA Board Statement of Policy No. 11."
     },
     "physical_office_trigger": {
       "exists": true,
