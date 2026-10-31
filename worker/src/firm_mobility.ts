@@ -188,6 +188,12 @@ const NOT_VERIFIED_SUMMARY =
   "We haven't verified this state's firm-registration rule against a primary source yet, so we're not " +
   "going to guess. Confirm directly with the state board before relying on this.";
 
+/** SRC-151: a note that is null, empty, or whitespace-only carries no rule.
+ * A plain truthiness check lets "   " through as a blank requirement. */
+function hasText(s: string | null | undefined): s is string {
+  return typeof s === "string" && s.trim() !== "";
+}
+
 function notVerified(rule: FirmMobilityRuleRow | null, reason: string): FirmMobilityFinding {
   return {
     verdict: "not_verified",
@@ -339,7 +345,7 @@ export function evaluateFirmMobility(
       // trigger set.
       // The no-office attest exemption does not apply to a firm with an
       // office here, so attestExemption is still not consulted.
-      if (!trigger.notes) {
+      if (!hasText(trigger.notes)) {
         return notVerified(
           rule,
           "We haven't verified what triggers firm registration for a firm with an office in this state."
@@ -365,7 +371,7 @@ export function evaluateFirmMobility(
     // summary is a constant, so it may only say what is common to every
     // true row and defer to the row's notes. Never assert that the office
     // by itself requires registration.
-    if (!trigger.notes) {
+    if (!hasText(trigger.notes)) {
       return notVerified(
         rule,
         "We haven't verified what triggers firm registration for a firm with an office in this state."
@@ -395,12 +401,27 @@ export function evaluateFirmMobility(
     );
   }
   if (exemption.exists === false) {
+    // SRC-150 (AuditLab 2026-10-31): false does NOT mean every attest
+    // engagement by a no-office firm needs registration -- 10 of the 18 rows
+    // that serve this branch condition the duty on the CLIENT being
+    // headquartered / home-officed in-state (e.g. california, us-virgin-
+    // islands), and some scope it by engagement type. The input has no
+    // client-location field, so the engine cannot decide that. Same remedy as
+    // SRC-147/149: a constant summary that asserts nothing beyond what is
+    // common to the population and defers to the row's notes.
+    // SRC-151: blank notes are not_verified, never an invented requirement.
+    if (!hasText(exemption.notes)) {
+      return notVerified(
+        rule,
+        "We haven't verified when this state requires firm registration for attest work by a firm without an office here."
+      );
+    }
     return {
       verdict: "action_required",
-      summary: "This state requires firm registration for attest work, even without a physical office here.",
-      requirements: [
-        exemption.notes ?? "Register the firm with this state's board of accountancy before providing attest services.",
-      ],
+      summary:
+        "This state's firm-registration rule for attest work by a firm without an office here is below; check it " +
+        "against your firm's facts, including where the client is based.",
+      requirements: [exemption.notes],
       citation: exemption.citation,
       citationUrl: exemption.citationUrl,
       verifiedDate: rule.verifiedDate,
@@ -420,17 +441,23 @@ export function evaluateFirmMobility(
   // every verdict from this branch -- a "clear" that shows only the
   // peer-review condition, or nothing, would hide what the firm has to meet
   // to rely on the exemption at all.
-  const requirements: string[] = exemption.notes ? [exemption.notes] : [];
+  const requirements: string[] = hasText(exemption.notes) ? [exemption.notes] : [];
   let verdict: FirmMobilityVerdict = "clear";
   let summary =
     "We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.";
 
   if (permit.exists === true) {
+    // SRC-151 (AuditLab 2026-10-31): the peer-review condition's own text is
+    // the requirement. Without it we don't know what the condition is, so
+    // this is not_verified rather than a generic stand-in.
+    if (!hasText(permit.notes)) {
+      return notVerified(
+        rule,
+        "We haven't verified the peer-review condition on this state's exemption from firm registration."
+      );
+    }
     const compliant = isPeerReviewCurrent(firmPeerReviewDueDate, now);
-    requirements.push(
-      permit.notes ??
-        "This exemption is conditioned on peer-review compliance -- confirm your firm's peer review is current."
-    );
+    requirements.push(permit.notes);
     if (!compliant) {
       verdict = "action_required";
       summary =

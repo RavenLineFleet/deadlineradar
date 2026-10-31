@@ -56,7 +56,7 @@ describe("SAFETY: the engine must never assert a clearance it cannot cite", () =
   });
 
   it("does NOT downgrade action_required or not_verified for a missing citation -- only clear requires one", () => {
-    const notExempt = verifiedRule({ attestExemption: condition({ exists: false, citation: null }) });
+    const notExempt = verifiedRule({ attestExemption: condition({ exists: false, citation: null, notes: "Attest work here requires a firm permit." }) });
     const finding = evaluateFirmMobility(input(), notExempt, null);
     expect(finding.verdict).toBe("action_required");
   });
@@ -71,9 +71,10 @@ describe("no physical office -- the no-office attest-work case this dataset targ
   });
 
   it("action_required: attest_exemption false -- must register regardless of peer review", () => {
-    const rule = verifiedRule({ attestExemption: condition({ exists: false }) });
+    const rule = verifiedRule({ attestExemption: condition({ exists: false, notes: "Attest work here requires a firm permit." }) });
     const finding = evaluateFirmMobility(input(), rule, null);
     expect(finding.verdict).toBe("action_required");
+    expect(finding.requirements).toEqual(["Attest work here requires a firm permit."]);
   });
 
   it("the 4 genuinely-unclear states surface as not_verified, never guessed", () => {

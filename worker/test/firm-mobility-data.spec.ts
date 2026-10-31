@@ -359,6 +359,78 @@ describe("the engine's answers are conservative where they should be, across the
     expect(finding.requirements.join(" ")).not.toMatch(/Register the firm/);
   });
 
+  it("SRC-150: the no-office attest-false summary asserts no unconditional duty; every row serves its own notes", () => {
+    // 10 of the rows serving this branch condition the duty on the CLIENT's
+    // location (e.g. california: "for a California-headquartered entity"),
+    // which the input cannot know. The headline may not assert a duty.
+    const BANNED = /requires?|must|even without|regardless|always|every|any attest/i;
+    // Positive control: the pre-fix headline is caught by BANNED.
+    expect(BANNED.test("This state requires firm registration for attest work, even without a physical office here.")).toBe(true);
+    const attestFalse = rows.filter((r) => r.attestExemption.exists === false);
+    expect(attestFalse.length).toBe(20);
+    const CLIENT_CONDITIONED = [
+      "arkansas", "california", "connecticut", "dc", "kansas", "minnesota", "mississippi",
+      "south-dakota", "us-virgin-islands", "west-virginia",
+    ];
+    expect(attestFalse.map((r) => r.stateSlug)).toEqual(expect.arrayContaining(CLIENT_CONDITIONED));
+    const summaries = new Set<string>();
+    const suppressed: string[] = [];
+    let checked = 0;
+    for (const row of attestFalse) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: false },
+        row,
+        null
+      );
+      if (finding.verdict === "not_verified") {
+        suppressed.push(row.stateSlug);
+        continue;
+      }
+      expect(finding.verdict, row.stateSlug).toBe("action_required");
+      expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
+      expect(finding.requirements, row.stateSlug).toEqual([row.attestExemption.notes]);
+      summaries.add(finding.summary);
+      checked++;
+    }
+    // Discriminating control: only the attest-scoped source disagreements suppress.
+    expect(suppressed.sort()).toEqual(["alaska", "nebraska"]);
+    expect(checked).toBe(18);
+    expect(summaries.size, "the attest-false summary is one constant").toBe(1);
+  });
+
+  it("SRC-151: a null, empty, or whitespace-only note on any limb is not_verified, never a blank or invented requirement", () => {
+    const BLANKS: (string | null)[] = [null, "", "   ", "\n\t "];
+    const tx = rows.find((r) => r.stateSlug === "texas")!;
+    const officeFalseRow = rows.find((r) => r.physicalOfficeTrigger.exists === false && !r.sourceDisagreement)!;
+    const ca = rows.find((r) => r.stateSlug === "california")!;
+    expect(ca.attestExemption.exists).toBe(false);
+    const permitRow = rows.find(
+      (r) => r.attestExemption.exists === true && r.peerReviewConditionsPermit.exists === true && !r.sourceDisagreement
+    )!;
+    expect(permitRow, "need a peer-review-conditioned row for the permit limb").toBeDefined();
+    const cases: { label: string; row: FirmMobilityRuleRow; office: boolean }[] = [];
+    for (const blank of BLANKS) {
+      const n = blank as string; // engine must tolerate null too
+      cases.push({ label: `office-true ${JSON.stringify(blank)}`, row: { ...tx, physicalOfficeTrigger: { ...tx.physicalOfficeTrigger, notes: n } }, office: true });
+      cases.push({ label: `office-false ${JSON.stringify(blank)}`, row: { ...officeFalseRow, physicalOfficeTrigger: { ...officeFalseRow.physicalOfficeTrigger, notes: n } }, office: true });
+      cases.push({ label: `attest-false ${JSON.stringify(blank)}`, row: { ...ca, attestExemption: { ...ca.attestExemption, notes: n } }, office: false });
+      cases.push({ label: `permit ${JSON.stringify(blank)}`, row: { ...permitRow, peerReviewConditionsPermit: { ...permitRow.peerReviewConditionsPermit, notes: n } }, office: false });
+    }
+    for (const c of cases) {
+      const home = c.row.stateSlug === "texas" ? "california" : "texas";
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: home, targetStateSlug: c.row.stateSlug, hasPhysicalOfficeInTargetState: c.office },
+        c.row,
+        "2099-01-01"
+      );
+      expect(finding.verdict, c.label).toBe("not_verified");
+      for (const req of finding.requirements) expect(req.trim(), c.label).not.toBe("");
+      expect(finding.requirements.join(" "), c.label).not.toMatch(/Register the firm|confirm your firm's peer review is current/);
+    }
+    expect(cases.length).toBe(16);
+  });
+
   it("SRC-146: exactly AK/NE/OH scope their disagreement to the attest limb, and their office answer is not suppressed", () => {
     const scoped = rows
       .filter((r) => r.sourceDisagreement && r.sourceDisagreementScope === "attest_exemption")
