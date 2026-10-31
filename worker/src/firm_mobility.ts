@@ -59,8 +59,12 @@ export interface FirmMobilityRuleRow {
   state: string;
   stateSlug: string;
   /** Is attest work by a firm with NO office in this state exempt from
-   * registration? null = genuinely unclear (4 states in the current
-   * dataset) -- never guessed. */
+   * registration (conditionally or not)? true = exempt, with any conditions
+   * stated in notes, which are shown as requirements; false = the state
+   * requires a firm registration/permit for that attest work; null =
+   * genuinely unclear -- never guessed. NOT "is there an attest/non-attest
+   * split" (SRC-140: 14 rows were encoded that way and served the inverse
+   * verdict). Counts live in test/firm-mobility-data.spec.ts, not here. */
   attestExemption: FirmMobilityCondition;
   /** Does having a physical office in this state trigger firm registration
    * regardless of service type? true for 37 of 55 jurisdictions, false for
@@ -349,7 +353,13 @@ export function evaluateFirmMobility(
   // separately-cited requirement rather than folded into a single enum
   // value, so the condition can never be silently hidden.
   const permit = rule.peerReviewConditionsPermit;
-  const requirements: string[] = [];
+  // SRC-140 (AuditLab 2026-10-31): the exemption's own conditions (work
+  // through a practice-privileged individual, ownership, home-state
+  // authorization) live in attestExemption.notes. They must ride along on
+  // every verdict from this branch -- a "clear" that shows only the
+  // peer-review condition, or nothing, would hide what the firm has to meet
+  // to rely on the exemption at all.
+  const requirements: string[] = exemption.notes ? [exemption.notes] : [];
   let verdict: FirmMobilityVerdict = "clear";
   let summary =
     "We haven't identified a firm-registration requirement in this state for attest work by a no-office firm.";

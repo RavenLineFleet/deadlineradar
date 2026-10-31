@@ -26,10 +26,10 @@
   },
   "kentucky": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "KRS 325.301(10)-(11)",
       "citation_url": "https://cpa.ky.gov/cpafirms/Pages/Out-of-State-Firm-License.aspx",
-      "notes": "Exemption is broader than a non-attest-only carve-out: a no-office firm licensed in good standing at home (and peer-review compliant if applicable) is exempt regardless of attest/non-attest -- so 'false' since attest work by a no-office firm is ALSO exempt, not force-registered."
+      "notes": "A firm with no Kentucky office that is licensed and in good standing in its home state, and compliant with peer review where applicable, is exempt from Kentucky firm licensing for attest and non-attest work."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -51,10 +51,10 @@
   },
   "louisiana": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "La. R.S. 37:77; LAC 46:XIX.1501(B)",
       "citation_url": "https://cpaboard.state.la.us/cpa-firm-permits/",
-      "notes": "Exemption covers attest services too, not just non-attest: a no-office firm can perform attest work without a LA permit if non-CPA owners hold only minority interest, firm is peer-review-enrolled/current, and home-state licensed. Marked false since not restricted to non-attest-only."
+      "notes": "A firm with no Louisiana office may perform attest services without a Louisiana permit if non-CPA owners hold only a minority interest, the firm is enrolled and current in peer review, and it is licensed in its home state."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -101,10 +101,10 @@
   },
   "maryland": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "Md. Code, Bus. Occ. & Prof. section 2-401",
       "citation_url": "https://mgaleg.maryland.gov/mgawebsite/Laws/StatuteText?article=gbo&section=2-401&enactments=False&archived=False",
-      "notes": "Broader than the framed question: a no-office firm may perform ATTEST services without a MD permit if it meets peer-review/application requirements (sections 2-402 to 2-403, 2-4A-02) via a practice-privilege individual. Non-attest work under the CPA title likewise exempt via practice-privilege individual. Marked false since attest work is also conditionally exempt, not force-registered."
+      "notes": "A firm with no Maryland office may perform attest services without a Maryland permit if it meets the peer review and application requirements of sections 2-402 to 2-403 and 2-4A-02 and works through an individual with Maryland practice privileges. Non-attest work under the CPA title is likewise exempt when performed through an individual with practice privileges."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -301,10 +301,10 @@
   },
   "texas": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "Tex. Occ. Code sections 901.351, 901.461, 901.462",
       "citation_url": "https://texas.public.law/statutes/tex._occ._code_section_901.461",
-      "notes": "Notable outlier: HB 1520 (eff. 2019-09-01) eliminated the firm-license requirement even for ATTEST services by no-Texas-office out-of-state firms, as long as the engagement is via a TX-licensed or practice-privileged individual and the firm submits to TX Board jurisdiction/ownership/peer-review rules. Both attest and non-attest are exempt at the firm level for no-office firms -- the classic split does NOT hold in Texas. Only unconditional trigger is a Texas office."
+      "notes": "Since HB 1520 (effective September 1, 2019), a firm with no Texas office does not need a Texas firm license for attest or non-attest services if the engagement is performed through a Texas-licensed individual or an individual with practice privileges, and the firm submits to the Texas Board's jurisdiction and its ownership and peer review rules. A Texas office is the only unconditional trigger for a firm license."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -326,7 +326,7 @@
   },
   "utah": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "Utah Admin. Code R156-26a-305(3), as amended by Filing No. 58008 (published Utah State Bulletin, June 1, 2026; effective July 8, 2026 per the Bulletin of July 15, 2026); Utah Code section 58-26a-305(1)(a)",
       "citation_url": "https://commerce.utah.gov/wp-content/uploads/2026/06/proposed-rule-r156-accountancy-oar-58008.pdf",
       "notes": "A CPA firm not licensed in Utah may perform attest or non-attest services in Utah through mobility without a Utah license if its principal place of business is not in Utah and it meets the other conditions of Rule R156-26a-305(3), including Utah's ownership requirement (section 58-26a-302(3)(a)(iii)) and peer review requirement (Rule R156-26a-303a). The rule was amended effective July 8, 2026, after 2025 legislation (SB 15, effective July 1, 2026) rewrote section 58-26a-305(1)(a) to refer only to individuals. Otherwise a firm must register with the Division to engage in the practice of public accounting in Utah (section 58-26a-301(2))."
@@ -401,7 +401,7 @@
   },
   "michigan": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "MCL 339.728(4) and (5)",
       "citation_url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-728",
       "notes": "A firm with no Michigan office may perform reviews, compilations, examinations and agreed-upon procedures (section 728(4)), or audits and other attest services while using the CPA firm title (section 728(5)), without a Michigan license only if it works through an individual with Michigan practice privileges, is authorized to perform those services where that individual has a principal place of business, and meets the ownership and supervision requirements of section 728(2)(a)-(b) and the peer review requirement of section 729(2). A firm that does not meet every condition must be licensed."
@@ -476,10 +476,10 @@
   },
   "missouri": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "RSMo section 326.289.1(1)-(3), as re-enacted by HCS SS#2 SB 1233 (2026), effective 2026-08-28",
       "citation_url": "https://www.senate.mo.gov/26info/pdf-bill/tat/SB1233.pdf",
-      "notes": "Read directly from the enacted bill text -- the SAME statute already confirmed as a real event in the reg-change pipeline. A no-MO-office firm MAY offer attest/compilation services WITHOUT a permit if: meets subsection 4(1) qualifications, complies with peer review requirements, works via a practice-privileged individual (section 326.283), and can lawfully do so in the individual's home state. Non-attest/non-compilation services under CPA title without a permit are separately allowed via practice-privileged individual. Missouri does NOT force-register attest work by no-office firms; peer review compliance, not service classification, is the operative gate. A sole-practitioner/single-member-LLC exemption request (new subsection 1(5)) further confirms peer-review status as the real gate."
+      "notes": "Under RSMo section 326.289.1 as re-enacted by SB 1233 (2026), effective August 28, 2026, a firm with no Missouri office may offer attest and compilation services without a permit if it meets the qualifications of subsection 4(1), complies with peer review requirements, works through an individual with practice privileges under section 326.283, and can lawfully perform those services in that individual's home state. Non-attest services under the CPA title are separately allowed through an individual with practice privileges."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -651,10 +651,10 @@
   },
   "pennsylvania": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "63 P.S. section 9.8h(a)(1) and (d)(3); section 9.5d",
       "citation_url": "https://www.pa.gov/content/dam/copapwp-pagov/en/dos/programs/professional-licensing/applications-and-forms/Acct%20Laws.pdf",
-      "notes": "PA does NOT gate on attest-vs-non-attest for no-office firms: the 'qualified unlicensed entity' mobility exemption (section 5.4) requires only no PA office + lawful home-state practice + individual practice-privilege/licensee performing the work -- NOT limited to non-attest work. The only attest-specific rule requires the individual in charge to be a real licensed CPA/PA, not that the firm itself get licensed. PA's gate is individual qualification, not firm-level service classification."
+      "notes": "A firm with no Pennsylvania office may perform attest and non-attest work under the 'qualified unlicensed entity' mobility exemption (section 5.4) if it practices lawfully in its home state and the work is performed by an individual with practice privileges or a Pennsylvania licensee. For attest work, the individual in charge must be a licensed CPA or PA."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -826,10 +826,10 @@
   },
   "wyoming": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "W.S. 33-3-118(b)(xiv)-(xv)",
       "citation_url": "https://www.wyoleg.gov/statutes/compress/title33.pdf",
-      "notes": "Not limited to non-attest work: a no-WY-office firm may perform ATTEST or compilation services for a WY-home-office client and use CPA titling WITHOUT a permit if it meets ownership/peer-review qualifications (33-3-132) via a practice-privileged individual (33-3-116(a)); (xv) separately covers non-attest similarly. Wyoming gates attest work on peer-review/practice-privilege compliance rather than requiring a full firm permit. Confirmed via full verbatim statute text."
+      "notes": "A firm with no Wyoming office may perform attest or compilation services for a client with its home office in Wyoming, and use the CPA firm title, without a permit if it meets the ownership and peer review qualifications of 33-3-132 and works through an individual with practice privileges under 33-3-116(a). Section 33-3-118(b)(xv) separately allows non-attest work on similar terms."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -976,10 +976,10 @@
   },
   "new-mexico": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "NMSA 1978 section 61-28B-13(B)(3), (C), (D)",
       "citation_url": "https://law.justia.com/codes/new-mexico/chapter-61/article-28b/section-61-28b-13/",
-      "notes": "No-office firm avoids a firm permit for BOTH attest (subsection C) and non-attest (subsection D) work via practice-privilege individuals -- attest carries an extra peer-review condition (subsection L/(H)(1)) but isn't an independent registration trigger, just a heavier-condition version of the same exemption. Cross-checked against a second source."
+      "notes": "A firm with no New Mexico office does not need a firm permit for attest work (subsection C) or non-attest work (subsection D) if it works through individuals with practice privileges. Attest work carries an additional peer review condition (subsection L/(H)(1))."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -1051,10 +1051,10 @@
   },
   "north-dakota": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "N.D.C.C. section 43-02.2-06(1)(a)-(b); section 43-02.2-04.1; section 43-02.2-02(8)",
       "citation_url": "https://ndlegis.gov/cencode/t43c02-2.html",
-      "notes": "Exemption is not conditioned on attest vs non-attest: a no-office firm may perform any practice-of-public-accountancy service, including attest, without a firm permit via a practice-privileged individual. No separate attest-triggered notice/registration requirement -- office location, not service type, is the trigger. Read directly from the official statute text."
+      "notes": "A firm with no North Dakota office may perform any public accountancy service, including attest, without a firm permit if it works through an individual with practice privileges. A North Dakota office, not the type of service, is what triggers the permit requirement."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -1101,7 +1101,7 @@
   },
   "montana": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "Mont. Code Ann. section 37-50-335(4)(a)-(b)",
       "citation_url": "https://mca.legmt.gov/bills/mca/title_0370/chapter_0500/part_0030/section_0350/0370-0500-0030-0350.html",
       "notes": "A firm with no Montana office may use the CPA firm title without registering, and may offer attest services and compilations in Montana if it complies with Montana's peer review and firm ownership qualifications, works through an individual with practice privileges under section 37-50-325, and has practice privileges that include attest and compilation services in the state of its principal place of business (section 37-50-335(4)(a)). Confirm with the board how a firm that does not meet those conditions may proceed."
@@ -1151,10 +1151,10 @@
   },
   "nevada": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "NRS 628.315(1)-(2)",
       "citation_url": "https://www.leg.state.nv.us/NRS/NRS-628.html#NRS628Sec315",
-      "notes": "Full firm-mobility state: an out-of-state firm in good standing at home is deemed a NV CPA firm 'for all purposes' and exempt from registration, no carve-out reinstating the duty for attest work. Only condition is no NV office. The classic attest/non-attest split does not hold in Nevada. Dual-sourced: statute + Board's Out-of-State-Information guidance."
+      "notes": "A firm with no Nevada office that is in good standing in its home state is treated as a Nevada CPA firm 'for all purposes' and is exempt from registration, including for attest work. The only condition is that the firm has no Nevada office."
     },
     "physical_office_trigger": {
       "exists": true,
@@ -1276,10 +1276,10 @@
   },
   "delaware": {
     "attest_exemption": {
-      "exists": false,
+      "exists": true,
       "citation": "24 Del. C. sections 109(c), 111(b); 24 Del. Admin. Code 100 section 10.1",
       "citation_url": "https://www.law.cornell.edu/regulations/delaware/24-Del-Admin-Code-SS-100-10.0",
-      "notes": "Broader than the framed split: a no-DE-office firm practicing through a practice-privileged individual has no firm-permit obligation at all, drawing no attest/non-attest line and no 'client home office in DE' carve-out. Attest work via a practice-privileged individual is ALSO exempt -- marked false since DE doesn't force registration specifically for attest work. Dual-sourced: statute + admin code, verbatim agreement."
+      "notes": "A firm with no Delaware office does not need a Delaware firm permit, for attest or non-attest work, if it practices through an individual with Delaware practice privileges."
     },
     "physical_office_trigger": {
       "exists": true,

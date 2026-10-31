@@ -118,6 +118,11 @@ describe("locked-in dataset facts -- a change here should only come from a real 
     expect(unclear).toEqual(["idaho", "maine", "massachusetts", "ohio", "tennessee", "wisconsin"]);
   });
 
+  it("exactly 6 states require firm registration for no-office attest work (attest_exemption=false) -- SRC-140 2026-10-31: 14 rows that encoded 'is there an attest/non-attest split' instead of the declared 'is it exempt' were flipped to true", () => {
+    const required = rows.filter((r) => r.attestExemption.exists === false).map((r) => r.stateSlug).sort();
+    expect(required).toEqual(["hawaii", "minnesota", "mississippi", "nebraska", "northern-mariana-islands", "puerto-rico"]);
+  });
+
   it("exactly 2 states have an unverified physical_office_trigger -- Guam, Wisconsin (2026-08-17: US Virgin Islands filled in; 2026-10-30: Utah filled in from 58-26a-302(3)(b), 58-26a-501(1)(b))", () => {
     const unclear = rows.filter((r) => r.physicalOfficeTrigger.exists === null).map((r) => r.stateSlug).sort();
     expect(unclear).toEqual(["guam", "wisconsin"]);
@@ -206,6 +211,28 @@ describe("the engine's answers are conservative where they should be, across the
           future
         );
         expect(finding.requirements.length, `${row.stateSlug} has a peer-review condition but no visible requirement`).toBeGreaterThan(0);
+        if (row.peerReviewConditionsPermit.notes) {
+          expect(finding.requirements, `${row.stateSlug} dropped its peer-review condition text`).toContain(row.peerReviewConditionsPermit.notes);
+        }
+      }
+    }
+  });
+
+  it("SRC-140: every exempt state (attest_exemption=true) surfaces the exemption's own conditions, whatever the peer-review outcome", () => {
+    // Before SRC-140 the exists===true branch pushed only the peer-review
+    // note, so conditions like "through a practice-privileged individual"
+    // or ownership tests never reached the paid verdict.
+    const future = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
+    for (const row of rows) {
+      if (row.attestExemption.exists !== true || !row.attestExemption.notes) continue;
+      const home = row.stateSlug === "ohio" ? "california" : "ohio";
+      for (const due of [future, null]) {
+        const finding = evaluateFirmMobility(
+          { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: false },
+          row,
+          due
+        );
+        expect(finding.requirements, `${row.stateSlug} (${finding.verdict}, due=${due}) hid its exemption conditions`).toContain(row.attestExemption.notes);
       }
     }
   });
