@@ -66,9 +66,14 @@ export interface FirmMobilityRuleRow {
    * split" (SRC-140: 14 rows were encoded that way and served the inverse
    * verdict). Counts live in test/firm-mobility-data.spec.ts, not here. */
   attestExemption: FirmMobilityCondition;
-  /** Does having a physical office in this state trigger firm registration
-   * regardless of service type? false = an office is not BY ITSELF the
-   * trigger; what is differs by row and lives only in its notes (SRC-147).
+  /** Does having a physical office in this state bring the firm under its
+   * firm-registration rule? NOT "does an office alone trigger registration":
+   * 21 of the true rows condition the duty on attest work and/or CPA-title
+   * use as well (SRC-149), and 7 false rows share that structure (GATE-79),
+   * so the boolean is not a function of the rule and no served text may
+   * lean on it beyond the two neutral summaries. false = an office is not BY
+   * ITSELF the trigger; what is differs by row and lives only in its notes
+   * (SRC-147).
    * This check is attest-scoped, so false is never rendered
    * as "clear" -- see the office branch (SRC-145). Counts live in
    * test/firm-mobility-data.spec.ts. */
@@ -283,9 +288,9 @@ function isPeerReviewCurrent(dueDate: string | null, now: Date): boolean {
  * then the blocking conditions (staleness for the whole row, source
  * disagreement for the limb it is scoped to);
  * then physical-office-trigger, which is evaluated BEFORE the no-office
- * attest exemption because it's a separate, unconditional trigger -- a
- * firm with a physical office in the target state doesn't get to claim the
- * no-office exemption regardless of what attest_exemption says.
+ * attest exemption because a firm with a physical office in the target
+ * state doesn't get to claim the no-office exemption, regardless of what
+ * attest_exemption says.
  */
 export function evaluateFirmMobility(
   input: FirmMobilityInput,
@@ -353,12 +358,25 @@ export function evaluateFirmMobility(
         disclaimer: MOBILITY_DISCLAIMER,
       };
     }
+    // SRC-149 (AuditLab 2026-10-31): true does NOT mean an office alone
+    // triggers registration -- 21 of the 37 true rows' own notes condition
+    // the duty on attest work and/or CPA-title use as well (e.g. New Mexico:
+    // "never bare office presence alone"). Same remedy as SRC-147: the
+    // summary is a constant, so it may only say what is common to every
+    // true row and defer to the row's notes. Never assert that the office
+    // by itself requires registration.
+    if (!trigger.notes) {
+      return notVerified(
+        rule,
+        "We haven't verified what triggers firm registration for a firm with an office in this state."
+      );
+    }
     return {
       verdict: "action_required",
-      summary: "This state requires firm registration for a firm with a physical office here.",
-      requirements: [
-        trigger.notes ?? "Register the firm with this state's board of accountancy before providing services.",
-      ],
+      summary:
+        "This state's firm-registration rule for a firm with an office here is below; check it against " +
+        "your firm's facts.",
+      requirements: [trigger.notes],
       citation: trigger.citation,
       citationUrl: trigger.citationUrl,
       verifiedDate: rule.verifiedDate,

@@ -186,6 +186,15 @@ describe("locked-in dataset facts -- a change here should only come from a real 
 
   // Phrases the notes use to say an office is not sufficient on its own.
   // Every office-false note matches; no office-true note may.
+  // GATE-79 (AuditLab 2026-10-31): this is a PHRASE TRIPWIRE, not a check of
+  // the rule. It tests which conclusion a note recites, so a one-word
+  // synonym ("never" -> "not" in New Mexico's note) flips it, and it passes
+  // 21 true rows whose notes condition the duty on attest work or title use.
+  // It does not certify the boolean. What keeps the served answer honest is
+  // (a) the hand-verified, pinned 16-row false census above, and (b) the
+  // office-true summary asserting nothing the boolean would have to be right
+  // about (SRC-149 test below), so a true row whose rule is conditional
+  // still serves an accurate headline plus its own notes.
   const OFFICE_NOT_SUFFICIENT = /\b(?:not|isn't|is not)\s+(?:truly\s+)?independent\b|\bisn't unconditional\b|regardless of office|\bnot\s+(?:by\s+|on\s+)?(?:having\s+)?an office\b|\bnot\s+(?:mere\s+|bare\s+)?office presence\b|\boffice alone (?:is insufficient|isn't|doesn't|does not)\b|\balone does not trigger\b|\bnot an independent trigger\b|\brather than a separate trigger\b|\bnot a trigger on its own\b|\bno provision makes\b[^.]{0,40}\bindependently trigger/i;
   const officeBooleanOffenders = (rs: FirmMobilityRuleRow[]) =>
     rs
@@ -306,6 +315,48 @@ describe("the engine's answers are conservative where they should be, across the
       checked++;
     }
     expect(checked, "GATE-78: every office-false row must reach the summary check").toBe(officeFalse.length);
+  });
+
+  it("SRC-149: the office-true summary asserts nothing beyond what is common to all 37 true rows; every one serves its own notes", () => {
+    // 21 true rows condition registration on attest work and/or CPA-title use
+    // as well as the office (new-mexico: "never bare office presence alone").
+    // A headline saying the office requires registration contradicts them.
+    const BANNED = /requires?|must|regardless|physical office|attest|title|titling|alone|by itself/i;
+    // Positive control: the pre-fix headline is caught by BANNED.
+    expect(BANNED.test("This state requires firm registration for a firm with a physical office here.")).toBe(true);
+    const officeTrue = rows.filter((r) => r.physicalOfficeTrigger.exists === true);
+    expect(officeTrue.length).toBe(37);
+    expect(officeTrue.map((r) => r.stateSlug)).toEqual(expect.arrayContaining(["new-mexico", "nevada", "south-dakota", "utah"]));
+    const summaries = new Set<string>();
+    let checked = 0;
+    for (const row of officeTrue) {
+      const home = row.stateSlug === "texas" ? "california" : "texas";
+      const finding = evaluateFirmMobility(
+        { firmHomeStateSlug: home, targetStateSlug: row.stateSlug, hasPhysicalOfficeInTargetState: true },
+        row,
+        null
+      );
+      expect(finding.verdict, row.stateSlug).toBe("action_required");
+      expect(finding.summary, row.stateSlug).not.toMatch(BANNED);
+      expect(finding.requirements, row.stateSlug).toEqual([row.physicalOfficeTrigger.notes]);
+      summaries.add(finding.summary);
+      checked++;
+    }
+    expect(checked, "every office-true row must reach the summary check").toBe(officeTrue.length);
+    expect(summaries.size, "the office-true summary is one constant").toBe(1);
+  });
+
+  it("SRC-149: an office-true row with no notes is not_verified, never an invented requirement", () => {
+    const tx = rows.find((r) => r.stateSlug === "texas")!;
+    expect(tx.physicalOfficeTrigger.exists).toBe(true);
+    const noNotes = { ...tx, physicalOfficeTrigger: { ...tx.physicalOfficeTrigger, notes: null } };
+    const finding = evaluateFirmMobility(
+      { firmHomeStateSlug: "california", targetStateSlug: "texas", hasPhysicalOfficeInTargetState: true },
+      noNotes,
+      null
+    );
+    expect(finding.verdict).toBe("not_verified");
+    expect(finding.requirements.join(" ")).not.toMatch(/Register the firm/);
   });
 
   it("SRC-146: exactly AK/NE/OH scope their disagreement to the attest limb, and their office answer is not suppressed", () => {

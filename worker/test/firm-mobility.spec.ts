@@ -27,7 +27,7 @@ function verifiedRule(over: Partial<FirmMobilityRuleRow> = {}): FirmMobilityRule
     state: "Texas",
     stateSlug: "texas",
     attestExemption: condition({ exists: true }),
-    physicalOfficeTrigger: condition({ exists: true, citation: "Tex. Occ. Code s 901.461" }),
+    physicalOfficeTrigger: condition({ exists: true, citation: "Tex. Occ. Code s 901.461", notes: "A firm with an office here registers." }),
     peerReviewConditionsPermit: condition({ exists: false, citation: null }),
     confidence: "dual_source",
     sourceDisagreement: null,
@@ -135,14 +135,15 @@ describe("the peer-review-conditional exemption -- the case this feature exists 
   });
 });
 
-describe("physical office in the target state -- a separate, unconditional trigger", () => {
+describe("physical office in the target state -- evaluated before the no-office exemption", () => {
   it("action_required when physical_office_trigger is true, REGARDLESS of attest exemption", () => {
     const rule = verifiedRule({
       attestExemption: condition({ exists: true }), // would be clear/exempt for the no-office case
-      physicalOfficeTrigger: condition({ exists: true }),
+      physicalOfficeTrigger: condition({ exists: true, notes: "A firm with an office here registers." }),
     });
     const finding = evaluateFirmMobility(input({ hasPhysicalOfficeInTargetState: true }), rule, null);
     expect(finding.verdict).toBe("action_required");
+    expect(finding.requirements).toEqual(["A firm with an office here registers."]);
   });
 
   it("SRC-145: physical_office_trigger false is NEVER clear -- action_required carrying the row's own trigger notes", () => {
