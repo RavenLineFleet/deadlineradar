@@ -4957,7 +4957,86 @@ def check_how_heard_detail_keys_sync(repo_root: Path) -> list[str]:
         bogus = sorted((css_set | ts_set) - option_keys)
         if bogus:
             errors.append(f"[HOW-DETAIL-SYNC] detail key(s) that are not a how_heard option at all: {', '.join(bogus)}")
+    errors += _how_heard_detail_reveal_shape(py_text)
+    errors += _how_heard_detail_maxlen_sync(py_text, ts_text)
     return errors
+
+
+def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
+    """AuditLab GATE-82 residual (2026-10-31): the key-sync above only counts
+    `:checked` reveal rules, so a reveal that is not :checked-shaped (an
+    unconditional `.dr-how-heard-detail { display: block }`, or the base hide
+    rule flipped/removed) shows the box for every answer while the counts still
+    match. Assert (a) every CSS occurrence of the class sits in a rule this
+    parser read, (b) a bare `.dr-how-heard-detail { display: none }` hide rule
+    exists, (c) every rule that sets a non-none display on the class does so
+    ONLY through :checked option selectors, and (d) the form's detail <div>
+    carries no inline style/hidden attribute that would override the CSS."""
+    errors = []
+    sel_re = re.compile(
+        r"""\.dr-how-heard\s+option\[\s*value\s*=\s*["']?[^"'\]\s]+["']?\s*\]\s*:checked\s*\)\s*\.dr-how-heard-detail\s*$"""
+    )
+    # Anchor on each occurrence (a [^{}]* scan over the whole file is
+    # quadratic on generate.py): its rule's selector text runs back to the
+    # previous brace, its body from the next "{" to the following "}".
+    rules = {}
+    for occ in re.finditer(r"\.dr-how-heard-detail(?![\w-])", py_text):
+        p = occ.start()
+        open_i, close_i = py_text.find("{", p), py_text.find("}", p)
+        if open_i == -1 or (close_i != -1 and close_i < open_i):
+            return [f"[HOW-DETAIL-SYNC] generate.py mentions .dr-how-heard-detail outside a CSS selector this check can read (offset {p}) -- repair the check or the CSS"]
+        start = max(py_text.rfind("{", 0, p), py_text.rfind("}", 0, p)) + 1
+        end = py_text.find("}", open_i)
+        rules[start] = (py_text[start:open_i], py_text[open_i + 1:end])
+    hide_rules = 0
+    for sel_text, body in rules.values():
+        sels = [x.strip() for x in sel_text.split(",")]
+        sels = [x.splitlines()[-1].strip() for x in sels if ".dr-how-heard-detail" in x]
+        disp = re.findall(r"display\s*:\s*([^;}\s]+)", body)
+        if not disp:
+            continue
+        if all(d == "none" for d in disp):
+            if any(x == ".dr-how-heard-detail" for x in sels):
+                hide_rules += 1
+            continue
+        bad = [x for x in sels if not sel_re.search(x)]
+        if bad:
+            errors.append(
+                f"[HOW-DETAIL-SYNC] a CSS rule shows .dr-how-heard-detail (display: {disp[-1]}) through a selector that is not a "
+                f":checked how_heard option ({bad[0][:80]!r}) -- the box appears for answers the Worker discards the text of"
+            )
+    if hide_rules != 1:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] expected exactly 1 base `.dr-how-heard-detail {{ display: none }}` rule, found {hide_rules} -- "
+            "without it the free-text box shows for every how_heard answer"
+        )
+    div = re.findall(r"<div\b[^>]*class=\"dr-how-heard-detail\"[^>]*>", py_text)
+    if len(div) != 1:
+        errors.append(f"[HOW-DETAIL-SYNC] expected 1 `<div class=\"dr-how-heard-detail\">` in generate.py, found {len(div)}")
+    elif re.search(r"\b(style|hidden)\b", div[0].replace('class="dr-how-heard-detail"', "")):
+        errors.append(f"[HOW-DETAIL-SYNC] the detail <div> carries an inline style/hidden attribute that overrides the CSS reveal rules: {div[0][:80]!r}")
+    return errors
+
+
+def _how_heard_detail_maxlen_sync(py_text: str, ts_text: str) -> list[str]:
+    """AuditLab GATE-83 (LOW, 2026-10-31): the form's how_heard_detail
+    `maxlength` and validation.ts MAX_HOW_HEARD_DETAIL_LEN are hand-kept
+    copies. sanitizeFreeText truncates silently, so form > server means the
+    visitor's longer answer 200s and is cut with no error anywhere."""
+    tags = re.findall(r"""<input\b[^>]*name=["']how_heard_detail["'][^>]*>""", py_text)
+    if len(tags) != 1:
+        return [f"[HOW-DETAIL-SYNC] expected 1 how_heard_detail <input> in generate.py, found {len(tags)} -- can't verify its maxlength"]
+    form_len = re.findall(r"""\bmaxlength\s*=\s*["']?(\d+)""", tags[0])
+    srv = re.findall(r"\bMAX_HOW_HEARD_DETAIL_LEN\s*=\s*(\d+)\s*;", ts_text)
+    if len(srv) != 1:
+        return [f"[HOW-DETAIL-SYNC] validation.ts MAX_HOW_HEARD_DETAIL_LEN found {len(srv)}x (need exactly 1 numeric literal) -- can't verify sync"]
+    if len(form_len) != 1:
+        return [f"[HOW-DETAIL-SYNC] the how_heard_detail <input> has {len(form_len)} numeric maxlength attribute(s), need 1 -- "
+                f"without it the form accepts text the Worker silently truncates at {srv[0]}"]
+    if int(form_len[0]) != int(srv[0]):
+        return [f"[HOW-DETAIL-SYNC] how_heard_detail maxlength={form_len[0]} in the form but MAX_HOW_HEARD_DETAIL_LEN={srv[0]} in validation.ts -- "
+                "the Worker truncates silently, so keep them equal"]
+    return []
 
 
 def check_how_heard_options_sync(repo_root: Path) -> list[str]:
