@@ -4960,7 +4960,7 @@ def check_how_heard_detail_keys_sync(repo_root: Path) -> list[str]:
         bogus = sorted((css_set | ts_set) - option_keys)
         if bogus:
             errors.append(f"[HOW-DETAIL-SYNC] detail key(s) that are not a how_heard option at all: {', '.join(bogus)}")
-    errors += _how_heard_detail_reveal_shape(py_text)
+    errors += _how_heard_detail_reveal_shape(py_text, repo_root / "docs" / "styles.css")
     store_ts = repo_root / "worker" / "src" / "store.ts"
     if not store_ts.exists():
         return errors + ["[HOW-DETAIL-SYNC] worker/src/store.ts not found -- can't verify the how_heard_detail truncation length"]
@@ -5025,6 +5025,36 @@ def _py_name_bindings(tree, name: str) -> int:
     return n
 
 
+def _shipped_css_matches_page_css(tree, page_css: str, shipped_css: Path) -> list[str]:
+    """GATE-95 (2026-11-01): rebuild the shipped stylesheet with generate.py's
+    own _strip_css_comments (taken from the checked source tree, not an
+    `import generate` that may resolve elsewhere) and require docs/styles.css
+    to match it exactly. Fail closed on any failure to read or rebuild."""
+    import ast
+    tag = "[HOW-DETAIL-SYNC] [STYLES-SYNC]"
+    fns = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_strip_css_comments"]
+    if len(fns) != 1 or _py_name_bindings(tree, "_strip_css_comments") != 1:
+        return [f"{tag} generate.py must define _strip_css_comments exactly once at top level and bind it nowhere else (found {len(fns)} def(s), {_py_name_bindings(tree, "_strip_css_comments")} binding(s)) -- can't rebuild docs/styles.css to compare"]
+    try:
+        ns = {"re": re, "_STRIPPED_CSS_CACHE": {}}
+        exec(compile(ast.Module(body=[fns[0]], type_ignores=[]), "<generate._strip_css_comments>", "exec"), ns)
+        rebuilt = ns["_strip_css_comments"](page_css)
+    except Exception as e:  # noqa: BLE001 -- any failure means the shipped CSS can't be verified
+        return [f"{tag} could not rebuild _strip_css_comments(PAGE_CSS) ({type(e).__name__}: {str(e)[:80]}) -- can't verify docs/styles.css"]
+    try:
+        shipped = shipped_css.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        return [f"{tag} {shipped_css.name} unreadable ({type(e).__name__}) -- can't verify the stylesheet the browser applies"]
+    if shipped != rebuilt:
+        i = next((k for k, (a, b) in enumerate(zip(shipped, rebuilt)) if a != b), min(len(shipped), len(rebuilt)))
+        line = shipped.count(chr(10), 0, i) + 1
+        return [
+            f"{tag} docs/styles.css != _strip_css_comments(PAGE_CSS) from generate.py (first difference near line {line}; "
+            f"{len(shipped)} vs {len(rebuilt)} chars) -- the browser applies a stylesheet the gate did not check; rebuild with generate.py, never hand-edit styles.css"
+        ]
+    return []
+
+
 _HOW_HEARD_FIELD_TAGS = frozenset({"label", "select", "option", "div", "input"})
 # GATE-92 (2026-11-01): sha256 of _HOW_HEARD_FIELD_HTML as RENDERED
 # (.format(id_prefix="")). Every hole in GATE-82..92 fails this pin. A
@@ -5032,7 +5062,7 @@ _HOW_HEARD_FIELD_TAGS = frozenset({"label", "select", "option", "div", "input"})
 _HOW_HEARD_FIELD_SHA256 = "721fce57a60f494165697c7e7c3481620c88b256e6511e1c6fd60ee665201b37"
 
 
-def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
+def _how_heard_detail_reveal_shape(py_text: str, shipped_css: Path | None = None) -> list[str]:
     """AuditLab GATE-82 residual (2026-10-31): the key-sync above only counts
     `:checked` reveal rules, so a reveal that is not :checked-shaped (an
     unconditional `.dr-how-heard-detail { display: block }`, or the base hide
@@ -5061,7 +5091,11 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     box never shown on screen. Depth and rule bounds are read with quoted
     strings blanked, so a `content:"}"` can't shift them. GATE-88/90: the field
     markup may use only allowlisted tags and no style/on* attributes (live CSP
-    has no style-src, so a <style> or <link> would apply)."""
+    has no style-src, so a <style> or <link> would apply).
+    GATE-95 (2026-11-01): all of the above reads the PAGE_CSS literal, but the
+    browser applies docs/styles.css. When `shipped_css` is given, it must equal
+    generate.py's own _strip_css_comments(PAGE_CSS) byte for byte (fail closed),
+    so a hand-edit or bad merge of the shipped file can't diverge unseen."""
     errors = []
     import ast
     found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML", "_HOW_HEARD_OPTIONS"))
@@ -5073,6 +5107,8 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
         css = None
     if not isinstance(css, str):
         return ["[HOW-DETAIL-SYNC] generate.py PAGE_CSS is not a plain string literal -- can't verify the detail-box reveal rules"]
+    if shipped_css is not None:
+        errors += _shipped_css_matches_page_css(found[None], css, shipped_css)
     # GATE-91 (2026-11-01): read the field as the build renders it, not its
     # source text -- a \x3c / \N{...} / \074 / style\x3d escape puts a tag or
     # attribute in the value that the source doesn't contain.
