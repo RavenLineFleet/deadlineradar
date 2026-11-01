@@ -4984,6 +4984,9 @@ def _py_toplevel_assigns(py_text: str, names: tuple):
     return out
 
 
+_HOW_HEARD_FIELD_TAGS = frozenset({"label", "select", "option", "div", "input"})
+
+
 def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     """AuditLab GATE-82 residual (2026-10-31): the key-sync above only counts
     `:checked` reveal rules, so a reveal that is not :checked-shaped (an
@@ -5011,8 +5014,9 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     GATE-89 (2026-11-01): EVERY display rule on the class (reveal too, not just
     the hide) must sit at depth 0 -- a reveal nested in @media print leaves the
     box never shown on screen. Depth and rule bounds are read with quoted
-    strings blanked, so a `content:"}"` can't shift them. GATE-88: the field
-    markup may carry no <style> element either (live CSP has no style-src)."""
+    strings blanked, so a `content:"}"` can't shift them. GATE-88/90: the field
+    markup may use only allowlisted tags and no style/on* attributes (live CSP
+    has no style-src, so a <style> or <link> would apply)."""
     errors = []
     import ast
     found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML"))
@@ -5037,8 +5041,14 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
             f"[HOW-DETAIL-SYNC] generate.py references {hooks[0]!r} outside PAGE_CSS and _HOW_HEARD_FIELD_HTML "
             f"({len(hooks)}x) -- a script or inline style could reveal the free-text box where the CSS check can't see it"
         )
-    if re.search(r"(?i)<\s*(?:script|style)\b|\bon[a-z]+\s*=", field_src):
-        errors.append("[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries a <script>, <style> or inline on* handler -- the detail box must be revealed by PAGE_CSS :checked rules only")
+    # GATE-90: allowlist the field's tags rather than enumerate bad ones -- a
+    # <link rel=stylesheet> slipped past the old script|style denylist.
+    field_tags = {t.lower() for t in re.findall(r"<\s*/?\s*([A-Za-z][\w:-]*)", field_src)}
+    bad_tags = sorted(field_tags - _HOW_HEARD_FIELD_TAGS)
+    if bad_tags:
+        errors.append(f"[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries <{bad_tags[0]}> (allowed: {', '.join(sorted(_HOW_HEARD_FIELD_TAGS))}) -- the detail box must be revealed by PAGE_CSS :checked rules only")
+    if re.search(r"(?i)\b(?:on[a-z]+|style)\s*=", field_src):
+        errors.append("[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries an inline on* handler or style attribute -- the detail box must be revealed by PAGE_CSS :checked rules only")
 
     css = re.sub(r"/\*.*?\*/", " ", css, flags=re.S)
     sel_re = re.compile(
