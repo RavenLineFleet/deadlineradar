@@ -4868,6 +4868,9 @@ def _py_module_literal(py_text: str, name: str):
         return "top-level assignment not found"
     if len(hits) > 1:
         return f"assigned {len(hits)} times at top level (the last one wins at runtime)"
+    nb = _py_name_bindings(tree, name)
+    if nb != 1:
+        return f"bound {nb} times in the module (+=, a nested/if/try/for rebind, globals()[...], del, import-as or def) -- need exactly 1 plain assignment, or the checked value may not be the runtime one"
     try:
         return ast.literal_eval(hits[0].value)
     except ValueError:
@@ -4980,8 +4983,46 @@ def _py_toplevel_assigns(py_text: str, names: tuple):
                 and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)]
         if len(hits) != 1:
             return f"{name}: top-level assignment found {len(hits)}x (need exactly 1)"
+        nb = _py_name_bindings(tree, name)
+        if nb != 1:
+            return f"{name}: bound {nb}x in the module (+=, a nested/if/try/for rebind, globals()[...], del, import-as or def) -- need exactly 1 plain assignment, or the checked value may not be the runtime one"
         out[name] = (hits[0].lineno, hits[0].end_lineno, hits[0].value)
+    out[None] = tree
     return out
+
+
+def _py_name_bindings(tree, name: str) -> int:
+    """GATE-93 (2026-11-01): count EVERY binding of `name` anywhere in the
+    module, not just top-level `ast.Assign` -- `+=`, a rebind nested in
+    if/try/for/with, `globals()["name"] = ...`, `del`, `import x as name`,
+    `def name`/`class name`, walrus and annotated assigns all change (or may
+    change) the value the build reads at call time, while the gate checked the
+    first plain assignment. Fail-closed: a local of the same name inside a
+    function also counts."""
+    import ast
+    n = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, (ast.Store, ast.Del)):
+            n += 1
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == name:
+            n += 1
+        elif isinstance(node, ast.alias) and (node.asname or node.name.split(".")[0]) == name:
+            n += 1
+        elif isinstance(node, (ast.Global, ast.Nonlocal)) and name in node.names:
+            n += 1
+        elif (isinstance(node, ast.Subscript) and isinstance(node.ctx, (ast.Store, ast.Del))
+              and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name)
+              and node.value.func.id in ("globals", "vars", "locals")):
+            # any store through globals()/vars()/locals() counts unless its key
+            # is a constant naming something else
+            k = node.slice
+            if not (isinstance(k, ast.Constant) and k.value != name):
+                n += 1
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "setattr"
+              and len(node.args) >= 2
+              and not (isinstance(node.args[1], ast.Constant) and node.args[1].value != name)):
+            n += 1
+    return n
 
 
 _HOW_HEARD_FIELD_TAGS = frozenset({"label", "select", "option", "div", "input"})
@@ -5068,6 +5109,13 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
         if not any(a <= i <= b for a, b in spans.values())
     )
     hooks = re.findall(r"(?<![\w-])(dr-how-heard[\w-]*|how_heard_detail)(?![\w-])", outside)
+    # GATE-94 (2026-11-01): the source-text scan above is blind to an escaped
+    # hook (a \x64 / \N{...} / octal escape in the literal); also scan every string constant's
+    # EVALUATED value outside the two spans (the GATE-91 lesson).
+    for c in ast.walk(found[None]):
+        if (isinstance(c, ast.Constant) and isinstance(c.value, str)
+                and not any(a <= c.lineno and c.end_lineno <= b for a, b in spans.values())):
+            hooks += re.findall(r"(?<![\w-])(dr-how-heard[\w-]*|how_heard_detail)(?![\w-])", c.value)
     if hooks:
         errors.append(
             f"[HOW-DETAIL-SYNC] generate.py references {hooks[0]!r} outside PAGE_CSS and _HOW_HEARD_FIELD_HTML "
