@@ -3289,7 +3289,7 @@
     "url": "https://nbpa.nebraska.gov/individuals/fee-schedule",
     "alt_urls": [],
     "method": "http",
-    "anchor": "ions Online Permit Renewals Fee Schedule Board Fees Active Permit to Practice -",
+    "anchor": "Online Permit Renewals Board Fees Active Permit to Practice -",
     "window": 19,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "fee_usd"

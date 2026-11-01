@@ -23,6 +23,18 @@ BY_SLUG = {}
 for _r in DATA["records"]:
     BY_SLUG.setdefault(_r["state_slug"], []).append(_r)
 MULTI_DATE = {s: rs for s, rs in BY_SLUG.items() if len({r["last_verified"] for r in rs}) > 1}
+# 2026-11-01: a monthly full re-verify bumps every record to one date, leaving MULTI_DATE empty and the
+# oldest-record test vacuous. Synthesize the case from every real multi-record state instead: copies with
+# staggered dates where the OLDEST sits in the middle, so neither order can pass by records[0] luck.
+if len(MULTI_DATE) < 10:
+    MULTI_DATE = {}
+    for _s, _rs in BY_SLUG.items():
+        if len(_rs) < 2:
+            continue
+        _base = date.fromisoformat(max(r["last_verified"] for r in _rs)).toordinal()
+        _offsets = [1] * len(_rs)
+        _offsets[len(_rs) // 2] = 5
+        MULTI_DATE[_s] = [dict(r, last_verified=date.fromordinal(_base - o).isoformat()) for r, o in zip(_rs, _offsets)]
 
 
 def _page_dates(slug, recs):
@@ -39,7 +51,8 @@ def _page_dates(slug, recs):
 
 
 def test_there_are_multi_date_states_to_exercise():
-    assert len(MULTI_DATE) >= 10      # 19 on 2026-10-12; if the data converges this guard needs a synthetic case
+    assert len(MULTI_DATE) >= 10      # 19 on 2026-10-12; synthesized above when the data converges
+    assert all(len({r["last_verified"] for r in rs}) > 1 for rs in MULTI_DATE.values())
 
 
 def test_page_date_is_the_oldest_record_in_either_order():
