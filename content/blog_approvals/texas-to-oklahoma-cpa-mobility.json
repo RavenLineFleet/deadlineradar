@@ -1,0 +1,17 @@
+{
+  "slug": "texas-to-oklahoma-cpa-mobility",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "25e7e1332835a79347ee40f465c9beb6974ba8a74d0b7d8d31aae36c6e2a8af9",
+      "verdict_file": "auditlab_20261101_blog_APPROVED_texas-to-oklahoma-cpa-mobility.md",
+      "sent": "2026-11-01 08:30 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "25e7e1332835a79347ee40f465c9beb6974ba8a74d0b7d8d31aae36c6e2a8af9",
+      "verdict_file": "orchestrator_20261101T190500Z_PROSE6_push_timing_RULING_plus_SRC156_resign.md",
+      "sent": "2026-11-01 19:05 UTC"
+    }
+  ]
+}
