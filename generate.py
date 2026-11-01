@@ -25623,6 +25623,9 @@ deadline here</a> so none of these get missed.</p>
     {
         "slug": "new-york-to-new-jersey-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and stated the statute's principal-place-of-business threshold.
+        "content_modified": "2026-11-01",
         "title": "New York CPA Practicing in New Jersey — What Actually Applies",
         "seo_title": "New York CPA Mobility to New Jersey",
         "meta_description": (
@@ -25646,12 +25649,13 @@ instead: it no longer matters which state licensed you or whether that state's w
 was pre-verified. What matters is your own record.</p>
 
 <h2>What a New York CPA needs to qualify today</h2>
-<p>Under the current statute, an individual qualifies for New Jersey practice privilege by holding
+<p>Under the current statute, an individual whose principal place of business is not in New Jersey qualifies for New
+Jersey practice privilege by holding
 <strong>a valid, unrevoked CPA license from any state</strong> (New York included), having
 <strong>passed the Uniform CPA Exam</strong> (or a board-approved equivalent), and having
-<strong>at least one year of experience</strong>. If you're an active, in-good-standing New York CPA,
-you almost certainly clear this bar &mdash; New York's own licensure already requires the Exam and
-supervised experience. There's <strong>no notice filing and no fee</strong> required to exercise the
+<strong>at least one year of experience</strong>. Check your own license, exam, and experience against these
+criteria before relying on the privilege, and confirm with the New Jersey State Board of Accountancy if
+anything doesn't fit. There's <strong>no notice filing and no fee</strong> required to exercise the
 privilege itself (N.J.S.A. 45:2B-50.1(a),(b)).</p>
 
 <p>One real wrinkle worth knowing: New Jersey's own compiled administrative code (N.J.A.C. 13:29-4.1)
@@ -25836,6 +25840,9 @@ Oklahoma Accountancy Board directly. And keep your own Texas renewal on track wh
     {
         "slug": "new-york-to-connecticut-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and stated the statute's principal-place-of-business threshold.
+        "content_modified": "2026-11-01",
         "title": "New York CPA Practicing in Connecticut — What Actually Applies",
         "seo_title": "New York CPA Mobility to Connecticut",
         "meta_description": (
@@ -25855,11 +25862,13 @@ equivalent &mdash; what matters is whether you personally meet Connecticut's own
 and exam requirements.</p>
 
 <h2>What a New York CPA needs to qualify</h2>
-<p>Under the new Sec. 20-281c(b)-(e), you qualify by holding a valid out-of-state license in good
-standing (New York counts) and meeting one of three pathways: a bachelor's degree with an accounting
+<p>The privilege covers only CPAs whose principal place of business is outside Connecticut (Sec.
+20-281n(a)(1)). If that's you, then under the new Sec. 20-281c(b)-(e) you qualify by holding a valid
+out-of-state license in good standing (New York counts) and meeting one of three pathways: a bachelor's degree with an accounting
 concentration plus 2 years of experience; a bachelor's degree plus 30 additional semester hours (150
-total) plus 1 year of experience; or a post-baccalaureate degree plus 1 year of experience. If you
-licensed in New York through a standard path, you clear this without much trouble. There's <strong>no
+total) plus 1 year of experience; or a post-baccalaureate degree plus 1 year of experience. The test looks at how <em>you</em> were licensed, so check your own
+original education and experience against these three pathways before relying on the privilege, and
+confirm with the Connecticut State Board of Accountancy if your path doesn't map cleanly onto one of them. There's <strong>no
 license, no notice, and no fee</strong> required to exercise the privilege (Sec. 20-281n).</p>
 
 <p>If you were already licensed and practicing before the changeover, there's a grandfather clause:
@@ -25899,6 +25908,7 @@ track &mdash; it's easy to lose track of since it's not tied to your license's o
         "published": "2026-08-13",  # first-introduction commit date, from git history
         # AuditLab PROSE-6 (2026-11-01): dropped the unsourced "most California CPAs clear this
         # without issue" reassurance; the reader is told to check their own original path.
+        # SRC-159 (2026-11-01): states 901.462(a)'s principal-place-of-business threshold.
         "content_modified": "2026-11-01",
         "title": "California CPA Practicing in Texas — What Actually Applies",
         "seo_title": "California CPA Mobility to Texas",
@@ -25920,7 +25930,8 @@ amended effective October 9, 2025) both say otherwise. Don't rely on the board's
 alone for this specific question.</p>
 
 <h2>What a California CPA needs to qualify</h2>
-<p>Under the current statute, you qualify by having passed the Uniform CPA Exam and meeting your
+<p>The privilege covers only CPAs whose principal place of business is outside Texas. If that's you,
+you qualify under the current statute by having passed the Uniform CPA Exam and meeting your
 education/experience requirement <strong>at the time you were originally licensed</strong> in California,
 through one of three pathways: a 150-hour bachelor's degree with an accounting concentration plus 1 year
 of experience; a graduate degree with an accounting concentration plus 1 year of experience; or a
@@ -25955,6 +25966,9 @@ renewal while you're at it &mdash; it runs on a birth-month/odd-even cycle that'
     {
         "slug": "illinois-to-indiana-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and stated the statute's principal-place-of-business threshold.
+        "content_modified": "2026-11-01",
         "title": "Illinois CPA Practicing in Indiana — What Actually Applies",
         "seo_title": "Illinois CPA Mobility to Indiana",
         "meta_description": (
@@ -25967,10 +25981,11 @@ firm registration only if you open an office there. Indiana breaks that pattern 
 it's worth knowing before you assume the usual rule applies.</p>
 
 <h2>The individual privilege: open, with a non-binding overlay to watch</h2>
-<p>Indiana Code &sect; 25-2.1-4-10 has given out-of-state CPAs full practice privilege &mdash; no
+<p>Indiana Code &sect; 25-2.1-4-10 has given out-of-state CPAs whose principal place of business is
+outside Indiana full practice privilege &mdash; no
 license, no notice, no fee &mdash; since 2007, based on state-level substantial equivalency determined
-by the Board (the same NASBA-style framework Illinois itself is verified under). In practice, an
-actively-licensed Illinois CPA clears this without difficulty.</p>
+by the Board (the same NASBA-style framework Illinois itself is verified under). Check that the Board's equivalency determination covers your state or your individual
+qualifications before relying on the privilege, and confirm with the Indiana Board of Accountancy if you're unsure.</p>
 
 <p>One thing to watch, not act on yet: the Indiana Board adopted a non-binding policy document in
 September 2025 overlaying individual pathway criteria (passed exam plus one of three education/
@@ -26065,6 +26080,9 @@ certificate date, not a public calendar rule, so check it directly.
     {
         "slug": "virginia-to-maryland-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and stated the statute's principal-place-of-business threshold.
+        "content_modified": "2026-11-01",
         "title": "Virginia CPA Practicing in Maryland — What Actually Applies",
         "seo_title": "Virginia CPA Mobility to Maryland",
         "meta_description": (
@@ -26078,13 +26096,15 @@ applies.</p>
 
 <h2>Maryland's test: a license plus an exam requirement, nothing more layered</h2>
 <p>Under Md. Code Ann., Bus. Occ. &amp; Prof. &sect; 2-321 (as rewritten by 2025's SB 51, effective
-October 1, 2025), an out-of-state CPA is deemed substantially equivalent &mdash; and gets full Maryland
+October 1, 2025), an out-of-state CPA whose principal place of business is outside Maryland is deemed substantially
+equivalent &mdash; and gets full Maryland
 practice privileges with <strong>no license, no notice, and no fee</strong> &mdash; if the individual
 holds a valid CPA license from another state and was required to pass the Uniform CPA Exam to get it.
-That's the whole test. It's not a state-level NASBA verification list, and it's not a multi-pathway
+Beyond that principal-place-of-business condition, that's the whole test. It's not a state-level NASBA verification list, and it's not a multi-pathway
 education/experience checklist like some neighboring states run &mdash; just a valid license plus the
 exam requirement, which decouples Maryland's mobility answer from whatever education-hour changes other
-states make. An actively-licensed Virginia CPA clears this without complication.</p>
+states make. Check that your own license
+required the Exam before relying on the privilege.</p>
 
 <h2>Firms: no permit needed for attest work, if you meet the conditions</h2>
 <p>Maryland has had firm-level mobility since 2019. A firm with no Maryland office can perform attest
@@ -26117,6 +26137,9 @@ every June 30. <a href="../../virginia/">Check your Virginia renewal date here</
     {
         "slug": "pennsylvania-to-new-jersey-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and stated the statute's principal-place-of-business threshold.
+        "content_modified": "2026-11-01",
         "title": "Pennsylvania CPA Practicing in New Jersey — What Actually Applies",
         "seo_title": "Pennsylvania CPA Mobility to New Jersey",
         "meta_description": (
@@ -26132,10 +26155,11 @@ recently, not just the rule you're licensed under at home.</p>
 
 <h2>New Jersey's test changed on February 19, 2026</h2>
 <p>New Jersey moved off its older NASBA/NQAS substantial-equivalency test to an <strong>individual-
-criteria</strong> standard under P.L.2025, c.384, effective February 19, 2026. Under the current statute,
+criteria</strong> standard under P.L.2025, c.384, effective February 19, 2026. Under the current statute, if your principal place of business is not in New Jersey,
 you qualify by holding a valid, unrevoked CPA license from any state &mdash; Pennsylvania included
 &mdash; having passed the Uniform CPA Exam (or a board-approved equivalent), and having at least one year
-of experience. An actively-licensed Pennsylvania CPA clears this without difficulty. There's <strong>no
+of experience. Check your own license, exam, and experience against these criteria before relying on the
+privilege, and confirm with the New Jersey State Board of Accountancy if anything doesn't fit. There's <strong>no
 notice filing and no fee</strong> required (N.J.S.A. 45:2B-50.1(a),(b)).</p>
 
 <p>New Jersey's own compiled administrative code was readopted without amendment in late 2024 and still
@@ -26178,7 +26202,9 @@ renewal date here</a>.</p>
         # AuditLab SRC-122 (2026-10-29): D.C. Law 26-183 made the 47-2853.49 rewrite
         # permanent eff. 2026-09-25; the "November 8 catch" framing and the 08-10
         # grandfather anchor are retired.
-        "content_modified": "2026-10-29",
+        # AuditLab PROSE-6 + SRC-159 (2026-11-01): dropped the "clears this without difficulty"-style
+        # reassurance and asked the reader to check their own path.
+        "content_modified": "2026-11-01",
         "title": "Virginia CPA Practicing in Washington, D.C. — What Actually Applies",
         "seo_title": "Virginia CPA Mobility to D.C.",
         "meta_description": (
@@ -26202,8 +26228,9 @@ CPA license in good standing from any state, and at the time of initial licensur
 evidence of having passed the Uniform CPA Exam (or a Board-approved equivalent) and met education and
 experience requirements equivalent to D.C.'s own. This replaces the old NASBA/NQAS
 substantial-equivalency framework with an individual-criteria test &mdash; the same direction New
-Jersey, Connecticut, Texas, and Pennsylvania have all moved in over the past year. An
-actively-licensed Virginia CPA clears these criteria without difficulty.</p>
+Jersey, Connecticut, Texas, and Pennsylvania have all moved in over the past year. The test looks at how
+<em>you</em> were licensed, so check your own exam, education, and experience against these criteria
+before relying on the privilege.</p>
 
 <p>There's <strong>no notice filing and no fee</strong>: the amended section expressly says a
 privilege holder "need not provide notice or other submission to any individual." Standard conditions

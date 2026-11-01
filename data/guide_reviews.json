@@ -89,8 +89,8 @@
     "new-york-to-new-jersey-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "be29755f054fd0bdddf778671d69aece1f63629c8318d788384cd07f09c716e8",
-      "body_modified": "2026-08-13"
+      "body_sha256": "32c4965584972cdb04026cade9769c1498d666625704870ad1be2b3948f8ac6a",
+      "body_modified": "2026-11-01"
     },
     "california-to-nevada-cpa-mobility": {
       "last_reviewed": "2026-08-13",
@@ -107,20 +107,20 @@
     "new-york-to-connecticut-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "d6dce82e94e6f8d5eca87b7fd739f6d5c8f7873aeef08ffb3c3a4aea2304bc71",
-      "body_modified": "2026-08-13"
+      "body_sha256": "6940a5ec57c7f04471e1463907820985aa4221c79883256521037c36e09b2786",
+      "body_modified": "2026-11-01"
     },
     "california-to-texas-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "c4a68981f7ba970038570e916c2af2276d3f7cdca0933e31cf52d4d3125b9353",
+      "body_sha256": "bcda89b7ee39cbc21c9ee52f5f0ce121271b748f72ea26631ec5563538f3fd7d",
       "body_modified": "2026-11-01"
     },
     "illinois-to-indiana-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "e50f07bb803026fab34ec6589d51f0e7a2a0b42689da56f65e566dc51600a5a9",
-      "body_modified": "2026-08-13"
+      "body_sha256": "fbaa0ad5c9e75094595745931171f0f012e2421c6b16082223f28f0e83b64304",
+      "body_modified": "2026-11-01"
     },
     "florida-to-georgia-cpa-mobility": {
       "last_reviewed": "2026-08-13",
@@ -131,20 +131,20 @@
     "virginia-to-maryland-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "8e0989d0ee656d2182c1e8b4523d2838a630a8fb5ed74682560736f412a9cc6d",
-      "body_modified": "2026-08-13"
+      "body_sha256": "9d3d0e3f90092782b7b7227cfba891be95d3e14a27307049f4b2d61efe4822c8",
+      "body_modified": "2026-11-01"
     },
     "pennsylvania-to-new-jersey-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "f09edff2ea985d37c5da7b351e8d194501628481c60777f09ae2e5bf6702708d",
-      "body_modified": "2026-08-13"
+      "body_sha256": "a461ebf04bc382e28c09b782b317b262bf9ebb4abc62e258fc9ec4091b5da24c",
+      "body_modified": "2026-11-01"
     },
     "virginia-to-washington-dc-cpa-mobility": {
       "last_reviewed": "2026-08-13",
       "reviewed_by": "authored-from-verified-datasets",
-      "body_sha256": "b786f1aecc63901055e6ebfaeaa5a6c5554d93fff3a25dce9b485cc2b5ec5f69",
-      "body_modified": "2026-10-29"
+      "body_sha256": "6f1bdfc92ad55f1c151765a333c5b7c050a2f1160b418ec170593ec192d67dd8",
+      "body_modified": "2026-11-01"
     },
     "how-a-superseded-rule-hid-on-an-official-site": {
       "last_reviewed": "2026-08-14",
