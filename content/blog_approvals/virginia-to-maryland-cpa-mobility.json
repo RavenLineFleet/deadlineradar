@@ -1,0 +1,17 @@
+{
+  "slug": "virginia-to-maryland-cpa-mobility",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "cd8d126dc9ab8f6e437122afc40b9cff1913d6dfe79e4856652a5f5d3e533f27",
+      "verdict_file": "auditlab_20261101T205341Z_blog_APPROVED_prose6all_7_mobility_posts_at_d356bc6a2_plus_SRC156_SRC159_VERIFIED_FIXED_LIVE.md",
+      "sent": "2026-11-01 20:53 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "cd8d126dc9ab8f6e437122afc40b9cff1913d6dfe79e4856652a5f5d3e533f27",
+      "verdict_file": "orchestrator_20261101T210520Z_PROSE6_7payload_SIGNED_at_d356bc6a2.md",
+      "sent": "2026-11-01 21:05 UTC"
+    }
+  ]
+}

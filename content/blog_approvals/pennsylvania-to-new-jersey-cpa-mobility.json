@@ -1,0 +1,17 @@
+{
+  "slug": "pennsylvania-to-new-jersey-cpa-mobility",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "ad35d7db1c547a2d16b4423b652c8d05ba5fe765780fe32709e9d22609514996",
+      "verdict_file": "auditlab_20261101T205341Z_blog_APPROVED_prose6all_7_mobility_posts_at_d356bc6a2_plus_SRC156_SRC159_VERIFIED_FIXED_LIVE.md",
+      "sent": "2026-11-01 20:53 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "ad35d7db1c547a2d16b4423b652c8d05ba5fe765780fe32709e9d22609514996",
+      "verdict_file": "orchestrator_20261101T210520Z_PROSE6_7payload_SIGNED_at_d356bc6a2.md",
+      "sent": "2026-11-01 21:05 UTC"
+    }
+  ]
+}

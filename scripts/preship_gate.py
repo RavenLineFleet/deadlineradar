@@ -519,9 +519,10 @@ BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
 # 30 slugs had already changed by then, and that history is disclosed in the
 # GUARD-24 reply rather than reverted. florida left the list for its SRC-90
 # approval record (29 remain); texas-to-oklahoma-cpa-mobility left
-# for its SRC-156 r2 approval record (28 remain).
-BLOG_GRANDFATHERED_COUNT = 28
-BLOG_GRANDFATHERED_SHA256 = "3017c7066674ffe6fd0270266ed1d35592d4ad341a4d1d3fc0690b5b08cf7d03"
+# for its SRC-156 r2 approval record (28 remain); seven mobility posts left
+# for their PROSE-6/SRC-159 approval records (21 remain).
+BLOG_GRANDFATHERED_COUNT = 21
+BLOG_GRANDFATHERED_SHA256 = "e8de0d66dcd5f26dec7e91e1538c7621e8d96d878da78b1077ddf1e105c8b791"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 

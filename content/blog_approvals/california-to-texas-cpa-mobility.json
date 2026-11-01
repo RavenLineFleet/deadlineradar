@@ -1,0 +1,17 @@
+{
+  "slug": "california-to-texas-cpa-mobility",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "1f230b51f7886e2432675dab3e34f9d664ad18d3cbc835cec65205d66a9f5a6b",
+      "verdict_file": "auditlab_20261101T205341Z_blog_APPROVED_prose6all_7_mobility_posts_at_d356bc6a2_plus_SRC156_SRC159_VERIFIED_FIXED_LIVE.md",
+      "sent": "2026-11-01 20:53 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "1f230b51f7886e2432675dab3e34f9d664ad18d3cbc835cec65205d66a9f5a6b",
+      "verdict_file": "orchestrator_20261101T210520Z_PROSE6_7payload_SIGNED_at_d356bc6a2.md",
+      "sent": "2026-11-01 21:05 UTC"
+    }
+  ]
+}
