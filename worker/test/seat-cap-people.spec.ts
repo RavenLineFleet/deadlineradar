@@ -13,7 +13,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 import { runTrialEndingAlertPass } from "../src/scheduler";
-import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit } from "../src/seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, editViolatesAfterUpdate } from "../src/seat_usage";
 
 async function createFirm(name: string): Promise<{ firmId: string; cookie: string }> {
   const firm = await store.createFirm(env.DB, { name, adminEmail: `${name.replace(/\W/g, "")}-${Date.now()}@example.com` });
@@ -552,6 +552,128 @@ describe("BILL-54: PATCH /firm/licenses/:id is held to the same seat cap and cei
     expect(row.email).toBe(`gone-${t}@example.com`);
     expect((await listBody(cookie)).seat_count).toBe(1);
     expect((await patch(cookie, kept, { email: `kept2-${t}@example.com` })).status).toBe(200);
+  });
+});
+
+describe("SEC-58: concurrent roster PATCHes cannot jointly pass the seat cap (post-update re-check)", () => {
+  const r = (id: string, email: string, typeId: string) => ({ id, email, deadline_fields: JSON.stringify({ license_type_id: typeId }) });
+  const f = (typeId: string) => JSON.stringify({ license_type_id: typeId });
+  // P holds 3 lines, o1 is a 2nd person: 2 people, cap 3. A re-addresses L2, B re-addresses L3.
+  const pre = [r("L1", "p@x.com", "al-individual"), r("L2", "p@x.com", "ak-individual"), r("L3", "p@x.com", "az-individual"), r("O", "o1@x.com", "ga-individual")];
+  const priorL2 = { email: "p@x.com", deadline_fields: f("ak-individual") };
+  const priorL3 = { email: "p@x.com", deadline_fields: f("az-individual") };
+  const wroteA = { email: "a@x.com", deadline_fields: f("ak-individual") };
+  const wroteB = { email: "b@x.com", deadline_fields: f("az-individual") };
+  const apply = (rows: typeof pre, id: string, w: { email: string; deadline_fields: string }) => rows.map((x) => (x.id === id ? { ...x, ...w } : x));
+
+  it("pure: both edits pass decideEdit on the same stale read (the bug's precondition)", () => {
+    expect(decideEdit(pre, "L2", wroteA.email, wroteA.deadline_fields, 3)).toEqual({ ok: true });
+    expect(decideEdit(pre, "L3", wroteB.email, wroteB.deadline_fields, 3)).toEqual({ ok: true });
+    expect(computeSeatUsage(apply(apply(pre, "L2", wroteA), "L3", wroteB)).people).toBe(4);
+  });
+
+  it("pure: a non-racing edit gets the gate's own answer back (no false refusal)", () => {
+    expect(editViolatesAfterUpdate(apply(pre, "L2", wroteA), "L2", priorL2, wroteA, 3)).toEqual({ ok: true });
+  });
+
+  it("pure: both writes visible -> both checkers yield (fail-safe), never both standing", () => {
+    const both = apply(apply(pre, "L2", wroteA), "L3", wroteB);
+    expect(editViolatesAfterUpdate(both, "L2", priorL2, wroteA, 3)).toEqual({ ok: false, reason: "seat_cap" });
+    expect(editViolatesAfterUpdate(both, "L3", priorL3, wroteB, 3)).toEqual({ ok: false, reason: "seat_cap" });
+  });
+
+  it("pure: asymmetric interleave -- A re-reads before B writes and stands; B sees both and yields; after A's undo, B would stand", () => {
+    expect(editViolatesAfterUpdate(apply(pre, "L2", wroteA), "L2", priorL2, wroteA, 3)).toEqual({ ok: true });
+    expect(editViolatesAfterUpdate(apply(apply(pre, "L2", wroteA), "L3", wroteB), "L3", priorL3, wroteB, 3)).toEqual({ ok: false, reason: "seat_cap" });
+    expect(editViolatesAfterUpdate(apply(pre, "L3", wroteB), "L3", priorL3, wroteB, 3)).toEqual({ ok: true });
+  });
+
+  it("pure: a row re-edited by a later request is not this request's to undo; a frozen over-cap swap stands", () => {
+    const reEdited = apply(apply(pre, "L2", { email: "z@x.com", deadline_fields: f("ak-individual") }), "L3", wroteB);
+    expect(editViolatesAfterUpdate(reEdited, "L2", priorL2, wroteA, 3)).toEqual({ ok: true });
+    const frozen = [r("1", "a@x.com", "ga-individual"), r("2", "b@x.com", "ga-individual"), r("3", "c@x.com", "ga-individual")];
+    const swapped = { email: "a2@x.com", deadline_fields: f("ga-individual") };
+    expect(editViolatesAfterUpdate(apply(frozen, "1", swapped), "1", { email: "a@x.com", deadline_fields: f("ga-individual") }, swapped, 2)).toEqual({ ok: true });
+  });
+
+  it("HTTP paid Essentials (5) with FORCED interleave: both PATCHes pass the gate read before either writes -> at most one stands, the loser's row is restored", async () => {
+    const { firmId, cookie } = await createFirm("Sec58Race");
+    await env.DB.prepare("UPDATE firms SET plan_tier = ?1 WHERE id = ?2").bind("firm_starter", firmId).run();
+    const t = Date.now();
+    const p = `p-${t}@example.com`;
+    await seed(firmId, p, "alabama", "al-individual");
+    const l2 = await seed(firmId, p, "alaska", "ak-individual");
+    const l3 = await seed(firmId, p, "arizona", "az-individual");
+    for (let i = 1; i <= 3; i++) await seed(firmId, `o${i}-${t}@example.com`, "georgia", "ga-individual");
+    expect((await listBody(cookie)).seat_count).toBe(4); // cap - 1
+    const beforeL2 = (await store.getFirmLicense(env.DB, firmId, l2))!;
+    const beforeL3 = (await store.getFirmLicense(env.DB, firmId, l3))!;
+    // Barrier: each request's FIRST roster read (decideEdit's) waits until both have done it.
+    let arrived = 0;
+    let release!: () => void;
+    const both = new Promise<void>((res) => (release = res));
+    const wrapDb = (db: D1Database): D1Database => {
+      let firstRosterRead = true;
+      return new Proxy(db, {
+        get(target, prop) {
+          if (prop !== "prepare") return Reflect.get(target, prop).bind?.(target) ?? Reflect.get(target, prop);
+          return (sql: string) => {
+            const stmt = target.prepare(sql);
+            if (!/FROM subscribers\s+WHERE firm_id = \?1 AND NOT \(status/.test(sql)) return stmt;
+            return new Proxy(stmt, {
+              get(st, pp) {
+                if (pp !== "bind") return Reflect.get(st, pp).bind(st);
+                return (...args: unknown[]) => {
+                  const bound = st.bind(...args);
+                  return new Proxy(bound, {
+                    get(bs, bp) {
+                      if (bp !== "all") return Reflect.get(bs, bp).bind(bs);
+                      return async () => {
+                        if (firstRosterRead) {
+                          firstRosterRead = false;
+                          arrived += 1;
+                          if (arrived === 2) release();
+                          await both;
+                        }
+                        return bs.all();
+                      };
+                    },
+                  });
+                };
+              },
+            });
+          };
+        },
+      });
+    };
+    const worker = (await import("../src/index")).default;
+    const ctx = { waitUntil() {}, passThroughOnException() {}, props: {} } as unknown as ExecutionContext;
+    const send = (id: string, who: string) =>
+      worker.fetch(
+        new Request(`https://deadline-radar.com/firm/licenses/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.201", Cookie: cookie },
+          body: JSON.stringify({ email: `race-${who}-${t}@example.com` }),
+        }),
+        { ...env, DB: wrapDb(env.DB) } as never,
+        ctx
+      );
+    const [x, y] = await Promise.all([send(l2, "x"), send(l3, "y")]);
+    expect(arrived).toBe(2); // both really sat at the gate together
+    const statuses = [x.status, y.status];
+    expect(statuses.every((c) => c === 200 || c === 402)).toBe(true);
+    expect(statuses.filter((c) => c === 200).length).toBeLessThanOrEqual(1);
+    expect((await listBody(cookie)).seat_count).toBeLessThanOrEqual(5);
+    // Every loser is put back exactly as it was, confirmation state and edit stamp included.
+    for (const [res, before] of [[x, beforeL2], [y, beforeL3]] as const) {
+      if (res.status !== 402) continue;
+      const now = (await store.getFirmLicense(env.DB, firmId, before.id))!;
+      expect(now.email).toBe(before.email);
+      expect(now.status).toBe(before.status);
+      expect(now.confirm_token).toBe(before.confirm_token);
+      expect(now.confirmed_at).toBe(before.confirmed_at);
+      expect(now.last_edited_at).toBe(before.last_edited_at);
+    }
   });
 });
 

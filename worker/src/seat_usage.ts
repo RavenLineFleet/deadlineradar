@@ -187,6 +187,42 @@ export function decideEdit(
   return { ok: true };
 }
 
+/**
+ * Post-UPDATE re-check for the edit gate (SecurityLab SEC-58, 2026-11-01).
+ * decideEdit() runs on a roster read taken BEFORE the write, so two concurrent
+ * edits that each land the roster exactly on the cap are both allowed on the
+ * same stale read, and together take it past. After the write the handler
+ * re-reads and asks this function to judge its edit against the roster as it
+ * is NOW: the edited row put back to its prior values is "before", the row as
+ * written is "after", and decideEdit() rules with the same limits. So a
+ * non-racing edit gets exactly the answer the gate already gave it, and the
+ * rules still live only in decideEdit().
+ *
+ * An edit creates no row, so there is no created_at to rank racers by (the add
+ * path's byAgeYielding). Instead every racer that can SEE the conflict yields:
+ * the later writer's re-read always follows both writes, so at least one racer
+ * undoes itself and two can never both stand past the cap. If both re-reads
+ * see both writes, both yield (fail-safe, a retry succeeds), the same accepted
+ * cost as SEAT-2.
+ *
+ * `written` is what this request stored. If the re-read row no longer holds
+ * it, a later request has re-edited the line and owns it, so this one stands.
+ */
+export function editViolatesAfterUpdate(
+  rows: readonly SeatRowWithId[],
+  editedId: string,
+  prior: SeatRowLike,
+  written: SeatRowLike,
+  seatCap: number
+): AddDecision {
+  const self = rows.find((r) => r.id === editedId);
+  if (!self || self.email !== written.email || self.deadline_fields !== written.deadline_fields) return { ok: true };
+  const beforeRows = rows.map((r) =>
+    r.id === editedId ? { id: r.id, email: prior.email, deadline_fields: prior.deadline_fields } : r
+  );
+  return decideEdit(beforeRows, editedId, written.email, written.deadline_fields, seatCap);
+}
+
 export interface SeatRowOrdered extends SeatRowLike {
   id: string;
   created_at: string;

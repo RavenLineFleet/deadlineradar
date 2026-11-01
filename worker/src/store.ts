@@ -4270,6 +4270,61 @@ export async function updateFirmLicense(
 }
 
 /**
+ * SecurityLab SEC-58 (MEDIUM, 2026-11-01): undo a PATCH that lost the
+ * post-write seat re-check. Puts back every column updateFirmLicense() writes,
+ * from the row as it was read before the edit (so a reset confirmation, its
+ * new token and the edit stamp are all reverted too). Conditional on the row
+ * still holding exactly what this request wrote (its own last_edited_at, email
+ * and deadline_fields): if a later request has re-edited the line since, that
+ * edit is left alone. Ownership-scoped like every roster write. Returns
+ * whether the row was restored.
+ */
+export async function restoreFirmLicenseAfterLostEdit(
+  db: D1Database,
+  firmId: string,
+  prior: SubscriberRow,
+  written: Pick<SubscriberRow, "email" | "deadline_fields" | "last_edited_at">
+): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `UPDATE subscribers
+       SET email = ?1, cooldown_key = ?2, staff_label = ?3, state_slug = ?4, deadline_fields = ?5,
+           deadline_source = ?6, user_deadline = ?7, status = ?8, confirmed_at = ?9, confirm_token = ?10,
+           stopped_at = ?11, stop_reason = ?12, reminders_sent = ?13, last_edited_at = ?14, renewal_fee_cents = ?15,
+           carryover_hours = ?16, office_tag = ?17, internal_notes = ?18, license_issue_date = ?19
+       WHERE id = ?20 AND firm_id = ?21 AND email = ?22 AND deadline_fields IS ?23 AND last_edited_at IS ?24`
+    )
+    .bind(
+      prior.email,
+      prior.cooldown_key,
+      prior.staff_label,
+      prior.state_slug,
+      prior.deadline_fields,
+      prior.deadline_source,
+      prior.user_deadline,
+      prior.status,
+      prior.confirmed_at,
+      prior.confirm_token,
+      prior.stopped_at,
+      prior.stop_reason,
+      prior.reminders_sent,
+      prior.last_edited_at ?? null,
+      prior.renewal_fee_cents ?? null,
+      prior.carryover_hours ?? null,
+      prior.office_tag ?? null,
+      prior.internal_notes ?? null,
+      prior.license_issue_date ?? null,
+      prior.id,
+      firmId,
+      written.email,
+      written.deadline_fields,
+      written.last_edited_at ?? null
+    )
+    .run();
+  return (res.meta?.changes ?? 0) > 0;
+}
+
+/**
  * DELETE /firm/licenses/:id's storage layer -- "remove from roster," NOT a
  * SQL DELETE (see STOP_REASON_REMOVED_BY_ADMIN's own comment for why this is
  * a status/stop_reason value rather than a row deletion: it reuses the

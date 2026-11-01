@@ -283,7 +283,7 @@ import {
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
 import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, trialLiftsSeatCap, isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
-import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
+import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, editViolatesAfterUpdate, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
   lookupAssistantCpe,
@@ -8937,6 +8937,31 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
     resetConfirmation: emailChanged,
   });
   if (!updated) return jsonResponse(404, { error: "Not found." });
+
+  // SecurityLab SEC-58 (MEDIUM, 2026-11-01): decideEdit() above is
+  // read-decide-write, so two concurrent edits that each land the roster
+  // exactly on the cap both pass on the same stale read -- and a PAID firm is
+  // never reconciled afterwards, so the excess would be permanent. Same remedy
+  // as SEAT-1 on the add path: re-read and judge this edit against the roster
+  // as it is now (editViolatesAfterUpdate()). The loser restores the line's
+  // prior values before any confirm email or activity log and gets the same
+  // 402/400 a non-racing edit would have. Fails closed like SEAT-1: if the
+  // re-read or restore throws, the edit stands.
+  try {
+    const afterRows = await store.listFirmLicenses(env.DB, session.firmId);
+    const post = editViolatesAfterUpdate(
+      afterRows,
+      existing.id,
+      { email: existing.email, deadline_fields: existing.deadline_fields },
+      { email: updated.email, deadline_fields: updated.deadline_fields },
+      seatCap
+    );
+    if (!post.ok && (await store.restoreFirmLicenseAfterLostEdit(env.DB, session.firmId, existing, updated))) {
+      return seatRefusalResponse(env, post.reason, seatCap, session.firm.plan_tier);
+    }
+  } catch {
+    // Non-fatal: see above.
+  }
 
   // Editing the delivery address is, in effect, re-consenting a DIFFERENT
   // inbox -- see UpdateFirmLicenseInput.resetConfirmation's own doc. Send
