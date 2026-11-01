@@ -13365,10 +13365,12 @@ def _firm_dashboard_map_svg_html(by_slug: dict[str, list[dict]]) -> str:
     aria-label to the real per-state roster info once the firm's data loads, same as it already
     updates data-tip for the mouse-hover case."""
     map_states = json.loads(_US_MAP_PATHS_PATH.read_text(encoding="utf-8"))
+    def _map_state_name(slug):
+        return by_slug[slug][0]["state"] if by_slug.get(slug) else slug.replace("-", " ").title()
     path_links = "\n".join(
-        f'<a class="dr-map-link" data-state-slug="{esc(s["slug"])}" tabindex="0" '
-        f'aria-label="{esc(by_slug[s["slug"]][0]["state"] if by_slug.get(s["slug"]) else s["slug"].replace("-", " ").title())} '
-        f'-- no staff licensed here">'
+        f'<a class="dr-map-link" data-state-slug="{esc(s["slug"])}" '
+        f'data-state-name="{esc(_map_state_name(s["slug"]))}" tabindex="0" '
+        f'aria-label="{esc(_map_state_name(s["slug"]))} -- no staff licensed here">'
         f'<path class="dr-map-state" d="{esc(s["d"])}"></path></a>'
         for s in map_states
     )
@@ -16193,6 +16195,19 @@ function drClearMapStateClasses(path) {
   DR_MAP_STATE_CLASSES.forEach(function(c) { path.classList.remove(c); });
 }
 
+// A11Y-37: every map-link accessible name leads with the state name (from the
+// build-time data-state-name attribute), so a screen-reader user tabbing the
+// map always hears WHICH state a verdict belongs to. All label writes AND all
+// tooltip clears go through these two helpers -- a clear that hid data-tip but
+// left aria-label alone kept announcing the previous render's verdict.
+function drMapStateName(link) {
+  return link.getAttribute('data-state-name') || link.getAttribute('data-state-slug') || '';
+}
+function drSetMapLabel(link, text) {
+  var name = drMapStateName(link);
+  link.setAttribute('aria-label', name ? name + ' -- ' + text : text);
+}
+
 function drRenderMap(gen) {
   var links = document.querySelectorAll('.dr-map-link');
   if (!links.length) return;
@@ -16210,10 +16225,11 @@ function drRenderMap(gen) {
     var info = byState[slug];
     drClearMapStateClasses(path);
     if (!info) {
-      // Leave the server-rendered "-- no staff licensed here" aria-label as-is
-      // (already correct, set at build time) -- nothing to update here.
+      // Reset to the build-time wording: an earlier render (or the mobility
+      // view) may have rewritten this link's label.
       link.setAttribute('data-has-staff', 'false');
       link.removeAttribute('data-tip');
+      drSetMapLabel(link, 'no staff licensed here');
       return;
     }
     link.setAttribute('data-has-staff', 'true');
@@ -16227,7 +16243,7 @@ function drRenderMap(gen) {
     // email text the roster table already renders via drEscapeHtml() for the
     // innerHTML case.
     link.setAttribute('data-tip', summary);
-    link.setAttribute('aria-label', summary);
+    drSetMapLabel(link, summary);
   });
   drApplyAggregateCoverageOverlay(byState, gen);
 }
@@ -16401,7 +16417,7 @@ function drApplyAggregateCoverageOverlay(byState, gen) {
           ' (assumes good standing + substantial equivalence).';
         if (cov.fluxNote) tip += ' This state’s rule recently changed — see Practice Privilege Check for details.';
         link.setAttribute('data-tip', tip);
-        link.setAttribute('aria-label', tip);
+        drSetMapLabel(link, tip);
         link.setAttribute('data-has-staff', 'true');
       });
     });
@@ -16465,6 +16481,7 @@ function drApplyMobilityResults(homeStateSlug, entry, gen, subscriberId) {
       var path = link.querySelector('path');
       drClearMapStateClasses(path);
       link.removeAttribute('data-tip');
+      drSetMapLabel(link, 'no reciprocity result shown');
       link.setAttribute('data-has-staff', 'false');
     });
     return;
@@ -16494,7 +16511,7 @@ function drApplyMobilityResults(homeStateSlug, entry, gen, subscriberId) {
       path.classList.add('dr-map-state--home');
       var homeTip = 'Home state -- licensed here directly, not a reciprocity question.';
       link.setAttribute('data-tip', homeTip);
-      link.setAttribute('aria-label', homeTip);
+      drSetMapLabel(link, homeTip);
       link.setAttribute('data-has-staff', 'true');
       link.removeAttribute('href');
       return;
@@ -16502,6 +16519,7 @@ function drApplyMobilityResults(homeStateSlug, entry, gen, subscriberId) {
     var r = byTarget[slug];
     if (!r) {
       link.removeAttribute('data-tip');
+      drSetMapLabel(link, 'no reciprocity result for this person');
       link.setAttribute('data-has-staff', 'false');
       link.removeAttribute('href');
       return;
@@ -16563,7 +16581,7 @@ function drApplyMobilityResults(homeStateSlug, entry, gen, subscriberId) {
       link.removeAttribute('href');
     }
     link.setAttribute('data-tip', tipText);
-    link.setAttribute('aria-label', tipText);
+    drSetMapLabel(link, tipText);
     link.setAttribute('data-has-staff', verdict !== 'not_verified' ? 'true' : 'false');
   });
 }
