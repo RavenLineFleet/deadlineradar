@@ -10069,7 +10069,11 @@ def print_deployed_rule_change_staleness_advisory(repo_root: Path) -> None:
         events = json.loads(events_path.read_text(encoding="utf-8")).get("events", [])
     except (OSError, json.JSONDecodeError):
         return
-    today_iso = date.today().isoformat()
+    # AuditLab DATE-19 (2026-11-01): both runtimes this shadows anchor on the UTC
+    # date (scheduler.ts Date.UTC, generate.py datetime.now(timezone.utc)); local
+    # date.today() left the advisory reading PASS for the host's UTC offset (6-7h
+    # each evening) after the runtime had already flipped the record.
+    today_iso = datetime.now(timezone.utc).date().isoformat()
     # AuditLab DET-1 (2026-08-27): the runtime this detector shadows treats
     # an event whose effective_date IS today as already not-upcoming
     # (isStillUpcoming compares strictly >), so `<` here left the detector
