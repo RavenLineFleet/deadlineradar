@@ -15638,7 +15638,7 @@ function drRenderReferralPanel(link, usesRemaining, rewardCount) {
     ? rewardCount + (rewardCount === 1 ? ' referral has' : ' referrals have') + ' earned you a reward.'
     : 'No referral rewards yet.';
   body.innerHTML =
-    '<input type="text" id="dr-referral-link-input" readonly value="' + drEscapeHtml(link) + '">' +
+    '<input type="text" id="dr-referral-link-input" readonly aria-label="Your referral link" value="' + drEscapeHtml(link) + '">' +
     '<button type="button" class="dr-btn-secondary" id="dr-referral-copy-btn">Copy link</button>' +
     '<p class="dr-panel-empty">' + drEscapeHtml(usesText) + '</p>' +
     '<p class="dr-panel-empty">' + drEscapeHtml(countText) + '</p>';
@@ -17833,18 +17833,18 @@ function drRenderTeam(members) {
         var canManage = drRole === 'partner' || (drRole === 'office_manager' && m.role === 'staff');
         if (!isSelf && canManage) {
           if (drRole === 'partner') {
-            actions += '<select class="dr-team-role-select" data-member-id="' + drEscapeHtml(m.id) + '">' +
+            actions += '<select class="dr-team-role-select" data-member-id="' + drEscapeHtml(m.id) + '" aria-label="Role for ' + nameLine + '">' +
               ['partner', 'office_manager', 'staff'].map(function(r) {
                 return '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + '>' + DR_ROLE_LABELS[r] + '</option>';
               }).join('') + '</select>';
             if (m.role === 'partner' && !m.is_primary) {
               actions += '<button type="button" class="dr-cpe-recent-remove" data-make-primary-id="' +
-                drEscapeHtml(m.id) + '" data-member-label="' + nameLine + '">Make primary</button>';
+                drEscapeHtml(m.id) + '" data-member-label="' + nameLine + '" aria-label="Make ' + nameLine + ' primary contact">Make primary</button>';
             }
           }
           if (!m.is_primary) {
             actions += '<button type="button" class="dr-cpe-recent-remove" data-remove-member-id="' +
-              drEscapeHtml(m.id) + '" data-member-label="' + nameLine + '">Remove</button>';
+              drEscapeHtml(m.id) + '" data-member-label="' + nameLine + '" aria-label="Remove ' + nameLine + '">Remove</button>';
           }
         }
         return '<div class="dr-cpe-recent-item"><span><b>' + nameLine + '</b>' +
