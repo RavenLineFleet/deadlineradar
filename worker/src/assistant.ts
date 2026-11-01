@@ -29,7 +29,7 @@ import renewalFeesData from "./renewal_fees.json";
 import regChangeEventsData from "./reg_change_events.json";
 import { stateNameForSlug, resolvedNextDeadlineComputed, type CpaRecord } from "./deadline";
 import type { MobilityResult } from "./mobility";
-import { safeHttpUrl } from "./mobility";
+import { safeHttpUrl, GOOD_STANDING_NOT_MET_SUMMARY, GOOD_STANDING_NOT_MET_REQUIREMENT } from "./mobility";
 
 // SRC-120 (AuditLab, 2026-10-29): a record whose citation spans two chapters
 // (Hawaii: fees in HAR 16-53, CPE in HAR 16-71) carries citation_links, one
@@ -230,13 +230,40 @@ export function buildAssistantMobilityResponse(
   serviceType: string,
   result: MobilityResult
 ): AssistantMobilityResult {
+  // UX-33: this route never collects an attestation, so the engine's
+  // good-standing early return ("You've indicated yours isn't") would put
+  // words in the caller's mouth. Restate it as the assumption it is, and keep
+  // the disclaimer consistent with that (it used to say the opposite).
+  const ind = result.individual;
+  const assumed: MobilityResult =
+    ind.summary.startsWith(GOOD_STANDING_NOT_MET_SUMMARY)
+      ? {
+          ...result,
+          individual: {
+            ...ind,
+            // startsWith/slice, not ===: the engine may append a rule-change
+            // suffix ("(This state's rule changed on ...)") to this summary.
+            summary:
+              "Practice privilege depends on holding an active license in good standing in your home state. " +
+              "This result can't confirm your license standing, so it treats that as unconfirmed -- confirm " +
+              "your home-state license is active and in good standing first." +
+              ind.summary.slice(GOOD_STANDING_NOT_MET_SUMMARY.length),
+            requirements: ind.requirements.map((r) =>
+              r === GOOD_STANDING_NOT_MET_REQUIREMENT
+                ? "Confirm your home-state license is active and in good standing."
+                : r
+            ),
+          },
+        }
+      : result;
   return {
     home_state: homeStateLabel,
     target_state: targetStateLabel,
     service_type: serviceType,
-    result,
+    result: assumed,
     disclaimer:
-      "This determination assumes standard licensure with no personal complications -- it is not legal advice.",
+      "This determination does not know your license standing or other personal facts, so it uses a " +
+      "conservative default -- it is not legal advice.",
     attestation_note:
       "No personal attestation (license standing, substantial equivalence) was supplied for this query, so " +
       "this result reflects the conservative default -- ask the CPA to confirm their own good standing for a " +

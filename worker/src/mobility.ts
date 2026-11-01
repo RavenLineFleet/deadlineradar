@@ -930,6 +930,14 @@ export function evaluateIndividualMobility(
   );
 }
 
+// UX-33: exported so the assistant route (which never collects an attestation)
+// can recognise this early return and restate it as an assumption instead of
+// attributing a statement to a caller who made none.
+export const GOOD_STANDING_NOT_MET_SUMMARY =
+  "Practice privilege depends on holding an active license in good standing in your home state. " +
+  "You've indicated yours isn't, so resolve that first.";
+export const GOOD_STANDING_NOT_MET_REQUIREMENT = "Restore your home-state license to active, good standing.";
+
 function evaluateIndividualMobilityInner(
   input: MobilityInput,
   rule: MobilityRuleRow | null,
@@ -955,10 +963,8 @@ function evaluateIndividualMobilityInner(
   if (!input.licenseInGoodStanding) {
     return {
       verdict: "action_required",
-      summary:
-        "Practice privilege depends on holding an active license in good standing in your home state. " +
-        "You've indicated yours isn't, so resolve that first.",
-      requirements: ["Restore your home-state license to active, good standing."],
+      summary: GOOD_STANDING_NOT_MET_SUMMARY,
+      requirements: [GOOD_STANDING_NOT_MET_REQUIREMENT],
       citation: rule?.citation ?? null,
       citationUrl: rule?.citation_url ?? null,
       sourceUrl: rule?.source_url ?? null,

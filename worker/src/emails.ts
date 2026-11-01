@@ -142,12 +142,30 @@ function htmlFooter(unsubscribeUrl: string, addr: string): string {
     `<p style="font-size:13px;margin:0 0 10px;">${textLink(unsubscribeUrl, "Unsubscribe")}</p>` +
     `<p class="dr-muted" style="font-size:11px;color:${LIGHT.muted};line-height:1.5;margin:0;">` +
     `${esc(SENDER_LINE)}<br>${esc(addr)}</p>` +
+    advisoryDisclaimerHtml("Renewal dates")
+  );
+}
+
+// PROSE-5: the independence + not-advice sentence every customer-facing footer
+// must carry (reminder, drip-course and newsletter footers all call these).
+function advisoryDisclaimerHtml(subject: string): string {
+  return (
     `<p class="dr-muted" style="font-size:11px;color:${LIGHT.muted};line-height:1.5;margin:8px 0 0;">` +
     `${esc(SITE_NAME)} is an independent reminder service operated by ${esc(BRAND_NAME)}. It is not ` +
     `affiliated with, endorsed by, or connected to NASBA, the AICPA, or any state board of ` +
-    `accountancy. Renewal dates are compiled from public sources for informational purposes only ` +
+    `accountancy. ${esc(subject)} are compiled from public sources for informational purposes only ` +
     `&mdash; not legal, tax, or professional advice. Always confirm your exact renewal date with ` +
     `your state board or on your license.</p>`
+  );
+}
+
+function advisoryDisclaimerText(subject: string): string {
+  return (
+    `${SITE_NAME} is an independent reminder service operated by ${BRAND_NAME}. It is not ` +
+    `affiliated with, endorsed by, or connected to NASBA, the AICPA, or any state board of ` +
+    `accountancy. ${subject} are compiled from public sources for informational purposes only ` +
+    `-- not legal, tax, or professional advice. Always confirm your exact renewal date with your ` +
+    `state board or on your license.`
   );
 }
 
@@ -158,11 +176,7 @@ function textFooter(unsubscribeUrl: string, addr: string): string {
     `We send only renewal reminders for that one deadline -- no marketing, ever.\n\n` +
     `Unsubscribe any time, instantly: ${unsubscribeUrl}\n\n` +
     `${SENDER_LINE}\n${addr}\n\n` +
-    `${SITE_NAME} is an independent reminder service operated by ${BRAND_NAME}. It is not ` +
-    `affiliated with, endorsed by, or connected to NASBA, the AICPA, or any state board of ` +
-    `accountancy. Renewal dates are compiled from public sources for informational purposes only ` +
-    `-- not legal, tax, or professional advice. Always confirm your exact renewal date with your ` +
-    `state board or on your license.`
+    advisoryDisclaimerText("Renewal dates")
   );
 }
 
@@ -2820,7 +2834,8 @@ function dripCourseHtmlFooter(unsubscribeUrl: string, addr: string): string {
     `</p>` +
     `<p style="font-size:13px;margin:0 0 10px;">${textLink(unsubscribeUrl, "Unsubscribe from this series")}</p>` +
     `<p class="dr-muted" style="font-size:11px;color:${LIGHT.muted};line-height:1.5;margin:0;">` +
-    `${esc(SENDER_LINE)}<br>${esc(addr)}</p>`
+    `${esc(SENDER_LINE)}<br>${esc(addr)}</p>` +
+    advisoryDisclaimerHtml("Renewal dates and cycle details")
   );
 }
 
@@ -2831,7 +2846,8 @@ function dripCourseTextFooter(unsubscribeUrl: string, addr: string): string {
     `one-time, four-email series -- not a recurring newsletter -- and your actual renewal-deadline ` +
     `reminders are unaffected either way.\n\n` +
     `Unsubscribe from this series any time: ${unsubscribeUrl}\n\n` +
-    `${SENDER_LINE}\n${addr}`
+    `${SENDER_LINE}\n${addr}\n\n` +
+    advisoryDisclaimerText("Renewal dates and cycle details")
   );
 }
 
@@ -3093,7 +3109,8 @@ function newsletterFooter(unsubscribeUrl: string, addr: string, html: boolean): 
       `renewal reminder you may also have set up.</p>` +
       `<p style="font-size:13px;margin:0 0 10px;">${textLink(unsubscribeUrl, "Unsubscribe")}</p>` +
       `<p class="dr-muted" style="font-size:11px;color:${LIGHT.muted};line-height:1.5;margin:0;">` +
-      `${esc(SENDER_LINE)}<br>${esc(addr)}</p>`
+      `${esc(SENDER_LINE)}<br>${esc(addr)}</p>` +
+      advisoryDisclaimerHtml("Renewal dates and rule-change summaries")
     );
   }
   return (
@@ -3102,7 +3119,8 @@ function newsletterFooter(unsubscribeUrl: string, addr: string, html: boolean): 
     `separate list from renewal reminders -- unsubscribing here does not affect any renewal reminder ` +
     `you may also have set up.\n\n` +
     `Unsubscribe any time, instantly: ${unsubscribeUrl}\n\n` +
-    `${SENDER_LINE}\n${addr}`
+    `${SENDER_LINE}\n${addr}\n\n` +
+    advisoryDisclaimerText("Renewal dates and rule-change summaries")
   );
 }
 
