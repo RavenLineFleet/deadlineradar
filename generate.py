@@ -25897,6 +25897,9 @@ track &mdash; it's easy to lose track of since it's not tied to your license's o
     {
         "slug": "california-to-texas-cpa-mobility",
         "published": "2026-08-13",  # first-introduction commit date, from git history
+        # AuditLab PROSE-6 (2026-11-01): dropped the unsourced "most California CPAs clear this
+        # without issue" reassurance; the reader is told to check their own original path.
+        "content_modified": "2026-11-01",
         "title": "California CPA Practicing in Texas — What Actually Applies",
         "seo_title": "California CPA Mobility to Texas",
         "meta_description": (
@@ -25921,9 +25924,11 @@ alone for this specific question.</p>
 education/experience requirement <strong>at the time you were originally licensed</strong> in California,
 through one of three pathways: a 150-hour bachelor's degree with an accounting concentration plus 1 year
 of experience; a graduate degree with an accounting concentration plus 1 year of experience; or a
-bachelor's degree with an accounting concentration plus 2 years of experience. California's own
-licensure requirements track closely enough that most actively-licensed California CPAs clear this
-without issue. There's <strong>no notice, no fee, and no registration</strong> required.</p>
+bachelor's degree with an accounting concentration plus 2 years of experience. The test looks at how
+<em>you</em> were licensed, not at California's rules in general, so check your own original education
+and experience against these three pathways before relying on the privilege, and confirm with the Texas
+State Board of Public Accountancy if your path doesn't map cleanly onto one of them. If you do qualify,
+there's <strong>no notice, no fee, and no registration</strong> required.</p>
 
 <p>If you already held an out-of-state license and were practicing under Texas's privilege as of December
 31, 2024, you keep it under a grandfather clause without needing to meet the new criteria.</p>
