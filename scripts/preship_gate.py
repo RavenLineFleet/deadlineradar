@@ -5007,7 +5007,12 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     GATE-86 (2026-11-01): the hide rule must sit at brace depth 0 -- one
     nested in an @media (or any other block) that doesn't match leaves the box
     shown. GATE-87: a hide selector qualified by plain ancestor classes/types
-    (`.dr-signup .dr-how-heard-detail`) counts; pseudo/attribute ancestors don't."""
+    (`.dr-signup .dr-how-heard-detail`) counts; pseudo/attribute ancestors don't.
+    GATE-89 (2026-11-01): EVERY display rule on the class (reveal too, not just
+    the hide) must sit at depth 0 -- a reveal nested in @media print leaves the
+    box never shown on screen. Depth and rule bounds are read with quoted
+    strings blanked, so a `content:"}"` can't shift them. GATE-88: the field
+    markup may carry no <style> element either (live CSP has no style-src)."""
     errors = []
     import ast
     found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML"))
@@ -5032,8 +5037,8 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
             f"[HOW-DETAIL-SYNC] generate.py references {hooks[0]!r} outside PAGE_CSS and _HOW_HEARD_FIELD_HTML "
             f"({len(hooks)}x) -- a script or inline style could reveal the free-text box where the CSS check can't see it"
         )
-    if re.search(r"(?i)<\s*script\b|\bon[a-z]+\s*=", field_src):
-        errors.append("[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries a <script> or inline on* handler -- the detail box must be revealed by PAGE_CSS :checked rules only")
+    if re.search(r"(?i)<\s*(?:script|style)\b|\bon[a-z]+\s*=", field_src):
+        errors.append("[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML carries a <script>, <style> or inline on* handler -- the detail box must be revealed by PAGE_CSS :checked rules only")
 
     css = re.sub(r"/\*.*?\*/", " ", css, flags=re.S)
     sel_re = re.compile(
@@ -5042,26 +5047,35 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     # Anchor on each occurrence (a [^{}]* scan over the whole sheet is
     # quadratic): its rule's selector text runs back to the previous brace,
     # its body from the next "{" to the following "}".
+    # Same-length copy with quoted strings blanked, so a brace inside a string
+    # (`content:"}"`) can't move rule bounds or depth (AuditLab N2).
+    pos = re.sub(r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""", lambda m: " " * len(m.group()), css)
     rules = {}
     for occ in re.finditer(r"\.dr-how-heard-detail(?![\w-])", css):
         p = occ.start()
-        open_i, close_i = css.find("{", p), css.find("}", p)
+        open_i, close_i = pos.find("{", p), pos.find("}", p)
         if open_i == -1 or (close_i != -1 and close_i < open_i):
             return [f"[HOW-DETAIL-SYNC] PAGE_CSS mentions .dr-how-heard-detail outside a CSS selector this check can read (offset {p}) -- repair the check or the CSS"]
-        start = max(css.rfind("{", 0, p), css.rfind("}", 0, p)) + 1
-        end = css.find("}", open_i)
+        start = max(pos.rfind("{", 0, p), pos.rfind("}", 0, p)) + 1
+        end = pos.find("}", open_i)
         rules[start] = (css[start:open_i], css[open_i + 1:end])
     hide_sel_re = re.compile(r"^(?:[\w.#-]+\s*[>\s]\s*)*\.dr-how-heard-detail$")
     hide_rules = 0
     for start, (sel_text, body) in rules.items():
-        depth = css.count("{", 0, start) - css.count("}", 0, start)
+        depth = pos.count("{", 0, start) - pos.count("}", 0, start)
         sels = [" ".join(x.split()) for x in sel_text.split(",")]
         sels = [x for x in sels if ".dr-how-heard-detail" in x]
         disp = [d.lower() for d in re.findall(r"(?i)(?<![\w-])display\s*:\s*([^;}\s]+)", body)]
         if not disp:
             continue
+        if depth != 0:
+            errors.append(
+                f"[HOW-DETAIL-SYNC] a CSS rule sets display on .dr-how-heard-detail inside a nested block (@media/@supports, depth {depth}): "
+                f"{sels[0][:80]!r} -- it applies only when that block matches, so the box's show/hide is not what this check verified"
+            )
+            continue
         if all(d == "none" for d in disp):
-            if depth == 0 and any(hide_sel_re.match(x) for x in sels):
+            if any(hide_sel_re.match(x) for x in sels):
                 hide_rules += 1
             continue
         bad = [x for x in sels if not sel_re.search(x)]
