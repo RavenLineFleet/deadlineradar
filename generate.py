@@ -25749,7 +25749,8 @@ California renewal &mdash; it runs on a birth-month/odd-even cycle that's easy t
         "published": "2026-08-13",  # first-introduction commit date, from git history
         # AuditLab SRC-124 (2026-10-29): the description named the period in the present
         # tense ("is open through Oct. 31"), false from Nov. 1; it now names both periods.
-        "content_modified": "2026-10-29",
+        # AuditLab SRC-156 (2026-11-01): body now states the 15.12A(A)(2) grandfather clause.
+        "content_modified": "2026-11-01",
         "title": "Texas CPA Practicing in Oklahoma — What Actually Applies (and What Changes Nov. 1, 2026)",
         "seo_title": "Texas CPA Mobility to Oklahoma",
         "meta_description": (
@@ -25781,6 +25782,13 @@ accounting concentration plus 2 years). If your original Texas licensure met any
 licensure, you should clear this without issue &mdash; but the underlying test itself genuinely
 changes, not just its wording. The no-notice/no-fee treatment for qualifying individuals carries
 forward into the new text.</p>
+<p><strong>Grandfather clause:</strong> the new text also protects existing privilege holders. If your
+principal place of business is outside Oklahoma, you held a valid CPA or PA certificate or license as
+of <strong>December 31, 2025</strong> and still hold it, and you had Oklahoma practice privileges under
+&sect; 15.12A on that date, you keep those privileges without meeting any of the three pathways (59
+O.S. &sect; 15.12A(A)(2), as amended by HB 4317). Our reading: because the earlier rule was so broad,
+this may cover many Texas CPAs who were already licensed before 2026 &mdash; confirm your own status
+with the Oklahoma Accountancy Board.</p>
 
 <h2>Bringing a firm: registration only with an Oklahoma office</h2>
 <p>Firm-level mobility in Oklahoma is unusually explicit about this: the Board's own FAQ confirms full
