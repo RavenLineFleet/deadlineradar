@@ -4985,6 +4985,10 @@ def _py_toplevel_assigns(py_text: str, names: tuple):
 
 
 _HOW_HEARD_FIELD_TAGS = frozenset({"label", "select", "option", "div", "input"})
+# GATE-92 (2026-11-01): sha256 of _HOW_HEARD_FIELD_HTML as RENDERED
+# (.format(id_prefix="")). Every hole in GATE-82..92 fails this pin. A
+# deliberate field change updates it in the same commit, after review.
+_HOW_HEARD_FIELD_SHA256 = "721fce57a60f494165697c7e7c3481620c88b256e6511e1c6fd60ee665201b37"
 
 
 def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
@@ -5019,7 +5023,7 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     has no style-src, so a <style> or <link> would apply)."""
     errors = []
     import ast
-    found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML"))
+    found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML", "_HOW_HEARD_OPTIONS"))
     if isinstance(found, str):
         return [f"[HOW-DETAIL-SYNC] generate.py {found} -- can't verify the detail-box reveal path"]
     try:
@@ -5028,9 +5032,37 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
         css = None
     if not isinstance(css, str):
         return ["[HOW-DETAIL-SYNC] generate.py PAGE_CSS is not a plain string literal -- can't verify the detail-box reveal rules"]
-    spans = {name: v[:2] for name, v in found.items()}
+    # GATE-91 (2026-11-01): read the field as the build renders it, not its
+    # source text -- a \x3c / \N{...} / \074 / style\x3d escape puts a tag or
+    # attribute in the value that the source doesn't contain.
+    try:
+        opts = ast.literal_eval(found["_HOW_HEARD_OPTIONS"][2])
+        field_val = eval(compile(ast.Expression(found["_HOW_HEARD_FIELD_HTML"][2]), "<_HOW_HEARD_FIELD_HTML>", "eval"),
+                         {"__builtins__": {}, "_HOW_HEARD_OPTIONS": opts})
+        field_src = field_val.format(id_prefix="")
+    except Exception as e:  # noqa: BLE001 -- any failure means the field can't be verified
+        return [f"[HOW-DETAIL-SYNC] generate.py _HOW_HEARD_FIELD_HTML could not be evaluated standalone ({type(e).__name__}: {str(e)[:80]}) -- can't verify the field markup"]
+    # GATE-92: pin the field's structure instead of enumerating bad shapes.
+    want_vals = [""] + [k for k, _ in opts]
+    got_vals = re.findall(r'<option\s+value="([^"]*)"', field_src)
+    n_cls = len(re.findall(r"(?<![\w-])dr-how-heard(?![\w-])", field_src))
+    n_sel = len(re.findall(r"(?i)<\s*select\b", field_src))
+    n_opt = len(re.findall(r"(?i)<\s*option\b", field_src))
+    if n_cls != 1 or n_sel != 1 or n_opt != len(want_vals) or got_vals != want_vals:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] _HOW_HEARD_FIELD_HTML must render exactly 1 .dr-how-heard, 1 <select>, and one <option> per "
+            f"_HOW_HEARD_OPTIONS key plus the empty one; found {n_cls} / {n_sel} / {n_opt} (values {got_vals[:12]}) "
+            f"-- a forged select/option can make the :checked reveal match for every answer"
+        )
+    import hashlib
+    sha = hashlib.sha256(field_src.encode("utf-8")).hexdigest()
+    if sha != _HOW_HEARD_FIELD_SHA256:
+        errors.append(
+            f"[HOW-DETAIL-SYNC] rendered _HOW_HEARD_FIELD_HTML sha256 {sha[:16]}... != pinned {_HOW_HEARD_FIELD_SHA256[:16]}... "
+            f"-- if the field changed on purpose, review the rendered markup and update _HOW_HEARD_FIELD_SHA256 in preship_gate.py"
+        )
+    spans = {name: found[name][:2] for name in ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML")}
     lines = py_text.split("\n")
-    field_src = "\n".join(lines[spans["_HOW_HEARD_FIELD_HTML"][0] - 1:spans["_HOW_HEARD_FIELD_HTML"][1]])
     outside = "\n".join(
         ln for i, ln in enumerate(lines, 1)
         if not any(a <= i <= b for a, b in spans.values())
