@@ -5003,7 +5003,11 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
     _HOW_HEARD_FIELD_HTML, and that field markup may carry no <script>.
     CSS property names are matched case-insensitively.
     GATE-85 (2026-10-31): a selector split across lines is read whole (CSS
-    comments stripped, whitespace collapsed), not by its last line only."""
+    comments stripped, whitespace collapsed), not by its last line only.
+    GATE-86 (2026-11-01): the hide rule must sit at brace depth 0 -- one
+    nested in an @media (or any other block) that doesn't match leaves the box
+    shown. GATE-87: a hide selector qualified by plain ancestor classes/types
+    (`.dr-signup .dr-how-heard-detail`) counts; pseudo/attribute ancestors don't."""
     errors = []
     import ast
     found = _py_toplevel_assigns(py_text, ("PAGE_CSS", "_HOW_HEARD_FIELD_HTML"))
@@ -5047,15 +5051,17 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
         start = max(css.rfind("{", 0, p), css.rfind("}", 0, p)) + 1
         end = css.find("}", open_i)
         rules[start] = (css[start:open_i], css[open_i + 1:end])
+    hide_sel_re = re.compile(r"^(?:[\w.#-]+\s*[>\s]\s*)*\.dr-how-heard-detail$")
     hide_rules = 0
-    for sel_text, body in rules.values():
+    for start, (sel_text, body) in rules.items():
+        depth = css.count("{", 0, start) - css.count("}", 0, start)
         sels = [" ".join(x.split()) for x in sel_text.split(",")]
         sels = [x for x in sels if ".dr-how-heard-detail" in x]
         disp = [d.lower() for d in re.findall(r"(?i)(?<![\w-])display\s*:\s*([^;}\s]+)", body)]
         if not disp:
             continue
         if all(d == "none" for d in disp):
-            if any(x == ".dr-how-heard-detail" for x in sels):
+            if depth == 0 and any(hide_sel_re.match(x) for x in sels):
                 hide_rules += 1
             continue
         bad = [x for x in sels if not sel_re.search(x)]
@@ -5066,7 +5072,7 @@ def _how_heard_detail_reveal_shape(py_text: str) -> list[str]:
             )
     if hide_rules != 1:
         errors.append(
-            f"[HOW-DETAIL-SYNC] expected exactly 1 base `.dr-how-heard-detail {{ display: none }}` rule, found {hide_rules} -- "
+            f"[HOW-DETAIL-SYNC] expected exactly 1 base `.dr-how-heard-detail {{ display: none }}` rule at top level (not inside @media), found {hide_rules} -- "
             "without it the free-text box shows for every how_heard answer"
         )
     div = re.findall(r"<div\b[^>]*class=\"dr-how-heard-detail\"[^>]*>", py_text)
