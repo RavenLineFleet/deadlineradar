@@ -25778,9 +25778,11 @@ effective <strong>November 1, 2026</strong> and replaces that substantial-equiva
 individual-criteria mobility: a valid out-of-state CPA/PA license, a passed Uniform CPA Exam, and one
 of three pathways met at initial licensure (a post-baccalaureate accounting degree plus 1 year of
 experience; a bachelor's plus 30 additional semester hours plus 1 year; or a bachelor's with an
-accounting concentration plus 2 years). If your original Texas licensure met any standard path to
-licensure, you should clear this without issue &mdash; but the underlying test itself genuinely
-changes, not just its wording. The no-notice/no-fee treatment for qualifying individuals carries
+accounting concentration plus 2 years), with the accounting concentration and the work experience in
+each pathway both "as defined in Board rule." That leaves the operative definitions to the Oklahoma
+Accountancy Board, and we could not confirm that the Board's rules have been updated to match the new
+law. So even if your original Texas licensure followed a standard path, confirm with the Board that you
+qualify before relying on it. The underlying test itself genuinely changes, not just its wording. The no-notice/no-fee treatment for qualifying individuals carries
 forward into the new text.</p>
 <p><strong>Grandfather clause:</strong> the new text also protects existing privilege holders. If your
 principal place of business is outside Oklahoma, you held a valid CPA or PA certificate or license as
