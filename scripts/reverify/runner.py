@@ -174,7 +174,10 @@ def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     window = text[i: i + len(anchor) + int(check.get("window", 600))]
     if check.get("expect_text"):
         want = normalise(check["expect_text"]).lower()
-        return ("MATCH" if want in window.lower() else "DIFFERENT"), check["expect_text"]
+        # AuditLab GATE-102: a bare substring test let "July 1" match a source that now says "July 15".
+        # Require that the expected text is not followed by another digit.
+        hit = re.search(re.escape(want) + r"(?!\d)", window.lower())
+        return ("MATCH" if hit else "DIFFERENT"), check["expect_text"]
     # value search starts AFTER the anchor: digits inside the anchor itself (e.g. "(2)") must never match
     m = re.search(check["pattern"], window[len(anchor):], flags=re.I | re.S)
     if not m:

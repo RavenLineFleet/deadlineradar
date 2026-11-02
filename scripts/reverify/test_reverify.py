@@ -1233,3 +1233,14 @@ def test_src43_every_non_manual_recipe_has_at_least_one_check():
         recipes = json.load(fh)
     empty = [rid for rid, rc in recipes.items() if not rc.get("manual") and not rc.get("checks")]
     assert not empty, f"non-manual recipe(s) with no checks would confirm on no evidence: {empty}"
+
+
+def test_expect_text_day_boundary_gate102():
+    # AuditLab GATE-102: real ms-firm window shape, then a one-digit mutation, then a missing anchor.
+    c = chk(anchor="33-1-39, on or before", pattern=None, expect_text="January 1", window=14)
+    assert runner.judge_check(c, "x 33-1-39, on or before January 1 of each year")[0] == "MATCH"
+    assert runner.judge_check(c, "x 33-1-39, on or before January 15 of each year")[0] == "DIFFERENT"
+    assert runner.judge_check(c, "x 33-1-40, on or before January 1 of each year")[0] == "NO_ANCHOR"
+    # end-of-window and punctuation after the value still match
+    assert runner.judge_check(c, "33-1-39, on or before January 1")[0] == "MATCH"
+    assert runner.judge_check(c, "33-1-39, on or before January 1, 2027")[0] == "MATCH"
