@@ -267,6 +267,15 @@
     "window": 140,
     "pattern": null,
     "expect_text": "December 31"
+   },
+   {
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17-12-504.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(b) (1) A firm registered with the board shall pay an annual registration fee",
+    "window": 200,
+    "pattern": null,
+    "expect_text": "all firm registrations shall expire on December 31 of each year"
    }
   ]
  },
@@ -286,6 +295,15 @@
     "window": 16,
     "pattern": null,
     "expect_text": "December 31"
+   },
+   {
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17-12-504.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(a) (1) Individual certified public accountants and public accountants shall pay an annual fee",
+    "window": 200,
+    "pattern": null,
+    "expect_text": "all licenses shall expire on December 31 of each year"
    }
   ]
  },
@@ -316,6 +334,15 @@
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours",
     "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+   },
+   {
+    "url": "https://www.azleg.gov/ars/32/00732.htm",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "B. An individual with a certificate status of canceled, who does not qualify for certification by reciprocity",
+    "window": 300,
+    "pattern": null,
+    "expect_text": "pays the reinstatement application fee pursuant to section 32-729"
    }
   ]
  },
@@ -1827,6 +1854,15 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://ksrevisor.gov/statutes/chapters/ch01/001_003_0010.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(g) A person who fails to renew a permit within 12 months after its expiration may apply for reinstatement",
+    "window": 300,
+    "pattern": null,
+    "expect_text": "has obtained 40 hours of qualifying continuing education within the preceding 12 months"
    }
   ]
  },
@@ -2247,6 +2283,15 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://legislature.maine.gov/statutes/32/title32sec12234.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "2. Late renewals. Licenses may be renewed up to",
+    "window": 80,
+    "pattern": null,
+    "expect_text": "90 days after the date of expiration upon payment of a late fee"
    }
   ]
  },
@@ -2303,6 +2348,15 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://mgaleg.maryland.gov/mgawebsite/Laws/StatuteText?article=gbo&section=2-314&enactments=false",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "In accordance with its regulations, the Board may reinstate the license of an individual who has failed to renew the license",
+    "window": 420,
+    "pattern": null,
+    "expect_text": "pays to the Board a reinstatement fee set by the Board"
    }
   ]
  },
@@ -2483,6 +2537,15 @@
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "annual_minimum_hours"
+   },
+   {
+    "url": "https://legislature.maine.gov/statutes/32/title32sec12233.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "The board shall establish by rule the number of hours of continuing professional education required for renewal, which may be",
+    "window": 80,
+    "pattern": null,
+    "expect_text": "no more than 40 hours and no less than 20 hours annually"
    }
   ]
  },
@@ -2544,7 +2607,7 @@
  },
  "michigan-reinstatement": {
   "dataset": "reinstatement",
-  "manual": "NOT YET AUTOMATED: $320 is a published LARA line ('2 year CPA Relicensure Application and Fee: $320.00') = $100 (MCL 338.2211) + $20 (MCL 338.2206) + $200; LARA page is robots.txt-disallowed for automated fetch. Published, not a disclosure candidate (AuditLab 10-02).",
+  "manual": "NOT YET AUTOMATED: $320 is a published LARA line ('2 year CPA Relicensure Application and Fee: $320.00') = $100 (MCL 338.2211) + $20 (MCL 338.2206) + $200; LARA page is robots.txt-disallowed for automated fetch. Published, not a disclosure candidate (AuditLab 10-02). Hand check must also read the relicensure trigger in MCL 339.411(3)(b) (all three fee components owed on relicensure) at legislature.mi.gov (SRC-162).",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -2626,7 +2689,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "Board Processing Fee for Reinstatement of License",
@@ -2635,7 +2698,7 @@
     "expect": 200
    },
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "Registration Fee for Reinstatement of License",
@@ -2644,7 +2707,7 @@
     "expect": 110
    },
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "minimum CPE credit hours missed as a result of not being registered,",
@@ -2653,13 +2716,22 @@
     "field": "penalty_cpe_hours"
    },
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "Rule 4.1.3. A minimum of",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(4) Any person who has lost a certified public accountant license or a firm which has lost a permit to practice in this state by failure to register",
+    "window": 720,
+    "pattern": null,
+    "expect_text": "pay all fees in arrears, late fees and a reinstatement fee as set by the board"
    }
   ]
  },
@@ -2672,7 +2744,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "• Initial and Annual Registration Fee for Original or Reciprocal License",
@@ -2934,7 +3006,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "ion of the minimum CPE credit hours missed as a result of not being registered",
@@ -2952,7 +3024,7 @@
     "field": "ethics_hours"
    },
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "y renew a CPA license, an individual must complete and report at a minimum, the",
@@ -2971,13 +3043,13 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
-    "anchor": "33-1-39, on or before",
-    "window": 14,
+    "anchor": "shall enter the cancellation on its records. (3)",
+    "window": 120,
     "pattern": null,
-    "expect_text": "January 1"
+    "expect_text": "On or before January 1 of each year, each certified public accountant firm holding a permit"
    }
   ]
  },
@@ -2990,7 +3062,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20April%202026%20FINAL%20-%20UPDATED.pdf",
+    "url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "33-1-39, on or before",
@@ -3283,6 +3355,24 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(3) Failure of a certificate holder or registrant to apply for a permit within (a)",
+    "window": 80,
+    "pattern": null,
+    "expect_text": "three years from the expiration date of the permit last obtained or renewed"
+   },
+   {
+    "url": "https://nebraskalegislature.gov/laws/statutes.php?statute=1-136",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "such failure to have been excusable. In such case the renewal fee or the fee for the issuance of the original permit",
+    "window": 120,
+    "pattern": null,
+    "expect_text": "not to exceed three hundred dollars"
    }
   ]
  },
@@ -3473,6 +3563,15 @@
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_cpe_hours"
+   },
+   {
+    "url": "https://www.op.nysed.gov/sites/op/files/documents/opfeechart.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "Late Fees (Per Month of Uncertified Practice)",
+    "window": 200,
+    "pattern": null,
+    "expect_text": "$10"
    }
   ]
  },
@@ -3492,6 +3591,15 @@
     "window": 80,
     "pattern": "(?:\\$\\s*[\\d,]+\\s+){5}\\$\\s*([\\d,]+)",
     "field": "fee_usd"
+   },
+   {
+    "url": "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/article-149",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "for persons not requiring admission to a department conducted examination, and a fee of",
+    "window": 80,
+    "pattern": null,
+    "expect_text": "two hundred ten dollars for each triennial registration period"
    }
   ]
  },
@@ -3712,6 +3820,15 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "penalty_ethics_hours"
+   },
+   {
+    "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/BySection/Chapter_93/GS_93-12.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "(15) Any certificate of qualification issued under the provisions of this Chapter",
+    "window": 320,
+    "pattern": null,
+    "expect_text": "shall be forfeited for the failure of the holder to renew same and to pay the renewal fee therefor to the State Board of Accountancy within 30 days after demand"
    }
   ]
  },
@@ -3853,6 +3970,15 @@
     "window": 15,
     "pattern": null,
     "expect_text": "January 31"
+   },
+   {
+    "url": "https://www.leg.state.nv.us/nrs/nrs-628.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "NRS 628.335 Registration of partnership, corporation, limited-liability company or sole proprietorship: Grant or renewal of registration",
+    "window": 1400,
+    "pattern": null,
+    "expect_text": "(Added to NRS by 2009, 311 ; A 2023, 301 )"
    }
   ]
  },
@@ -3909,6 +4035,15 @@
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "ethics_hours"
+   },
+   {
+    "url": "https://www.op.nysed.gov/professions/certified-public-accountants/laws-rules-regulations/article-149",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "for each calendar year beginning with the two thousand nine calendar year, an applicant for registration shall have the option of (1) completing a minimum of",
+    "window": 60,
+    "pattern": null,
+    "expect_text": "forty contact hours"
    }
   ]
  },
@@ -4928,6 +5063,24 @@
     "window": 50,
     "pattern": null,
     "expect_text": "to June 30"
+   },
+   {
+    "url": "https://dlca.vi.gov/pdf/USVI_Board_of_Public_Accountancy_Act_of_2014.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "permit issued under Section 250d of this chapter. (b) Certificates are initially issued and",
+    "window": 40,
+    "pattern": null,
+    "expect_text": "renewed annually"
+   },
+   {
+    "url": "https://dlca.vi.gov/pdf/USVI_Board_of_Public_Accountancy_Act_of_2014.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(b) Permits are initially issued and",
+    "window": 80,
+    "pattern": null,
+    "expect_text": "renewed annually but in any event expire on a specified date"
    }
   ]
  },
