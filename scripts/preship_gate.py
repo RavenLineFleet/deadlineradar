@@ -2965,16 +2965,37 @@ def check_fee_basis_supported(repo_root: Path) -> list[str]:
 # itself. Whether prose carries a caveat is a hand judgment (the 19 below
 # use 19 different phrasings), so this pins the hand-reviewed set: a NEW
 # record entering the class fails until someone reads its fee_notes,
-# confirms the caveat, and adds the id here.
-FEE_CAVEAT_REVIEWED = frozenset({
-    "colorado-renewal-fee", "dc-renewal-fee", "delaware-renewal-fee",
-    "kentucky-renewal-fee", "louisiana-renewal-fee", "maine-renewal-fee",
-    "massachusetts-renewal-fee", "nebraska-renewal-fee", "nevada-renewal-fee",
-    "north-dakota-renewal-fee", "northern-mariana-islands-renewal-fee",
-    "ohio-renewal-fee", "oklahoma-renewal-fee", "puerto-rico-renewal-fee",
-    "south-carolina-renewal-fee", "texas-renewal-fee",
-    "us-virgin-islands-renewal-fee", "utah-renewal-fee", "wisconsin-renewal-fee",
-})
+# confirms the caveat, and adds the id here. The value pins the reviewed
+# prose (AuditLab 18:21Z reachability note): an edit to a pinned record's
+# fee_notes/data_gap_note that drops the caveat must fail too, so any
+# change re-opens the hand review. Hash = sha256(fee_notes + "" +
+# data_gap_note)[:16]; see _fee_caveat_prose_hash.
+FEE_CAVEAT_REVIEWED = {
+    "colorado-renewal-fee": "0b62b2187bd2ffe5",
+    "dc-renewal-fee": "b2b1b574bd29ab56",
+    "delaware-renewal-fee": "15fa05d94e6c307b",
+    "kentucky-renewal-fee": "f771d7c410038811",
+    "louisiana-renewal-fee": "bc041a88c9c94436",
+    "maine-renewal-fee": "d51e8bb03d98fe36",
+    "massachusetts-renewal-fee": "9a81e4250902e941",
+    "nebraska-renewal-fee": "61ef4e622561bce1",
+    "nevada-renewal-fee": "41ec0898dedc84a4",
+    "north-dakota-renewal-fee": "3c5997c5b1d544a9",
+    "northern-mariana-islands-renewal-fee": "b505b3df1d4daa45",
+    "ohio-renewal-fee": "0f4dbc936c2f6471",
+    "oklahoma-renewal-fee": "2b5e2d17ad1823eb",
+    "puerto-rico-renewal-fee": "372677b9cf741bcc",
+    "south-carolina-renewal-fee": "3ac40c7931870e49",
+    "texas-renewal-fee": "c6d0996672a5fd7d",
+    "us-virgin-islands-renewal-fee": "62f25175c5456e62",
+    "utah-renewal-fee": "c49c116db7b90303",
+    "wisconsin-renewal-fee": "d7c3c68c6387d41d",
+}
+
+
+def _fee_caveat_prose_hash(r: dict) -> str:
+    text = (r.get("fee_notes") or "") + "" + (r.get("data_gap_note") or "")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def check_uncodified_cited_fee_caveat_reviewed(repo_root: Path) -> list[str]:
@@ -2994,6 +3015,13 @@ def check_uncodified_cited_fee_caveat_reviewed(repo_root: Path) -> list[str]:
                 f"so the page shows 'read the rule' and NOT the board-schedule caveat. Confirm "
                 f"fee_notes (or data_gap_note if fee_usd is null) says in visible text that the "
                 f"amount isn't in the cited law, then add the id to FEE_CAVEAT_REVIEWED."
+            )
+        elif FEE_CAVEAT_REVIEWED[r.get("id")] != _fee_caveat_prose_hash(r):
+            errors.append(
+                f"[FEECAVEAT][{r.get('id')}] fee_notes/data_gap_note changed since its caveat was "
+                f"hand-reviewed (pinned {FEE_CAVEAT_REVIEWED[r.get('id')]}, now "
+                f"{_fee_caveat_prose_hash(r)}). Re-read it, confirm it still says the amount "
+                f"isn't in the cited law, then update the pin."
             )
     return errors
 
