@@ -1348,7 +1348,7 @@
         "note": "Annual, no anchor year needed (every year has an occurrence). Confirmed verbatim from Ark. Code Ann. 17-12-504 (FindLaw mirror, re-read 2026-10-12 by AssetLab, DATE-10): licenses 'shall expire on December 31 of each year and may be renewed annually for a period of one (1) year'. This value now rolls forward automatically (same mechanism as mo-firm/id-firm/me-all/co-firm) instead of needing a manual update every year the date elapses (DATE-10)."
       },
       "source_url": "https://portal.arkansas.gov/service/ar-certified-public-accountant-license-renewal/",
-      "secondary_source_url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-504/",
+      "secondary_source_url": "https://labor.arkansas.gov/wp-content/uploads/17-12-504.pdf",
       "last_verified": "2026-10-22",
       "wave": 6,
       "citation": "Ark. Code Ann. § 17-12-504(a)",
@@ -1373,7 +1373,7 @@
         "note": "Annual, no anchor year needed (every year has an occurrence). Confirmed verbatim from Ark. Code Ann. 17-12-504 (FindLaw mirror, re-read 2026-10-12 by AssetLab, DATE-10): firm registrations 'shall expire on December 31 of each year and may be renewed annually for a period of one (1) year'. This value now rolls forward automatically (same mechanism as mo-firm/id-firm/me-all/co-firm) instead of needing a manual update every year the date elapses (DATE-10)."
       },
       "source_url": "https://www.labor.arkansas.gov/wp-content/uploads/Complete-Set-of-Rules-01-31-2024.pdf",
-      "secondary_source_url": "https://codes.findlaw.com/ar/title-17-professions-occupations-and-businesses/ar-code-sect-17-12-504/",
+      "secondary_source_url": "https://labor.arkansas.gov/wp-content/uploads/17-12-504.pdf",
       "last_verified": "2026-10-22",
       "wave": 6,
       "citation": "Ark. Code Ann. § 17-12-504(b)",

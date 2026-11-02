@@ -356,6 +356,15 @@
     "window": 19,
     "pattern": "\\$\\s*([\\d,]+(?:\\.\\d\\d)?)",
     "field": "reinstatement_fee_usd"
+   },
+   {
+    "url": "https://labor.arkansas.gov/wp-content/uploads/17-12-504.pdf",
+    "alt_urls": [],
+    "method": "pdf",
+    "anchor": "(g) Upon application received on or before",
+    "window": 60,
+    "pattern": null,
+    "expect_text": "July 1 following the lapse of a license"
    }
   ]
  },
