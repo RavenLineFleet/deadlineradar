@@ -282,7 +282,11 @@ _PROSE_INTERNAL_NAME_RE = re.compile(
     r"(?<![A-Za-z0-9])(?:ActorLab|AssetLab|AuditLab|BettingBot|BotLab|DeskCrew|"
     r"DiffLab|DRLocalBot|FleetDeck|GameLab|HANDOFF|HomeLab|KelliSites|LedgerLab|"
     r"Orchestrator|PortfolioMeta|RavenTrading|ScoutLab|SecurityLab|ShopLab|"
-    r"StockLab|ValueLab|firmchat|GrowthLab|LocalBot|FleetChat|StockWatch)(?![A-Za-z0-9])"
+    r"StockLab|ValueLab|firmchat|GrowthLab|LocalBot|FleetChat|StockWatch)(?![A-Za-z0-9])",
+    # AuditLab GATE-104 (MEDIUM, 2026-11-02): case-sensitive let a lowercase
+    # "difflab_reg_change_engine" ship 4x in /firm-dashboard/ raw bytes with a
+    # clean pass. AuditLab measured 0 false positives over all 262 built pages.
+    re.IGNORECASE,
 )
 
 # GATE-1 hardening (AuditLab, COPY-3 2026-08-14 residual report, implemented

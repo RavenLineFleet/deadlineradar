@@ -15942,7 +15942,7 @@ function drOpenRuleChangeModal(event, triggerBtn) {
   // research," the strongest sourcing claim, in a modal a firm admin opens
   // specifically to judge whether a change is trustworthy.
   var drRuleChangeSourceLabel;
-  if (event.source === 'difflab_reg_change_engine') {
+  if (event.source === 'automated_monitoring') {
     drRuleChangeSourceLabel = 'automated source monitoring' +
       (event.confidence === 'single_source' ? ' (not yet independently confirmed by a second source)' : '');
   } else if (event.confidence === 'single_source') {
@@ -22636,7 +22636,11 @@ def build_firm_dashboard_page(
             # AuditLab COPY-2 EXTENDED (LOW, 2026-08-14): added so the modal
             # JS below can render the same English source_label as
             # _rule_change_card_html() instead of the raw confidence enum.
-            "source": e.get("source") or "",
+            # AuditLab GATE-104 (MEDIUM, 2026-11-02): the raw enum is an internal
+            # tool codename and was view-source visible on /firm-dashboard/;
+            # the client only needs "is this the automated engine", so ship a
+            # neutral token instead of the internal identifier.
+            "source": "automated_monitoring" if e.get("source") == "difflab_reg_change_engine" else "",
         }
         for e in _reg_change_raw.get("events", [])
         if e.get("kind") == "rule_change" and _is_still_upcoming(e) and e.get("effective_date")
