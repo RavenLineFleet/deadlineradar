@@ -2958,6 +2958,45 @@ def check_fee_basis_supported(repo_root: Path) -> list[str]:
     return errors
 
 
+# SRC-166 latent watch (AuditLab 2026-11-02T17:15Z): render_renewal_fee
+# branches on citation presence, not fee_basis, so a record whose fee_basis
+# is NOT 'codified' but which carries a citation gets "read the rule" and
+# never the board-schedule caveat. Its fee_notes must carry that caveat
+# itself. Whether prose carries a caveat is a hand judgment (the 19 below
+# use 19 different phrasings), so this pins the hand-reviewed set: a NEW
+# record entering the class fails until someone reads its fee_notes,
+# confirms the caveat, and adds the id here.
+FEE_CAVEAT_REVIEWED = frozenset({
+    "colorado-renewal-fee", "dc-renewal-fee", "delaware-renewal-fee",
+    "kentucky-renewal-fee", "louisiana-renewal-fee", "maine-renewal-fee",
+    "massachusetts-renewal-fee", "nebraska-renewal-fee", "nevada-renewal-fee",
+    "north-dakota-renewal-fee", "northern-mariana-islands-renewal-fee",
+    "ohio-renewal-fee", "oklahoma-renewal-fee", "puerto-rico-renewal-fee",
+    "south-carolina-renewal-fee", "texas-renewal-fee",
+    "us-virgin-islands-renewal-fee", "utah-renewal-fee", "wisconsin-renewal-fee",
+})
+
+
+def check_uncodified_cited_fee_caveat_reviewed(repo_root: Path) -> list[str]:
+    path = repo_root / "data" / "renewal_fees.json"
+    if not path.exists():
+        return [f"[FEECAVEAT] {path} not found -- check is measuring nothing"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    errors = []
+    for r in data["records"]:
+        if r.get("fee_basis") == "codified":
+            continue
+        if not (r.get("citation_url") and r.get("citation")):
+            continue
+        if r.get("id") not in FEE_CAVEAT_REVIEWED:
+            errors.append(
+                f"[FEECAVEAT][{r.get('id')}] fee_basis={r.get('fee_basis')!r} but a citation is set, "
+                f"so the page shows 'read the rule' and NOT the board-schedule caveat. Confirm "
+                f"fee_notes (or data_gap_note if fee_usd is null) says in visible text that the "
+                f"amount isn't in the cited law, then add the id to FEE_CAVEAT_REVIEWED."
+            )
+    return errors
+
 def check_firm_fee_disclosure(repo_root: Path) -> list[str]:
     """FEE-1/FEE-5 (AuditLab, 2026-09-09): Tennessee and then Colorado both
     shipped a renewal_fees.json record that named a dollar figure with no
@@ -10455,6 +10494,7 @@ def main():
     all_errors += check_published_figures_link_source(html_files)
     all_errors += check_citations_are_primary(repo_root)
     all_errors += check_fee_basis_supported(repo_root)
+    all_errors += check_uncodified_cited_fee_caveat_reviewed(repo_root)
     all_errors += check_firm_fee_disclosure(repo_root)
     all_errors += check_cpa_deadlines_verification_date_concentration(repo_root)
     all_errors += check_renewal_fee_currency(repo_root)
