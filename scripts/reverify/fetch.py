@@ -42,9 +42,15 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
 # ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
 # override so every other host keeps the honest, self-identifying UA.
+# www.tn.gov (2026-11-03): same WAF pattern -- the honest UA gets 403 on /robots.txt and on the
+# recipe page, read as a blanket disallow; tennessee-reinstatement FAILED two runs in a row
+# (robots_disallow). A browser UA gets 200 on both, and the real robots.txt is
+# "User-agent: * / Allow: /". Covers all 4 tn.gov recipes.
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 UA_HOST_OVERRIDES = {
-    "www.maine.gov": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+    "www.maine.gov": _BROWSER_UA,
+    "www.tn.gov": _BROWSER_UA,
 }
 TIMEOUT_S = 30
 MIN_INTERVAL_S = 1.0

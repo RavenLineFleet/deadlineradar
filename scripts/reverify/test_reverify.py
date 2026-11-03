@@ -446,6 +446,27 @@ def test_maine_gov_uses_browser_ua_override_other_hosts_stay_honest():
     assert "DeadlineRadar-Reverify" in by_host["https://b.gov/x"] and "Mozilla" not in by_host["https://b.gov/x"]
 
 
+def test_tn_gov_uses_browser_ua_override_for_robots_and_page():
+    """2026-11-03: www.tn.gov's WAF 403s the honest UA on /robots.txt and the page, which read
+    as robots_disallow for tennessee-reinstatement two runs running. Both requests to that
+    host must carry the browser UA."""
+    seen = []
+
+    def opener(req, timeout=None):
+        seen.append((req.full_url, req.get_header("User-agent")))
+        if req.full_url.endswith("/robots.txt"):
+            return Resp(b"User-agent: *\nAllow: /")
+        return Resp(b"<p>hello</p>")
+    f = Fetcher(opener=opener, sleep=lambda s: None, clock=lambda: 0.0)
+    r = f.get("https://www.tn.gov/commerce/x.html")
+    assert r.ok
+    urls = [url for url, _ in seen]
+    assert "https://www.tn.gov/robots.txt" in urls and "https://www.tn.gov/commerce/x.html" in urls
+    assert all("Mozilla" in ua for _, ua in seen)
+    assert fetch._ua_for("www.tn.gov") == fetch._ua_for("www.maine.gov")
+    assert "DeadlineRadar-Reverify" in fetch._ua_for("b.gov")
+
+
 def test_robots_disallow_is_failed_fetch():
     f, _ = make_fetcher(lambda req: Resp(b"x"), robots="User-agent: *\nDisallow: /")
     r = f.get("https://b.gov/private")
