@@ -11,6 +11,12 @@ cat >/dev/null  # drain stdin (the pushed ref list); the gate checks repo state,
 
 repo_root="$(git rev-parse --show-toplevel)" || exit 1
 cd "$repo_root" || exit 1
+# PROC-19 (2026-11-03): git exports GIT_DIR & co. into hooks. Inherited by pytest, they pointed
+# every test's temp-repo `git init/config/commit/push` at THIS repo: the first real push through
+# the PROC-18 limb set core.bare=true, hijacked core.hooksPath and user.name in the shared config,
+# and committed test trees onto the pushing worktree's HEAD. Clear them (scripts/conftest.py does
+# too); both commands below run from repo_root and rediscover the repo from cwd.
+unset $(git rev-parse --local-env-vars)
 
 py="$(command -v python3 || command -v python)"
 if [ -z "$py" ]; then

@@ -82,6 +82,27 @@ def test_reverify_job_context_skips(repo, monkeypatch):
     assert gate.check_installed_git_hooks_match_head(r) == []
 
 
+def test_hook_env_does_not_leak_into_test_repos(tmp_path):
+    """Run this file's fixture-based tests the way the pre-push hook does -- with GIT_DIR (and a
+    GIT_CONFIG_PARAMETERS override) exported at a DECOY repo -- and prove conftest.py contains it:
+    the tests still pass and the decoy's config is byte-identical afterwards."""
+    if not GIT:
+        pytest.skip("git not on PATH")
+    decoy = tmp_path / "decoy"
+    _git(tmp_path, "init", "-q", str(decoy))
+    cfg = decoy / ".git" / "config"
+    before = cfg.read_bytes()
+    env = dict(os.environ, GIT_DIR=str(decoy / ".git"), GIT_PREFIX="",
+               GIT_CONFIG_PARAMETERS="'core.hookspath'='/nonexistent'")
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", "not leak",
+         os.path.join(HERE, "test_proc19_installed_hook_gate.py")],
+        cwd=tmp_path, env=env, capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-1000:]
+    assert cfg.read_bytes() == before
+
+
 def test_wired_into_main():
     src = Path(HERE, "preship_gate.py").read_text(encoding="utf-8")
     body = src[src.index("\ndef main():"):]
