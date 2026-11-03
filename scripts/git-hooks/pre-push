@@ -17,6 +17,9 @@ cd "$repo_root" || exit 1
 # and committed test trees onto the pushing worktree's HEAD. Clear them (scripts/conftest.py does
 # too); both commands below run from repo_root and rediscover the repo from cwd.
 unset $(git rev-parse --local-env-vars)
+# PROC-21 (AuditLab, 2026-11-03): DR_REVERIFY_JOB=1 makes preship skip the PROC-19 hook check; it is
+# for scripts/reverify/job.py only. A copy left exported in a human shell must not reach this path.
+unset DR_REVERIFY_JOB
 
 py="$(command -v python3 || command -v python)"
 if [ -z "$py" ]; then

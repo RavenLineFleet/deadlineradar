@@ -1612,6 +1612,17 @@ def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
         want = run("rev-parse", f"HEAD:{rel}").stdout.strip()
         got = run("hash-object", "--path", rel, str(installed)).stdout.strip()
         if not want or not got or want != got:
+            # PROC-20: hooksPath is ONE dir shared by every worktree. If the installed copy already
+            # equals origin/main's, this branch is the stale side -- copying its older hook in would
+            # reopen the PROC-18/19 gap for every other worktree. Say rebase, not copy.
+            upstream = run("rev-parse", "--verify", "-q", f"origin/main:{rel}").stdout.strip()
+            if got and upstream and got == upstream:
+                errors.append(
+                    f"[PROC-20] this branch's {rel} (blob {want[:9] or '?'}) predates the installed "
+                    f"hook (blob {got[:9]} == origin/main). Rebase this branch onto origin/main. Do "
+                    f"NOT copy this tree's older hook into core.hooksPath -- it is shared by every worktree."
+                )
+                continue
             errors.append(
                 f"[PROC-19] installed hook '{name}' (blob {got[:9] or '?'}) != HEAD:{rel} (blob "
                 f"{want[:9] or '?'}) -- the hook git actually runs on push is not the one this tree "

@@ -112,3 +112,31 @@ def test_wired_into_main():
 def test_reverify_job_sets_skip_flag():
     src = Path(HERE, "reverify", "job.py").read_text(encoding="utf-8")
     assert 'os.environ["DR_REVERIFY_JOB"] = "1"' in src
+
+
+def test_proc20_branch_predating_installed_hook_says_rebase_not_copy(repo):
+    """PROC-20: installed == origin/main's hook, this branch's HEAD carries an older one."""
+    r, installed = repo
+    (r / "scripts" / "git-hooks" / "pre-push").write_bytes(HOOK_V1)
+    _git(r, "add", ".")
+    _git(r, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "newer")
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main ships V1
+    (installed / "pre-push").write_bytes(HOOK_V1)                  # installed == origin/main
+    _git(r, "checkout", "-q", "HEAD~1")                            # stale branch: HEAD has V2
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-20]")
+    assert "Rebase" in errs[0] and "Do NOT copy" in errs[0]
+
+
+def test_proc20_stale_installed_hook_still_says_copy(repo):
+    r, installed = repo
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main ships V2
+    (installed / "pre-push").write_bytes(HOOK_V1)                  # installed is the stale side
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-19]") and "copy" in errs[0]
+
+
+def test_proc21_hook_unsets_reverify_job_flag_before_preship():
+    src = Path(HERE, "git-hooks", "pre-push").read_text(encoding="utf-8")
+    assert "unset DR_REVERIFY_JOB" in src
+    assert src.index("unset DR_REVERIFY_JOB") < src.index("scripts/preship_gate.py\n")
