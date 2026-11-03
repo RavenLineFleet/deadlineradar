@@ -140,3 +140,35 @@ def test_proc21_hook_unsets_reverify_job_flag_before_preship():
     src = Path(HERE, "git-hooks", "pre-push").read_text(encoding="utf-8")
     assert "unset DR_REVERIFY_JOB" in src
     assert src.index("unset DR_REVERIFY_JOB") < src.index("scripts/preship_gate.py\n")
+
+
+def _subdir_launch(tmp_path, with_ini):
+    """Mirror the repo's pytest anchors into a scratch tree and launch pytest from INSIDE a
+    subdirectory (as `cd reminders && pytest .` would), with GIT_DIR exported at a fake path."""
+    root = tmp_path / ("with_ini" if with_ini else "no_ini")
+    (root / "scripts").mkdir(parents=True)
+    (root / "sub").mkdir()
+    repo = Path(HERE).parent
+    shutil.copyfile(repo / "conftest.py", root / "conftest.py")
+    shutil.copyfile(Path(HERE, "conftest.py"), root / "scripts" / "conftest.py")
+    if with_ini:
+        shutil.copyfile(repo / "pytest.ini", root / "pytest.ini")
+    (root / "sub" / "test_probe.py").write_text(
+        "import os\n\ndef test_no_git_dir():\n    assert os.environ.get('GIT_DIR') is None\n",
+        encoding="utf-8")
+    env = dict(os.environ, GIT_DIR=str(tmp_path / "nonexistent.git"))
+    return subprocess.run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "."],
+                          cwd=root / "sub", env=env, capture_output=True, text=True)
+
+
+def test_proc22_repo_root_pytest_ini_anchors_root_conftest(tmp_path):
+    """PROC-22 (AuditLab, 2026-11-03): with no ini at the repo root, a pytest launched inside
+    reminders/ or social/ takes that subdir as rootdir/confcutdir and never loads the root
+    conftest.py, so GIT_DIR leaks. pytest.ini at the root pins rootdir. Both arms run."""
+    assert Path(HERE).parent.joinpath("pytest.ini").read_text(encoding="utf-8").strip() == "[pytest]"
+    anchored = _subdir_launch(tmp_path, with_ini=True)
+    assert anchored.returncode == 0, anchored.stdout[-2000:] + anchored.stderr[-1000:]
+    assert "configfile: pytest.ini" in anchored.stdout
+    unanchored = _subdir_launch(tmp_path, with_ini=False)  # negative control: the guard is skipped
+    assert unanchored.returncode == 1, unanchored.stdout[-2000:]
+    assert "GIT_DIR" in unanchored.stdout

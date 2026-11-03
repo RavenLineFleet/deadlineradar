@@ -2,7 +2,9 @@
 
 scripts/conftest.py clears git's hook env (GIT_DIR & co.) but is directory-scoped, so test files
 outside scripts/ (reminders/, social/) would run a bare `pytest` from the repo root unguarded.
-This runs the same guard for anything collected under the repo root.
+This runs the same guard for anything collected under the repo root. It is only loaded because
+pytest.ini pins rootdir/confcutdir to the repo root (PROC-22): without it, a pytest launched from
+inside reminders/ or social/ takes that subdir as rootdir and never reaches this file.
 """
 import runpy
 from pathlib import Path
