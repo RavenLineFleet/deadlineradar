@@ -1,0 +1,93 @@
+"""PROC-19 (AuditLab, 2026-11-03): preship_gate must fail when the hook git actually runs
+(core.hooksPath) differs from the tree's own scripts/git-hooks/, and skip inside the reverify job.
+
+    python -m pytest scripts/test_proc19_installed_hook_gate.py -q
+"""
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import preship_gate as gate  # noqa: E402
+
+GIT = shutil.which("git")
+HOOK_V2 = b"#!/bin/sh\npython -m pytest scripts -q || exit 1\npython scripts/preship_gate.py\n"
+HOOK_V1 = b"#!/bin/sh\npython scripts/preship_gate.py\n"
+
+
+def _git(repo, *args):
+    subprocess.run([GIT, *args], cwd=repo, check=True, capture_output=True)
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    if not GIT:
+        pytest.skip("git not on PATH")
+    monkeypatch.delenv("DR_REVERIFY_JOB", raising=False)
+    r = tmp_path / "repo"
+    (r / "scripts" / "git-hooks").mkdir(parents=True)
+    (r / "scripts" / "git-hooks" / "pre-push").write_bytes(HOOK_V2)
+    _git(r, "init", "-q")
+    _git(r, "add", ".")
+    _git(r, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "init")
+    installed = tmp_path / "installed"
+    installed.mkdir()
+    (installed / "pre-push").write_bytes(HOOK_V2)
+    _git(r, "config", "core.hooksPath", str(installed))
+    return r, installed
+
+
+def test_matching_installed_hook_passes(repo):
+    r, _ = repo
+    assert gate.check_installed_git_hooks_match_head(r) == []
+
+
+def test_crlf_copy_of_same_text_passes(repo):
+    r, installed = repo
+    _git(r, "config", "core.autocrlf", "true")
+    (installed / "pre-push").write_bytes(HOOK_V2.replace(b"\n", b"\r\n"))
+    assert gate.check_installed_git_hooks_match_head(r) == []
+
+
+def test_reverted_installed_hook_fails(repo):
+    r, installed = repo
+    (installed / "pre-push").write_bytes(HOOK_V1)  # the PROC-19 shape: HEAD-restore to the PROC-4-only hook
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-19]") and "pre-push" in errs[0]
+
+
+def test_missing_installed_hook_fails(repo):
+    r, installed = repo
+    (installed / "pre-push").unlink()
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and "missing" in errs[0]
+
+
+def test_unset_hooks_path_fails(repo):
+    r, _ = repo
+    _git(r, "config", "--unset", "core.hooksPath")
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and "not set" in errs[0]
+
+
+def test_reverify_job_context_skips(repo, monkeypatch):
+    r, installed = repo
+    (installed / "pre-push").write_bytes(HOOK_V1)
+    monkeypatch.setenv("DR_REVERIFY_JOB", "1")
+    assert gate.check_installed_git_hooks_match_head(r) == []
+
+
+def test_wired_into_main():
+    src = Path(HERE, "preship_gate.py").read_text(encoding="utf-8")
+    body = src[src.index("\ndef main():"):]
+    assert "all_errors += check_installed_git_hooks_match_head(repo_root)" in body
+
+
+def test_reverify_job_sets_skip_flag():
+    src = Path(HERE, "reverify", "job.py").read_text(encoding="utf-8")
+    assert 'os.environ["DR_REVERIFY_JOB"] = "1"' in src

@@ -12,6 +12,7 @@ Usage: python scripts/preship_gate.py [repo_root]
 import hashlib
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -1563,6 +1564,59 @@ def check_no_claude_attribution_in_commit_history(repo_root: Path) -> list[str]:
                 f"'{m.group(0)}' -- this repo is the live public site, visible to anyone browsing "
                 f"its history. Fix going forward with a new commit -- a history rewrite needs "
                 f"Devin's explicit go (force-push hazard); prevention, not erasure, is the standing fix."
+            )
+    return errors
+
+
+def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
+    """PROC-19 (AuditLab, 2026-11-03): core.hooksPath points every worktree at ONE checkout's
+    scripts/git-hooks/, and that checkout sits far behind origin/main, so the PROC-18 pre-push
+    (pytest before preship) exists there only as a dirty working-tree file. A checkout/reset/
+    stash/pull in that tree silently restores the PROC-4-only hook; pushes still pass (preship
+    still runs) and the 476-test suite never reads the installed copy. This check runs on that
+    surviving PROC-4 limb, so a reverted or stale installed hook fails the very next push.
+    Compares every tracked file under HEAD:scripts/git-hooks/ against the installed copy by blob
+    id (`hash-object --path` applies the same autocrlf/attr filters as `git add`, so a CRLF
+    checkout of identical text still matches). Skipped inside the nightly reverify job
+    (DR_REVERIFY_JOB=1): that job runs pytest itself, so a stale hook opens no gap there, and
+    failing it would burn a data-staleness day over a hook only human pushes depend on."""
+    if os.environ.get("DR_REVERIFY_JOB") == "1":
+        return []
+    git = shutil.which("git")
+    if not git:
+        return ["[ERR] git not found on PATH -- cannot verify the installed git hooks (PROC-19)."]
+
+    def run(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run([git, *args], cwd=repo_root, capture_output=True, text=True)
+
+    hooks_cfg = run("config", "--get", "core.hooksPath")
+    if hooks_cfg.returncode != 0 or not hooks_cfg.stdout.strip():
+        return ["[PROC-19] core.hooksPath is not set -- the repo's pre-push gate (pytest + this "
+                "script) never runs on push. Install: git config core.hooksPath <checkout>/scripts/git-hooks"]
+    hooks_dir = Path(hooks_cfg.stdout.strip())
+    if not hooks_dir.is_absolute():
+        hooks_dir = repo_root / hooks_dir
+    tracked = run("ls-tree", "--name-only", "HEAD", "scripts/git-hooks/")
+    names = [Path(n).name for n in tracked.stdout.split() if n]
+    if tracked.returncode != 0 or not names:
+        return [f"[ERR] `git ls-tree HEAD scripts/git-hooks/` returned nothing -- cannot verify "
+                f"the installed git hooks (PROC-19): {tracked.stderr.strip()[:200]}"]
+    errors: list[str] = []
+    for name in names:
+        rel = f"scripts/git-hooks/{name}"
+        installed = hooks_dir / name
+        if not installed.is_file():
+            errors.append(f"[PROC-19] installed hook missing: core.hooksPath has no '{name}', but HEAD "
+                          f"tracks {rel} -- that gate does not run.")
+            continue
+        want = run("rev-parse", f"HEAD:{rel}").stdout.strip()
+        got = run("hash-object", "--path", rel, str(installed)).stdout.strip()
+        if not want or not got or want != got:
+            errors.append(
+                f"[PROC-19] installed hook '{name}' (blob {got[:9] or '?'}) != HEAD:{rel} (blob "
+                f"{want[:9] or '?'}) -- the hook git actually runs on push is not the one this tree "
+                f"ships (reverted by a checkout/reset/stash/pull in the core.hooksPath checkout, or "
+                f"edited without copying). Fix: copy {rel} from this tree into the core.hooksPath dir."
             )
     return errors
 
@@ -10486,6 +10540,7 @@ def main():
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_no_claude_attribution_in_commit_history(repo_root)
+    all_errors += check_installed_git_hooks_match_head(repo_root)
     all_errors += check_no_untracked_secret_looking_files(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
     all_errors += check_focus_indicator_compensation(docs_dir)

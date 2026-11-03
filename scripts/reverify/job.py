@@ -256,6 +256,9 @@ def main():
     push = "--no-push" not in sys.argv
     os.makedirs(STATE_DIR, exist_ok=True)
     _load_cloudflare_env()
+    # PROC-19: preship_gate.py skips its installed-hook check here (this job runs pytest itself);
+    # inherited by the gate subprocess AND the pre-push hook its `git push` triggers.
+    os.environ["DR_REVERIFY_JOB"] = "1"
     try:
         fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.close(fd)
