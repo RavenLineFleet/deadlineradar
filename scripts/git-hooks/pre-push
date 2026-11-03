@@ -18,6 +18,17 @@ if [ -z "$py" ]; then
   exit 1
 fi
 
+# PROC-18 (AuditLab, 2026-11-03): the test suite's only runner was gate #1 of the nightly
+# reverify job, so 830376007 pushed a stale LB-7 assertion and the 11-03 run failed with no
+# data deploy (one staleness day burned). Same invocation as scripts/reverify/job.py, run
+# first so a push fails exactly where the nightly job would. ~95s.
+"$py" -m pytest scripts/reverify scripts -q
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "REJECTED: pytest scripts/reverify scripts failed (rc=$rc) -- push blocked (PROC-18)." >&2
+  exit 1
+fi
+
 "$py" scripts/preship_gate.py
 rc=$?
 if [ "$rc" -ne 0 ]; then
