@@ -68,7 +68,11 @@ def test_lb7_roster_and_boundary():
     # boundary gap: snake_case adjacency must match, as in drbot's filter
     for s in ("_HomeLab", "HomeLab_x", "my-HomeLab", "HomeLab", "HomeLab_P0_sweep"):
         assert gate._PROSE_INTERNAL_NAME_RE.search(s), s
+    # GATE-104 (2026-11-02): the gate is case-insensitive on purpose, so a
+    # lowercase codename like the one that shipped on /firm-dashboard/ matches
+    for s in ("homelab", "difflab_reg_change_engine", "HOMELAB"):
+        assert gate._PROSE_INTERNAL_NAME_RE.search(s), s
     # controls: alnum-adjacent and ordinary text must NOT match
-    for s in ("XHomeLab", "AssetLabs", "homelab", "Halloween", "Moose & Raven LLC",
+    for s in ("XHomeLab", "AssetLabs", "Halloween", "Moose & Raven LLC",
               "the Certified Public Accountant license fee is $85"):
         assert not gate._PROSE_INTERNAL_NAME_RE.search(s), s
