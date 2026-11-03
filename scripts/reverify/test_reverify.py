@@ -446,25 +446,42 @@ def test_maine_gov_uses_browser_ua_override_other_hosts_stay_honest():
     assert "DeadlineRadar-Reverify" in by_host["https://b.gov/x"] and "Mozilla" not in by_host["https://b.gov/x"]
 
 
-def test_tn_gov_uses_browser_ua_override_for_robots_and_page():
-    """2026-11-03: www.tn.gov's WAF 403s the honest UA on /robots.txt and the page, which read
-    as robots_disallow for tennessee-reinstatement two runs running. Both requests to that
-    host must carry the browser UA."""
-    seen = []
+def _http_error(url, code):
+    return urllib.error.HTTPError(url, code, "x", {}, None)
+
+
+def test_gate107_transient_robots_403_is_retried_with_honest_ua():
+    """GATE-107 (AuditLab 2026-11-03): www.tn.gov's robots.txt 403 was intermittent, so a single 403
+    followed by a 200 must NOT read as a blanket disallow, and tn.gov keeps the honest UA."""
+    seen, sleeps, n = [], [], [0]
 
     def opener(req, timeout=None):
         seen.append((req.full_url, req.get_header("User-agent")))
         if req.full_url.endswith("/robots.txt"):
+            n[0] += 1
+            if n[0] == 1:
+                raise _http_error(req.full_url, 403)
             return Resp(b"User-agent: *\nAllow: /")
         return Resp(b"<p>hello</p>")
-    f = Fetcher(opener=opener, sleep=lambda s: None, clock=lambda: 0.0)
+    f = Fetcher(opener=opener, sleep=sleeps.append, clock=lambda: 0.0)
     r = f.get("https://www.tn.gov/commerce/x.html")
-    assert r.ok
-    urls = [url for url, _ in seen]
-    assert "https://www.tn.gov/robots.txt" in urls and "https://www.tn.gov/commerce/x.html" in urls
-    assert all("Mozilla" in ua for _, ua in seen)
-    assert fetch._ua_for("www.tn.gov") == fetch._ua_for("www.maine.gov")
-    assert "DeadlineRadar-Reverify" in fetch._ua_for("b.gov")
+    assert r.ok and n[0] == 2 and fetch.ROBOTS_RETRY_SLEEP_S in sleeps
+    assert all("DeadlineRadar-Reverify" in ua and "Mozilla" not in ua for _, ua in seen)
+    assert "www.tn.gov" not in fetch.UA_HOST_OVERRIDES
+
+
+def test_gate107_persistent_robots_403_still_disallows():
+    """Negative arm: a 403 that persists through the retry is still RFC 9309 disallow, never a bypass."""
+    n = [0]
+
+    def opener(req, timeout=None):
+        if req.full_url.endswith("/robots.txt"):
+            n[0] += 1
+            raise _http_error(req.full_url, 403)
+        return Resp(b"<p>hello</p>")
+    f = Fetcher(opener=opener, sleep=lambda s: None, clock=lambda: 0.0)
+    r = f.get("https://c.gov/x")
+    assert not r.ok and r.reason == "robots_disallow" and n[0] == 2
 
 
 def test_robots_disallow_is_failed_fetch():

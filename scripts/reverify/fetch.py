@@ -42,21 +42,22 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
 # ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
 # override so every other host keeps the honest, self-identifying UA.
-# www.tn.gov (2026-11-03): same WAF pattern -- the honest UA gets 403 on /robots.txt and on the
-# recipe page, read as a blanket disallow; tennessee-reinstatement FAILED two runs in a row
-# (robots_disallow). A browser UA gets 200 on both, and the real robots.txt is
-# "User-agent: * / Allow: /". Covers all 4 tn.gov recipes.
+# www.tn.gov is deliberately NOT here (GATE-107, AuditLab 2026-11-03): its 403 on /robots.txt was
+# intermittent (honest UA 200 on robots + page when re-measured, plus a connection reset on a cold
+# first hit), so the fix is ROBOTS_RETRIES below, not a spoofed UA. A host goes on this list only
+# with a 403 reproduced on demand. Re-test maine.gov whenever its recipes are touched.
 _BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 UA_HOST_OVERRIDES = {
     "www.maine.gov": _BROWSER_UA,
-    "www.tn.gov": _BROWSER_UA,
 }
 TIMEOUT_S = 30
 MIN_INTERVAL_S = 1.0
 RETRIABLE_HTTP_CODES = {403, 429, 503}
 REDIRECT_CODES = {301, 302, 303, 307, 308}
 MAX_REDIRECTS = 5
+ROBOTS_RETRY_SLEEP_S = 2   # GATE-107: one retry on a transient 403/429/503 for robots.txt, same as page fetches.
+#                            A 401/403 that persists still means disallow (RFC 9309); only a one-off blip is retried.
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -202,8 +203,9 @@ class Fetcher:
     def _load_robots(self, scheme: str, host: str):
         rp = urllib.robotparser.RobotFileParser()
         target = f"{scheme}://{host}/robots.txt"
+        retried = False
         try:
-            for _ in range(MAX_REDIRECTS + 1):
+            for _ in range(MAX_REDIRECTS + 2):   # +1 slot for the single GATE-107 retry
                 req = urllib.request.Request(target, headers={"User-Agent": _ua_for(urlparse(target).netloc)})
                 self._throttle(urlparse(target).netloc)
                 try:
@@ -214,6 +216,10 @@ class Fetcher:
                     loc = e.headers.get("Location") if e.headers else None
                     if e.code in REDIRECT_CODES and loc:   # RFC 9309: follow at least 5 redirects
                         target = urljoin(target, loc)
+                        continue
+                    if e.code in RETRIABLE_HTTP_CODES and not retried:
+                        retried = True
+                        self._sleep(ROBOTS_RETRY_SLEEP_S)
                         continue
                     raise
             rp.allow_all = True          # redirect chain too long: treated like an unreachable robots.txt
