@@ -47,8 +47,8 @@ def test_1_dec31_cohort_is_the_verified_12_state_shape():
     slugs = {r["state_slug"] for r in rows}
     assert slugs == {
         "alabama", "arkansas", "connecticut", "dc", "kansas", "louisiana", "maryland",
-        "minnesota", "montana", "nevada", "utah", "wyoming",
-    }, f"state set drifted from AuditLab's verified 12: {sorted(slugs)}"
+        "minnesota", "montana", "nevada", "tennessee", "utah", "wyoming",
+    }, f"state set drifted from AuditLab's verified 13 (SRC-170 added Tennessee): {sorted(slugs)}"
 
     by_slug_row = {r["state_slug"]: r for r in rows}
     # 9 "both" states: individual and firm both land on the target date.
@@ -68,6 +68,11 @@ def test_1_dec31_cohort_is_the_verified_12_state_shape():
         assert row["individual_date"] is None, slug
         assert row["individual_text"], f"{slug} should have a cycle_description fallback"
         assert row["firm_date"] == "2026-12-31", slug
+
+    # Tennessee (SRC-170): no computed date (combined record), but every firm permit expires Dec 31.
+    tn = by_slug_row["tennessee"]
+    assert tn["individual_date"] is None and tn["individual_text"]
+    assert tn["firm_date"] == "2026-12-31"
 
 
 # --- 2. KS/MD show human text, never the raw token ---------------------------
@@ -202,7 +207,7 @@ def _page(by_slug=None):
 def test_6_date_cells_hold_a_date_or_a_flagged_dash_only():
     import re
     cells = _cells(_page())
-    assert len(cells) == 12, sorted(cells)
+    assert len(cells) == 13, sorted(cells)
     ok = re.compile(r"^(December 31, 2026|&mdash; <a href=\"#ye-note-[a-z-]+\">see note</a>|&mdash;)$")
     for slug, pair in cells.items():
         for c in pair:
@@ -236,14 +241,73 @@ def test_9_headline_count_excludes_filing_date_only_alabama():
     import re
     html, _ = generate.build_year_end_renewals_page(_load_by_slug(), date(2026, 11, 4))
     counts = re.findall(r"(\d+) states have a CPA license or firm-permit deadline", html)
-    assert len(counts) == 5 and set(counts) == {"11"}, counts
-    assert "Alabama is listed but not counted in the 11" in html
-    assert len(re.findall(r"<tr><td><a ", html)) == 12
+    assert len(counts) == 5 and set(counts) == {"12"}, counts
+    assert "Alabama is listed but not counted in the 12" in html
+    assert len(re.findall(r"<tr><td><a ", html)) == 13
 
 
 def test_9b_count_rule_mutation_alabama_counted_would_fail(monkeypatch):
-    # Positive control: with the filing-date exclusion emptied, the count reverts to 12 and the
+    # Positive control: with the filing-date exclusion emptied, the count reverts to 13 and the
     # copy guard refuses the build rather than shipping "listed but not counted" next to a 12.
     monkeypatch.setattr(generate, "YEAR_END_FILING_DATE_NOT_EXPIRY", set())
     with pytest.raises(ValueError, match="listed-but-not-counted"):
         generate.build_year_end_renewals_page(_load_by_slug(), date(2026, 11, 4))
+
+
+# --- 10. SRC-170: Dec 31 deadlines on records with no computed date ----------------
+
+def test_10_tennessee_ohio_florida_resolved_on_the_served_page():
+    html = _page()
+    cells = _cells(html)
+    assert cells["tennessee"] == ('&mdash; <a href="#ye-note-tennessee">see note</a>', "December 31, 2026")
+    assert "0020-01-.11(2)" in html[html.index('id="ye-note-tennessee"'):]
+    i = html.index("<h2>Due December 31, 2026 for some licensees only</h2>")
+    section = html[i:]
+    assert 'id="ye-partial-ohio"' in section and "4701.10(A)" in section
+    assert 'id="ye-partial-florida"' in section and "473.311(2)" in section and "December 31, 2027" in section
+    assert "Florida and Ohio individual licenses are listed below the table, not in the count" in html
+    assert "ohio" not in cells and "florida" not in cells
+
+
+def _with_planted_record(by_slug, record):
+    planted = {k: list(v) for k, v in by_slug.items()}
+    planted.setdefault(record["state_slug"], []).append(record)
+    return planted
+
+
+def test_10b_mutation_null_record_with_dec31_expiry_text_refuses_to_build():
+    # The re-verify bar: a next_deadline_computed=null record whose text carries a Dec 31 expiry must be seen.
+    by_slug = _with_planted_record(_load_by_slug(), {
+        "state_slug": "zz-planted", "state": "Zzplanted", "license_type": "individual",
+        "next_deadline_computed": None, "citation": "Zz. Code 1",
+        "cycle_description": "Licenses expire December 31 of each year for everyone.",
+    })
+    with pytest.raises(ValueError, match="zz-planted/individual"):
+        generate.build_year_end_renewals_page(by_slug, date(2026, 11, 4))
+    # control: the same record without Dec 31 text builds
+    by_slug = _with_planted_record(_load_by_slug(), {
+        "state_slug": "zz-planted", "state": "Zzplanted", "license_type": "individual",
+        "next_deadline_computed": None, "citation": "Zz. Code 1",
+        "cycle_description": "Licenses expire June 30 of each year for everyone.",
+    })
+    generate.build_year_end_renewals_page(by_slug, date(2026, 11, 4))
+
+
+def test_10c_reviewed_phrase_removed_from_record_refuses_to_build():
+    by_slug = _load_by_slug()
+    for r in by_slug["ohio"]:
+        if r["license_type"] == "individual":
+            r["cycle_description"] = r["cycle_description"].replace("expire December 31 of the year", "expire on a date")
+    with pytest.raises(ValueError, match="ohio/individual"):
+        generate.build_year_end_renewals_page(by_slug, date(2026, 11, 4))
+
+
+def test_10d_new_computed_dec31_row_is_not_counted_silently():
+    # SRC-169 residual: a new state whose computed Dec 31 might be a fee date must be reviewed, not counted.
+    by_slug = _with_planted_record(_load_by_slug(), {
+        "state_slug": "zz-planted", "state": "Zzplanted", "license_type": "all",
+        "next_deadline_computed": "2026-12-31", "citation": "Zz. Code 1",
+        "cycle_description": "Permits expire September 30; the renewal fee is due by year end.",
+    })
+    with pytest.raises(ValueError, match="zz-planted not hand-reviewed"):
+        generate.build_year_end_renewals_page(by_slug, date(2026, 11, 4))

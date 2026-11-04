@@ -23877,7 +23877,97 @@ YEAR_END_ROW_NOTES = {
     "maryland": ("Individual licenses renew every two years, but the exact expiration date is personal to each "
                  "license rather than one shared date (Md. Code Ann., Bus. Occ. &amp; Prof. 2-311); check your own "
                  "license record. Firm permits share one date: December 31, 2026 (2-407)."),
+    "tennessee": ("Individual CPA certificates and PA registrations renew every two years in an odd- or even-year "
+                  "cohort set by license number (Tenn. Code Ann. 62-1-107(b)), so there is no shared individual "
+                  "date; confirm yours with the Board. Firm permits renew every year and always expire "
+                  "December 31 (Tenn. Comp. R. &amp; Regs. 0020-01-.11(2))."),
 }
+
+# SRC-169 residual (AuditLab 2026-11-04): every state COUNTED in the headline was hand-reviewed as having a licence
+# or permit that genuinely expires on the target date. A row outside this set and YEAR_END_FILING_DATE_NOT_EXPIRY
+# refuses the build, so a new record whose computed Dec 31 is only a fee/filing date can never be counted silently.
+YEAR_END_COUNTED_REVIEWED = {
+    "arkansas", "connecticut", "dc", "kansas", "louisiana", "maryland", "minnesota", "montana", "nevada",
+    "tennessee", "utah", "wyoming",
+}
+
+# SRC-170 (AuditLab 2026-11-04): _year_end_dec31_rows used to admit a state on next_deadline_computed alone, so a
+# genuine December 31 deadline on a record that cannot compute one date (null) never reached the page. Every record
+# whose cycle_description/citation mentions December 31 is hand-reviewed below, keyed (state_slug, license_type).
+# The first two maps carry the exact phrase the review relied on; the build refuses if that phrase is gone from the
+# record (text changed: re-review) or if any record mentions December 31 without an entry in one of the three maps.
+YEAR_END_TEXT_FIRM_EXPIRY = {
+    # Every firm permit in the state expires Dec 31 each year: a shared statewide date, so a counted table row.
+    ("tennessee", "all"): "Firm permits are separate and renew every year, always expiring December 31",
+}
+YEAR_END_PARTIAL_COHORT = {
+    # Only part of the population is due on the target date: listed below the table, not counted.
+    ("ohio", "individual"): (
+        "CPA permits expire December 31 of the year the Board assigns to each licensee",
+        "Individual CPA permits expire December 31 of the year the Board assigns to each licensee and renew every "
+        "three years (Ohio Rev. Code 4701.10(A)), so about a third of Ohio CPAs are due December 31, 2026. Check "
+        "your own permit's assigned year with the Board."),
+    ("florida", "individual"): (
+        "The license itself renews December 31 of that same year",
+        "Individual licenses renew December 31 of the year they expire, on a two-year cycle anchored to each CPA's "
+        "own certificate date (Fla. Stat. 473.311(2); Fla. Admin. Code R. 61H1-33.003(1)(a)). Active licenses carry "
+        "both odd- and even-year expirations, so some Florida CPAs are due December 31, 2026. Florida firm licenses "
+        "expire December 31 of odd-numbered years, so the next firm date is December 31, 2027."),
+}
+YEAR_END_TEXT_REVIEWED_NOT_TARGET = {
+    ("florida", "firm"): "odd-numbered years; next is December 31, 2027",
+    ("pennsylvania", "individual"): "odd-numbered years; next is December 31, 2027",
+    ("georgia", "individual"): "odd-numbered years; next is December 31, 2027",
+    ("oregon", "firm"): "odd-numbered years; next is December 31, 2027",
+    ("alaska", "individual"): "current period ends December 31, 2027",
+    ("alaska", "firm"): "current period ends December 31, 2027",
+    ("hawaii", "all"): "odd-numbered years; next is December 31, 2027",
+    ("michigan", "individual"): "the text debunks a third-party Dec 31 figure; not an official date",
+    ("washington", "individual"): "December 31 is a CPE-completion date, not a licence expiry",
+    ("colorado", "individual"): "December 31 is the odd-year CPE-completion date; renewal is November 30",
+    ("missouri", "individual"): "December 31, 2025 was a past late-renewal window",
+    ("missouri", "firm"): "December 31, 2025 was a past late-renewal window",
+    ("puerto-rico", "individual"): "December 31 is an optional CPE-extension date, not a licence expiry",
+    ("maryland", "individual"): "covered by the Maryland row note: the expiration date is personal to each licence",
+    ("nevada", "firm"): "mentions the individual Dec 31 expiry already on the Nevada row; firm date is Jan 31",
+}
+_YEAR_END_DEC31_TEXT_RE = re.compile(r"Dec(?:ember|\.)?\s*31")
+
+
+def _year_end_text_review(by_slug: dict[str, list[dict]]) -> list[dict]:
+    """SRC-170: refuses the build unless every record outside the computed Dec-31 cohort that mentions December 31
+    has been hand-reviewed, and every reviewed phrase is still in its record. Returns the partial-cohort entries
+    (state_slug, state_name, note) for the 'some licensees only' section."""
+    target = YEAR_END_TARGET_DATE.isoformat()
+    reviewed = set(YEAR_END_TEXT_FIRM_EXPIRY) | set(YEAR_END_PARTIAL_COHORT) | set(YEAR_END_TEXT_REVIEWED_NOT_TARGET)
+    seen: dict[tuple[str, str], dict] = {}
+    unreviewed = []
+    for slug, records in by_slug.items():
+        for r in records:
+            key = (slug, r.get("license_type"))
+            seen[key] = r
+            if r.get("next_deadline_computed") == target:
+                continue
+            text = f'{r.get("cycle_description") or ""} {r.get("citation") or ""}'
+            if _YEAR_END_DEC31_TEXT_RE.search(text) and key not in reviewed:
+                unreviewed.append(f"{slug}/{key[1]}")
+    if unreviewed:
+        raise ValueError(
+            "year-end page: record(s) mention December 31 but have no SRC-170 review entry: "
+            + ", ".join(sorted(unreviewed)) + " -- decide whether each is a Dec 31, 2026 deadline and add it to "
+            "YEAR_END_TEXT_FIRM_EXPIRY, YEAR_END_PARTIAL_COHORT or YEAR_END_TEXT_REVIEWED_NOT_TARGET")
+    anchors = {k: v for k, v in YEAR_END_TEXT_FIRM_EXPIRY.items()}
+    anchors.update({k: v[0] for k, v in YEAR_END_PARTIAL_COHORT.items()})
+    stale = [f"{k[0]}/{k[1]}" for k, phrase in anchors.items()
+             if k not in seen or phrase not in (seen[k].get("cycle_description") or "")]
+    if stale:
+        raise ValueError(
+            "year-end page: the reviewed December 31 phrase is no longer in " + ", ".join(sorted(stale))
+            + " -- the record changed, re-review its year-end treatment")
+    partial = [{"state_slug": k[0], "state_name": seen[k]["state"], "note": note}
+               for k, (_phrase, note) in YEAR_END_PARTIAL_COHORT.items()]
+    partial.sort(key=lambda p: p["state_name"])
+    return partial
 
 
 
@@ -23894,20 +23984,30 @@ def _year_end_dec31_rows(by_slug: dict[str, list[dict]]) -> list[dict]:
     firm-only (individual is a cohort/anniversary pattern, not a shared
     date) -- see each state's own callout on the page for why."""
     target = YEAR_END_TARGET_DATE.isoformat()
+    # SRC-170: a hand-reviewed record whose every firm permit expires Dec 31 (no computable single date because the
+    # record also covers an individual cohort) joins the table too; _year_end_text_review checks its phrase.
+    text_firm_slugs = {
+        slug for (slug, lt) in YEAR_END_TEXT_FIRM_EXPIRY
+        if any(r.get("license_type") == lt and YEAR_END_TEXT_FIRM_EXPIRY[(slug, lt)] in (r.get("cycle_description") or "")
+               for r in by_slug.get(slug, []))
+    }
     rows = []
     for slug, records in by_slug.items():
-        if not any(r.get("next_deadline_computed") == target for r in records):
+        if slug not in text_firm_slugs and not any(r.get("next_deadline_computed") == target for r in records):
             continue
         individual = _individual_relevant_record(records)
         firm = _firm_relevant_record(records)
         ind_date = individual.get("next_deadline_computed") if individual else None
         ind_text = _first_meaningful_sentence(individual["cycle_description"]) if individual and not ind_date else None
+        firm_date = firm.get("next_deadline_computed") if firm else None
+        if slug in text_firm_slugs and firm_date is None:
+            firm_date = target
         rows.append({
             "state_slug": slug,
             "state_name": records[0]["state"],
             "individual_date": ind_date,
             "individual_text": ind_text,
-            "firm_date": firm.get("next_deadline_computed") if firm else None,
+            "firm_date": firm_date,
         })
     rows.sort(key=lambda r: r["state_name"])
     return rows
@@ -23966,6 +24066,25 @@ own page always carries its next actual deadline.</p>
         raise ValueError(
             "year-end page: the field-hint copy names Alabama as the only listed-but-not-counted state; "
             f"rows now give {filing_only_names!r} -- update the copy before building")
+    unreviewed_rows = sorted(
+        {r["state_slug"] for r in rows} - YEAR_END_COUNTED_REVIEWED - YEAR_END_FILING_DATE_NOT_EXPIRY)
+    if unreviewed_rows:
+        raise ValueError(
+            "year-end page: new Dec 31 row(s) " + ", ".join(unreviewed_rows) + " not hand-reviewed -- confirm the "
+            "licence/permit really expires on the target date (YEAR_END_COUNTED_REVIEWED) or that it is a fee/filing "
+            "date only (YEAR_END_FILING_DATE_NOT_EXPIRY) before it is counted")
+    partial_cohort = _year_end_text_review(by_slug)
+    partial_names = " and ".join(p["state_name"] for p in partial_cohort)
+    partial_html = "\n".join(
+        f'<div class="callout" id="ye-partial-{esc(p["state_slug"])}"><p class="rule"><strong>'
+        f'<a href="../{esc(p["state_slug"])}/">{esc(p["state_name"])}</a>:</strong> {esc(p["note"])}</p></div>'
+        for p in partial_cohort
+    )
+    partial_section = (
+        f'<h2>Due December 31, 2026 for some licensees only</h2>\n{partial_html}\n' if partial_cohort else "")
+    partial_hint = (
+        f" {esc(partial_names)} individual licenses are listed below the table, not in the count: only some of "
+        "their licensees are due this year." if partial_cohort else "")
 
     # NV-2 / TABLE-4 (AuditLab 2026-10-13): a date column may hold a date and nothing else. A row whose
     # individual cell has no shared date (Kansas/Maryland) or whose firm record carries a different KIND
@@ -24021,7 +24140,7 @@ due &mdash; free for up to 3 people, self-serve, no demo call.</p>
 CPE-<em>reporting</em> deadline also falls on December 31, but isn't a licence or firm-permit deadline
 and isn't on this table. Alabama is listed but not counted in the {state_count}: its permits expire
 September 30, and December 31 is the deadline to pay the renewal fee and file the CPE compliance
-statement for the permit that expired (see its note below).</p>
+statement for the permit that expired (see its note below).{partial_hint}</p>
 
 <div class="table-wrap">
   <table>
@@ -24038,7 +24157,7 @@ statement for the permit that expired (see its note below).</p>
   list.</p>
 </div>
 {state_notes}
-
+{partial_section}
 <p><strong>Check your state and set up a reminder, free for up to 3 people.</strong>
 <a href="../firm-login/#dr-view-signup">No demo call, no card &rarr;</a></p>
 <p class="backlink"><a href="../">&larr; Back to all states</a></p>
