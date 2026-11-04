@@ -228,3 +228,22 @@ def test_8_a_flagged_row_without_a_reviewed_note_refuses_to_build(monkeypatch):
     monkeypatch.setattr(generate, "YEAR_END_ROW_NOTES", notes)
     with pytest.raises(ValueError, match="nevada"):
         _page()
+
+
+def test_9_headline_count_excludes_filing_date_only_alabama():
+    # SRC-169 (AuditLab 2026-11-04): 12 rows, but Alabama's Dec 31 is a fee/CPE-statement date
+    # (permits expire Sept 30), so every count surface must say 11, never 12.
+    import re
+    html, _ = generate.build_year_end_renewals_page(_load_by_slug(), date(2026, 11, 4))
+    counts = re.findall(r"(\d+) states have a CPA license or firm-permit deadline", html)
+    assert len(counts) == 5 and set(counts) == {"11"}, counts
+    assert "Alabama is listed but not counted in the 11" in html
+    assert len(re.findall(r"<tr><td><a ", html)) == 12
+
+
+def test_9b_count_rule_mutation_alabama_counted_would_fail(monkeypatch):
+    # Positive control: with the filing-date exclusion emptied, the count reverts to 12 and the
+    # copy guard refuses the build rather than shipping "listed but not counted" next to a 12.
+    monkeypatch.setattr(generate, "YEAR_END_FILING_DATE_NOT_EXPIRY", set())
+    with pytest.raises(ValueError, match="listed-but-not-counted"):
+        generate.build_year_end_renewals_page(_load_by_slug(), date(2026, 11, 4))

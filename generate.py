@@ -23922,7 +23922,7 @@ def build_year_end_renewals_page(by_slug: dict[str, list[dict]], real_today: dat
     have `computation: null` -- nothing rolls next_deadline_computed
     forward, so without an explicit expiry the page would keep presenting
     December 31, 2026 as an upcoming deadline forever (verified by AuditLab:
-    the build query still returns the same 12 states as of a simulated
+    the build query still returns the same 12 rows (11 counted, SRC-169) as of a simulated
     2027-02-01). Past YEAR_END_TARGET_DATE, this renders a short "these
     deadlines have passed" notice instead of the table, with
     noindex,follow -- the caller must also drop it from the sitemap (see
@@ -23951,7 +23951,21 @@ own page always carries its next actual deadline.</p>
         ), True
 
     rows = _year_end_dec31_rows(by_slug)
-    state_count = len(rows)
+    # SRC-169 (AuditLab 2026-11-04): the headline count is the states with a licence or permit that genuinely
+    # falls due on the target date, NOT len(rows). A row enters the table on next_deadline_computed alone, so a
+    # state whose Dec 31 is only a fee/filing date (Alabama: permits expire Sept 30) is listed with a note but
+    # must never inflate the count printed in the H1-adjacent copy and SEO metadata.
+    _target_iso = YEAR_END_TARGET_DATE.isoformat()
+    state_count = sum(
+        1 for r in rows
+        if r["state_slug"] not in YEAR_END_FILING_DATE_NOT_EXPIRY
+        and _target_iso in (r["individual_date"], r["firm_date"])
+    )
+    filing_only_names = [r["state_name"] for r in rows if r["state_slug"] in YEAR_END_FILING_DATE_NOT_EXPIRY]
+    if filing_only_names != ["Alabama"]:
+        raise ValueError(
+            "year-end page: the field-hint copy names Alabama as the only listed-but-not-counted state; "
+            f"rows now give {filing_only_names!r} -- update the copy before building")
 
     # NV-2 / TABLE-4 (AuditLab 2026-10-13): a date column may hold a date and nothing else. A row whose
     # individual cell has no shared date (Kansas/Maryland) or whose firm record carries a different KIND
@@ -24003,9 +24017,11 @@ day this year. If your firm has staff licensed in any of them, here's what's act
 <p class="intro">{state_count} states have a CPA license or firm-permit deadline (or both) due
 December 31, 2026. Deadline-Radar tracks every one automatically and sends a reminder before each is
 due &mdash; free for up to 3 people, self-serve, no demo call.</p>
-<p class="field-hint">Covers individual licenses and firm permits only &mdash; Alabama's and
-Minnesota's CPE-<em>reporting</em> deadlines also fall on December 31, but aren't licence or
-firm-permit deadlines and aren't on this table.</p>
+<p class="field-hint">Covers individual licenses and firm permits only &mdash; Minnesota's
+CPE-<em>reporting</em> deadline also falls on December 31, but isn't a licence or firm-permit deadline
+and isn't on this table. Alabama is listed but not counted in the {state_count}: its permits expire
+September 30, and December 31 is the deadline to pay the renewal fee and file the CPE compliance
+statement for the permit that expired (see its note below).</p>
 
 <div class="table-wrap">
   <table>
