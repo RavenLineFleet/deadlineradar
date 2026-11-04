@@ -259,12 +259,12 @@
     {
       "state": "Vermont", "state_slug": "vermont",
       "qualifying_pathways": [
-        "Post-baccalaureate degree with accounting concentration + 1 year public accounting experience",
-        "150+ semester hours including a baccalaureate and 42 accounting hours + 1 year experience",
-        "Baccalaureate degree with accounting concentration + 2 years experience"
+        "Post-baccalaureate degree with a concentration in accounting or an equivalent + 1 year of experience in public accounting",
+        "150+ semester hours including a baccalaureate and 42 semester hours of accounting, auditing, and related subjects + 1 year of experience in public accounting",
+        "Baccalaureate degree with a concentration in accounting or an equivalent + 2 years of experience in public accounting"
       ],
       "exam_required": true, "grandfather_date": "2024-12-31",
-      "grandfather_note": "Anyone who held a valid active out-of-state CPA license and had Vermont practice privileges as of December 31, 2024 retains those privileges without meeting the new Act 119 individual criteria.",
+      "grandfather_note": "Anyone whose principal place of business is not in Vermont, who holds a valid active CPA license from any state, and who had Vermont practice privileges under 26 V.S.A. 74c as of December 31, 2024 retains those privileges without meeting the new Act 119 individual criteria.",
       "extraction_confidence": "clear", "ambiguity_note": null,
       "citation": "26 V.S.A. §§ 74, 74c, as amended by 2026 Vt. Acts & Resolves No. 119 (H.588), Secs. 8-10, eff. June 8, 2026; § 75(c); Vt. Bd. of Public Accountancy Admin. Rules 6.1, 10.7"
     },
