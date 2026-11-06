@@ -3312,11 +3312,6 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_invite", RATE_LIMIT_FIRM_MEMBER_INVITE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many invites sent today for this firm. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -3352,6 +3347,13 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   }
 
   const name = sanitizeFreeText(nameRaw, MAX_ADMIN_NAME_LEN);
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_invite", RATE_LIMIT_FIRM_MEMBER_INVITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many invites sent today for this firm. Please try again in 24 hours." });
+  }
 
   const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
   if (stepUp) return stepUp;
@@ -3398,11 +3400,6 @@ async function handleFirmMemberRoleChange(request: Request, env: Env, memberId: 
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_role_change", RATE_LIMIT_FIRM_MEMBER_ROLE_CHANGE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   // DEMO-9 (AuditLab, 2026-08-22): /firm/demo-login mints a Partner session
   // with no memberId, so this is reachable by any anonymous demo visitor --
   // same class Task #27 fixed for billing/email/account-deletion, missed
@@ -3438,6 +3435,13 @@ async function handleFirmMemberRoleChange(request: Request, env: Env, memberId: 
     }
   }
 
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_role_change", RATE_LIMIT_FIRM_MEMBER_ROLE_CHANGE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
   const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
   if (stepUp) return stepUp;
 
@@ -3464,11 +3468,6 @@ async function handleFirmMemberRemove(request: Request, env: Env, memberId: stri
 
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
-
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_remove", RATE_LIMIT_FIRM_MEMBER_REMOVE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
 
   // DEMO-9 (AuditLab, 2026-08-22): same reachability as
   // handleFirmMemberRoleChange's identical comment above -- this also ends
@@ -3514,6 +3513,13 @@ async function handleFirmMemberRemove(request: Request, env: Env, memberId: stri
 
   const removePassword = await readTeamChangePassword(request);
   if (removePassword instanceof Response) return removePassword;
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_remove", RATE_LIMIT_FIRM_MEMBER_REMOVE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
   const stepUp = await requireTeamChangeStepUp(env, session, removePassword);
   if (stepUp) return stepUp;
 
@@ -3542,11 +3548,6 @@ async function handleFirmMemberMakePrimary(request: Request, env: Env, memberId:
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_make_primary", RATE_LIMIT_FIRM_MEMBER_MAKE_PRIMARY);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   // DEMO-9 (AuditLab, 2026-08-22): same reachability as the two sibling
   // handlers above -- this repoints firms.primary_member_id, the exact
   // value every future /firm/demo-login session is minted as.
@@ -3574,6 +3575,13 @@ async function handleFirmMemberMakePrimary(request: Request, env: Env, memberId:
 
   const primaryPassword = await readTeamChangePassword(request);
   if (primaryPassword instanceof Response) return primaryPassword;
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_make_primary", RATE_LIMIT_FIRM_MEMBER_MAKE_PRIMARY);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
   const stepUp = await requireTeamChangeStepUp(env, session, primaryPassword);
   if (stepUp) return stepUp;
 
@@ -8282,11 +8290,6 @@ async function handleTestimonialSubmit(request: Request, env: Env): Promise<Resp
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_testimonial", RATE_LIMIT_FIRM_TESTIMONIAL);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -8300,6 +8303,13 @@ async function handleTestimonialSubmit(request: Request, env: Env): Promise<Resp
   if (!quoteText) {
     return jsonResponse(400, { error: "Please enter a quote before submitting." });
   }
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_testimonial", RATE_LIMIT_FIRM_TESTIMONIAL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
   const canPublish = body.can_publish === true;
 
   // AuditLab DEMO-3 class -- a demo visitor's "testimonial" is not a real
@@ -10210,13 +10220,15 @@ async function handleFirmPacketExport(request: Request, env: Env, subscriberId: 
   const valueLineDenial = valueLineDenialResponse(session.firm);
   if (valueLineDenial) return valueLineDenial;
 
+  const license = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
+  if (!license) return jsonResponse(404, { error: "Not found." });
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_packet_export", RATE_LIMIT_FIRM_PACKET_EXPORT);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
-
-  const license = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
-  if (!license) return jsonResponse(404, { error: "Not found." });
 
   const [documents, checklistItems, attestations] = await Promise.all([
     store.listDocumentsForSubscriber(env.DB, session.firmId, subscriberId),
@@ -12422,6 +12434,30 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
+  // SEC-70: shape refusals sit above the slot, because this bucket is shared
+  // with /enroll/confirm and 8 malformed POSTs would otherwise veto both. The
+  // limiter stays above the two D1 reads and the password check below it.
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+  if (raw.length > MAX_BODY_BYTES) {
+    return jsonResponse(400, { error: "Request too large." });
+  }
+  let body: Record<string, unknown> = {};
+  if (raw.length > 0) {
+    try {
+      body = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return jsonResponse(400, { error: "Something went wrong processing that request." });
+    }
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+
   const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_enroll", RATE_LIMIT_FIRM_2FA_ENROLL);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
@@ -12461,23 +12497,6 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
   // is passwordResetAuthorized (already proved control of the inbox via a
   // fresh reset link). SEC-48: the no-password case is no longer skipped --
   // it needs a recent sign-in instead (passwordlessReauthRequired).
-  let raw: string;
-  try {
-    raw = await request.text();
-  } catch {
-    return jsonResponse(400, { error: "Something went wrong processing that request." });
-  }
-  if (raw.length > MAX_BODY_BYTES) {
-    return jsonResponse(400, { error: "Request too large." });
-  }
-  let body: Record<string, unknown> = {};
-  if (raw.length > 0) {
-    try {
-      body = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      return jsonResponse(400, { error: "Something went wrong processing that request." });
-    }
-  }
   const currentPassword = typeof body.current_password === "string" ? body.current_password : "";
   if (member.password_hash && !session.passwordResetAuthorized) {
     const currentOk = await verifyPassword(
@@ -12660,11 +12679,6 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_disable", RATE_LIMIT_FIRM_2FA_DISABLE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     return jsonResponse(400, { error: "Expected a JSON request body." });
@@ -12691,6 +12705,13 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
   const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!code) {
     return jsonResponse(400, { error: "Enter a current code from your authenticator app, or a backup code." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_disable", RATE_LIMIT_FIRM_2FA_DISABLE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const firm = await store.getFirmById(env.DB, session.firmId);
@@ -12800,8 +12821,8 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
  * This key is a security invariant (SEC-68 ruling A). A stolen session can
  * still spend the member's 2FA bucket, and that is only acceptable because
  * the owner can sign back in, come here, and end that session on a budget
- * the thief can't touch. It is the one limiter in this
- * file keyed on sessionId; don't normalise it to firmId or memberId.
+ * the thief can't touch. This and firm_session_revoke are the only limiters
+ * in this file keyed on sessionId; don't normalise them to firmId or memberId.
  * sec68-firm-stepup-order.spec.ts pins it.
  */
 async function handleFirmSignOutOtherDevices(request: Request, env: Env): Promise<Response> {
@@ -12901,11 +12922,6 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_change_email", RATE_LIMIT_FIRM_CHANGE_EMAIL);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   // CSRF defense-in-depth -- see readFirmLicenseJsonBody()'s own comment.
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
@@ -12939,6 +12955,13 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   if (await store.isEmailBlocklisted(env.DB, newEmailRaw)) {
     return jsonResponse(400, { error: "We're not able to use that address right now." });
   }
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_change_email", RATE_LIMIT_FIRM_CHANGE_EMAIL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
   const currentPassword = typeof body.current_password === "string" ? body.current_password : "";
 
   const firm = await store.getFirmById(env.DB, session.firmId);
@@ -13535,7 +13558,11 @@ async function handleFirmSessionRevoke(request: Request, env: Env, id: string): 
     return jsonResponse(400, { error: "Use Log out to end your own current session." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_session_revoke", RATE_LIMIT_FIRM_SESSION_REVOKE);
+  // SEC-71: keyed per session, like firm_signout_other, because this is an
+  // eviction control. A firm-wide key let any member veto it for the whole
+  // firm with 10 bogus ids, and a per-member key would still let a stolen
+  // session drain it for the owner it is meant to help.
+  const allowed = await checkRateLimit(env.DB, session.sessionId, "firm_session_revoke", RATE_LIMIT_FIRM_SESSION_REVOKE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
@@ -13704,11 +13731,6 @@ async function handleFirmMobilityFirmCheck(request: Request, env: Env): Promise<
   const session = await requireFirmSessionAndPaidTier(request, env);
   if (session instanceof Response) return session;
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_mobility_check", RATE_LIMIT_FIRM_MOBILITY_CHECK);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many requests. Please try again later." });
-  }
-
   let raw: string;
   try {
     raw = await request.text();
@@ -13737,6 +13759,13 @@ async function handleFirmMobilityFirmCheck(request: Request, env: Env): Promise<
   // discipline as handleMobilityCheck()'s own validation.
   if (!stateNameForSlug(firmHomeStateSlug) || !stateNameForSlug(targetStateSlug)) {
     return jsonResponse(400, { error: "Please choose both your firm's home state and a target state." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_mobility_check", RATE_LIMIT_FIRM_MOBILITY_CHECK);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests. Please try again later." });
   }
 
   const finding = evaluateFirmMobility(
