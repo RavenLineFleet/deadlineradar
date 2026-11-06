@@ -3247,6 +3247,9 @@ async function requireTeamChangeStepUp(
     }
     return null;
   }
+  // Recency alone, on purpose. Reset authority covers setting your own
+  // password, not changing a colleague's role, so this gate doesn't honour
+  // passwordResetAuthorized the way the credential gates do.
   if (!session.recentlyAuthenticated) {
     return passwordlessReauthRequired();
   }
@@ -12793,6 +12796,13 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
  * while its victim gets "too many attempts." Per-session means every NEW
  * session (i.e. the owner signing back in) always starts with a clean
  * budget, regardless of what an old, possibly-stolen session already spent.
+ *
+ * This key is a security invariant (SEC-68 ruling A). A stolen session can
+ * still spend the member's 2FA bucket, and that is only acceptable because
+ * the owner can sign back in, come here, and end that session on a budget
+ * the thief can't touch. It is the one limiter in this
+ * file keyed on sessionId; don't normalise it to firmId or memberId.
+ * sec68-firm-stepup-order.spec.ts pins it.
  */
 async function handleFirmSignOutOtherDevices(request: Request, env: Env): Promise<Response> {
   const session = await requireFirmSession(request, env);

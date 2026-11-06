@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 import { hashPassword } from "../src/password";
 import { generateTotp } from "../src/totp";
-import { RATE_LIMIT_FIRM_2FA_ENROLL } from "../src/validation";
+import { RATE_LIMIT_FIRM_2FA_ENROLL, RATE_LIMIT_FIRM_SIGNOUT_OTHER } from "../src/validation";
 
 const BASE = "https://deadline-radar.com";
 const KEY = randomKeyBase64();
@@ -241,5 +241,42 @@ describe("SEC-68: a stolen stale session has no veto on 2FA enrollment", () => {
     // enroll spent one slot, so the eighth attempt is the first refused.
     expect(statuses.slice(0, 7)).toEqual(Array(7).fill(400));
     expect(statuses[7]).toBe(429);
+  });
+});
+
+describe("SEC-68 ruling A: the owner's way out of the surviving veto", () => {
+  it("a thief who drains the 2FA and sign-out buckets still can't stop the owner ending their session", async () => {
+    const f = await firm({ password: true });
+    await age(f.sessionId);
+
+    for (let i = 0; i < RATE_LIMIT_FIRM_2FA_ENROLL.max; i++) {
+      await call("POST", "/firm/2fa/enroll", f.cookie, { current_password: "not-the-password" }, uniqueIp());
+    }
+    for (let i = 0; i < RATE_LIMIT_FIRM_SIGNOUT_OTHER.max; i++) {
+      expect((await call("POST", "/firm/sign-out-other-devices", f.cookie, {}, uniqueIp())).status).toBe(200);
+    }
+    expect((await call("POST", "/firm/sign-out-other-devices", f.cookie, {}, uniqueIp())).status).toBe(429);
+    expect(await slots(f.sessionId, "firm_signout_other")).toBe(RATE_LIMIT_FIRM_SIGNOUT_OTHER.max);
+
+    // The owner signs back in. The veto is real, which is why this route matters.
+    const owner = await store.createSession(env.DB, f.firmId, f.memberId);
+    const ownerCookie = `dr_firm_session=${owner.rawSessionToken}`;
+    expect((await call("POST", "/firm/2fa/enroll", ownerCookie, { current_password: PASSWORD }, uniqueIp())).status).toBe(429);
+
+    const out = await call("POST", "/firm/sign-out-other-devices", ownerCookie, {}, uniqueIp());
+    expect(out.status).toBe(200);
+    expect((await out.json<{ other_sessions_ended: number }>()).other_sessions_ended).toBe(1);
+
+    const thiefToken = f.cookie.slice("dr_firm_session=".length);
+    expect(await store.verifySession(env.DB, thiefToken)).toBeNull();
+    expect(await store.verifySession(env.DB, owner.rawSessionToken)).not.toBeNull();
+  });
+});
+
+describe("SEC-68 ruling C: the reset-authority clause in passwordlessStaleRefusal", () => {
+  it("stays unreachable while reset authority can't outlive the recency window", () => {
+    // Lengthening the reset TTL makes that clause live, and the team gates ignore
+    // reset authority, so those four sites would spend a slot on a refusal again.
+    expect(store.PASSWORD_RESET_AUTHORITY_TTL_MINUTES).toBeLessThanOrEqual(store.RECENT_AUTH_WINDOW_MINUTES);
   });
 });
