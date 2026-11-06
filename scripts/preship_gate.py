@@ -4452,6 +4452,46 @@ _PARTIAL_CITATION_ADMISSION_RE = re.compile(
 )
 
 
+# SRC-179: fields that are not this project's own page-bound prose, so an
+# admission-shaped match in them says nothing about what a page claims.
+# Everything else is scanned, so a prose field added later is covered by default.
+_CITE29_NOT_PROSE_FIELDS = frozenset({
+    "citation_url", "source_url", "secondary_source_url", "url",
+    "manual_verified_raw_hash",
+    "manual_verified_anchor",  # a quote from the source, not our wording
+    "verification_history", "verification_note",  # audit trail, never rendered
+})
+# SRC-179: how each dataset's pages stop a confident sourcing claim sitting beside
+# an admission. citation_covers_full_claim is read only by trust_line()'s callers,
+# which take cpa_deadlines and reinstatement records. cpe_hours pages key off
+# hours_basis_note instead (SRC-175/176). _renewal_fee_html reads neither.
+_CITE29_CLEARED_BY = {
+    "cpa_deadlines": "citation_covers_full_claim",
+    "reinstatement": "citation_covers_full_claim",
+    "cpe_hours": "hours_basis_note",
+    "renewal_fees": None,
+}
+
+
+def _cite29_prose_fields(record: dict, prefix: str = ""):
+    """Yield (path, text) for every string in a record, nested ones included,
+    except _CITE29_NOT_PROSE_FIELDS."""
+    for key, value in record.items():
+        if key in _CITE29_NOT_PROSE_FIELDS:
+            continue
+        path = f"{prefix}{key}"
+        if isinstance(value, str):
+            yield path, value
+        elif isinstance(value, dict):
+            yield from _cite29_prose_fields(value, f"{path}.")
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, str):
+                    yield path, item
+                elif isinstance(item, dict):
+                    yield from _cite29_prose_fields(item, f"{path}.")
+
+
 def check_partial_citation_flag_set(repo_root: Path) -> list[str]:
     """A record whose prose admits its own citation doesn't establish the full
     claim must set citation_covers_full_claim=False -- otherwise trust_line()
@@ -4485,30 +4525,59 @@ def check_partial_citation_flag_set(repo_root: Path) -> list[str]:
     replicating the gate against both fields independently), but exactly the
     population -- records that already disclose a gap -- most likely to pick
     up admission-shaped prose in a future edit. Now scans both fields
-    independently per record rather than taking the first truthy one."""
+    independently per record rather than taking the first truthy one.
+
+    SRC-179 (AuditLab, 2026-11-06): CITE-32 widened the files but not the
+    fields. cpe_hours, reinstatement and renewal_fees have no
+    cycle_description, so the gate examined 95 of 246 records and never read
+    fee_notes (54/55 populated). It now scans every prose field. CITE-32's
+    "dataset-agnostic" claim above was also wrong in practice: no fee or CPE
+    record reaches trust_line(), so the flag suppressed nothing there and only
+    removed the record from this scan. _CITE29_CLEARED_BY now names what clears
+    each dataset, and the flag is an error on a dataset that never reads it."""
     errors = []
     for name in ("cpa_deadlines", "cpe_hours", "reinstatement", "renewal_fees"):
         data_path = repo_root / "data" / f"{name}.json"
         if not data_path.exists():
             continue
         data = json.loads(data_path.read_text(encoding="utf-8"))
+        cleared_by = _CITE29_CLEARED_BY[name]
         for r in data["records"]:
+            if cleared_by != "citation_covers_full_claim" and "citation_covers_full_claim" in r:
+                errors.append(
+                    f"[CITE29][{name}.json:{r.get('id')}] sets citation_covers_full_claim, but no "
+                    f"{name} page reads it, so it discloses nothing. Remove it."
+                )
             if r.get("citation_class") == "operational_record":
                 continue  # trust_line() never renders the codified-law sentence for these -- no contradiction possible
-            if r.get("citation_covers_full_claim", True) is False:
+            if cleared_by == "citation_covers_full_claim" and r.get(cleared_by, True) is False:
                 continue  # already flagged -- the contradiction is already suppressed
-            for field in ("cycle_description", "data_gap_note"):
-                prose = r.get(field)
-                if not isinstance(prose, str):
-                    continue
+            if cleared_by == "hours_basis_note" and r.get(cleared_by):
+                continue  # already disclosed -- the sourced-to-the-rule wording is already suppressed
+            for field, prose in _cite29_prose_fields(r):
                 match = _PARTIAL_CITATION_ADMISSION_RE.search(prose)
                 if not match:
                     continue
+                if cleared_by == "citation_covers_full_claim":
+                    remedy = (
+                        "but citation_covers_full_claim is unset (defaults True) -- trust_line() will "
+                        "render the confident 'not just a board webpage' sentence directly beside this "
+                        "admission. Set citation_covers_full_claim: false."
+                    )
+                elif cleared_by == "hours_basis_note":
+                    remedy = (
+                        "but hours_basis_note is unset -- the page will say the figure is sourced to "
+                        "the state's rule. Set hours_basis_note."
+                    )
+                else:
+                    remedy = (
+                        "and _renewal_fee_html has no flag that discloses this -- it links the citation "
+                        "as 'read the rule'. Name the real source in fee_notes, or add a disclosure "
+                        "to the renderer."
+                    )
                 errors.append(
                     f"[CITE29][{name}.json:{r.get('id')}] {field} admits its citation doesn't establish "
-                    f"the full claim ({match.group(0)!r}), but citation_covers_full_claim is unset "
-                    f"(defaults True) -- trust_line() will render the confident 'not just a board "
-                    f"webpage' sentence directly beside this admission. Set citation_covers_full_claim: false."
+                    f"the full claim ({match.group(0)!r}), {remedy}"
                 )
     return errors
 
