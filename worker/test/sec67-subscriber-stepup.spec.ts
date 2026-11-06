@@ -119,6 +119,39 @@ describe("SEC-67: POST /subscriber/change-email step-up", () => {
     expect(await changeTokenCount(s.email)).toBe(1);
   });
 
+  it("refusals don't spend the send throttle, so the 403's own remedy still works after six of them", async () => {
+    const s = await subscriber("bucket");
+    await ageSession(s.sessionId, STALE);
+    const target = `sec67-bucket-new-${Date.now()}@example.com`;
+    for (let i = 0; i < 6; i++) {
+      expect((await post("/subscriber/change-email", s.cookie, { new_email: target }, "203.0.113.197")).status).toBe(403);
+    }
+    const again = await store.createSubscriberSession(env.DB, store.normalizeEmail(s.email));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
+    try {
+      const resp = await post("/subscriber/change-email", `dr_sub_session=${again.rawSessionToken}`, { new_email: target }, "203.0.113.198");
+      expect(resp.status).toBe(200);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+    expect(await changeTokenCount(s.email)).toBe(1);
+  });
+
+  it("the send throttle still applies to a fresh session", async () => {
+    const s = await subscriber("throttle");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
+    const statuses: number[] = [];
+    try {
+      for (let i = 0; i < 6; i++) {
+        const resp = await post("/subscriber/change-email", s.cookie, { new_email: `sec67-throttle-${i}-${Date.now()}@example.com` }, "203.0.113.199");
+        statuses.push(resp.status);
+      }
+    } finally {
+      fetchSpy.mockRestore();
+    }
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+  });
+
   it("a stale session on a taken address gets the same 403, so the refusal adds no account-existence oracle", async () => {
     const s = await subscriber("oracle");
     const taken = await subscriber("oracle-taken");

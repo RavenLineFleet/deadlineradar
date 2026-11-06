@@ -5120,13 +5120,16 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  // Before the limiter: a refusal sends no mail, and the bucket is keyed on an
+  // email that signing back in doesn't change, so counting refusals would answer
+  // the 403's own remedy with a 429 for up to an hour.
+  if (!session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
+  }
+
   const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_change_email", RATE_LIMIT_SUBSCRIBER_CHANGE_EMAIL);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
-  if (!session.recentlyAuthenticated) {
-    return passwordlessReauthRequired();
   }
 
   const contentType = request.headers.get("content-type") ?? "";

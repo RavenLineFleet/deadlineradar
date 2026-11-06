@@ -1974,7 +1974,8 @@ export const PASSWORD_RESET_AUTHORITY_TTL_MINUTES = 15;
 // for them, so without this a stolen session could delete the firm, enroll
 // 2FA, change the login email or set a password with no re-proof at all.
 // Every session row is minted only by a credential-proving sign-in and
-// created_at is never rewritten, so its age is the age of that proof. Its
+// created_at is never rewritten, so its age is the age of that proof. The same
+// holds for subscriber_sessions, which SEC-67 gates on this window too. Its
 // own literal for the same reason as the constant above.
 export const RECENT_AUTH_WINDOW_MINUTES = 15;
 
