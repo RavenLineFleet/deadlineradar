@@ -516,6 +516,13 @@ describe("SRC-80 regression -- in_force_status/needs_reverification mirror the H
     expect(result[0]!.in_force_status).toBeNull();
   });
 
+  it.each(["PROPOSED", "SOURCE_CONFLICT"])("STATUS-10 -- %s with no effective_date -> not_adopted, not null", async (status) => {
+    mockEvents([{ ...base, event_id: "s10", status, effective_date: null, verified_date: "2026-10-05", upcoming: false }]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result[0]!.in_force_status).toBe("not_adopted");
+  });
+
   it("STATUS-4 -- PROPOSED with a future effective_date -> not_adopted, never the same value as an ENACTED upcoming change", async () => {
     mockEvents([
       { ...base, event_id: "g", status: "PROPOSED", effective_date: "2028-01-01", verified_date: "2026-08-29", upcoming: true, needs_reverification: false },

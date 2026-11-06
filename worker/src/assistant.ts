@@ -307,6 +307,9 @@ function ruleChangeInForceStatus(
   asOfISODate: string
 ): RuleChangeInForceStatus {
   const eff = typeof e.effective_date === "string" ? e.effective_date : null;
+  // AuditLab STATUS-10 (2026-11-04): the adoption test comes before the date guard, or a
+  // proposal with no effective date reads null instead of not_adopted.
+  if (e.status !== "ENACTED" && e.status !== "ADOPTED_RULE") return "not_adopted";
   if (!eff) return null;
   // AuditLab STATUS-4 (2026-10-25): every arm below is timing-only, so a
   // PROPOSED record with a future date came back "upcoming" -- the same value
@@ -314,7 +317,6 @@ function ruleChangeInForceStatus(
   // consumer need not re-derive the page's hedge. Same adoption test as
   // generate.py's _rc_is_enacted (STATUS-3), checked first so a proposal's
   // target date passing can't promote it to pending_reverification/settled.
-  if (e.status !== "ENACTED" && e.status !== "ADOPTED_RULE") return "not_adopted";
   if (Boolean(e.upcoming) && eff > asOfISODate) return "upcoming";
   const verifiedDate = typeof e.verified_date === "string" ? e.verified_date : null;
   const unconfirmedAsOfEffective = Boolean(verifiedDate && verifiedDate < eff);
