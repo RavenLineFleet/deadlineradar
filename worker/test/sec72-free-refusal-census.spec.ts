@@ -501,7 +501,9 @@ describe("SEC-71: mobility and Slack", () => {
  * above cover those for the routes that exist today.
  */
 const PARSE_MARKERS = ["request.text()", "request.json()", "request.formData()", "readFirmLicenseJsonBody(", "JSON.parse(raw"];
-const VICTIM_KEY = /checkRateLimit\(\s*env\.DB,\s*session\.(firmId|memberId|emailNormalized)\b/g;
+// Every key except the caller's IP and a fixed bucket name belongs to someone
+// else's budget, so a new key shape is in scope without touching this (SEC-76).
+const VICTIM_KEY = /checkRateLimit\(\s*env\.DB,\s*(?!\s|ip\b|")/g;
 // Its body block swallows malformed input, so there is no refusal to spend on.
 const ALLOWED = new Set(["handleFirmAccountDelete"]);
 
@@ -528,6 +530,14 @@ describe("census: no victim-keyed limiter sits above a body parse", () => {
     expect(functionsParsingBelowALimiter(clean)).toEqual([]);
     const between = 'async function handleBetween() {\n  const a = await checkRateLimit(env.DB, session.firmId, "x", Y);\n  const raw = await request.text();\n  const b = await checkRateLimit(env.DB, session.firmId, "z", Y);\n}\n';
     expect(functionsParsingBelowALimiter(between)).toEqual(["handleBetween"]);
+    const recordKeyed = 'async function handleRecord() {\n  const a = await checkRateLimit(env.DB, existing.id, "x", Y);\n  const raw = await request.text();\n}\n';
+    expect(functionsParsingBelowALimiter(recordKeyed)).toEqual(["handleRecord"]);
+    const accountKeyed = 'async function handleAccount() {\n  const a = await checkRateLimit(\n    env.DB,\n    `account:${email}`,\n    "x",\n    Y\n  );\n  const raw = await request.text();\n}\n';
+    expect(functionsParsingBelowALimiter(accountKeyed)).toEqual(["handleAccount"]);
+    const ipKeyed = 'async function handleIp() {\n  const a = await checkRateLimit(env.DB, ip, "x", Y);\n  const raw = await request.text();\n}\n';
+    expect(functionsParsingBelowALimiter(ipKeyed)).toEqual([]);
+    const bucketKeyed = 'async function handleBucket() {\n  const a = await checkRateLimit(env.DB, "demo-login", "x", Y);\n  const raw = await request.text();\n}\n';
+    expect(functionsParsingBelowALimiter(bucketKeyed)).toEqual([]);
   });
 
   it("the file has limiters to scan", () => {
