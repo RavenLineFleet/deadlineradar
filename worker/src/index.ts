@@ -3339,9 +3339,6 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   if (!isValidEmail(email)) {
     return jsonResponse(400, { error: "That doesn't look like a valid email address." });
   }
-  if (await store.isEmailBlocklisted(env.DB, email)) {
-    return jsonResponse(400, { error: "That address can't be invited right now." });
-  }
 
   const roleRaw = typeof body.role === "string" ? body.role : "";
   if (roleRaw !== "partner" && roleRaw !== "office_manager" && roleRaw !== "staff") {
@@ -3362,6 +3359,12 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_invite", RATE_LIMIT_FIRM_MEMBER_INVITE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many invites sent today for this firm. Please try again in 24 hours." });
+  }
+  // SEC-74: stays below the slot. This reads a global table, so above the slot
+  // it is a free oracle for anyone who can invite. The demo firm's refusal above
+  // keeps the anonymous session out, not a real firm's.
+  if (await store.isEmailBlocklisted(env.DB, email)) {
+    return jsonResponse(400, { error: "That address can't be invited right now." });
   }
 
   const stepUp = await requireTeamChangeStepUp(env, session, typeof body.current_password === "string" ? body.current_password : "");
@@ -5215,9 +5218,6 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   if (!isValidEmail(newEmailRaw)) {
     return jsonResponse(400, { error: "That doesn't look like a valid email address." });
   }
-  if (await store.isEmailBlocklisted(env.DB, newEmailRaw)) {
-    return jsonResponse(400, { error: "We're not able to use that address right now." });
-  }
   if (store.normalizeEmail(newEmailRaw) === session.emailNormalized) {
     return jsonResponse(400, { error: "That's already your email address." });
   }
@@ -5226,6 +5226,11 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_change_email", RATE_LIMIT_SUBSCRIBER_CHANGE_EMAIL);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+  // SEC-74: stays below the slot. This reads a global table, so above the slot
+  // it is a free oracle for anyone holding a subscriber session.
+  if (await store.isEmailBlocklisted(env.DB, newEmailRaw)) {
+    return jsonResponse(400, { error: "We're not able to use that address right now." });
   }
 
   // ENUM-1 fix (AuditLab, 2026-09-19, orchestrator-ruled): this used to
@@ -8537,13 +8542,6 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   if (!isValidEmail(email)) {
     return jsonResponse(400, { error: "That doesn't look like a valid email address." });
   }
-  // Task #7 (2026-08-06): same operator blocklist as the two public signup
-  // routes -- see handleSubscribe()'s own comment. Firm staff-roster adds
-  // are session-authenticated (not anonymous), but the blocklist is about
-  // the ADDRESS being blocked, not who's submitting it.
-  if (await store.isEmailBlocklisted(env.DB, email)) {
-    return jsonResponse(400, { error: "That address can't be added right now." });
-  }
 
   const stateSlug = (form.state_slug ?? "").trim();
   if (!SUPPORTED_STATE_SLUGS.has(stateSlug)) {
@@ -8619,6 +8617,15 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_license_create", RATE_LIMIT_FIRM_LICENSE_CREATE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many staff added today for this firm. Please try again in 24 hours." });
+  }
+
+  // Task #7 (2026-08-06): same operator blocklist as the two public signup
+  // routes -- see handleSubscribe()'s own comment. The blocklist is about
+  // the ADDRESS being blocked, not who's submitting it. SEC-74: stays below
+  // the slot. This reads a global table, and the shared demo session reaches
+  // this line, so above the slot it is a free oracle.
+  if (await store.isEmailBlocklisted(env.DB, email)) {
+    return jsonResponse(400, { error: "That address can't be added right now." });
   }
 
   // Surface a conflict rather than silently creating a second row for an
@@ -8845,17 +8852,6 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
     if (!isValidEmail(trimmed)) {
       return jsonResponse(400, { error: "That doesn't look like a valid email address." });
     }
-    // AuditLab BLOCKLIST-1 class fix (2026-08-07): AuditLab's finding named
-    // /firm/change-email; grepping for the same defining behavior (a route
-    // that accepts a NEW email address without the operator blocklist
-    // check) found this second instance -- a roster row's email could be
-    // PATCHed onto a blocked address even though CREATE checks it. Only
-    // checked when the address is actually changing, so an unrelated field
-    // edit on a row whose address was blocklisted AFTER it was added never
-    // bricks that edit.
-    if (store.normalizeEmail(trimmed) !== store.normalizeEmail(existing.email) && (await store.isEmailBlocklisted(env.DB, trimmed))) {
-      return jsonResponse(400, { error: "That address can't be added right now." });
-    }
     email = trimmed;
   }
 
@@ -8993,6 +8989,18 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
 
   const emailChanged = store.normalizeEmail(email) !== store.normalizeEmail(existing.email);
   const stateChanged = stateSlug !== existing.state_slug;
+
+  // AuditLab BLOCKLIST-1 class fix (2026-08-07): AuditLab's finding named
+  // /firm/change-email; grepping for the same defining behavior (a route
+  // that accepts a NEW email address without the operator blocklist
+  // check) found this second instance -- a roster row's email could be
+  // PATCHed onto a blocked address even though CREATE checks it. Only
+  // checked when the address is actually changing, so an unrelated field
+  // edit on a row whose address was blocklisted AFTER it was added never
+  // bricks that edit. SEC-74: stays below the slot, same as create.
+  if (emailChanged && (await store.isEmailBlocklisted(env.DB, email))) {
+    return jsonResponse(400, { error: "That address can't be added right now." });
+  }
 
   // Same dedupe POST /firm/licenses already enforces (AuditLab F-3,
   // 2026-08-02: PATCH skipped it entirely -- a firm could PATCH a roster
@@ -13084,20 +13092,23 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   if (!isValidEmail(newEmailRaw)) {
     return jsonResponse(400, { error: "That doesn't look like a valid email address." });
   }
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_change_email", RATE_LIMIT_FIRM_CHANGE_EMAIL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
   // AuditLab BLOCKLIST-1 (MEDIUM, 2026-08-06): the operator blocklist was
   // enforced on all three SIGNUP paths but not here -- an existing firm
   // could self-serve rotate its account onto an explicitly-blocked
   // address/domain. The control was deliberately designed with no
   // existing-account exemption (see store.isEmailBlocklisted's own
   // comment), so this route skipping it contradicted its own design.
+  // SEC-74: stays below the slot. This reads a global table, and the shared
+  // demo session reaches this line, so above the slot it is a free oracle.
   if (await store.isEmailBlocklisted(env.DB, newEmailRaw)) {
     return jsonResponse(400, { error: "We're not able to use that address right now." });
-  }
-  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
-  // for free, and before the first credential check, write or expensive step.
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_change_email", RATE_LIMIT_FIRM_CHANGE_EMAIL);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const currentPassword = typeof body.current_password === "string" ? body.current_password : "";
