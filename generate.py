@@ -6094,8 +6094,13 @@ _TRUST_CLAIM_BY_STATUS = {
 
 def trust_line(last_verified: str, source_url: str, has_citation: bool,
                 is_operational_record: bool = False, records: list[dict] | None = None,
-                citation_exists: bool = False) -> str:
-    """AuditLab DATA-1 (HIGH, 2026-08-04): this unconditionally asserted "checked
+                citation_exists: bool = False, date_scoped: bool = False) -> str:
+    """SRC-175 (AuditLab, 2026-11-06): `date_scoped` is passed by the per-state page,
+    which also shows fee and CPE-hour figures that do not all come from codified text
+    (Nebraska's 80 hours is Board guidance over a statute stated in days). There the
+    sourcing claim names the renewal date, the only thing it was ever about.
+
+    AuditLab DATA-1 (HIGH, 2026-08-04): this unconditionally asserted "checked
     against the state's codified statute or administrative rule, not just a board
     webpage" on every page, including 11 records across 9 states that have ONLY a
     board webpage on record -- no citation, no citation_url. That is an
@@ -6156,12 +6161,13 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     # page's own human-formatted dates (e.g. the birth-month table's "January 31, 2027").
     # data-verified stays ISO (the runtime staleness JS parses it); only the visible text changes.
     last_verified_human = fmt_date(date.fromisoformat(last_verified))
+    claim_subject = "renewal date " if date_scoped else ""
     if records:
         statuses = {_record_citation_status(r) for r in records}
         if len(statuses) > 1:
             per_record = "; ".join(
                 f'{esc(r.get("license_type_label") or "this license type")}: '
-                f'{_TRUST_CLAIM_BY_STATUS[_record_citation_status(r)]}'
+                f'{claim_subject}{_TRUST_CLAIM_BY_STATUS[_record_citation_status(r)]}'
                 for r in records
             )
             return f"""<div class="trust-line">
@@ -6179,7 +6185,7 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
         )
     elif has_citation:
         sourcing_claim = (
-            "checked against the state's codified statute or administrative rule, not just a board "
+            f"{claim_subject}checked against the state's codified statute or administrative rule, not just a board "
             "webpage &mdash; if we can't verify a date against primary law, we say so instead of "
             'guessing (<a href="/methodology/">see how we verify every deadline</a>)'
         )
@@ -8205,7 +8211,7 @@ def build_state_page(
     body = f"""<div class="dr-headwrap">{_seal_html(last_verified, state_abbr=_STATE_ABBR.get(state_name), state_name=state_name)}<h1>{esc(title)}</h1>
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
-{trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records, citation_exists=any(bool(r.get("citation")) for r in records))}
+{trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records, citation_exists=any(bool(r.get("citation")) for r in records), date_scoped=True)}
 {_state_data_gap_disclosure_html(records)}
 {_flag_wrong_html(state_name, state_slug)}
 {signup_form_for_state(state_slug, state_name, records, as_of)}
@@ -24465,9 +24471,15 @@ def _cpe_hours_reverse_link_html(state_slug: str, cpe_hours_by_slug: dict[str, d
         if cpe_record.get("ethics_hours")
         else cpe_record.get("ethics_hours_note", "ethics-hour count not independently confirmed, not a guess")
     )
+    # SRC-175 (AuditLab, 2026-11-06): hours_basis_note is set only where the cited
+    # text does not state the figure in hours (Nebraska days, North Carolina minutes).
+    # It must travel with the figure on every surface that shows the figure.
+    hours_basis = cpe_record.get("hours_basis_note")
+    hours_basis_sentence = f"{esc(hours_basis)} " if hours_basis else ""
     return (
         f'<p class="backlink-cross"><strong>CPE required:</strong> {cpe_record["total_hours"]} {hours_word} '
         f'every {cpe_record["period_years"]} {years_word} ({ethics_clause}). '
+        f'{hours_basis_sentence}'
         f'<a href="../{esc(slug)}/">Full CPE requirements &rarr;</a></p>'
     )
 
@@ -24678,6 +24690,8 @@ def _state_faq_html_and_schema(
             f"{cpe_record['period_years']} {years_word}. {ethics_sentence} "
             # SRC-85: same conditions as the CPE page's callout, see build_cpe_hours_page().
             f"{(cpe_record['applicability_note'] + ' ') if cpe_record.get('applicability_note') else ''}"
+            # SRC-175: see _cpe_hours_reverse_link_html().
+            f"{(cpe_record['hours_basis_note'] + ' ') if cpe_record.get('hours_basis_note') else ''}"
             f"See the full {state_name} CPE requirements page for the exact citation.",
         ))
     if reinstatement_record:
