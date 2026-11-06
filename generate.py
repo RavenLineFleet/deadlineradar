@@ -24291,6 +24291,13 @@ def build_cpe_hours_page(
         meta_tail = f"including {ethics_hours} ethics {meta_ethics_word}, sourced to the state's rule."
     else:
         meta_tail = "sourced to the state's own board rule, not a guess."
+    # SRC-176 (AuditLab, 2026-11-06): where hours_basis_note is set the cited text does not
+    # state the figure in hours, so the summary SERPs and scrapers read must not say it is
+    # sourced to the rule. Same standard as SRC-175's reverse link.
+    if cpe_record.get("hours_basis_note"):
+        meta_tail = (
+            f"including {ethics_hours} ethics {meta_ethics_word}. " if ethics_hours else ""
+        ) + "The cited text does not state this figure in hours."
     meta_description = (
         f"How many CPE hours does {state_name} require, and by when? "
         f"{cpe_record['total_hours']} hours {period_phrase}, {meta_tail}"

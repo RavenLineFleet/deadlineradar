@@ -41,3 +41,19 @@ def test_trust_line_scopes_claim_to_renewal_date_when_asked():
     unscoped = generate.trust_line("2026-11-01", "https://example.gov/", True)
     assert "renewal date checked" not in unscoped
     assert "checked against the state's codified statute or administrative rule" in unscoped
+
+
+def test_cpe_page_summary_makes_no_rule_sourcing_claim_where_a_basis_note_is_set():
+    # SRC-176: meta, og and twitter descriptions all come from one string.
+    from html import unescape
+
+    for rec in _records():
+        page = (ROOT / "docs" / f"{rec['state_slug']}-cpa-cpe-requirements" / "index.html").read_text(encoding="utf-8")
+        metas = [unescape(m) for m in re.findall(r'<meta (?:name|property)="(?:description|og:description|twitter:description)" content="([^"]*)"', page)]
+        assert len(metas) == 3, rec["id"]
+        for meta in metas:
+            if rec.get("hours_basis_note"):
+                assert "sourced to" not in meta, rec["id"]
+                assert "does not state this figure in hours" in meta, rec["id"]
+            else:
+                assert "does not state this figure in hours" not in meta, rec["id"]
