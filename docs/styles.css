@@ -128,8 +128,8 @@
   .subhead { color: var(--muted); margin: 0 0 1.5rem; }
   .intro { margin: 0 0 1.25rem; }
   .founder-photo {
-    max-width: 220px; width: 45%; height: auto; border-radius: 8px; border: 1px solid var(--border);
-    float: right; margin: 0 0 1rem 1.25rem;
+    max-width: 200px; width: 38%; height: auto; border-radius: 8px; border: 1px solid var(--border);
+    float: right; margin: 0.25rem 0 1rem 1.5rem;
   }
   .founder-photo + p.intro { margin-top: 0; }
   @media (max-width: 640px) {

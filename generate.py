@@ -596,15 +596,16 @@ def http_href(url: object, fallback: str = "#") -> str:
     return fallback
 
 
-# Minimal calendar glyph, site accent color (#1f5fbf), flat and legible at 16px.
-# Two "binder tabs" + a header band + one highlighted date square -- the smallest
-# set of shapes that still reads as "calendar/deadline" at favicon size.
-FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-<rect x="9" y="1" width="3" height="7" rx="1.5" fill="#1f5fbf"/>
-<rect x="20" y="1" width="3" height="7" rx="1.5" fill="#1f5fbf"/>
-<rect x="3" y="5" width="26" height="24" rx="4" fill="#1f5fbf"/>
-<rect x="3" y="5" width="26" height="7" rx="4" fill="#ffffff" fill-opacity="0.25"/>
-<rect x="13" y="17" width="6" height="6" rx="1.2" fill="#ffffff"/>
+# Same geometry and colors as _BRAND_GLYPH_SVG (the header/footer logo); keep the
+# two in step. The white disc is the only addition: the navy ring disappears on a
+# dark browser tab strip without it.
+FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<circle cx="16" cy="16" r="14.3" fill="#ffffff"/>
+<circle cx="16" cy="16" r="13.5" stroke="#1f3d54" stroke-width="1.6"/>
+<circle cx="16" cy="16" r="8" stroke="#c8d2db" stroke-width="1.2"/>
+<circle cx="16" cy="16" r="2.3" fill="#8a6a33"/>
+<path d="M16 16 L26 9" stroke="#8a6a33" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M16 3.5 L16 6" stroke="#1f3d54" stroke-width="1.6" stroke-linecap="round"/>
 </svg>
 """
 # Mobile LCP fix (2026-10-16): content-hash query string, same pattern as
@@ -848,8 +849,8 @@ PAGE_CSS = """
   .subhead { color: var(--muted); margin: 0 0 1.5rem; }
   .intro { margin: 0 0 1.25rem; }
   .founder-photo {
-    max-width: 220px; width: 45%; height: auto; border-radius: 8px; border: 1px solid var(--border);
-    float: right; margin: 0 0 1rem 1.25rem;
+    max-width: 200px; width: 38%; height: auto; border-radius: 8px; border: 1px solid var(--border);
+    float: right; margin: 0.25rem 0 1rem 1.5rem;
   }
   .founder-photo + p.intro { margin-top: 0; }
   @media (max-width: 640px) {
@@ -10179,11 +10180,12 @@ def build_about_page() -> str:
     four. Devin approved SHIPPING this text (Orchestrator, 2026-10-21
     16:38 MDT) -- he did not say "byte-for-byte", so a future correction
     that preserves these 3 fixes and re-clears AuditLab is fine; don't
-    treat this block as frozen. Photo (assets/founder/devin-hall.jpg)
+    treat this block as frozen. Photo (assets/founder/devin-hall.jpg, shown
+    as the devin-hall-portrait.jpg crop since 2026-11-06)
     independently re-confirmed EXIF/GPS/XMP-free before this page shipped it
     (see HANDOFF 2026-10-21); Devin separately cleared it for publication."""
     body = """<h1>About Deadline-Radar</h1>
-<img class="founder-photo" src="/img/founder/devin-hall.jpg" alt="Devin Hall, founder of Deadline-Radar" width="900" height="1550" loading="lazy">
+<img class="founder-photo" src="/img/founder/devin-hall-portrait.jpg" alt="Devin Hall, founder of Deadline-Radar" width="480" height="600">
 <p class="intro">Deadline-Radar didn't come from me personally missing a renewal date -- it came from
 a market-research question: where's a niche real people clearly need solved that nobody's building
 properly yet? I set four parallel AI research agents loose on real candidate niches -- grant
@@ -27905,6 +27907,10 @@ def main() -> None:
     founder_img_dir.mkdir(parents=True, exist_ok=True)
     (founder_img_dir / "devin-hall.jpg").write_bytes(founder_photo_src.read_bytes())
     print(f"wrote {SITE_DIR.name}/img/founder/devin-hall.jpg")
+    (founder_img_dir / "devin-hall-portrait.jpg").write_bytes(
+        (ROOT / "assets" / "founder" / "devin-hall-portrait.jpg").read_bytes()
+    )
+    print(f"wrote {SITE_DIR.name}/img/founder/devin-hall-portrait.jpg")
 
     about_dir = SITE_DIR / "about"
     about_dir.mkdir(parents=True, exist_ok=True)
