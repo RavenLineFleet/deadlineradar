@@ -526,8 +526,8 @@ BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
 # approval record (29 remain); texas-to-oklahoma-cpa-mobility left
 # for its SRC-156 r2 approval record (28 remain); seven mobility posts left
 # for their PROSE-6/SRC-159 approval records (21 remain).
-BLOG_GRANDFATHERED_COUNT = 21
-BLOG_GRANDFATHERED_SHA256 = "e8de0d66dcd5f26dec7e91e1538c7621e8d96d878da78b1077ddf1e105c8b791"
+BLOG_GRANDFATHERED_COUNT = 20
+BLOG_GRANDFATHERED_SHA256 = "9c18b3bc527e3560239899a7fb7f4b6c26ce5c4c77200871a90395f59d7c4305"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 

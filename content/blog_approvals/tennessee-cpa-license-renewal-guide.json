@@ -1,0 +1,17 @@
+{
+  "slug": "tennessee-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "5bd03e925ee87dbf31f3e027cc31799b573974c7e346c5cff847e1ed22067df5",
+      "verdict_file": "auditlab_20261106_blog_APPROVED_tennessee-cpa-license-renewal-guide.md",
+      "sent": "2026-11-06 17:35 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "5bd03e925ee87dbf31f3e027cc31799b573974c7e346c5cff847e1ed22067df5",
+      "verdict_file": "orchestrator_20261106_blog_APPROVED_tennessee-cpa-license-renewal-guide.md",
+      "sent": "2026-11-06 18:20 UTC"
+    }
+  ]
+}
