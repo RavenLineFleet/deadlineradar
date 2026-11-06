@@ -6938,15 +6938,22 @@ def render_data_gap_records(records: list[dict]) -> str:
             f'{cite_html}<div class="verified unconfirmed">Anchor year not confirmed</div>'
             if cite_html else '<div class="verified unconfirmed">Not independently verified</div>'
         )
+        # ValueLab 11-06: a combined record's two license types run on two cycles, so its gap is not
+        # one unconfirmed date. Saying "not confirmed" three times read as if the firm date were
+        # unknown too, right above the sentence stating it.
+        stamp_text, value_text = "Date not confirmed", "Not confirmed"
+        if _combined_note:
+            stamp_text, value_text = "Two cycles", "No single date"
+            side_html = cite_html or side_html
         parts.append(f"""<div class="sheet">
   <div class="sheethead">
     <span>{esc(r['license_type_label'])}</span>
-    <div class="stamp stamp--unconfirmed"><span class="dot"></span>Date not confirmed</div>
+    <div class="stamp stamp--unconfirmed"><span class="dot"></span>{stamp_text}</div>
   </div>
   <div class="rowlist">
     <div class="frow">
       <div class="k">Next renewal date</div>
-      <div class="v">Not confirmed<small>{esc(r['cycle_description'])}</small></div>
+      <div class="v">{value_text}<small>{esc(r['cycle_description'])}</small></div>
       <div class="{_side_class(r)}">
         {side_html}
       </div>

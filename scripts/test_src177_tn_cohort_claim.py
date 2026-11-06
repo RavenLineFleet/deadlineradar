@@ -50,3 +50,18 @@ def test_year_end_link_scopes_tennessee_to_firm_permits():
     other = generate._year_end_reverse_link_html("wisconsin", {"tennessee", "wisconsin"})
     assert "Firm permits here" in tn
     assert "Firm permits here" not in other
+
+
+def test_combined_record_headline_says_two_cycles_not_three_unconfirmeds():
+    html = generate.render_data_gap_records([_record("data/cpa_deadlines.json")])
+    assert "Two cycles" in html and "No single date" in html
+    for gone in ("Date not confirmed", "Anchor year not confirmed", ">Not confirmed<"):
+        assert gone not in html, gone
+    assert re.search(r"December 31\b", html), "the firm date stays on the sheet"
+
+
+def test_ordinary_gap_record_keeps_the_unconfirmed_headline():
+    html = generate.render_data_gap_records([{
+        "license_type_label": "X", "cycle_description": "Y", "citation": "Z", "citation_url": "https://example.com/z"}])
+    assert "Date not confirmed" in html and "Not confirmed<small>" in html
+    assert "Two cycles" not in html
