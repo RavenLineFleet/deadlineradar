@@ -65,3 +65,17 @@ def test_ordinary_gap_record_keeps_the_unconfirmed_headline():
         "license_type_label": "X", "cycle_description": "Y", "citation": "Z", "citation_url": "https://example.com/z"}])
     assert "Date not confirmed" in html and "Not confirmed<small>" in html
     assert "Two cycles" not in html
+
+
+def _tn_post():
+    return next(a for a in generate.BLOG_ARTICLES if a["slug"] == "tennessee-cpa-license-renewal-guide")
+
+
+def test_blog_post_carries_no_cohort_claim():
+    post = _tn_post()
+    for text in (post["meta_description"], post["body_html"]):
+        assert not re.search(r"cohort|license number|odd/even|odd- or even", text, re.I), text[:80]
+
+
+def test_blog_post_quotes_the_permissive_statute_text():
+    assert "may be set by the board at its discretion" in _tn_post()["body_html"]
