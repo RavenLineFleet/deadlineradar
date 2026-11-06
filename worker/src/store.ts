@@ -4673,6 +4673,15 @@ export async function addCpeEntry(db: D1Database, input: AddCpeEntryInput): Prom
  * firm-less row -- identically, so a client can't distinguish "not yours"
  * from "doesn't exist" (same anti-enumeration posture as getFirmLicense()).
  */
+/** Read-only form of addCpeEntryForSubscriber's ownership check, so a bogus id can be refused before a rate-limit slot is spent (SEC-70/71). */
+export async function subscriberOwnsFirmLine(db: D1Database, emailNormalized: string, subscriberId: string): Promise<boolean> {
+  const owned = await db
+    .prepare(`SELECT firm_id FROM subscribers WHERE id = ?1 AND LOWER(TRIM(email)) = ?2 AND firm_id IS NOT NULL`)
+    .bind(subscriberId, emailNormalized)
+    .first<{ firm_id: string }>();
+  return owned != null;
+}
+
 export async function addCpeEntryForSubscriber(
   db: D1Database,
   emailNormalized: string,
@@ -4736,6 +4745,15 @@ export async function listCpeEntriesForFirm(db: D1Database, firmId: string): Pro
  * actually logged, matching subscribers.stopped_at's existing convention.
  * firm_id-bound in the UPDATE's own WHERE clause, not just the earlier
  * lookup -- defense-in-depth, same as every other mutating query here. */
+/** Read-only check that a live entry exists, so a bogus id can be refused before a rate-limit slot is spent (SEC-70/71). */
+export async function cpeEntryExistsForFirm(db: D1Database, firmId: string, id: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT id FROM cpe_entries WHERE id = ?1 AND firm_id = ?2 AND deleted_at IS NULL`)
+    .bind(id, firmId)
+    .first<{ id: string }>();
+  return row != null;
+}
+
 export async function removeCpeEntry(db: D1Database, firmId: string, id: string): Promise<boolean> {
   const result = await db
     .prepare(`UPDATE cpe_entries SET deleted_at = ?1 WHERE id = ?2 AND firm_id = ?3 AND deleted_at IS NULL`)
@@ -4782,12 +4800,31 @@ export interface AddCpeEntryGroupInput {
   primaryCertificateDocumentId: string | null;
 }
 
+export type CpeGroupRefusal = "not_found" | "different_person" | "firm_entity_line" | "too_many";
+
 export type AddCpeEntryGroupResult =
   | { ok: true; groupId: string; entries: CpeEntryRow[] }
-  | { ok: false; reason: "not_found" | "different_person" | "firm_entity_line" | "too_many" };
+  | { ok: false; reason: CpeGroupRefusal };
 
 /** Most lines one submission can write: the per-person ceiling (one constant, seat_usage.ts). */
 export const CPE_GROUP_MAX_LINES = PER_PERSON_LINE_CEILING;
+
+/** The read-only half of addCpeEntryGroup's checks: lets the handler refuse before it spends a rate-limit slot (SEC-70/71). Null means every line passes. */
+export async function checkCpeGroupTargets(db: D1Database, firmId: string, ids: string[]): Promise<CpeGroupRefusal | null> {
+  if (ids.length === 0 || ids.length > CPE_GROUP_MAX_LINES || new Set(ids).size !== ids.length) {
+    return "too_many";
+  }
+  const roster = await listFirmLicenses(db, firmId);
+  const byId = new Map(roster.map((r) => [r.id, r]));
+  const lines = ids.map((id) => byId.get(id));
+  if (lines.some((l) => !l)) return "not_found";
+  const personKey = personKeyForEmail(lines[0]!.email);
+  for (let i = 0; i < lines.length; i++) {
+    if (personKeyForEmail(lines[i]!.email) !== personKey) return "different_person";
+    if (isFirmEntityRow(lines[i]!)) return "firm_entity_line";
+  }
+  return null;
+}
 
 /**
  * Writes one CPE entry per chosen line, all sharing a group_id, in ONE db.batch
@@ -4807,19 +4844,8 @@ export const CPE_GROUP_MAX_LINES = PER_PERSON_LINE_CEILING;
  * simply inserts nothing and the whole result is reported not_found.
  */
 export async function addCpeEntryGroup(db: D1Database, input: AddCpeEntryGroupInput): Promise<AddCpeEntryGroupResult> {
-  const ids = input.targets.map((t) => t.subscriberId);
-  if (ids.length === 0 || ids.length > CPE_GROUP_MAX_LINES || new Set(ids).size !== ids.length) {
-    return { ok: false, reason: "too_many" };
-  }
-  const roster = await listFirmLicenses(db, input.firmId);
-  const byId = new Map(roster.map((r) => [r.id, r]));
-  const lines = ids.map((id) => byId.get(id));
-  if (lines.some((l) => !l)) return { ok: false, reason: "not_found" };
-  const personKey = personKeyForEmail(lines[0]!.email);
-  for (let i = 0; i < lines.length; i++) {
-    if (personKeyForEmail(lines[i]!.email) !== personKey) return { ok: false, reason: "different_person" };
-    if (isFirmEntityRow(lines[i]!)) return { ok: false, reason: "firm_entity_line" };
-  }
+  const refusal = await checkCpeGroupTargets(db, input.firmId, input.targets.map((t) => t.subscriberId));
+  if (refusal) return { ok: false, reason: refusal };
 
   const groupId = newToken();
   const createdAt = nowIso();
@@ -5423,6 +5449,15 @@ export async function listMobilityCompletionsForFirm(db: D1Database, firmId: str
 
 /** Soft-delete only, firm_id-bound in the UPDATE's own WHERE clause -- same
  * reasoning and same defense-in-depth as removeCpeEntry(). */
+/** Read-only check that a live completion exists, so a bogus id can be refused before a rate-limit slot is spent (SEC-70/71). */
+export async function mobilityCompletionExistsForFirm(db: D1Database, firmId: string, id: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT id FROM mobility_completions WHERE id = ?1 AND firm_id = ?2 AND deleted_at IS NULL`)
+    .bind(id, firmId)
+    .first<{ id: string }>();
+  return row != null;
+}
+
 export async function removeMobilityCompletion(db: D1Database, firmId: string, id: string): Promise<boolean> {
   const result = await db
     .prepare(`UPDATE mobility_completions SET deleted_at = ?1 WHERE id = ?2 AND firm_id = ?3 AND deleted_at IS NULL`)

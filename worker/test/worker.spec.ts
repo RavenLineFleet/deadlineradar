@@ -21,6 +21,7 @@ import {
   TERMS_VERSION,
 } from "../src/validation";
 import * as store from "../src/store";
+import { fillBucket, freeOneSlot, slotsUsed } from "./rate-limit-slots";
 import {
   CPA_DEADLINES_STALENESS_WARNING_DAYS,
   GATED_DATASET_STALENESS_THRESHOLD_DAYS,
@@ -2443,35 +2444,39 @@ describe("GET/POST/PATCH/DELETE /firm/licenses -- staff license CRUD (firm-dashb
 
   // AuditLab S-3, 2026-08-03 (LOW): these two had no bucket at all, unlike
   // PATCH (F-2) and POST (RATE_LIMIT_FIRM_LICENSE_CREATE). No send path
-  // either way, but the rate-limit check runs before the id lookup, so a
-  // nonexistent id still consumes the bucket -- exactly what makes this test
-  // cheap to write.
+  // either way. Since SEC-70/71 the id lookup runs first, so a nonexistent id
+  // spends nothing and is answered 404 even with the bucket full.
   it("DELETE /firm/licenses/:id is rate-limited per firm (was completely unbounded)", async () => {
-    const { cookie } = await createFirmWithSession("Delete Rate Firm", `delete-rate-${Date.now()}@example.com`);
-    let sawA429 = false;
-    for (let i = 0; i < 55; i++) {
-      const resp = await deleteFirmLicense(cookie, "does-not-exist");
-      if (resp.status === 429) {
-        sawA429 = true;
-        break;
-      }
-      expect(resp.status).toBe(404);
-    }
-    expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_DELETE ceiling (50/day) -- got none in 55 requests").toBe(true);
+    const { firmId, cookie } = await createFirmWithSession("Delete Rate Firm", `delete-rate-${Date.now()}@example.com`);
+    const created = await postFirmLicense(cookie, {
+      email: `delete-rate-staff-${Date.now()}@example.com`,
+      state_slug: "georgia",
+      license_type_id: "ga-individual",
+    });
+    const { id } = (await created.json()) as { id: string };
+    await fillBucket(firmId, "firm_license_delete", 50);
+    expect((await deleteFirmLicense(cookie, "does-not-exist")).status).toBe(404);
+    expect((await deleteFirmLicense(cookie, id)).status).toBe(429);
+    await freeOneSlot(firmId, "firm_license_delete");
+    // A 200 here also proves the 429 above deleted nothing.
+    expect((await deleteFirmLicense(cookie, id)).status).toBe(200);
+    expect(await slotsUsed(firmId, "firm_license_delete")).toBe(50);
   }, 20000);
 
   it("POST /firm/licenses/:id/renew is rate-limited per firm (was completely unbounded)", async () => {
-    const { cookie } = await createFirmWithSession("Renew Rate Firm", `renew-rate-${Date.now()}@example.com`);
-    let sawA429 = false;
-    for (let i = 0; i < 55; i++) {
-      const resp = await renewFirmLicense(cookie, "does-not-exist");
-      if (resp.status === 429) {
-        sawA429 = true;
-        break;
-      }
-      expect(resp.status).toBe(404);
-    }
-    expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_LICENSE_RENEW ceiling (50/day) -- got none in 55 requests").toBe(true);
+    const { firmId, cookie } = await createFirmWithSession("Renew Rate Firm", `renew-rate-${Date.now()}@example.com`);
+    const created = await postFirmLicense(cookie, {
+      email: `renew-rate-staff-${Date.now()}@example.com`,
+      state_slug: "georgia",
+      license_type_id: "ga-individual",
+    });
+    const { id } = (await created.json()) as { id: string };
+    await fillBucket(firmId, "firm_license_renew", 50);
+    expect((await renewFirmLicense(cookie, "does-not-exist")).status).toBe(404);
+    expect((await renewFirmLicense(cookie, id)).status).toBe(429);
+    await freeOneSlot(firmId, "firm_license_renew");
+    expect((await renewFirmLicense(cookie, id)).status).toBe(200);
+    expect(await slotsUsed(firmId, "firm_license_renew")).toBe(50);
   }, 20000);
 
   // AuditLab F-2, 2026-08-02 (HIGH): PATCH had NO rate limit at all -- PoC
@@ -6240,17 +6245,22 @@ describe("GET/POST/DELETE /firm/cpe -- CPE-hours entry CRUD", () => {
   // of cross-file contention the maxWorkers cap addresses -- see its
   // comment. Left at 60000 for the same reason.
   it("blocks the 101st CPE-entry DELETE from the same firm within the daily window", async () => {
-    const { cookie } = await createFirmWithSession("CPE Delete Rate Firm", `cpe-delete-rate-${Date.now()}@example.com`);
-    let sawA429 = false;
-    for (let i = 0; i < 105; i++) {
-      const resp = await deleteCpeEntry(cookie, "does-not-exist", `203.0.113.${210 + (i % 40)}`);
-      if (resp.status === 429) {
-        sawA429 = true;
-        break;
-      }
-      expect(resp.status).toBe(404);
-    }
-    expect(sawA429, "expected a 429 within the RATE_LIMIT_CPE_ENTRY_DELETE ceiling (100/day) -- got none in 105 requests").toBe(true);
+    const { firmId, cookie } = await createFirmWithSession("CPE Delete Rate Firm", `cpe-delete-rate-${Date.now()}@example.com`);
+    const created = await postFirmLicense(cookie, {
+      email: `cpe-delete-rate-staff-${Date.now()}@example.com`,
+      state_slug: "georgia",
+      license_type_id: "ga-individual",
+    });
+    const { id: subscriberId } = (await created.json()) as { id: string };
+    const entry = await postCpeEntry(cookie, { subscriber_id: subscriberId, entry_date: "2026-06-01", hours: "8", category: "ethics" });
+    expect(entry.status).toBe(201);
+    const { id } = (await entry.json()) as { id: string };
+    await fillBucket(firmId, "cpe_entry_delete", 100);
+    expect((await deleteCpeEntry(cookie, "does-not-exist")).status).toBe(404);
+    expect((await deleteCpeEntry(cookie, id)).status).toBe(429);
+    await freeOneSlot(firmId, "cpe_entry_delete");
+    expect((await deleteCpeEntry(cookie, id)).status).toBe(200);
+    expect(await slotsUsed(firmId, "cpe_entry_delete")).toBe(100);
   }, 60000);
 });
 
@@ -8017,23 +8027,20 @@ describe("GET/DELETE /firm/oauth-identities -- connected accounts", () => {
     expect((await callDelete(linked!.id, partnerCookie)).status).toBe(200);
   });
 
-  // AuditLab S-3, 2026-08-03 (LOW): DELETE had no bucket at all. Rate limit
-  // runs before the id lookup, so a nonexistent id still consumes the bucket.
+  // AuditLab S-3, 2026-08-03 (LOW): DELETE had no bucket at all. Since SEC-70/71
+  // the id lookup runs first, so a nonexistent id spends nothing.
   it("DELETE /firm/oauth-identities/:id is rate-limited per firm (was completely unbounded)", async () => {
     const email = `ident-rate-${Date.now()}@examplefirm.com`;
     const { id: firmId } = await store.createFirm(env.DB, { name: "Ident Rate Firm", adminEmail: email });
     const { rawSessionToken } = await store.createSession(env.DB, firmId);
     const cookie = `dr_firm_session=${rawSessionToken}`;
-    let sawA429 = false;
-    for (let i = 0; i < 25; i++) {
-      const resp = await callDelete("does-not-exist", cookie);
-      if (resp.status === 429) {
-        sawA429 = true;
-        break;
-      }
-      expect(resp.status).toBe(404);
-    }
-    expect(sawA429, "expected a 429 within the RATE_LIMIT_OAUTH_IDENTITY_DELETE ceiling (20/day) -- got none in 25 requests").toBe(true);
+    const linked = await store.linkOauthIdentity(env.DB, { firmId, provider: "google", providerSubject: `ident-rate-${Date.now()}`, providerEmail: email });
+    await fillBucket(firmId, "oauth_identity_delete", 20);
+    expect((await callDelete("does-not-exist", cookie)).status).toBe(404);
+    expect((await callDelete(linked!.id, cookie)).status).toBe(429);
+    await freeOneSlot(firmId, "oauth_identity_delete");
+    expect((await callDelete(linked!.id, cookie)).status).toBe(200);
+    expect(await slotsUsed(firmId, "oauth_identity_delete")).toBe(20);
   }, 20000);
 
   it("CROSS-FIRM: cannot see or unlink another firm's identity, and returns a generic 404 not a 403", async () => {

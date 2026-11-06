@@ -23,3 +23,9 @@ declare namespace Cloudflare {
     ANTHROPIC_API_KEY?: string;
   }
 }
+
+// Vite resolves "?raw" to the file as a string; sec72-free-refusal-census.spec.ts scans index.ts this way.
+declare module "*?raw" {
+  const source: string;
+  export default source;
+}

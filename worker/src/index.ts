@@ -3750,14 +3750,6 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
     return jsonResponse(503, { error: "Billing isn't set up yet. Get in touch and we'll sort it out." });
   }
 
-  // AuditLab RL-5 (2026-08-06): sibling cancel/resume toggle below already
-  // rate-limits on the authenticated firm ID before touching Stripe; this
-  // route hit CreateCheckoutSession with no equivalent guard.
-  const billingCheckoutAllowed = await checkRateLimit(env.DB, session.firmId, "firm_billing_checkout", RATE_LIMIT_FIRM_BILLING_CHECKOUT);
-  if (!billingCheckoutAllowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   // CSRF defense-in-depth -- see readFirmLicenseJsonBody()'s own comment.
   const billingContentType = request.headers.get("content-type") ?? "";
   if (!billingContentType.toLowerCase().startsWith("application/json")) {
@@ -3923,6 +3915,16 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
     if (!perSeatAddonPriceId) {
       return jsonResponse(503, { error: "A roster this size can't be checked out online yet. Contact us and we'll work out what fits." });
     }
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // AuditLab RL-5 (2026-08-06): sibling cancel/resume toggle below already
+  // rate-limits on the authenticated firm ID before touching Stripe; this
+  // route hit CreateCheckoutSession with no equivalent guard.
+  const billingCheckoutAllowed = await checkRateLimit(env.DB, session.firmId, "firm_billing_checkout", RATE_LIMIT_FIRM_BILLING_CHECKOUT);
+  if (!billingCheckoutAllowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   // Roadmap #31 (2026-08-09, referral program): the REFERRED firm's own
@@ -5176,11 +5178,6 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
     return passwordlessReauthRequired();
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_change_email", RATE_LIMIT_SUBSCRIBER_CHANGE_EMAIL);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     return jsonResponse(400, { error: "Expected a JSON request body." });
@@ -5210,6 +5207,13 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   if (store.normalizeEmail(newEmailRaw) === session.emailNormalized) {
     return jsonResponse(400, { error: "That's already your email address." });
   }
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_change_email", RATE_LIMIT_SUBSCRIBER_CHANGE_EMAIL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
   // ENUM-1 fix (AuditLab, 2026-09-19, orchestrator-ruled): this used to
   // return a distinguishable "already in use" 400, an account-existence
   // oracle for ANY address the caller names -- the same shape
@@ -5296,11 +5300,6 @@ async function handleSubscriberProfileUpdate(request: Request, env: Env): Promis
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_profile_update", RATE_LIMIT_SUBSCRIBER_PROFILE_UPDATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5319,6 +5318,13 @@ async function handleSubscriberProfileUpdate(request: Request, env: Env): Promis
   // the same column, set at signup or edited later.
   const trimmed = firstNameRaw.trim().slice(0, 60);
   const firstName = trimmed.length > 0 ? trimmed : null;
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_profile_update", RATE_LIMIT_SUBSCRIBER_PROFILE_UPDATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
 
   await store.setSubscriberFirstName(env.DB, session.emailNormalized, firstName);
   return jsonResponse(200, { first_name: firstName });
@@ -5341,11 +5347,6 @@ async function handleSubscriberReminderCadenceSet(request: Request, env: Env): P
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_reminder_cadence", RATE_LIMIT_SUBSCRIBER_REMINDER_CADENCE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5355,14 +5356,21 @@ async function handleSubscriberReminderCadenceSet(request: Request, env: Env): P
     return jsonResponse(400, { error: "Something went wrong processing that request." });
   }
 
-  if (body.thresholds === null) {
-    await store.setSubscriberReminderThresholds(env.DB, session.emailNormalized, null);
-    return jsonResponse(200, { reminder_thresholds: null });
+  const parsed = body.thresholds === null ? null : parseReminderThresholds(body.thresholds);
+  if (body.thresholds !== null && !parsed) {
+    return jsonResponse(400, { error: "Please choose at least one valid reminder timing." });
   }
 
-  const parsed = parseReminderThresholds(body.thresholds);
-  if (!parsed) {
-    return jsonResponse(400, { error: "Please choose at least one valid reminder timing." });
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_reminder_cadence", RATE_LIMIT_SUBSCRIBER_REMINDER_CADENCE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
+  if (parsed === null) {
+    await store.setSubscriberReminderThresholds(env.DB, session.emailNormalized, null);
+    return jsonResponse(200, { reminder_thresholds: null });
   }
 
   await store.setSubscriberReminderThresholds(env.DB, session.emailNormalized, JSON.stringify(parsed));
@@ -5386,11 +5394,6 @@ async function handleSubscriberNotificationModeSet(request: Request, env: Env): 
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_notification_mode", RATE_LIMIT_SUBSCRIBER_NOTIFICATION_MODE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5402,6 +5405,13 @@ async function handleSubscriberNotificationModeSet(request: Request, env: Env): 
 
   if (body.mode !== store.NOTIFICATION_MODE_IMMEDIATE && body.mode !== store.NOTIFICATION_MODE_DIGEST) {
     return jsonResponse(400, { error: "Please choose a valid notification mode." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_notification_mode", RATE_LIMIT_SUBSCRIBER_NOTIFICATION_MODE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   await store.setSubscriberNotificationMode(env.DB, session.emailNormalized, body.mode);
@@ -5423,11 +5433,6 @@ async function handleSubscriberPtinSet(request: Request, env: Env): Promise<Resp
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_ptin_set", RATE_LIMIT_SUBSCRIBER_PTIN_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5439,6 +5444,13 @@ async function handleSubscriberPtinSet(request: Request, env: Env): Promise<Resp
 
   if (typeof body.enabled !== "boolean") {
     return jsonResponse(400, { error: "Please provide a valid enabled value." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_ptin_set", RATE_LIMIT_SUBSCRIBER_PTIN_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   const changed = await store.setSubscriberPtinTracking(env.DB, session.emailNormalized, body.enabled);
@@ -5477,16 +5489,6 @@ async function handleSubscriberPhoneStartVerification(request: Request, env: Env
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(
-    env.DB,
-    session.emailNormalized,
-    "subscriber_phone_start_verification",
-    RATE_LIMIT_SUBSCRIBER_PHONE_VERIFICATION_START
-  );
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5514,6 +5516,18 @@ async function handleSubscriberPhoneStartVerification(request: Request, env: Env
   const consentVersion = typeof body.consent_version === "string" ? body.consent_version.trim() : "";
   if (!consentGiven || !consentVersion) {
     return jsonResponse(400, { error: "Please check the box to confirm you want text reminders." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(
+    env.DB,
+    session.emailNormalized,
+    "subscriber_phone_start_verification",
+    RATE_LIMIT_SUBSCRIBER_PHONE_VERIFICATION_START
+  );
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts today. Please try again in 24 hours." });
   }
 
   // AuditLab SMS-1 (MEDIUM, 2026-08-09): a subscriber whose ONLY licensed
@@ -5562,16 +5576,6 @@ async function handleSubscriberPhoneConfirmVerification(request: Request, env: E
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(
-    env.DB,
-    session.emailNormalized,
-    "subscriber_phone_confirm_verification",
-    RATE_LIMIT_SUBSCRIBER_PHONE_VERIFICATION_CONFIRM
-  );
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -5584,6 +5588,18 @@ async function handleSubscriberPhoneConfirmVerification(request: Request, env: E
   const codeRaw = typeof body.code === "string" ? body.code.trim() : "";
   if (!codeRaw) {
     return jsonResponse(400, { error: "Please enter the code we texted you." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(
+    env.DB,
+    session.emailNormalized,
+    "subscriber_phone_confirm_verification",
+    RATE_LIMIT_SUBSCRIBER_PHONE_VERIFICATION_CONFIRM
+  );
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const consumed = await store.consumePhoneVerification(env.DB, session.emailNormalized, codeRaw);
@@ -6035,11 +6051,6 @@ async function handleSubscriberCpeEntryCreate(request: Request, env: Env): Promi
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_cpe_create", RATE_LIMIT_SUBSCRIBER_CPE_CREATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many entries logged today. Please try again in 24 hours." });
-  }
-
   const parsed = await readFirmLicenseJsonBody(request); // generic despite the name -- see that function's own signature
   if (parsed instanceof Response) return parsed;
   const form = stringFieldsOf(parsed);
@@ -6082,6 +6093,17 @@ async function handleSubscriberCpeEntryCreate(request: Request, env: Env): Promi
   const descriptionRaw = (form.description ?? "").trim();
   const description = descriptionRaw.length > 0 ? sanitizeFreeText(descriptionRaw, MAX_CPE_DESCRIPTION_LEN) : null;
 
+  if (!(await store.subscriberOwnsFirmLine(env.DB, session.emailNormalized, subscriberId))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_cpe_create", RATE_LIMIT_SUBSCRIBER_CPE_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many entries logged today. Please try again in 24 hours." });
+  }
+
   const created = await store.addCpeEntryForSubscriber(env.DB, session.emailNormalized, {
     subscriberId,
     entryDate: entryDateIso,
@@ -6118,11 +6140,6 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_staff_cpe_reminder", RATE_LIMIT_FIRM_STAFF_CPE_REMINDER);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many reminders sent today. Please try again in 24 hours." });
-  }
-
   const parsed = await readFirmLicenseJsonBody(request);
   if (parsed instanceof Response) return parsed;
   const form = stringFieldsOf(parsed);
@@ -6131,6 +6148,13 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
 
   const staffRow = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!staffRow) return jsonResponse(404, { error: "Not found." });
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_staff_cpe_reminder", RATE_LIMIT_FIRM_STAFF_CPE_REMINDER);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many reminders sent today. Please try again in 24 hours." });
+  }
 
   let sent = false;
   let reason: string | null = null;
@@ -6310,11 +6334,6 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_notify", RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many notifications sent today. Please try again in 24 hours." });
-  }
-
   const parsed = await readFirmLicenseJsonBody(request);
   if (parsed instanceof Response) return parsed;
   const form = stringFieldsOf(parsed);
@@ -6355,6 +6374,13 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   // citation_url (mailto:/javascript:/plain text, etc.) -- see button()'s
   // own href handling in emails.ts, which trusts this value verbatim.
   const citationUrl = /^https:\/\//.test(citationUrlRaw) ? citationUrlRaw : null;
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_notify", RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many notifications sent today. Please try again in 24 hours." });
+  }
 
   const roster = await store.listFirmLicenses(env.DB, session.firmId);
   const targets = roster.filter(
@@ -7187,13 +7213,6 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
     return jsonResponse(400, { error: "This action isn't available on this shared demo account." });
   }
 
-  // AuditLab RL-5-shaped guard (2026-08-06 precedent) -- see
-  // RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS's own comment.
-  const picksAllowed = await checkRateLimit(env.DB, session.firmId, "firm_roster_active_picks", RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS);
-  if (!picksAllowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     return jsonResponse(400, { error: "Expected a JSON request body." });
@@ -7233,6 +7252,15 @@ async function handleFirmRosterActivePicks(request: Request, env: Env): Promise<
   const requestedSet = new Set(requestedIds);
   if (computeSeatUsage(roster.filter((r) => requestedSet.has(r.id))).people > cap) {
     return jsonResponse(400, { error: `You can keep at most ${cap} staff active on your current plan.` });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // AuditLab RL-5-shaped guard (2026-08-06 precedent) -- see
+  // RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS's own comment.
+  const picksAllowed = await checkRateLimit(env.DB, session.firmId, "firm_roster_active_picks", RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS);
+  if (!picksAllowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   await store.setRosterActivePicks(env.DB, session.firmId, requestedIds);
@@ -7551,13 +7579,6 @@ async function handleFirmQuestionnaireSubmit(request: Request, env: Env): Promis
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  // AuditLab SEC-1 (2026-08-07): was missing on this and 6 sibling
-  // endpoints, contradicting the /security/ page's own claim.
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_questionnaire_submit", RATE_LIMIT_FIRM_DISMISS);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   // AuditLab DEMO-3 (LOW, 2026-08-06): a demo visitor's submit/dismiss must
   // never persist to the SHARED demo row (one visitor's action degrading
   // the next visitor's experience -- and a demo submit would be fake
@@ -7583,6 +7604,15 @@ async function handleFirmQuestionnaireSubmit(request: Request, env: Env): Promis
     selectedFeatures.push(f);
   }
   const otherText = sanitizeFreeText(typeof body.other_text === "string" ? body.other_text : null, MAX_QUESTIONNAIRE_OTHER_LEN);
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // AuditLab SEC-1 (2026-08-07): was missing on this and 6 sibling
+  // endpoints, contradicting the /security/ page's own claim.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_questionnaire_submit", RATE_LIMIT_FIRM_DISMISS);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
 
   await store.submitFeatureQuestionnaire(env.DB, session.firmId, selectedFeatures, otherText);
   return jsonResponse(200, { ok: true });
@@ -7685,11 +7715,6 @@ async function handlePeerReviewSet(request: Request, env: Env): Promise<Response
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_peer_review_set", RATE_LIMIT_FIRM_PEER_REVIEW_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -7697,6 +7722,18 @@ async function handlePeerReviewSet(request: Request, env: Env): Promise<Response
     body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
   } catch {
     return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+
+  const dueDateRaw = typeof body.due_date === "string" ? body.due_date.trim() : "";
+  if (body.due_date !== null && !parseStrictIsoDate(dueDateRaw)) {
+    return jsonResponse(400, { error: "Please enter a valid date." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_peer_review_set", RATE_LIMIT_FIRM_PEER_REVIEW_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   if (body.due_date === null) {
@@ -7712,11 +7749,6 @@ async function handlePeerReviewSet(request: Request, env: Env): Promise<Response
     }
     await store.setPeerReviewDueDate(env.DB, session.firmId, null);
     return jsonResponse(200, { peer_review_due_date: null });
-  }
-
-  const dueDateRaw = typeof body.due_date === "string" ? body.due_date.trim() : "";
-  if (!parseStrictIsoDate(dueDateRaw)) {
-    return jsonResponse(400, { error: "Please enter a valid date." });
   }
 
   if (session.firm.demo_locked) {
@@ -7743,11 +7775,6 @@ async function handleReplyToSet(request: Request, env: Env): Promise<Response> {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_reply_to_set", RATE_LIMIT_FIRM_REPLY_TO_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -7755,6 +7782,18 @@ async function handleReplyToSet(request: Request, env: Env): Promise<Response> {
     body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
   } catch {
     return jsonResponse(400, { error: "Something went wrong processing that request." });
+  }
+
+  const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
+  if (body.email !== null && !isValidEmail(emailRaw)) {
+    return jsonResponse(400, { error: "That doesn't look like a valid email address." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_reply_to_set", RATE_LIMIT_FIRM_REPLY_TO_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   if (body.email === null) {
@@ -7765,11 +7804,6 @@ async function handleReplyToSet(request: Request, env: Env): Promise<Response> {
     }
     await store.setReplyToEmail(env.DB, session.firmId, null);
     return jsonResponse(200, { reply_to_email: null });
-  }
-
-  const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
-  if (!isValidEmail(emailRaw)) {
-    return jsonResponse(400, { error: "That doesn't look like a valid email address." });
   }
 
   if (session.firm.demo_locked) {
@@ -7793,11 +7827,6 @@ async function handleReminderCadenceSet(request: Request, env: Env): Promise<Res
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_reminder_cadence_set", RATE_LIMIT_FIRM_REMINDER_CADENCE_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -7807,18 +7836,25 @@ async function handleReminderCadenceSet(request: Request, env: Env): Promise<Res
     return jsonResponse(400, { error: "Something went wrong processing that request." });
   }
 
-  if (body.thresholds === null) {
+  const parsed = body.thresholds === null ? null : parseReminderThresholds(body.thresholds);
+  if (body.thresholds !== null && !parsed) {
+    return jsonResponse(400, { error: "Please choose at least one valid reminder timing." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_reminder_cadence_set", RATE_LIMIT_FIRM_REMINDER_CADENCE_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
+  if (parsed === null) {
     // AuditLab DEMO-3 class -- see handlePeerReviewSet's own comment.
     if (session.firm.demo_locked) {
       return jsonResponse(200, { reminder_thresholds: null });
     }
     await store.setReminderThresholds(env.DB, session.firmId, null);
     return jsonResponse(200, { reminder_thresholds: null });
-  }
-
-  const parsed = parseReminderThresholds(body.thresholds);
-  if (!parsed) {
-    return jsonResponse(400, { error: "Please choose at least one valid reminder timing." });
   }
 
   if (session.firm.demo_locked) {
@@ -7840,11 +7876,6 @@ async function handleRuleChangeAlertsSet(request: Request, env: Env): Promise<Re
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_alerts_set", RATE_LIMIT_FIRM_RULE_CHANGE_ALERTS_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -7856,6 +7887,13 @@ async function handleRuleChangeAlertsSet(request: Request, env: Env): Promise<Re
 
   if (typeof body.enabled !== "boolean") {
     return jsonResponse(400, { error: "Missing or invalid 'enabled' value." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_alerts_set", RATE_LIMIT_FIRM_RULE_CHANGE_ALERTS_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   // AuditLab DEMO-3 class -- see handlePeerReviewSet's own comment.
@@ -7883,11 +7921,6 @@ async function handleAdminDigestSet(request: Request, env: Env): Promise<Respons
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_admin_digest_set", RATE_LIMIT_FIRM_ADMIN_DIGEST_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -7899,6 +7932,13 @@ async function handleAdminDigestSet(request: Request, env: Env): Promise<Respons
 
   if (typeof body.enabled !== "boolean") {
     return jsonResponse(400, { error: "Missing or invalid 'enabled' value." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_admin_digest_set", RATE_LIMIT_FIRM_ADMIN_DIGEST_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   // AuditLab DEMO-3 class -- see handlePeerReviewSet's own comment.
@@ -8028,9 +8068,6 @@ async function handleFirmSlackConnectCallback(request: Request, env: Env): Promi
     return redirectTo(`${dashboardUrl}?slack_connect_failed=paid_plan_required`);
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_slack_connect", RATE_LIMIT_FIRM_SLACK_CONNECT);
-  if (!allowed) return errorPage(429, "Too many requests today. Please try again in 24 hours.");
-
   const url = new URL(request.url);
   if (url.searchParams.get("error")) {
     return redirectTo(`${dashboardUrl}?slack_connect_failed=declined`);
@@ -8040,6 +8077,11 @@ async function handleFirmSlackConnectCallback(request: Request, env: Env): Promi
   if (!code || !state) {
     return redirectTo(`${dashboardUrl}?slack_connect_failed=invalid`);
   }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_slack_connect", RATE_LIMIT_FIRM_SLACK_CONNECT);
+  if (!allowed) return errorPage(429, "Too many requests today. Please try again in 24 hours.");
 
   const browserBinding = getCookie(request, OAUTH_HANDSHAKE_COOKIE_NAME);
   const consumed = await store.consumeOauthState(env.DB, state, browserBinding);
@@ -8149,11 +8191,6 @@ async function handleFirmTeamsWebhookSet(request: Request, env: Env): Promise<Re
     return jsonResponse(400, { error: "This isn't available on the shared demo account." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_teams_webhook_set", RATE_LIMIT_FIRM_TEAMS_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -8163,25 +8200,34 @@ async function handleFirmTeamsWebhookSet(request: Request, env: Env): Promise<Re
     return jsonResponse(400, { error: "Something went wrong processing that request." });
   }
 
-  if (body.webhook_url === null) {
-    await store.clearFirmTeamsWebhook(env.DB, session.firmId);
-    return jsonResponse(200, { teams_connected: false });
-  }
+  const clearing = body.webhook_url === null;
 
   // Roadmap #151 Phase 3 (2026-08-10): only gates SETTING a real webhook --
-  // clearing one (above) is always allowed, same "turning a paid feature
+  // clearing one (below) is always allowed, same "turning a paid feature
   // off is never itself gated" posture the rest of this codebase uses.
   // Layer 1 of 2 (send-time in runTeamsAlertPass is layer 2, closing the
   // downgrade-after-connect gap) -- see requireFirmSessionAndPaidTier's own
   // docstring for the parallel Map/PPC precedent this mirrors. Both layers
   // are TIER gates: the URL itself is vetted only by isTeamsWebhookUrl()
   // below, never re-checked at send time (SSRF-2 -- see teams.ts).
-  const valueLineDenial = valueLineDenialResponse(session.firm);
+  const valueLineDenial = clearing ? null : valueLineDenialResponse(session.firm);
   if (valueLineDenial) return valueLineDenial;
 
   const webhookUrlRaw = typeof body.webhook_url === "string" ? body.webhook_url.trim() : "";
-  if (!isTeamsWebhookUrl(webhookUrlRaw)) {
+  if (!clearing && !isTeamsWebhookUrl(webhookUrlRaw)) {
     return jsonResponse(400, { error: "That doesn't look like a Teams workflow webhook URL. Please check it and try again." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_teams_webhook_set", RATE_LIMIT_FIRM_TEAMS_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
+
+  if (clearing) {
+    await store.clearFirmTeamsWebhook(env.DB, session.firmId);
+    return jsonResponse(200, { teams_connected: false });
   }
 
   // AuditLab SLACK-1 (extends to Teams, 2026-08-09): this webhook URL is
@@ -8217,11 +8263,6 @@ async function handleNpsResponse(request: Request, env: Env): Promise<Response> 
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_nps", RATE_LIMIT_FIRM_NPS);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   let body: Record<string, unknown>;
   try {
     const raw = await request.text();
@@ -8234,6 +8275,13 @@ async function handleNpsResponse(request: Request, env: Env): Promise<Response> 
   const score = typeof body.score === "number" ? body.score : NaN;
   if (!Number.isInteger(score) || score < 0 || score > 10) {
     return jsonResponse(400, { error: "Please choose a score from 0 to 10." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_nps", RATE_LIMIT_FIRM_NPS);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   // AuditLab DEMO-3 class (2026-08-07): nps_prompt_due already suppresses
@@ -8460,15 +8508,6 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  // Per-FIRM daily cap (not per-IP) -- see RATE_LIMIT_FIRM_LICENSE_CREATE's
-  // own comment for why checkRateLimit()'s `ip` parameter is deliberately
-  // reused here as "the bucket's identity key," bound to the authenticated
-  // firm id rather than the caller's network address.
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_license_create", RATE_LIMIT_FIRM_LICENSE_CREATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many staff added today for this firm. Please try again in 24 hours." });
-  }
-
 
   const parsed = await readFirmLicenseJsonBody(request);
   if (parsed instanceof Response) return parsed;
@@ -8545,6 +8584,29 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
     return jsonResponse(400, { error: "Couldn't compute a deadline from what you gave us -- please check your inputs." });
   }
 
+  // Roadmap #7 (2026-08-07): self-reported, optional. Empty/omitted -> null
+  // (not tracked), matching every other optional field on this form.
+  const renewalFeeRaw = (form.renewal_fee ?? "").trim();
+  let renewalFeeCents: number | null = null;
+  if (renewalFeeRaw.length > 0) {
+    renewalFeeCents = parseStrictDollarsToCents(renewalFeeRaw);
+    if (renewalFeeCents === null) {
+      return jsonResponse(400, { error: "Please enter a valid renewal fee." });
+    }
+  }
+
+  // SEC-70/71: the slot is spent below every refusal a caller can trigger for
+  // free, but stays above this dedupe: its 409 says an address exists somewhere
+  // in the subscriber base, so it has to stay metered.
+  // Per-FIRM daily cap (not per-IP) -- see RATE_LIMIT_FIRM_LICENSE_CREATE's
+  // own comment for why checkRateLimit()'s `ip` parameter is deliberately
+  // reused here as "the bucket's identity key," bound to the authenticated
+  // firm id rather than the caller's network address.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_license_create", RATE_LIMIT_FIRM_LICENSE_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many staff added today for this firm. Please try again in 24 hours." });
+  }
+
   // Surface a conflict rather than silently creating a second row for an
   // email+state that already has an active or pending record (free-tier or
   // another firm's) -- findActiveOrPending() is the same dedupe check
@@ -8602,17 +8664,6 @@ async function handleFirmLicenseCreate(request: Request, env: Env): Promise<Resp
           .map((r) => stateNameFromSlug(r.state_slug))
           .join(", ")}. If this is a different state license for the same person, that's fine -- just double-check it isn't a typo of someone else.`
       : null;
-
-  // Roadmap #7 (2026-08-07): self-reported, optional. Empty/omitted -> null
-  // (not tracked), matching every other optional field on this form.
-  const renewalFeeRaw = (form.renewal_fee ?? "").trim();
-  let renewalFeeCents: number | null = null;
-  if (renewalFeeRaw.length > 0) {
-    renewalFeeCents = parseStrictDollarsToCents(renewalFeeRaw);
-    if (renewalFeeCents === null) {
-      return jsonResponse(400, { error: "Please enter a valid renewal fee." });
-    }
-  }
 
   const record = await store.addPending(env.DB, {
     email,
@@ -8750,17 +8801,6 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
   // CSRF defense-in-depth (2026-08-05) -- see handleFirmLicenseCreate's own comment.
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
-  }
-
-  // Per-FIRM daily cap -- AuditLab F-2, 2026-08-02. This route previously
-  // had none at all, unlike POST /firm/licenses (RATE_LIMIT_FIRM_LICENSE_CREATE
-  // above): every email change here fires a confirmation email to the NEW
-  // address, so an unbounded PATCH is a mail-bomb primitive against any
-  // third-party address, from an authenticated session. Checked before any
-  // other work, same placement as the POST handler.
-  const patchAllowed = await checkRateLimit(env.DB, session.firmId, "firm_license_patch", RATE_LIMIT_FIRM_LICENSE_PATCH);
-  if (!patchAllowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   const existing = await store.getFirmLicense(env.DB, session.firmId, id);
@@ -8923,6 +8963,18 @@ async function handleFirmLicensePatch(request: Request, env: Env, id: string): P
     ) {
       return jsonResponse(400, { error: "Couldn't compute a deadline from what you gave us -- please check your inputs." });
     }
+  }
+
+  // Per-FIRM daily cap -- AuditLab F-2, 2026-08-02. This route previously
+  // had none at all, unlike POST /firm/licenses (RATE_LIMIT_FIRM_LICENSE_CREATE
+  // above): every email change here fires a confirmation email to the NEW
+  // address, so an unbounded PATCH is a mail-bomb primitive against any
+  // third-party address, from an authenticated session. Spent below every free
+  // refusal (SEC-70/71) but above the dedupe, whose 409 is an existence oracle,
+  // same placement as the POST handler.
+  const patchAllowed = await checkRateLimit(env.DB, session.firmId, "firm_license_patch", RATE_LIMIT_FIRM_LICENSE_PATCH);
+  if (!patchAllowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   const emailChanged = store.normalizeEmail(email) !== store.normalizeEmail(existing.email);
@@ -9102,6 +9154,12 @@ async function handleFirmLicenseDelete(request: Request, env: Env, id: string): 
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  if (!(await store.getFirmLicense(env.DB, session.firmId, id))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. No send path here (unlike
   // F-2/RATE_LIMIT_FIRM_LICENSE_PATCH), but still unbounded D1 write
   // amplification with nothing bounding it before this.
@@ -9155,19 +9213,21 @@ async function handleFirmLicenseRenew(request: Request, env: Env, id: string): P
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. Same reasoning as the
-  // DELETE handler above: no send path, but unbounded D1 write amplification.
-  const renewAllowed = await checkRateLimit(env.DB, session.firmId, "firm_license_renew", RATE_LIMIT_FIRM_LICENSE_RENEW);
-  if (!renewAllowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   // Read the row first (ownership-scoped) so a refusal can be given a
   // specific, honest reason -- store.renewAndRearm() itself only ever
   // returns SubscriberRow | null, the same "no distinguishing detail" shape
   // every other store.ts mutation in this file uses.
   const existing = await store.getFirmLicense(env.DB, session.firmId, id);
   if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. Same reasoning as the
+  // DELETE handler above: no send path, but unbounded D1 write amplification.
+  const renewAllowed = await checkRateLimit(env.DB, session.firmId, "firm_license_renew", RATE_LIMIT_FIRM_LICENSE_RENEW);
+  if (!renewAllowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
+  }
 
   const updated = await store.renewAndRearm(env.DB, session.firmId, id);
   if (!updated) {
@@ -9244,6 +9304,19 @@ async function handleCpeEntriesList(request: Request, env: Env): Promise<Respons
   return jsonResponse(200, { entries: rows.map(toCpeEntryJson) });
 }
 
+function cpeGroupRefusalResponse(reason: store.CpeGroupRefusal): Response {
+  if (reason === "different_person") {
+    return jsonResponse(400, { error: "A course can only be applied to other states of the same person (same email address)." });
+  }
+  if (reason === "firm_entity_line") {
+    return jsonResponse(400, { error: "Firm permits and registrations don't take CPE hours." });
+  }
+  if (reason === "too_many") {
+    return jsonResponse(400, { error: "Choose each state only once." });
+  }
+  return jsonResponse(404, { error: "Not found." });
+}
+
 /**
  * POST /firm/cpe -- body: `subscriber_id`, `entry_date` (YYYY-MM-DD, must
  * not be in the future -- can't log CPE not yet completed), `hours`
@@ -9262,11 +9335,6 @@ async function handleCpeEntryCreate(request: Request, env: Env): Promise<Respons
   // CSRF defense-in-depth (2026-08-05) -- see handleFirmLicenseCreate's own comment.
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
-  }
-
-  const allowed = await checkRateLimit(env.DB, session.firmId, "cpe_entry_create", RATE_LIMIT_CPE_ENTRY_CREATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many CPE entries logged today for this firm. Please try again in 24 hours." });
   }
 
   const parsed = await readFirmLicenseJsonBody(request); // generic despite the name -- see that function's own signature
@@ -9365,9 +9433,12 @@ async function handleCpeEntryCreate(request: Request, env: Env): Promise<Respons
       }
       targets.push({ subscriberId: itemId, hours: itemHours, category: itemCategory });
     }
+    const groupRefusal = await store.checkCpeGroupTargets(env.DB, session.firmId, targets.map((t) => t.subscriberId));
+    if (groupRefusal) return cpeGroupRefusalResponse(groupRefusal);
     // The per-firm daily cap counts every entry written, not every request (AuditLab S-3):
-    // one request writing N entries spends N units, checked BEFORE anything is written.
-    for (let i = 0; i < alsoRaw.length; i++) {
+    // one request writing N entries spends N units, checked BEFORE anything is written,
+    // and after every refusal the caller can trigger for free (SEC-70/71).
+    for (let i = 0; i <= alsoRaw.length; i++) {
       if (!(await checkRateLimit(env.DB, session.firmId, "cpe_entry_create", RATE_LIMIT_CPE_ENTRY_CREATE))) {
         return jsonResponse(429, { error: "Too many CPE entries logged today for this firm. Please try again in 24 hours." });
       }
@@ -9380,20 +9451,20 @@ async function handleCpeEntryCreate(request: Request, env: Env): Promise<Respons
       targets,
       primaryCertificateDocumentId: certificateDocumentId,
     });
-    if (!group.ok) {
-      if (group.reason === "different_person") {
-        return jsonResponse(400, { error: "A course can only be applied to other states of the same person (same email address)." });
-      }
-      if (group.reason === "firm_entity_line") {
-        return jsonResponse(400, { error: "Firm permits and registrations don't take CPE hours." });
-      }
-      if (group.reason === "too_many") {
-        return jsonResponse(400, { error: "Choose each state only once." });
-      }
-      return jsonResponse(404, { error: "Not found." });
-    }
+    if (!group.ok) return cpeGroupRefusalResponse(group.reason);
     const [primary, ...linked] = group.entries;
     return jsonResponse(201, { ...toCpeEntryJson(primary!), linked_entries: linked.map(toCpeEntryJson) });
+  }
+
+  if (!(await store.getFirmLicense(env.DB, session.firmId, subscriberId))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "cpe_entry_create", RATE_LIMIT_CPE_ENTRY_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many CPE entries logged today for this firm. Please try again in 24 hours." });
   }
 
   const created = await store.addCpeEntry(env.DB, {
@@ -9424,6 +9495,12 @@ async function handleCpeEntryDelete(request: Request, env: Env, id: string): Pro
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  if (!(await store.cpeEntryExistsForFirm(env.DB, session.firmId, id))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. Same reasoning as
   // RATE_LIMIT_CPE_ENTRY_CREATE's own comment, applied to the delete side.
   const allowed = await checkRateLimit(env.DB, session.firmId, "cpe_entry_delete", RATE_LIMIT_CPE_ENTRY_DELETE);
@@ -9479,6 +9556,15 @@ function sanitizeDocumentFilename(raw: string): string {
   return stripped.length > 0 ? stripped : "document";
 }
 
+// SEC-70/71: uploads are parsed before the rate-limit slot is spent, so a body
+// that declares itself far past the file limit is refused without parsing it.
+// A chunked body declares nothing and still reaches the platform's own cap.
+const UPLOAD_ENVELOPE_BYTES = 64 * 1024;
+function uploadBodyTooLarge(request: Request): boolean {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  return declared > store.DOCUMENT_MAX_FILE_BYTES + UPLOAD_ENVELOPE_BYTES;
+}
+
 /** POST /firm/licenses/:id/documents -- upload a license or CPE certificate
  * for one staff member. multipart/form-data: `file` (the upload) + `kind`
  * ("license" | "cpe"). Ownership of the subscriber is checked up front
@@ -9506,13 +9592,12 @@ async function handleDocumentUpload(request: Request, env: Env, subscriberId: st
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const uploadAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_upload", RATE_LIMIT_FIRM_DOCUMENT_UPLOAD);
-  if (!uploadAllowed) {
-    return jsonResponse(429, { error: "Too many uploads today. Please try again in 24 hours." });
-  }
-
   const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  if (uploadBodyTooLarge(request)) {
+    return jsonResponse(400, { error: "That file is too large -- the limit is 2MB." });
+  }
 
   let formData: FormData;
   try {
@@ -9548,6 +9633,13 @@ async function handleDocumentUpload(request: Request, env: Env, subscriberId: st
 
   if (file.size <= 0 || file.size > store.DOCUMENT_MAX_FILE_BYTES) {
     return jsonResponse(400, { error: "That file is too large -- the limit is 2MB." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const uploadAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_upload", RATE_LIMIT_FIRM_DOCUMENT_UPLOAD);
+  if (!uploadAllowed) {
+    return jsonResponse(429, { error: "Too many uploads today. Please try again in 24 hours." });
   }
 
   const currentTotal = await store.sumFirmDocumentBytes(env.DB, session.firmId);
@@ -9710,22 +9802,12 @@ async function handleDocumentExtract(request: Request, env: Env, subscriberId: s
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  // Both limits apply, checked independently: the plain-upload ceiling
-  // (this writes the same R2 object + documents row handleDocumentUpload
-  // does) AND the tighter extraction-specific ceiling (this also spends on
-  // one real paid API call) -- so this route can't be used to exceed
-  // either limit on its own.
-  const uploadAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_upload", RATE_LIMIT_FIRM_DOCUMENT_UPLOAD);
-  if (!uploadAllowed) {
-    return jsonResponse(429, { error: "Too many uploads today. Please try again in 24 hours." });
-  }
-  const extractAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_extract", RATE_LIMIT_FIRM_DOCUMENT_EXTRACT);
-  if (!extractAllowed) {
-    return jsonResponse(429, { error: "Too many auto-fill attempts today. Please try again in 24 hours, or enter the details manually." });
-  }
-
   const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!existing) return jsonResponse(404, { error: "Not found." });
+
+  if (uploadBodyTooLarge(request)) {
+    return jsonResponse(400, { error: "That file is too large -- the limit is 2MB." });
+  }
 
   let formData: FormData;
   try {
@@ -9746,6 +9828,23 @@ async function handleDocumentExtract(request: Request, env: Env, subscriberId: s
 
   if (file.size <= 0 || file.size > store.DOCUMENT_MAX_FILE_BYTES) {
     return jsonResponse(400, { error: "That file is too large -- the limit is 2MB." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // Both limits apply, checked independently: the plain-upload ceiling
+  // (this writes the same R2 object + documents row handleDocumentUpload
+  // does) AND the tighter extraction-specific ceiling (this also spends on
+  // one real paid API call) -- so this route can't be used to exceed
+  // either limit on its own.
+  const uploadAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_upload", RATE_LIMIT_FIRM_DOCUMENT_UPLOAD);
+  if (!uploadAllowed) {
+    return jsonResponse(429, { error: "Too many uploads today. Please try again in 24 hours." });
+  }
+
+  const extractAllowed = await checkRateLimit(env.DB, session.firmId, "firm_document_extract", RATE_LIMIT_FIRM_DOCUMENT_EXTRACT);
+  if (!extractAllowed) {
+    return jsonResponse(429, { error: "Too many auto-fill attempts today. Please try again in 24 hours, or enter the details manually." });
   }
 
   const currentTotal = await store.sumFirmDocumentBytes(env.DB, session.firmId);
@@ -9894,6 +9993,12 @@ async function handleDocumentDelete(request: Request, env: Env, id: string): Pro
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  if (!(await store.getDocumentForFirm(env.DB, session.firmId, id))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   // AuditLab SEC-1 (2026-08-07): the original finding -- this endpoint had
   // no rate limit at all, contradicting the /security/ page's own claim.
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_document_delete", RATE_LIMIT_FIRM_DISMISS);
@@ -9967,11 +10072,6 @@ async function handleChecklistItemCreate(request: Request, env: Env, subscriberI
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const existing = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!existing) return jsonResponse(404, { error: "Not found." });
 
@@ -9999,6 +10099,13 @@ async function handleChecklistItemCreate(request: Request, env: Env, subscriberI
 
   if (currentCount + labels.length > store.CHECKLIST_MAX_ITEMS_PER_LICENSE) {
     return jsonResponse(400, { error: `A license can have at most ${store.CHECKLIST_MAX_ITEMS_PER_LICENSE} checklist items.` });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const created: store.ChecklistItemRow[] = [];
@@ -10040,11 +10147,6 @@ async function handleChecklistItemUpdate(request: Request, env: Env, id: string)
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -10076,6 +10178,20 @@ async function handleChecklistItemUpdate(request: Request, env: Env, id: string)
     patch.label = label;
   }
 
+  const item = await store.getChecklistItemForFirm(env.DB, session.firmId, id);
+  if (!item) return jsonResponse(404, { error: "Not found." });
+  if (patch.documentId !== undefined && patch.documentId !== null) {
+    const doc = await store.getDocumentForFirm(env.DB, session.firmId, patch.documentId);
+    if (!doc || doc.subscriber_id !== item.subscriber_id) return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
   const updated = await store.updateChecklistItem(env.DB, session.firmId, id, patch);
   if (!updated) return jsonResponse(404, { error: "Not found." });
 
@@ -10094,6 +10210,12 @@ async function handleChecklistItemDelete(request: Request, env: Env, id: string)
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  if (!(await store.getChecklistItemForFirm(env.DB, session.firmId, id))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_checklist_write", RATE_LIMIT_FIRM_CHECKLIST_WRITE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
@@ -10137,11 +10259,6 @@ async function handleAttestationCreate(request: Request, env: Env, subscriberId:
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_attestation_create", RATE_LIMIT_FIRM_ATTESTATION_CREATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const license = await store.getFirmLicense(env.DB, session.firmId, subscriberId);
   if (!license) return jsonResponse(404, { error: "Not found." });
 
@@ -10158,6 +10275,13 @@ async function handleAttestationCreate(request: Request, env: Env, subscriberId:
   const signatureText = sanitizeFreeText(b.signature_text, store.ATTESTATION_SIGNATURE_MAX_LEN);
   if (!signatureText || signatureText.length < store.ATTESTATION_SIGNATURE_MIN_LEN) {
     return jsonResponse(400, { error: "Please type your full name to sign." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_attestation_create", RATE_LIMIT_FIRM_ATTESTATION_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
@@ -13496,20 +13620,27 @@ async function handleOauthIdentityDelete(request: Request, env: Env, id: string)
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. Same reasoning as
-  // RATE_LIMIT_OAUTH_START's own comment (bounds table growth from a
-  // compromised/careless session), applied to the unlink side.
-  const allowed = await checkRateLimit(env.DB, session.firmId, "oauth_identity_delete", RATE_LIMIT_OAUTH_IDENTITY_DELETE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
-  }
-
   // Adversarial review (2026-08-09, model: opus, /firm/demo-login review):
   // SSO LINKING already refuses a demo_locked firm (Task #27) -- unlinking
   // was the missing other half of the same class, letting any visitor
   // mutate the shared demo account's auth configuration.
   if (session.firm.demo_locked) {
     return jsonResponse(400, { error: "This isn't available on the shared demo account." });
+  }
+
+  const identities = await store.listOauthIdentitiesForFirm(env.DB, session.firmId);
+  if (!identities.some((identity) => identity.id === id)) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // Per-FIRM daily cap -- AuditLab S-3, 2026-08-03. Same reasoning as
+  // RATE_LIMIT_OAUTH_START's own comment (bounds table growth from a
+  // compromised/careless session), applied to the unlink side.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "oauth_identity_delete", RATE_LIMIT_OAUTH_IDENTITY_DELETE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
   }
 
   const removed = await store.unlinkOauthIdentity(env.DB, session.firmId, id);
@@ -13633,6 +13764,17 @@ async function handleMobilityCheck(request: Request, env: Env, ip: string): Prom
   const targetStateSlug = typeof body.target_state_slug === "string" ? body.target_state_slug : "";
   const serviceTypeRaw = typeof body.service_type === "string" ? body.service_type : "";
 
+  // Slugs are validated against the real jurisdiction list, not merely
+  // sanitised -- an unknown slug must be a 400, never a silent lookup miss
+  // that renders as "not verified" and looks like a data gap. Above the slot
+  // (SEC-70/71): these refusals cost the caller nothing.
+  if (!stateNameForSlug(homeStateSlug) || !stateNameForSlug(targetStateSlug)) {
+    return jsonResponse(400, { error: "Please choose both a home state and a target state." });
+  }
+  if (!isValidServiceType(serviceTypeRaw)) {
+    return jsonResponse(400, { error: "Please choose a service type." });
+  }
+
   // AuditLab MAP-1 (2026-08-07): rate limit is AFTER the entitlement gate
   // (review finding: an unentitled session must not burn a paying firm's
   // budget on 403s) but scope-decided BEFORE the bucket is chosen -- a
@@ -13649,16 +13791,6 @@ async function handleMobilityCheck(request: Request, env: Env, ip: string): Prom
     : await checkRateLimit(env.DB, session.firmId, "mobility_check", RATE_LIMIT_MOBILITY_CHECK);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many requests. Please try again later." });
-  }
-
-  // Slugs are validated against the real jurisdiction list, not merely
-  // sanitised -- an unknown slug must be a 400, never a silent lookup miss
-  // that renders as "not verified" and looks like a data gap.
-  if (!stateNameForSlug(homeStateSlug) || !stateNameForSlug(targetStateSlug)) {
-    return jsonResponse(400, { error: "Please choose both a home state and a target state." });
-  }
-  if (!isValidServiceType(serviceTypeRaw)) {
-    return jsonResponse(400, { error: "Please choose a service type." });
   }
 
   // Roadmap #317 Phase 2 Part A (2026-08-12): optional, same self-attestation
@@ -13846,6 +13978,14 @@ async function handleMobilityCheckBatch(request: Request, env: Env): Promise<Res
   const homeStateSlug = typeof body.home_state_slug === "string" ? body.home_state_slug : "";
   const serviceTypeRaw = typeof body.service_type === "string" ? body.service_type : "";
 
+  // Above the slot (SEC-70/71): these refusals cost the caller nothing.
+  if (!stateNameForSlug(homeStateSlug)) {
+    return jsonResponse(400, { error: "Please choose a home state." });
+  }
+  if (!isValidServiceType(serviceTypeRaw)) {
+    return jsonResponse(400, { error: "Please choose a service type." });
+  }
+
   // AuditLab MAP-1 (2026-08-07): same scope-based bucket choice as
   // handleMobilityCheck() above -- see that handler's own comment.
   const rosterStates = await store.getFirmRosterStateSlugs(env.DB, session.firmId);
@@ -13857,12 +13997,6 @@ async function handleMobilityCheckBatch(request: Request, env: Env): Promise<Res
     return jsonResponse(429, { error: "Too many mobility checks this hour. Please try again within the hour." });
   }
 
-  if (!stateNameForSlug(homeStateSlug)) {
-    return jsonResponse(400, { error: "Please choose a home state." });
-  }
-  if (!isValidServiceType(serviceTypeRaw)) {
-    return jsonResponse(400, { error: "Please choose a service type." });
-  }
   const attestEngagementTypeRaw = typeof body.attest_engagement_type === "string" ? body.attest_engagement_type : "";
   const attestEngagementType = isValidAttestEngagementType(attestEngagementTypeRaw) ? attestEngagementTypeRaw : undefined;
 
@@ -13958,11 +14092,6 @@ async function handleMobilityCheckRoster(request: Request, env: Env): Promise<Re
   const targetStateSlug = typeof body.target_state_slug === "string" ? body.target_state_slug : "";
   const serviceTypeRaw = typeof body.service_type === "string" ? body.service_type : "";
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "mobility_check_roster", RATE_LIMIT_MOBILITY_CHECK_ROSTER);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many requests. Please try again later." });
-  }
-
   if (!stateNameForSlug(targetStateSlug)) {
     return jsonResponse(400, { error: "Please choose a target state." });
   }
@@ -13971,6 +14100,13 @@ async function handleMobilityCheckRoster(request: Request, env: Env): Promise<Re
   }
   const attestEngagementTypeRaw = typeof body.attest_engagement_type === "string" ? body.attest_engagement_type : "";
   const attestEngagementType = isValidAttestEngagementType(attestEngagementTypeRaw) ? attestEngagementTypeRaw : undefined;
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "mobility_check_roster", RATE_LIMIT_MOBILITY_CHECK_ROSTER);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests. Please try again later." });
+  }
 
   const roster = await store.listFirmLicenses(env.DB, session.firmId);
   const targetRule = MOBILITY_RULES_BY_SLUG[targetStateSlug] ?? null;
@@ -14062,11 +14198,6 @@ async function handleMobilityCompletionCreate(request: Request, env: Env): Promi
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.firmId, "mobility_completion_create", RATE_LIMIT_MOBILITY_COMPLETION_CREATE);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many requests today. Please try again in 24 hours." });
-  }
-
   const parsed = await readFirmLicenseJsonBody(request); // generic despite the name -- see that function's own signature
   if (parsed instanceof Response) return parsed;
   const form = stringFieldsOf(parsed);
@@ -14090,6 +14221,17 @@ async function handleMobilityCompletionCreate(request: Request, env: Env): Promi
   const serviceTypeRaw = (form.service_type ?? "").trim();
   if (!isValidServiceType(serviceTypeRaw)) {
     return jsonResponse(400, { error: "Please choose a service type." });
+  }
+
+  if (!(await store.getFirmLicense(env.DB, session.firmId, subscriberId))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, session.firmId, "mobility_completion_create", RATE_LIMIT_MOBILITY_COMPLETION_CREATE);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many requests today. Please try again in 24 hours." });
   }
 
   const rule = MOBILITY_RULES_BY_SLUG[targetStateSlug] ?? null;
@@ -14119,6 +14261,12 @@ async function handleMobilityCompletionDelete(request: Request, env: Env, id: st
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  if (!(await store.mobilityCompletionExistsForFirm(env.DB, session.firmId, id))) {
+    return jsonResponse(404, { error: "Not found." });
+  }
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
   const allowed = await checkRateLimit(env.DB, session.firmId, "mobility_completion_delete", RATE_LIMIT_MOBILITY_COMPLETION_DELETE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many requests today. Please try again in 24 hours." });

@@ -11,6 +11,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
+import { fillBucket, freeOneSlot, slotsUsed } from "./rate-limit-slots";
 
 const BASE = "https://deadline-radar.com";
 
@@ -107,21 +108,35 @@ describe("SEC-1: previously-unlimited write endpoints now rate-limit", () => {
     expect(successes).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
   }, 20000);
 
-  it("DELETE /firm/documents/:id -- a nonexistent id still consumes the bucket", async () => {
-    const { cookie } = await createFirmWithSession("SEC1 Doc Firm", `sec1-doc-${Date.now()}@example.com`);
-    // This endpoint 404s (not 2xx) on the nonexistent id -- a 404 means the
-    // request got PAST the rate limit (and consumed the bucket), so 404s
-    // are this test's "successes". Transient contention 400s neither
-    // consume nor count, exactly like the 2xx-counting tests above.
-    let past = 0;
-    for (let i = 0; i < 40; i++) {
-      const resp = await SELF.fetch(`${BASE}/firm/documents/does-not-exist`, {
+  it("DELETE /firm/documents/:id -- a nonexistent id spends nothing, a real delete is limited", async () => {
+    const { firmId, cookie } = await createFirmWithSession("SEC1 Doc Firm", `sec1-doc-${Date.now()}@example.com`);
+    const del = (id: string) =>
+      SELF.fetch(`${BASE}/firm/documents/${id}`, {
         method: "DELETE",
         headers: { Cookie: cookie, Origin: "https://deadline-radar.com", "cf-connecting-ip": "203.0.113.44" },
       });
-      if (resp.status === 404) past++;
-    }
-    expect(past).toBeLessThanOrEqual(DISMISS_BUCKET_MAX);
+    const created = await SELF.fetch(`${BASE}/firm/licenses`, {
+      method: "POST",
+      headers: { "content-type": "application/json", Cookie: cookie, Origin: "https://deadline-radar.com", "cf-connecting-ip": "203.0.113.44" },
+      body: JSON.stringify({ email: `sec1-doc-staff-${Date.now()}@example.com`, state_slug: "georgia", license_type_id: "ga-individual" }),
+    });
+    expect(created.status).toBe(201);
+    const { id: subscriberId } = (await created.json()) as { id: string };
+    const doc = await store.createDocument(env.DB, {
+      firmId,
+      subscriberId,
+      kind: "cpe",
+      r2Key: `sec1/${firmId}/doc.pdf`,
+      filename: "doc.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 10,
+    });
+    await fillBucket(firmId, "firm_document_delete", DISMISS_BUCKET_MAX);
+    expect((await del("does-not-exist")).status).toBe(404);
+    expect((await del(doc!.id)).status).toBe(429);
+    await freeOneSlot(firmId, "firm_document_delete");
+    expect((await del(doc!.id)).status).toBe(200);
+    expect(await slotsUsed(firmId, "firm_document_delete")).toBe(DISMISS_BUCKET_MAX);
   }, 20000);
 
   // AuditLab LOGOUT-1 (2026-08-17): SEC-1's ORIGINAL fix gated the row

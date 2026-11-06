@@ -20,6 +20,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import { fillBucket, freeOneSlot, slotsUsed } from "./rate-limit-slots";
 import type { FirmRow } from "../src/store";
 
 function testExecutionContext(): ExecutionContext {
@@ -277,24 +278,32 @@ describe("POST /firm/billing/checkout", () => {
   // before the fix, if the request ever got that far) so no Stripe call is
   // ever made -- the rate-limit check now sits before body parsing entirely.
   it("RL-5: rate-limited per firm (was completely unbounded)", async () => {
-    const { cookie } = await createFirmWithSession("Checkout RL Firm", `checkout-rl-${Date.now()}@example.com`);
-    let sawA429 = false;
-    for (let i = 0; i < 15; i++) {
-      const resp = await workerFetch(
+    const { firmId, cookie } = await createFirmWithSession("Checkout RL Firm", `checkout-rl-${Date.now()}@example.com`);
+    const checkout = (tier: string) =>
+      workerFetch(
         new Request("https://deadline-radar.com/firm/billing/checkout", {
           method: "POST",
           headers: { "content-type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tier: "enterprise" }),
+          body: JSON.stringify({ tier }),
         }),
         { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_PRICE_FIRM_STARTER: "price_x" }
       );
-      if (resp.status === 429) {
-        sawA429 = true;
-        break;
-      }
-      expect(resp.status).toBe(400);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "cs_test_rl", url: "https://checkout.stripe.com/pay/cs_test_rl" }), { status: 200 })
+    );
+    try {
+      await fillBucket(firmId, "firm_billing_checkout", 10);
+      // SEC-70/71: a tier refusal spends nothing, so it is still a 400 with the bucket full.
+      expect((await checkout("enterprise")).status).toBe(400);
+      expect((await checkout("firm_starter")).status).toBe(429);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      await freeOneSlot(firmId, "firm_billing_checkout");
+      expect((await checkout("firm_starter")).status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(await slotsUsed(firmId, "firm_billing_checkout")).toBe(10);
+    } finally {
+      fetchSpy.mockRestore();
     }
-    expect(sawA429, "expected a 429 within the RATE_LIMIT_FIRM_BILLING_CHECKOUT ceiling (10/hour) -- got none in 15 requests").toBe(true);
   });
 });
 

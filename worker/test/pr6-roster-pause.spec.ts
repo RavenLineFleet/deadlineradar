@@ -569,6 +569,9 @@ describe("POST /firm/licenses/active-picks", () => {
       })
     );
     expect(resp.status).toBe(400);
+    // SEC-70/71: a refusal the caller triggers for free spends no slot.
+    const spent = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE ip = ?1 AND bucket = 'firm_roster_active_picks'").bind(firmId).first<{ n: number }>();
+    expect(spent?.n).toBe(0);
   });
 
   it("400s when the pick exceeds the firm's own cap", async () => {
@@ -584,6 +587,9 @@ describe("POST /firm/licenses/active-picks", () => {
       })
     );
     expect(resp.status).toBe(400);
+    // SEC-70/71: a refusal the caller triggers for free spends no slot.
+    const spent = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE ip = ?1 AND bucket = 'firm_roster_active_picks'").bind(firmId).first<{ n: number }>();
+    expect(spent?.n).toBe(0);
   });
 
   it("200s and returns the reconciled roster on a valid pick", async () => {
@@ -603,6 +609,8 @@ describe("POST /firm/licenses/active-picks", () => {
     const body = (await resp.json()) as { licenses: { id: string; paused: boolean }[] };
     const activeIds = body.licenses.filter((l) => !l.paused).map((l) => l.id);
     expect(activeIds.sort()).toEqual([...chosen].sort());
+    const spent = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE ip = ?1 AND bucket = 'firm_roster_active_picks'").bind(firmId).first<{ n: number }>();
+    expect(spent?.n).toBe(1);
   });
 
   // AuditLab PR6-H (MEDIUM, 2026-10-02, on 413ab77af): a pick made WHILE
