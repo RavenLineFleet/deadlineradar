@@ -63,9 +63,77 @@ async function actionCount(): Promise<number> {
   return row?.count ?? 0;
 }
 
+async function slotsUsed(id: string): Promise<number> {
+  const row = await env.DB
+    .prepare("SELECT COUNT(*) AS n FROM rate_limit_hits WHERE ip = ?1 AND bucket = 'subscribe_resend'")
+    .bind(id)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+const FULL_CAP = 1_000_000;
+
+async function setActionCount(count: number): Promise<void> {
+  await env.DB
+    .prepare(
+      `INSERT INTO action_send_counters (day, count) VALUES (strftime('%Y-%m-%d','now'), ?1)
+       ON CONFLICT(day) DO UPDATE SET count = ?1`
+    )
+    .bind(count)
+    .run();
+}
+
 function mailApi(status: number) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status }));
 }
+
+describe("a resend refused because the global cap is full (SEC-77)", () => {
+  afterEach(() => setActionCount(0));
+
+  it("doesn't let anyone spend the subscriber's slots", async () => {
+    const row = await pendingRow("capfull");
+    const api = mailApi(200);
+    await setActionCount(FULL_CAP);
+    for (let i = 0; i < RATE_LIMIT_SUBSCRIBE_RESEND.max + 2; i++) await repost(row.email);
+    expect(api).not.toHaveBeenCalled();
+    expect(await slotsUsed(row.id)).toBe(0);
+    expect(await actionCount()).toBe(FULL_CAP);
+    expect((await read(row.id)).last_resend_at).toBeNull();
+
+    await setActionCount(0);
+    await repost(row.email);
+    expect(api).toHaveBeenCalledTimes(1);
+    expect((await read(row.id)).resend_count).toBe(1);
+  });
+
+  it("gives back only its own slot, leaving earlier charged attempts in place", async () => {
+    const row = await pendingRow("capfull-partial");
+    mailApi(500);
+    await repost(row.email);
+    await pastCooldown(row.id);
+    await repost(row.email);
+    expect(await slotsUsed(row.id)).toBe(2);
+
+    await pastCooldown(row.id);
+    await setActionCount(FULL_CAP);
+    await repost(row.email);
+    expect(await slotsUsed(row.id)).toBe(2);
+  });
+
+  it("doesn't refund when the record's own slots are what refused", async () => {
+    const row = await pendingRow("capfull-slots");
+    mailApi(500);
+    for (let i = 0; i < RATE_LIMIT_SUBSCRIBE_RESEND.max; i++) {
+      await repost(row.email);
+      await pastCooldown(row.id);
+    }
+    expect(await slotsUsed(row.id)).toBe(RATE_LIMIT_SUBSCRIBE_RESEND.max);
+
+    await setActionCount(FULL_CAP);
+    await repost(row.email);
+    expect(await slotsUsed(row.id)).toBe(RATE_LIMIT_SUBSCRIBE_RESEND.max);
+  });
+});
 
 describe("a resend that wasn't delivered", () => {
   it("starts the cooldown but doesn't use up an attempt", async () => {

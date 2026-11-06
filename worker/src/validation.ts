@@ -1143,6 +1143,19 @@ export async function checkRateLimit(
   return (result.meta.changes ?? 0) > 0;
 }
 
+/**
+ * Gives back one hit that checkRateLimit() just recorded, for when the action
+ * it paid for didn't happen. With concurrent callers this may remove a
+ * different hit in the same ip+bucket than the caller's own: the count comes
+ * out right, but which hit goes isn't guaranteed.
+ */
+export async function releaseRateLimitHit(db: D1Database, ip: string, bucket: string): Promise<void> {
+  await db
+    .prepare("DELETE FROM rate_limit_hits WHERE rowid = (SELECT MAX(rowid) FROM rate_limit_hits WHERE ip = ?1 AND bucket = ?2)")
+    .bind(ip, bucket)
+    .run();
+}
+
 // ---------------------------------------------------------------------------
 // Cloudflare Turnstile hook -- ported from reminders/server.py's
 // `_verify_turnstile()`. `TURNSTILE_SECRET_KEY` IS configured on the deployed

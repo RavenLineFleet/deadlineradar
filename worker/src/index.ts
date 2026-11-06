@@ -150,6 +150,7 @@ import {
   RATE_LIMIT_SUBSCRIBE_RESEND,
   RATE_LIMIT_NEWSLETTER_SUBSCRIBE,
   checkRateLimit,
+  releaseRateLimitHit,
   checkSignupDomainGate,
   escapeHtml,
   getCookie,
@@ -1477,8 +1478,14 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
           // SILENT-6: a failed send no longer counts against the lifetime cap,
           // so this per-record slot is what bounds attempts during a mail
           // outage. It sits above the global charge, which is never refunded.
+          // A full global cap hands the slot back (SEC-77): nothing was sent,
+          // and anyone can post this subscriber's email and state.
           const withinRecordLimit = await checkRateLimit(env.DB, existing.id, "subscribe_resend", RATE_LIMIT_SUBSCRIBE_RESEND);
-          const underCap = withinRecordLimit && (await checkAndCountActionSend(env.DB, actionDailySendCap(env)));
+          let underCap = false;
+          if (withinRecordLimit) {
+            underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+            if (!underCap) await releaseRateLimitHit(env.DB, existing.id, "subscribe_resend");
+          }
           if (underCap) {
             const confirmUrl = `${actionBaseUrl(env)}/confirm?token=${encodeURIComponent(existing.confirm_token)}`;
             const unsubscribeUrl = `${actionBaseUrl(env)}/unsubscribe?token=${encodeURIComponent(existing.unsubscribe_token)}`;
