@@ -711,7 +711,9 @@ export function resendEligible(
  * Records a resend attempt for resendEligible()'s next check. Every attempt
  * starts the cooldown; only a delivered one counts toward the lifetime cap, so
  * a mail outage can't use up a subscriber's resends (SILENT-6). The caller
- * bounds failed attempts with RATE_LIMIT_SUBSCRIBE_RESEND.
+ * bounds failed attempts with RATE_LIMIT_SUBSCRIBE_RESEND. A send that times
+ * out after the provider accepted it reads as not delivered, so that real email
+ * isn't counted here: only the slot limits it, at 3 a day per record.
  */
 export async function recordResend(db: D1Database, id: string, delivered: boolean): Promise<void> {
   await db

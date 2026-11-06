@@ -24,6 +24,11 @@
 --     bound one pending record to at most 1 (original) + RESEND_MAX_ATTEMPTS
 --     emails, ever.
 --
+-- SILENT-6 changed that bound. recordResend now counts only delivered sends, so
+-- a send that times out after the provider accepted it is a real email that
+-- is not counted. In that corner the limit is RATE_LIMIT_SUBSCRIBE_RESEND (3 a
+-- day per record), not the lifetime total above.
+--
 -- Purely additive, no rewrite of existing rows -- every row that already
 -- exists gets last_resend_at = NULL, resend_count = 0, i.e. this migration
 -- changes nothing about any existing subscriber until they ask for a resend.
