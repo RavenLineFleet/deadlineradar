@@ -6237,16 +6237,22 @@ export async function deleteAllSubscriberSessionsForEmail(db: D1Database, emailN
 export async function verifySubscriberSession(
   db: D1Database,
   rawSessionToken: string
-): Promise<{ emailNormalized: string; sessionId: string } | null> {
+): Promise<{ emailNormalized: string; sessionId: string; recentlyAuthenticated: boolean } | null> {
   const sessionTokenHash = await hashToken(rawSessionToken);
   const row = await db
     .prepare(`SELECT * FROM subscriber_sessions WHERE session_token_hash = ?1`)
     .bind(sessionTokenHash)
-    .first<{ id: string; email_normalized: string; expires_at: string }>();
+    .first<{ id: string; email_normalized: string; expires_at: string; created_at: string }>();
   if (!row) return null;
   if (Date.parse(row.expires_at) <= Date.now()) return null;
   await db.prepare(`UPDATE subscriber_sessions SET last_seen_at = ?1 WHERE id = ?2`).bind(nowIso(), row.id).run();
-  return { emailNormalized: row.email_normalized, sessionId: row.id };
+  return {
+    emailNormalized: row.email_normalized,
+    sessionId: row.id,
+    // SEC-67: same fail-closed direction as verifySession() -- an unparseable
+    // created_at is NaN, which fails the comparison and reads as NOT recent.
+    recentlyAuthenticated: Date.now() - Date.parse(row.created_at) <= RECENT_AUTH_WINDOW_MINUTES * 60_000,
+  };
 }
 
 export async function deleteSubscriberSession(db: D1Database, rawSessionToken: string): Promise<void> {

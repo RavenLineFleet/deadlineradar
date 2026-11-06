@@ -5100,13 +5100,12 @@ async function handleSubscriberLoginVerify(env: Env, token: string | null): Prom
 }
 
 /**
- * POST /subscriber/change-email -- roadmap #12. Mirrors
- * handleFirmChangeEmailRequest() exactly: verify-new-address-before-
- * applying, notice to the old address, no step-up re-auth (unlike the
- * firm side, this tier has no password to re-prove -- the session cookie
- * itself, minted by a magic link, is already the full authentication this
- * tier has ever had; requiring anything more here would be a new bar this
- * tier's login flow doesn't otherwise clear).
+ * POST /subscriber/change-email -- roadmap #12. Same shape as
+ * handleFirmChangeEmailRequest(): verify-new-address-before-applying, notice
+ * to the old address, and a step-up. This tier has no password to re-prove,
+ * so its step-up is the passwordless arm of the firm gate (SEC-48): the
+ * session must come from a sign-in within RECENT_AUTH_WINDOW_MINUTES. The
+ * magic-link sign-in this tier already has is what clears it (SEC-67).
  *
  * Applies to EVERY subscribers row sharing the caller's current email,
  * firm-tracked rows included -- moving where reminders land doesn't
@@ -5124,6 +5123,10 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
   const allowed = await checkRateLimit(env.DB, session.emailNormalized, "subscriber_change_email", RATE_LIMIT_SUBSCRIBER_CHANGE_EMAIL);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+
+  if (!session.recentlyAuthenticated) {
+    return passwordlessReauthRequired();
   }
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -5765,7 +5768,7 @@ async function handleSubscriberLogout(request: Request, env: Env, ip: string): P
 export async function requireSubscriberSession(
   request: Request,
   env: Env
-): Promise<{ emailNormalized: string; sessionId: string } | Response> {
+): Promise<{ emailNormalized: string; sessionId: string; recentlyAuthenticated: boolean } | Response> {
   // Same content-type fix as requireFirmSession() -- see its own comment.
   const raw = getCookie(request, SUBSCRIBER_SESSION_COOKIE_NAME);
   if (!raw) {
