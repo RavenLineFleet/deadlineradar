@@ -713,7 +713,7 @@ export function resendEligible(
  * a mail outage can't use up a subscriber's resends (SILENT-6). The caller
  * bounds failed attempts with RATE_LIMIT_SUBSCRIBE_RESEND.
  */
-export async function recordResend(db: D1Database, id: string, delivered: boolean = true): Promise<void> {
+export async function recordResend(db: D1Database, id: string, delivered: boolean): Promise<void> {
   await db
     .prepare(
       delivered

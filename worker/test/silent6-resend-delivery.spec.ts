@@ -105,6 +105,22 @@ describe("a resend that wasn't delivered", () => {
     expect(await actionCount()).toBe(before);
   });
 
+  it("never blocks someone retrying about once a day, however long the outage lasts", async () => {
+    const row = await pendingRow("daily");
+    const api = mailApi(500);
+    const attempts = RATE_LIMIT_SUBSCRIBE_RESEND.max * 2;
+    for (let i = 0; i < attempts; i++) {
+      await repost(row.email);
+      await env.DB
+        .prepare("UPDATE rate_limit_hits SET ts = ts - ?1 WHERE ip = ?2 AND bucket = 'subscribe_resend'")
+        .bind(23 * 3600, row.id)
+        .run();
+      await pastCooldown(row.id);
+    }
+    expect(api).toHaveBeenCalledTimes(attempts);
+    expect((await read(row.id)).resend_count).toBe(0);
+  });
+
   it("leaves the subscriber able to get a real email once the outage is over", async () => {
     const row = await pendingRow("heals");
     const down = mailApi(500);

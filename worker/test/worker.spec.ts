@@ -4308,8 +4308,8 @@ describe("store.ts resendEligible / recordResend", () => {
     });
     expect(row.last_resend_at).toBeNull();
     expect(row.resend_count).toBe(0);
-    await store.recordResend(env.DB, row.id);
-    await store.recordResend(env.DB, row.id);
+    await store.recordResend(env.DB, row.id, true);
+    await store.recordResend(env.DB, row.id, true);
     const updated = await env.DB.prepare("SELECT * FROM subscribers WHERE id = ?1").bind(row.id).first<SubscriberRow>();
     expect(updated?.last_resend_at).toBeTruthy();
     expect(updated?.resend_count).toBe(2);
