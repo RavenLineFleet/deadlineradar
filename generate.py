@@ -27023,6 +27023,68 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><strong>Bottom line</strong>: Virginia CPA licenses renew every June 30 (window opens March 1) for $60, or $75 for firms. Miss it and the license expires July 1, and getting it back costs $350 ($500 for firms) through reinstatement. For an Active license without a Board-granted or out-of-state exemption, CPE is 120 hours over a rolling three calendar years, at least 20 each year, including the 2-hour VBOA-approved ethics course every year, plus 8 hours of related CPE in any year you release attest, compilation, or preparation reports. New licensees phase in over their first years, and an Inactive licensee needs 120 hours before providing services again.</p>
 ''',
     },
+    {
+        "slug": "arkansas-cpa-license-renewal-guide",
+        "published": "2026-11-06",
+        "title": "Arkansas CPA License Renewal: Licenses Expire December 31, CPE Must Be Done Before January 1, and the Late Fee Starts the Next Month",
+        "seo_title": "Arkansas CPA Renewal: Dec 31, $110, CPE",
+        "meta_description": (
+            "Arkansas CPA licenses and firm registrations expire December 31 every year. The $110 fee, the $25-a-month late fee, the April 1 lapse, the 40-or-120-hour CPE choice, and the Arkansas Ethics hour."
+        ),
+        "body_html": '''
+<p class="intro">Every Arkansas CPA license and every firm registration expires on <strong>December 31</strong>, every year. The next one is December 31, 2026. Renewal costs <strong>$110</strong>. The CPE you report has to be finished <em>before</em> January 1. Miss the date and a monthly late fee starts. If you still haven't renewed by April 1, the license lapses.</p>
+
+<h2>One date, every year</h2>
+<p>Arkansas Code section 17-12-504 says that, unless board rule provides otherwise, "all licenses shall expire on December 31 of each year and may be renewed annually for a period of one (1) year." Firm registrations get the same sentence in subsection (b). There are no birth-month cohorts or odd/even years here. Everyone renews on the same calendar.</p>
+<p>The Board's own rule sets the filing deadline. Under 17 CAR 236-901, a renewal application "shall be filed by January 1 of each year." You file it online. The Board's renewal page says you can only renew at your current status (switching to inactive or retired takes a call to the Board), and it says plainly: "DO NOT back-date your CPE for renewal purposes."</p>
+<p><a href="../../arkansas/">Check your Arkansas dates here</a>.</p>
+
+<h2>What it costs</h2>
+<p>The renewal fees are set in 17 CAR 236-1101:</p>
+<ul>
+<li>Individual, active (license to practice): <strong>$110</strong></li>
+<li>Individual, inactive: <strong>$55</strong></li>
+<li>Firm: <strong>$110</strong>, plus <strong>$25</strong> for each branch office beyond the first</li>
+<li>Late fee: <strong>$25 per month</strong> for active licenses and firms, $10 per month for inactive</li>
+</ul>
+<p>You'll see $150 quoted as the Arkansas renewal fee in some places. In the Board's rule, $150 is the <em>reinstatement</em> fee, a different fee for a license that has already lapsed (see below).</p>
+
+<h2>The January 1 wrinkle</h2>
+<p>The two texts point slightly different ways. The rule says to file "by January 1." The statute starts the late penalty "the first day of the first month after expiration." With a December 31 expiration, that day is January 1. We found nothing that says whether a renewal filed on January 1 itself owes the first $25. Filing by December 31 avoids the question. If you're down to the wire, ask the Board.</p>
+
+<h2>CPE: 40 hours in one year, or 120 over three</h2>
+<p>Arkansas lets you choose. Under 17 CAR 236-1203(a), you need either <strong>120 hours within the 36 months</strong> or <strong>40 hours within the 12 months</strong> "immediately preceding January 1 of the year for which the license is renewed." For a license renewed for 2027, that window closes at the end of December 31, 2026.</p>
+<p>A few more rules apply:</p>
+<ul>
+<li><strong>Content areas.</strong> If you're in public practice, at least 40% of your hours must be in accounting, accounting ethics, attest or taxation. If you're not, at least 20%. If you do attest or compilation work, at least 20% must be in attest and accounting theory/practice.</li>
+<li><strong>Ethics.</strong> You need at least 4 hours of professional conduct and ethics in the 36 months before your license expires. One of those must be the Board's 1-hour Arkansas laws-and-rules course (called Arkansas Ethics, or ETA). It counts toward the 4, not on top of them. The Board says it has contracted with a vendor to offer that course free. New licensees don't need the ethics hours until their first full calendar year.</li>
+<li><strong>Self-study.</strong> Self-study, distance learning and similar formats count only if the provider issues proof of completion before January 1. Self-study plus authorship credit can't be more than 80% of your total hours (236-1204(f)).</li>
+<li><strong>Keep records for five years.</strong> The Board audits a selection of CPE statements every year (236-1206(c)).</li>
+</ul>
+<p>Falling short is not a paperwork problem. Under 236-1207(b), missing the hours before January 1 "will result in a disciplinary action." Once you catch up, you file a paper renewal form with documentation and a compliance statement, and you pay a monetary penalty "for each month after December 31 that the CPE is not obtained."</p>
+<p><a href="../../arkansas-cpa-cpe-requirements/">The full Arkansas CPE breakdown is here</a>.</p>
+
+<h2>If you miss it: late fee, then lapse, then a July 1 deadline</h2>
+<p>Section 17-12-504 lays out the sequence:</p>
+<ul>
+<li><strong>From the first day of the first month after expiration</strong>, a monthly late penalty applies. The Board's rule sets it at $25 a month.</li>
+<li><strong>If you haven't renewed by the first day of the fourth month</strong>, the license lapses. For a December 31 expiration, that's April 1.</li>
+<li><strong>If the Board receives your application on or before July 1 following the lapse</strong>, it may reinstate the license. For a license that lapsed April 1, that's July 1 of the same year, three months later. You pay the reinstatement fee ($150 under the rule). You also have to meet the CPE and other requirements for reinstatement as of the date you apply.</li>
+<li><strong>If no reinstatement application is in by that July 1</strong>, the Board revokes the license after notice and a hearing, and it can't be renewed or reinstated. You can apply for a new license, and the Board may require you to pass the CPA exam again.</li>
+</ul>
+<p>This timeline is current law. Acts 2025, No. 428 amended section 17-12-504, and older copies of the statute online still describe a three-year reinstatement window. That window is gone.</p>
+<p>One more line in the statute matters for anyone with attest clients. Section 17-12-504(i): a licensee "who fails to timely renew his or her license to practice shall not perform attest services ... until he or she has obtained a license to practice."</p>
+<p><a href="../../arkansas-cpa-license-reinstatement/">Full Arkansas reinstatement details here</a>.</p>
+
+<h2>Firms</h2>
+<p>Firm registrations run on the same December 31 annual cycle, at $110 plus $25 for each branch office beyond the first. The firm rule adds a requirement of its own. Under 17 CAR 236-604(c)(2), not giving "complete and accurate responses to all questions on the registration renewal by December 31 of each year may be grounds for refusal to renew such registration."</p>
+<p><a href="../../arkansas-cpa-firm-renewal/">Firm renewal details here</a>.</p>
+
+<p><strong>Bottom line</strong>: Arkansas CPA licenses and firm registrations expire December 31 every year, and renewal is $110. Have your CPE done before January 1: either 40 hours in the past year or 120 over three, including the Arkansas Ethics hour within your 4 ethics hours. After that come a $25-a-month late fee, a lapse on April 1, and July 1 as the last day to apply for reinstatement. File by December 31 to avoid the January 1 question entirely.</p>
+
+<p><em>Sources: Ark. Code Ann. &sect; 17-12-504, as amended by Acts 2025, No. 428 (the Board's published copy); Arkansas State Board of Public Accountancy rules, 17 CAR Part 236 (&sect;&sect; 236-604, 236-901, 236-1101, 236-1203, 236-1204, 236-1206, 236-1207), as published by the Board; the Board's license-renewal and Arkansas Ethics course pages. Checked November 2, 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Board.</em></p>
+''',
+    },
 ]
 
 

@@ -1,0 +1,17 @@
+{
+  "slug": "arkansas-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "5c58baf94dc4e67aded93ee2e4479565cd6c804d9f9ee237ed1f878f698cca74",
+      "verdict_file": "auditlab_20261102T113045Z_blog_APPROVED_arkansas-cpa-license-renewal-guide_r2.md",
+      "sent": "2026-11-02 11:30 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "5c58baf94dc4e67aded93ee2e4479565cd6c804d9f9ee237ed1f878f698cca74",
+      "verdict_file": "orchestrator_20261102_blog_APPROVED_arkansas-cpa-license-renewal-guide_r2.md",
+      "sent": "2026-11-02 11:30 UTC"
+    }
+  ]
+}

@@ -211,6 +211,12 @@
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
       "body_sha256": "c1e330cdfb0b95c675f9c5c1c592953e824024362eb5817af619c23697964782",
       "body_modified": "2026-10-30"
+    },
+    "arkansas-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-11-02",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "6e326ac1f91765b4870702dc3a9207a295704514d4b3a06d69c5689c03e56bd4",
+      "body_modified": "2026-11-06"
     }
   }
 }
