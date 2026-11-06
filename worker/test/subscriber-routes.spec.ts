@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
-import { RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT } from "../src/validation";
+import { RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS } from "../src/validation";
 
 const BASE = "https://deadline-radar.com";
 
@@ -223,7 +223,7 @@ describe("POST /subscriber/login -- must not be an enumeration oracle", () => {
     await new Promise((r) => setTimeout(r, 200));
     const count = await loginTokenCount(victim);
     expect(count).toBeGreaterThan(0);
-    expect(count).toBeLessThanOrEqual(RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT.max);
+    expect(count).toBeLessThanOrEqual(RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS.max);
   });
 
   it("offers the signup path in the copy, so a non-subscriber is not dead-ended", async () => {

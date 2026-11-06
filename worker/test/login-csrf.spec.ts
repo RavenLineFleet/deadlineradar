@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as store from "../src/store";
 import { hashPassword } from "../src/password";
-import { RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT } from "../src/validation";
+import { RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS } from "../src/validation";
 
 /**
  * Regression suite for the login-CSRF / session-fixation class (2026-07-31).
@@ -316,6 +316,6 @@ describe("the mail-bomb cap must not become a silent lockout", () => {
       .bind(victim.toLowerCase())
       .first<{ c: number }>();
     expect(row?.c ?? 0).toBeGreaterThan(0);
-    expect(row?.c ?? 0).toBeLessThanOrEqual(RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT.max);
+    expect(row?.c ?? 0).toBeLessThanOrEqual(RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS.max);
   });
 });

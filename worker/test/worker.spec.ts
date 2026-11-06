@@ -1547,9 +1547,10 @@ describe("POST /firm/login -- login-link resend for an existing firm", () => {
       .first<{ c: number }>();
 
     // Signup's own send uses a SEPARATE bucket (firm_signup_account, RL-7) --
-    // doesn't touch this one. The firm_login_account bucket allows 5
-    // sends/hour; each of these 6 requests comes from a FRESH IP so only the
-    // account-keyed bucket can possibly throttle them.
+    // doesn't touch this one. A request with no Turnstile token spends
+    // firm_login_account_tokenless (SEC-73), which allows 3 sends/hour; each
+    // of these 6 requests comes from a FRESH IP so only the account-keyed
+    // bucket can possibly throttle them.
     for (let i = 0; i < 6; i++) {
       const resp = await postFirmLogin({ admin_email: email }, `203.0.113.${240 + i}`);
       expect(resp.status).toBe(200); // never 429 -- anti-enumeration response never changes
@@ -1559,8 +1560,8 @@ describe("POST /firm/login -- login-link resend for an existing firm", () => {
       .prepare("SELECT COUNT(*) as c FROM firm_login_tokens WHERE firm_id = ?1")
       .bind(firm?.id)
       .first<{ c: number }>();
-    // 6 login attempts, but only 5 sends allowed by the account bucket.
-    expect(after?.c).toBe((before?.c ?? 0) + 5);
+    // 6 login attempts, but only 3 sends allowed by the account bucket.
+    expect(after?.c).toBe((before?.c ?? 0) + 3);
   });
 });
 

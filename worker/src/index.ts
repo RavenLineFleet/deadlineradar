@@ -139,7 +139,9 @@ import {
   RATE_LIMIT_DEBUG_REMINDER_PASS,
   RATE_LIMIT_FIRM_LOGIN,
   RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT,
+  RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS,
   RATE_LIMIT_FIRM_LOGIN_ACCOUNT,
+  RATE_LIMIT_FIRM_LOGIN_ACCOUNT_TOKENLESS,
   RATE_LIMIT_FIRM_SIGNUP,
   RATE_LIMIT_FIRM_SIGNUP_ACCOUNT,
   RATE_LIMIT_FIRM_BILLING_CHECKOUT,
@@ -2461,11 +2463,18 @@ async function handleFirmLogin(request: Request, env: Env, ip: string, ctx: Exec
     // fire), so an attacker probing addresses with no active firm cannot
     // spend it, and the response below stays identical either way -- no new
     // enumeration signal.
+    //
+    // SEC-73: this form accepts a missing Turnstile token so an ad-blocker
+    // can't lock anyone out (AuditLab TS-2), which also lets a script spend
+    // the budget for free from any IP. A request with no token gets a smaller
+    // budget of its own, so draining it can't stop someone whose browser
+    // solved the challenge. A bad token was refused above and never gets here.
+    const tokenless = !form["cf-turnstile-response"];
     const accountAllowed = await checkRateLimit(
       env.DB,
       `account:${store.normalizeEmail(email)}`,
-      "firm_login_account",
-      RATE_LIMIT_FIRM_LOGIN_ACCOUNT
+      tokenless ? "firm_login_account_tokenless" : "firm_login_account",
+      tokenless ? RATE_LIMIT_FIRM_LOGIN_ACCOUNT_TOKENLESS : RATE_LIMIT_FIRM_LOGIN_ACCOUNT
     );
     if (accountAllowed) {
       // ctx.waitUntil, NOT await (AuditLab TIMING-1, 2026-08-17): issuing
@@ -5048,13 +5057,18 @@ async function handleSubscriberLoginRequest(
   // Note this check sits AFTER the two reads both branches already perform
   // and gates only the deferred send, so it adds no observable difference
   // between a known and an unknown address.
+  //
+  // SEC-73: same split as handleFirmLogin() -- a request with no Turnstile
+  // token has its own smaller budget, so a script draining it can't stop a
+  // request from a browser that solved the challenge.
+  const tokenless = !form["cf-turnstile-response"];
   const accountAllowed =
     hasRealAccount &&
     (await checkRateLimit(
       env.DB,
       `account:${store.normalizeEmail(email)}`,
-      "subscriber_login_account",
-      RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT
+      tokenless ? "subscriber_login_account_tokenless" : "subscriber_login_account",
+      tokenless ? RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS : RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT
     ));
 
   if (accountAllowed && hasRealAccount) {

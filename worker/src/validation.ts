@@ -552,6 +552,14 @@ export const RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT: RateLimit = { max: 5, windowSe
 // RATE_LIMIT_FIRM_LOGIN are already separate.
 export const RATE_LIMIT_FIRM_LOGIN_ACCOUNT: RateLimit = { max: 5, windowSeconds: 3600 };
 export const RATE_LIMIT_FIRM_SIGNUP_ACCOUNT: RateLimit = { max: 5, windowSeconds: 3600 };
+// SEC-73: the two login routes accept a missing Turnstile token, so a script can
+// spend a recipient's budget for free. A request with no token spends these
+// instead, leaving the budgets above to requests that solved the challenge. One
+// address can now get up to 8 links an hour, up from 5. Someone who solves the
+// challenge can still spend the solved budget: this raises the cost of denying a
+// sign-in, it doesn't remove the denial.
+export const RATE_LIMIT_FIRM_LOGIN_ACCOUNT_TOKENLESS: RateLimit = { max: 3, windowSeconds: 3600 };
+export const RATE_LIMIT_SUBSCRIBER_LOGIN_ACCOUNT_TOKENLESS: RateLimit = { max: 3, windowSeconds: 3600 };
 
 // POST /firm/licenses (add a staff license, firm-dashboard MVP) -- deliberately
 // keyed on the AUTHENTICATED FIRM ID, not the caller's IP, when this is
