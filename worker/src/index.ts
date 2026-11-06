@@ -3052,6 +3052,29 @@ function passwordlessReauthRequired(): Response {
 }
 
 /**
+ * SEC-68: runs ahead of the limiter on the routes whose bucket outlives a
+ * sign-in. Gives the 403 the route's own gate would give further down, for
+ * the one case that gate can only refuse: no password to check and no recent
+ * sign-in. That refusal does no metered work, and spending a slot on it would
+ * answer the 403's own remedy with a 429. A member with a password gets null
+ * and meets the limiter, because a wrong password is a guess and stays metered.
+ * A demo firm gets null too, so it still sees its own refusal rather than
+ * advice to sign in again. A live reset authority falls through as well,
+ * since the credential gates accept it; the route's own gate still decides.
+ */
+async function passwordlessStaleRefusal(
+  env: Env,
+  session: { firmId: string; memberId: string; passwordResetAuthorized: boolean; recentlyAuthenticated: boolean }
+): Promise<Response | null> {
+  if (session.recentlyAuthenticated || session.passwordResetAuthorized) return null;
+  const member = await store.getFirmMemberById(env.DB, session.firmId, session.memberId);
+  if (!member || member.password_hash) return null;
+  const firm = await store.getFirmById(env.DB, session.firmId);
+  if (!firm || firm.demo_locked) return null;
+  return passwordlessReauthRequired();
+}
+
+/**
  * THE single auth gate every firm-scoped route (staff CRUD, the dashboard
  * itself -- both built by a later step on top of this branch) must call
  * FIRST, as a one-line check:
@@ -3283,6 +3306,9 @@ async function handleFirmMemberInvite(request: Request, env: Env): Promise<Respo
     return jsonResponse(403, { error: "This is a shared demo account. Inviting team members isn't available for this account." });
   }
 
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
+
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_invite", RATE_LIMIT_FIRM_MEMBER_INVITE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many invites sent today for this firm. Please try again in 24 hours." });
@@ -3366,6 +3392,9 @@ async function handleFirmMemberRoleChange(request: Request, env: Env, memberId: 
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
+
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_role_change", RATE_LIMIT_FIRM_MEMBER_ROLE_CHANGE);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many changes today. Please try again in 24 hours." });
@@ -3429,6 +3458,9 @@ async function handleFirmMemberRemove(request: Request, env: Env, memberId: stri
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
+
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
 
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_remove", RATE_LIMIT_FIRM_MEMBER_REMOVE);
   if (!allowed) {
@@ -3503,6 +3535,9 @@ async function handleFirmMemberMakePrimary(request: Request, env: Env, memberId:
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
+
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
 
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_member_make_primary", RATE_LIMIT_FIRM_MEMBER_MAKE_PRIMARY);
   if (!allowed) {
@@ -4114,6 +4149,9 @@ async function handleFirmAccountDelete(request: Request, env: Env): Promise<Resp
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
+
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
 
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_account_delete", RATE_LIMIT_FIRM_ACCOUNT_DELETE);
   if (!allowed) {
@@ -12162,6 +12200,9 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
 
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
+
   const allowed = await checkRateLimit(env.DB, ip, "firm_password_set", RATE_LIMIT_FIRM_PASSWORD_SET);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
@@ -12375,6 +12416,9 @@ async function handleFirm2faEnroll(request: Request, env: Env): Promise<Response
     return jsonResponse(503, { error: "Two-factor authentication isn't available right now. Please try again later." });
   }
 
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
+
   const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_enroll", RATE_LIMIT_FIRM_2FA_ENROLL);
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
@@ -12494,11 +12538,6 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
     return jsonResponse(503, { error: "Two-factor authentication isn't available right now. Please try again later." });
   }
 
-  const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_enroll", RATE_LIMIT_FIRM_2FA_ENROLL);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     return jsonResponse(400, { error: "Expected a JSON request body." });
@@ -12532,6 +12571,15 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
     : null;
   if (!secret) {
     return jsonResponse(400, { error: "That setup has expired. Please start two-factor setup again." });
+  }
+
+  // SEC-68: metered only once the caller holds a real token, which only a
+  // session past /enroll's step-up can have. This bucket is the code-guessing
+  // bound and is shared with /enroll, so metering any earlier let a stolen
+  // stale session fill it with junk posts and veto the owner's enrollment.
+  const allowed = await checkRateLimit(env.DB, session.memberId, "firm_2fa_enroll", RATE_LIMIT_FIRM_2FA_ENROLL);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   const firm = await store.getFirmById(env.DB, session.firmId);
@@ -12839,6 +12887,9 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
   if (!originAllowed(request, env)) {
     return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
   }
+
+  const staleRefusal = await passwordlessStaleRefusal(env, session);
+  if (staleRefusal) return staleRefusal;
 
   const allowed = await checkRateLimit(env.DB, session.firmId, "firm_change_email", RATE_LIMIT_FIRM_CHANGE_EMAIL);
   if (!allowed) {

@@ -829,9 +829,10 @@ export const RATE_LIMIT_FIRM_2FA_VERIFY_ACCOUNT: RateLimit = { max: 8, windowSec
  * D1 writes" reasoning as RATE_LIMIT_FIRM_PASSWORD_SET), keyed on
  * session.memberId rather than IP -- an office sharing one outbound IP
  * must not throttle a different member's own enrollment attempt. Tighter
- * than password-set's 10/hr: confirm is also where a code gets brute-forced
- * against a client-supplied secret (see handleFirm2faEnrollConfirm's own
- * comment), so this doubles as that route's guessing-rate bound too. */
+ * than password-set's 10/hr: confirm is also where a code gets guessed
+ * against the sealed token's secret, so this doubles as that route's
+ * guessing-rate bound too. Confirm spends a slot only once it holds a real
+ * token (SEC-68). */
 export const RATE_LIMIT_FIRM_2FA_ENROLL: RateLimit = { max: 8, windowSeconds: 3600 };
 
 /** POST /firm/2fa/disable -- requires a fresh code (see the route's own
