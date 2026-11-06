@@ -23889,8 +23889,8 @@ YEAR_END_ROW_NOTES = {
                  "license rather than one shared date (Md. Code Ann., Bus. Occ. &amp; Prof. 2-311); check your own "
                  "license record. Firm permits share one date: December 31, 2026 (2-407)."),
     "tennessee": ("Individual CPA certificates and PA registrations renew every two years on dates the statute "
-                  "leaves to the Board (Tenn. Code Ann. 62-1-107(b)), so we show no shared individual date; go by "
-                  "your own certificate and confirm with the Board. Firm permits renew every year and always expire "
+                  "leaves to the Board (Tenn. Code Ann. 62-1-107(b)), so we show no shared individual date; check "
+                  "your own license's expiration date and confirm it with the Board. Firm permits renew every year and always expire "
                   "December 31 (Tenn. Comp. R. &amp; Regs. 0020-01-.11(2))."),
 }
 

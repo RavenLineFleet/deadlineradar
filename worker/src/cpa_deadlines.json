@@ -777,7 +777,7 @@
       "secondary_source_url": "https://law.justia.com/codes/tennessee/title-62/chapter-1/part-1/section-62-1-107/",
       "computation": {
         "type": "combined_individual_and_firm_not_computable",
-        "note": "Two license types, two cycles, so no single date is shown. Firm permits renew every year and expire December 31. Individual certificates and PA registrations renew every two years, but the statute says those dates \"may be set by the board at its discretion\" and that the renewal process \"may include\" procedures for odd- and even-numbered certificates. Neither the Board's rules chapter nor its renewal page says how a given certificate's year is set, so go by the expiration date on your own certificate and confirm it with the Board."
+        "note": "Two license types, two cycles, so no single date is shown. Firm permits renew every year and expire December 31. Individual certificates and PA registrations renew every two years, but the statute says those dates \"may be set by the board at its discretion\" and that the renewal process \"may include\" procedures for odd- and even-numbered certificates. Neither the Board's rules chapter nor its renewal page says how a given certificate's year is set, so check your own license's expiration date and confirm it with the Board."
       },
       "verified_method": "auto-anchor",
       "last_manual_verified_date": null
