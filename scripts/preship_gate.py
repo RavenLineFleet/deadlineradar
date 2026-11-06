@@ -1003,9 +1003,13 @@ def check_calculator_widget_data_no_internal_notes(html_files: list[Path]) -> li
 # ever exposes a new field, add it here too, or this check silently stops
 # covering it.
 _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
-    "cpa_deadlines.json": ["cycle_description", "data_gap_note", "citation"],
-    "cpe_hours.json": ["notes", "data_gap_note", "citation"],
-    "reinstatement.json": ["reinstatement_fee_notes", "penalty_cpe_notes", "lapse_trigger", "data_gap_note", "citation"],
+    # SEC-64: "citation_links[].label" is a path, not a field name -- citation_links is a list of
+    # dicts, and naming it plainly would be skipped as non-str. Walked by _served_strings(). Only the
+    # label: the url beside it is a URL by design and would trip the snake_case pattern.
+    "cpa_deadlines.json": ["cycle_description", "data_gap_note", "citation", "citation_links[].label"],
+    "cpe_hours.json": ["notes", "data_gap_note", "citation", "applicability_note", "citation_links[].label"],
+    "reinstatement.json": ["reinstatement_fee_notes", "penalty_cpe_notes", "lapse_trigger", "data_gap_note", "citation",
+                           "citation_links[].label"],
     # fee_basis/confidence are deliberately excluded -- both are short,
     # fixed-vocabulary enum tags (fee_basis: "board_schedule"/"codified"/
     # "unverifiable"; confidence similarly bounded), not free-text prose a
@@ -1014,7 +1018,7 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # nothing but guaranteed false positives (fee_basis's own values ARE
     # snake_case, by design, every time) -- confirmed by an actual run
     # before excluding them, not assumed.
-    "renewal_fees.json": ["fee_notes", "citation"],
+    "renewal_fees.json": ["fee_notes", "citation", "citation_links[].label"],
     # reg_change_events.json (2026-09-23, orchestrator_20260919_promote_
     # shape_rule_and_gate_reg_change_events.md item 2): summary_public is
     # rendered to /api/assistant/rule-changes and was the source field for
@@ -1023,8 +1027,30 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # current events (6 source_conflict-kind) never reach because they
     # render to no page. topic/citation are the other two fields that
     # endpoint serves verbatim. Loaded via {"events": [...]}, handled above.
-    "reg_change_events.json": ["summary_public", "topic", "citation"],
+    "reg_change_events.json": ["summary_public", "topic", "citation", "citation_links[].label"],
 }
+
+
+def _served_strings(record: dict, spec: str) -> list[str]:
+    """Every non-empty string a field spec reaches. `a` is a plain field, `a[]` a list, `a[].b` a key
+    on each list item. A `a[]` that holds a plain string still counts, so a later change of shape
+    can't drop the field out of the screen. SEC-64 / SEC-66: both holes were list-shaped fields that
+    an isinstance(val, str) check skipped without saying so."""
+    nodes: list = [record]
+    for part in spec.split("."):
+        is_list = part.endswith("[]")
+        key = part[:-2] if is_list else part
+        found: list = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            val = node.get(key)
+            if is_list and isinstance(val, list):
+                found.extend(val)
+            elif val is not None:
+                found.append(val)
+        nodes = found
+    return [n for n in nodes if isinstance(n, str) and n]
 
 
 def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
@@ -1054,26 +1080,24 @@ def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
                 continue
             record_id = r.get("id") or r.get("state_slug") or r.get("event_id") or "?"
             for field in fields:
-                val = r.get(field)
-                if not isinstance(val, str) or not val:
-                    continue
-                for pat, label in (
-                    (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
-                    (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
-                    (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
-                    (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
-                    (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
-                    (_PROSE_INTERNAL_NAME_RE, "internal fleet name (LB-1 shape)"),
-                ):
-                    pm = pat.search(val)
-                    if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
-                        snippet = val[max(0, pm.start() - 60): pm.end() + 90].strip()
-                        errors.append(
-                            f"[SHAPE][{filename}:{record_id}.{field}] {label} '{pm.group(0)}' -- "
-                            f"...{snippet}... (this field is served directly by /api/assistant/* -- "
-                            f"see GATE-16, 2026-08-27 -- never passes through generate.py's rendering, "
-                            f"so no other gate checks it)"
-                        )
+                for val in _served_strings(r, field):
+                    for pat, label in (
+                        (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                        (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
+                        (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                        (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                        (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                        (_PROSE_INTERNAL_NAME_RE, "internal fleet name (LB-1 shape)"),
+                    ):
+                        pm = pat.search(val)
+                        if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                            snippet = val[max(0, pm.start() - 60): pm.end() + 90].strip()
+                            errors.append(
+                                f"[SHAPE][{filename}:{record_id}.{field}] {label} '{pm.group(0)}' -- "
+                                f"...{snippet}... (this field is served directly by /api/assistant/* -- "
+                                f"see GATE-16, 2026-08-27 -- never passes through generate.py's rendering, "
+                                f"so no other gate checks it)"
+                            )
     return errors
 
 
@@ -1169,6 +1193,77 @@ def collect_firm_mobility_internal_note_candidates(repo_root: Path) -> list[str]
                     f"(this field is served directly by /firm/mobility/* -- see GATE-16, 2026-09-19)"
                 )
     return findings
+
+
+# SEC-66: the 5 prose fields mobility.ts sends to /api/assistant/mobility and /firm/mobility/check.
+# flux_note, notes, data_gap_note and verification_history sit beside them on the same rows and are
+# internal. confidence and equivalence_test are enums, so they are left out on purpose. Keep in step
+# with mobility.ts by hand, same as _ASSISTANT_API_FIELDS_BY_DATASET.
+_MOBILITY_SERVED_PROSE_FIELDS = (
+    "flux_summary",
+    "individual_criteria_ambiguity_note",
+    "individual_criteria_grandfather_note",
+    "individual_criteria_pathways[]",
+    "citation",
+)
+
+
+def collect_mobility_internal_note_candidates(repo_root: Path) -> list[str]:
+    """SEC-66. mobility_rules.json has no data/ copy, so a _ASSISTANT_API_FIELDS_BY_DATASET key would
+    hard-error on a missing path. This is the sibling collector, rooted at worker/src/ like the firm
+    one above and using the same 8 patterns. A structural problem comes back tagged [SEC-66][STRUCTURE]
+    so the hard gate can fail on it: a renamed field would otherwise screen nothing and still pass."""
+    path = repo_root / "worker" / "src" / "mobility_rules.json"
+    if not path.exists():
+        return [f"[SEC-66][STRUCTURE] {path} not found -- mobility.ts imports this dataset, this check can't verify it"]
+    records = json.loads(path.read_text(encoding="utf-8")).get("records")
+    if not isinstance(records, list) or not records:
+        return [f"[SEC-66][STRUCTURE] {path} has no records list -- this check can't verify it"]
+    findings: list[str] = []
+    for field in _MOBILITY_SERVED_PROSE_FIELDS:
+        if not any(_served_strings(r, field) for r in records if isinstance(r, dict)):
+            findings.append(f"[SEC-66][STRUCTURE] no record has a value for {field} -- renamed? this screen would cover nothing")
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        record_id = r.get("state_slug") or r.get("id") or "?"
+        for field in _MOBILITY_SERVED_PROSE_FIELDS:
+            for val in _served_strings(r, field):
+                for pat, label in (
+                    (_PROSE_EDITORIAL_HISTORY_RE, "internal editorial-history phrasing"),
+                    (_PROSE_VERIFICATION_MARKER_RE, "ALLCAPS-word+date verification marker (LEAK-5 shape)"),
+                    (_PROSE_FINDING_ID_RE, "internal finding-ID shape"),
+                    (_PROSE_TRACKER_REF_RE, "internal tracker reference"),
+                    (_PROSE_SNAKE_CASE_RE, "snake_case identifier"),
+                    (_PROSE_INTERNAL_NAME_RE, "internal fleet name (LB-1 shape)"),
+                    (_PROSE_DATED_PAREN_RE, "dated-parenthetical shape (may be a legitimate as-of date, read it)"),
+                    (_PROSE_URL_RE, "embedded URL (verify it's sourcing transparency, not a repointing note)"),
+                ):
+                    pm = pat.search(val)
+                    if pm and pm.group(0) not in _PROSE_FINDING_ID_ALLOWLIST and pm.group(0) not in _PROSE_SNAKE_CASE_ALLOWLIST:
+                        snippet = val[max(0, pm.start() - 60): pm.end() + 90].strip()
+                        findings.append(f"[{record_id}.{field}] {label} '{pm.group(0)}' -- ...{snippet}... "
+                                        f"(served directly by /api/assistant/mobility -- see SEC-66)")
+    return findings
+
+
+def check_mobility_verification_marker_leak(repo_root: Path) -> list[str]:
+    """Hard half of SEC-66: the same split as the firm twin below. The verification marker and any
+    structural problem fail the gate; the other 7 patterns stay advisory until each is triaged."""
+    return [f for f in collect_mobility_internal_note_candidates(repo_root)
+            if "ALLCAPS-word+date verification marker" in f or f.startswith("[SEC-66][STRUCTURE]")]
+
+
+def print_mobility_internal_notes_advisory(repo_root: Path) -> None:
+    print("\n--- mobility-internal-notes advisory (verification marker + structure are a HARD gate -- see "
+          "check_mobility_verification_marker_leak(); the rest don't affect gate exit code) ---")
+    findings = collect_mobility_internal_note_candidates(repo_root)
+    if not findings:
+        print("PASS -- no internal-marker candidates in worker/src/mobility_rules.json's served prose fields.")
+        return
+    print(f"{len(findings)} candidate(s) -- READ EACH ONE:")
+    for f in findings:
+        print(f"  {f}")
 
 
 def check_firm_mobility_verification_marker_leak(repo_root: Path) -> list[str]:
@@ -10482,6 +10577,7 @@ def _run_advisories(repo_root: Path, html_files, docs_dir: Path) -> None:
         (lambda: print_dated_change_staleness_advisory(repo_root), "print_dated_change_staleness_advisory"),
         (lambda: print_conflict_events_staleness_advisory(repo_root), "print_conflict_events_staleness_advisory"),
         (lambda: print_firm_mobility_internal_notes_advisory(repo_root), "print_firm_mobility_internal_notes_advisory"),
+        (lambda: print_mobility_internal_notes_advisory(repo_root), "print_mobility_internal_notes_advisory"),
         (lambda: print_guide_review_staleness_advisory(repo_root), "print_guide_review_staleness_advisory"),
         (lambda: print_changelog_staleness_advisory(repo_root), "print_changelog_staleness_advisory"),
         (lambda: print_dual_credential_citation_advisory(repo_root), "print_dual_credential_citation_advisory"),
@@ -10548,6 +10644,7 @@ def main():
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
     all_errors += check_firm_mobility_verification_marker_leak(repo_root)
+    all_errors += check_mobility_verification_marker_leak(repo_root)
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_no_claude_attribution_in_commit_history(repo_root)

@@ -52,7 +52,7 @@ def test_assistant_fields_table_shape_is_enforced(monkeypatch, tmp_path):
 
 
 def test_assistant_fields_table_has_reg_change_fields():
-    assert g._ASSISTANT_API_FIELDS_BY_DATASET["reg_change_events.json"] == ["summary_public", "topic", "citation"]
+    assert g._ASSISTANT_API_FIELDS_BY_DATASET["reg_change_events.json"] == ["summary_public", "topic", "citation", "citation_links[].label"]
     assert set(g._ASSISTANT_API_FIELDS_BY_DATASET) == {k for k, v in g._ASSISTANT_API_FIELDS_BY_DATASET.items() if isinstance(v, list)}
 
 
