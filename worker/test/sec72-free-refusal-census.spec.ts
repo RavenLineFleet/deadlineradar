@@ -505,15 +505,16 @@ const VICTIM_KEY = /checkRateLimit\(\s*env\.DB,\s*session\.(firmId|memberId|emai
 // Its body block swallows malformed input, so there is no refusal to spend on.
 const ALLOWED = new Set(["handleFirmAccountDelete"]);
 
+const FUNCTION_BODY = /^(?:export )?(?:async )?function (\w+)\([\s\S]*?^\}$/gm;
+
 function functionsParsingBelowALimiter(source: string): string[] {
   const flagged: string[] = [];
-  const fn = /^(?:export )?(?:async )?function (\w+)\([\s\S]*?^\}$/gm;
-  for (const match of source.matchAll(fn)) {
+  for (const match of source.matchAll(FUNCTION_BODY)) {
     const body = match[0];
-    let last = -1;
-    for (const limiter of body.matchAll(VICTIM_KEY)) last = Math.max(last, limiter.index);
-    if (last < 0) continue;
-    const below = body.slice(last);
+    // The first limiter: a parse between two limiters still sits below one (SEC-75).
+    const first = [...body.matchAll(VICTIM_KEY)][0]?.index;
+    if (first === undefined) continue;
+    const below = body.slice(first);
     if (PARSE_MARKERS.some((m) => below.includes(m))) flagged.push(match[1] as string);
   }
   return flagged;
@@ -525,10 +526,18 @@ describe("census: no victim-keyed limiter sits above a body parse", () => {
     expect(functionsParsingBelowALimiter(planted)).toEqual(["handlePlanted"]);
     const clean = 'async function handleClean() {\n  const raw = await request.text();\n  const a = await checkRateLimit(env.DB, session.firmId, "x", Y);\n}\n';
     expect(functionsParsingBelowALimiter(clean)).toEqual([]);
+    const between = 'async function handleBetween() {\n  const a = await checkRateLimit(env.DB, session.firmId, "x", Y);\n  const raw = await request.text();\n  const b = await checkRateLimit(env.DB, session.firmId, "z", Y);\n}\n';
+    expect(functionsParsingBelowALimiter(between)).toEqual(["handleBetween"]);
   });
 
   it("the file has limiters to scan", () => {
     expect([...indexSource.matchAll(VICTIM_KEY)].length).toBeGreaterThan(50);
+  });
+
+  it("every limiter in the file sits in a function the matcher reads", () => {
+    const inFile = [...indexSource.matchAll(VICTIM_KEY)].length;
+    const inBodies = [...indexSource.matchAll(FUNCTION_BODY)].reduce((n, m) => n + [...m[0].matchAll(VICTIM_KEY)].length, 0);
+    expect(inBodies).toBe(inFile);
   });
 
   it("index.ts is clean", () => {
