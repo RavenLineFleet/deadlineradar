@@ -504,6 +504,9 @@ export interface RateLimit {
 
 // server.py:134-135, unchanged.
 export const RATE_LIMIT_SUBSCRIBE: RateLimit = { max: 5, windowSeconds: 600 };
+// Resend attempts per pending record, delivered or not (SILENT-6). resend_count
+// only counts deliveries, so this is the bound on failed sends; it heals.
+export const RATE_LIMIT_SUBSCRIBE_RESEND: RateLimit = { max: 3, windowSeconds: 86_400 };
 export const RATE_LIMIT_ACTION: RateLimit = { max: 30, windowSeconds: 600 };
 
 // POST /api/firm/lead (2026-07-28) -- its own bucket, same shape/limit as

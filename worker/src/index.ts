@@ -147,6 +147,7 @@ import {
   RATE_LIMIT_FIRM_BILLING_CHECKOUT,
   RATE_LIMIT_FIRM_ROSTER_ACTIVE_PICKS,
   RATE_LIMIT_SUBSCRIBE,
+  RATE_LIMIT_SUBSCRIBE_RESEND,
   RATE_LIMIT_NEWSLETTER_SUBSCRIBE,
   checkRateLimit,
   checkSignupDomainGate,
@@ -1473,7 +1474,11 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
     if (existing.status === store.STATUS_PENDING && env.RESEND_API_KEY) {
       try {
         if (store.resendEligible(existing, new Date())) {
-          const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+          // SILENT-6: a failed send no longer counts against the lifetime cap,
+          // so this per-record slot is what bounds attempts during a mail
+          // outage. It sits above the global charge, which is never refunded.
+          const withinRecordLimit = await checkRateLimit(env.DB, existing.id, "subscribe_resend", RATE_LIMIT_SUBSCRIBE_RESEND);
+          const underCap = withinRecordLimit && (await checkAndCountActionSend(env.DB, actionDailySendCap(env)));
           if (underCap) {
             const confirmUrl = `${actionBaseUrl(env)}/confirm?token=${encodeURIComponent(existing.confirm_token)}`;
             const unsubscribeUrl = `${actionBaseUrl(env)}/unsubscribe?token=${encodeURIComponent(existing.unsubscribe_token)}`;
@@ -1484,8 +1489,8 @@ async function handleSubscribe(request: Request, env: Env, ip: string): Promise<
               existing.first_name,
               existing.user_deadline ? fmtDate(new Date(`${existing.user_deadline}T00:00:00Z`)) : null
             );
-            await sendEmail(env.RESEND_API_KEY, existing.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
-            await store.recordResend(env.DB, existing.id);
+            const delivered = await sendEmail(env.RESEND_API_KEY, existing.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
+            await store.recordResend(env.DB, existing.id, delivered);
           }
         }
         // Not eligible yet (resent too recently) or over the daily cap: fall

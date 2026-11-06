@@ -707,10 +707,19 @@ export function resendEligible(
   return Date.parse(row.last_resend_at) <= cutoff;
 }
 
-/** Records that a resend just happened, for resendEligible()'s next check. */
-export async function recordResend(db: D1Database, id: string): Promise<void> {
+/**
+ * Records a resend attempt for resendEligible()'s next check. Every attempt
+ * starts the cooldown; only a delivered one counts toward the lifetime cap, so
+ * a mail outage can't use up a subscriber's resends (SILENT-6). The caller
+ * bounds failed attempts with RATE_LIMIT_SUBSCRIBE_RESEND.
+ */
+export async function recordResend(db: D1Database, id: string, delivered: boolean = true): Promise<void> {
   await db
-    .prepare("UPDATE subscribers SET last_resend_at = ?1, resend_count = resend_count + 1 WHERE id = ?2")
+    .prepare(
+      delivered
+        ? "UPDATE subscribers SET last_resend_at = ?1, resend_count = resend_count + 1 WHERE id = ?2"
+        : "UPDATE subscribers SET last_resend_at = ?1 WHERE id = ?2"
+    )
     .bind(nowIso(), id)
     .run();
 }
