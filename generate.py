@@ -6926,7 +6926,12 @@ def render_data_gap_records(records: list[dict]) -> str:
     date can't be computed from it (a real anchor-year gap, not a sourcing gap)."""
     parts = []
     for r in records:
-        note = r.get("data_gap_note") or _DEFAULT_GAP_NOTE
+        # SRC-177: a combined individual+firm record explains itself in computation.note; the
+        # default line sends the reader to a source that does not answer the question.
+        _computation = r.get("computation") or {}
+        _combined_note = (_computation.get("note")
+                          if _computation.get("type") == "combined_individual_and_firm_not_computable" else None)
+        note = r.get("data_gap_note") or _combined_note or _DEFAULT_GAP_NOTE
         cite_html = _cite_chip_html(r)
         side_html = (
             f'{cite_html}<div class="verified unconfirmed">Anchor year not confirmed</div>'
@@ -23883,9 +23888,9 @@ YEAR_END_ROW_NOTES = {
     "maryland": ("Individual licenses renew every two years, but the exact expiration date is personal to each "
                  "license rather than one shared date (Md. Code Ann., Bus. Occ. &amp; Prof. 2-311); check your own "
                  "license record. Firm permits share one date: December 31, 2026 (2-407)."),
-    "tennessee": ("Individual CPA certificates and PA registrations renew every two years in an odd- or even-year "
-                  "cohort set by license number (Tenn. Code Ann. 62-1-107(b)), so there is no shared individual "
-                  "date; confirm yours with the Board. Firm permits renew every year and always expire "
+    "tennessee": ("Individual CPA certificates and PA registrations renew every two years on dates the statute "
+                  "leaves to the Board (Tenn. Code Ann. 62-1-107(b)), so we show no shared individual date; go by "
+                  "your own certificate and confirm with the Board. Firm permits renew every year and always expire "
                   "December 31 (Tenn. Comp. R. &amp; Regs. 0020-01-.11(2))."),
 }
 
@@ -24615,6 +24620,13 @@ def _year_end_reverse_link_html(state_slug: str, year_end_cohort_slugs: set[str]
     so this renders nothing after that date."""
     if state_slug not in year_end_cohort_slugs:
         return ""
+    # SRC-177: where only firm permits are reviewed as expiring on the date, say so; a bare
+    # "deadlines landing on" reads as covering the page's individual certificate too.
+    if any(slug == state_slug for slug, _lt in YEAR_END_TEXT_FIRM_EXPIRY):
+        return (
+            f'<p class="backlink-cross">Firm permits here are one of several deadlines landing on December 31, 2026 &mdash; '
+            f'<a href="../{YEAR_END_PAGE_SLUG}/">see every state on that date &rarr;</a></p>'
+        )
     return (
         f'<p class="backlink-cross">One of several deadlines landing on December 31, 2026 &mdash; '
         f'<a href="../{YEAR_END_PAGE_SLUG}/">see every state on that date &rarr;</a></p>'
