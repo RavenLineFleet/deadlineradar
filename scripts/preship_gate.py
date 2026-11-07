@@ -4447,7 +4447,16 @@ _PARTIAL_CITATION_ADMISSION_RE = re.compile(
     r"not independently (?:confirmed|verified)|not confirmed in|"
     r"instead confirmed|confirmed instead|corroborated (?:separately|instead)|"
     r"(?:is|remains|stays) silent on|"
-    r"inferred,? not cited|inferred rather than cited",
+    r"inferred,? not cited|inferred rather than cited|"
+    # GATE-112 residual: keyed on the law text as the negation's subject, not
+    # on vocabulary, so "the Board's page does not state" (or-individual) and
+    # va-*'s superseded-citation note stay clean. Live matches: ny-individual,
+    # vt-firm, tn-all, ne-cpe -- all already flagged; zero unflagged hits.
+    r"\bnot from (?:the )?(?:statute|regulation|rule|code)s?\b|"
+    r"\bneither the [^.;]{0,60}\b(?:rules?|statutes?|regulations?|code)\b[^.;]{0,60}"
+    r"\bnor\b[^.;]{0,80}\b(?:says|states|sets|specifies|establishes)\b|"
+    r"\b(?:statute|rule|regulation|code)s?\b[^.;]{0,120}"
+    r"\band does not (?:state|say|set|specify|establish)\b",
     re.IGNORECASE,
 )
 

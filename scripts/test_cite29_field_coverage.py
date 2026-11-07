@@ -110,3 +110,23 @@ def test_every_dataset_declares_how_it_clears():
 def test_gate112_synonyms_are_caught(tmp_path, phrase):
     errors = _run(tmp_path, "cpa_deadlines", {"id": "x", "cycle_description": phrase})
     assert len(errors) == 1 and "cycle_description admits" in errors[0]
+
+
+# GATE-112 residual (AuditLab 2026-11-07): live wordings the synonym list missed.
+@pytest.mark.parametrize("phrase", [
+    "The birth-month timing comes from the FAQ, not from statute or regulation text we have verified.",
+    "Neither the Board's rules chapter nor its renewal page says how a given certificate's year is set.",
+    "Nebraska's statute authorizes this as ten days within the preceding two calendar years and does not state hours.",
+])
+def test_gate112_residual_wordings_are_caught(tmp_path, phrase):
+    errors = _run(tmp_path, "cpa_deadlines", {"id": "x", "cycle_description": phrase})
+    assert len(errors) == 1 and "cycle_description admits" in errors[0]
+
+
+# The traps: a source other than the law text, or a strength statement.
+@pytest.mark.parametrize("phrase", [
+    "The Board's page does NOT state how parity is originally assigned.",
+    "The renewal page does not state a grace period, and the statute sets the cycle.",
+])
+def test_gate112_residual_traps_stay_clean(tmp_path, phrase):
+    assert _run(tmp_path, "cpa_deadlines", {"id": "x", "cycle_description": phrase}) == []
