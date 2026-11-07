@@ -8049,7 +8049,14 @@ def build_state_page(
 
     patterns = {r["renewal_pattern"] for r in records}
 
-    if patterns == {"birth_month"}:
+    # UX-36: New York is birth_month by pattern but its date needs the
+    # registration date (no lookup table renders), so key the title on the
+    # same computation.type the body dispatch already honours.
+    _unresolvable = any(
+        (r.get("computation") or {}).get("type") == "unresolvable_needs_registration_date"
+        for r in records
+    )
+    if patterns == {"birth_month"} and not _unresolvable:
         # A lookup table spans many years by construction -- asserting one
         # year in the title/description would be wrong on its face, not just
         # eventually stale. Describe the rule instead of a year.
