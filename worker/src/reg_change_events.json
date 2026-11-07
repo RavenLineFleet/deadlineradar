@@ -243,14 +243,14 @@
       "secondary_url": "https://register.dls.virginia.gov/vol43/iss04/v43i04.pdf",
       "verified_date": "2026-11-07",
       "confidence": "dual_source",
-      "summary_public": "The Board of Accountancy's final regulation, effective November 4, 2026, eliminates the $20 fee for processing additional applications to take one or more sections of the CPA examination (the $120 initial-application fee stays). It also removes restrictions for re-examination requirements and clarifies CPA license eligibility requirements, clarifies CPA firm ownership requirements, requires firms to report changes in ownership or organizational structure to the Board, and repeals 18VAC5-22-30 as redundant.",
+      "summary_public": "The Board of Accountancy's final regulation, effective November 4, 2026, eliminates the $20 fee for processing additional applications to take one or more sections of the CPA examination (the $120 initial-application fee stays). It also removes restrictions for re-examination requirements and clarifies CPA license eligibility requirements, clarifies statutes related to CPA firm ownership requirements, requires each Virginia license holder to notify the Board in writing within 30 calendar days of any significant change of control, ownership, or practice of regulated activities of a Virginia CPA firm, and repeals 18VAC5-22-30 as redundant. The Virginia Register also lists amendments to 18VAC5-22-50 (whether a person's or firm's principal place of business is in Virginia) and 18VAC5-22-150 (monitoring program and peer review), but the codified Virginia Administrative Code does not yet show either section as amended. We are re-checking those two against the codified text before treating them as settled.",
       "kind": "rule_change",
       "effective_date": "2026-11-04",
       "status": "ADOPTED_RULE",
       "status_evidence": "Register Vol. 43, Iss. 4: \"Effective Date: November 4, 2026.\"; \"The amendments (i) eliminate the certified public accountant (CPA) re-exam fee\"; 18VAC5-22-20 history: \"Volume 43, Issue 4 , eff. November 4, 2026.\"; 18VAC5-22-30: \"(Repealed.)\"",
       "status_source_url": "https://register.dls.virginia.gov/vol43/iss04/v43i04.pdf",
       "upcoming": false,
-      "needs_reverification": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {
