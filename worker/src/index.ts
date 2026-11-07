@@ -6212,6 +6212,8 @@ async function handleFirmStaffCpeReminder(request: Request, env: Env): Promise<R
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (!underCap) {
         reason = "Today's email limit has been reached. Please try again tomorrow.";
+        // SEC-78: nothing was sent and nothing was written, so the firm keeps its slot.
+        await releaseRateLimitHit(env.DB, session.firmId, "firm_staff_cpe_reminder");
       } else {
         const { rawToken } = await store.createSubscriberLoginToken(env.DB, staffRow.email);
         const loginUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
@@ -6406,17 +6408,22 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   // own href handling in emails.ts, which trusts this value verbatim.
   const citationUrl = /^https:\/\//.test(citationUrlRaw) ? citationUrlRaw : null;
 
-  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
-  // for free, and before the first credential check, write or expensive step.
-  const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_notify", RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many notifications sent today. Please try again in 24 hours." });
-  }
-
   const roster = await store.listFirmLicenses(env.DB, session.firmId);
   const targets = roster.filter(
     (row) => row.state_slug === stateSlug && firmLicenseStatus(row) !== "opted_out"
   );
+
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  // SEC-79: a state nobody on the roster holds has nothing to send, so it costs
+  // nothing. Checking the slug against the state list wouldn't cover this: a
+  // real state the firm has no staff in lands here too.
+  if (targets.length > 0) {
+    const allowed = await checkRateLimit(env.DB, session.firmId, "firm_rule_change_notify", RATE_LIMIT_FIRM_RULE_CHANGE_NOTIFY);
+    if (!allowed) {
+      return jsonResponse(429, { error: "Too many notifications sent today. Please try again in 24 hours." });
+    }
+  }
 
   // AuditLab DEMO-4 (MEDIUM, 2026-08-07): fans out to every roster staffer
   // in the state -- see handleFirmStaffCpeReminder's own comment for the
@@ -6436,6 +6443,9 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
       const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
       if (!underCap) {
         skipped += targets.length - sent - skipped;
+        // SEC-78: the cap check is per recipient, so it can refuse after earlier
+        // recipients got their email. Those deliveries keep the slot paid for.
+        if (sent === 0) await releaseRateLimitHit(env.DB, session.firmId, "firm_rule_change_notify");
         break;
       }
       // AuditLab UNSUB-3: built per-recipient (not once for the whole fan-out)
