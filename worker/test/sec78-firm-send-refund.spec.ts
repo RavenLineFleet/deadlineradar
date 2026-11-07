@@ -221,4 +221,23 @@ describe("rule-change notify for a state nobody on the roster holds (SEC-79)", (
     expect(api).not.toHaveBeenCalled();
     expect(await slots(f.firmId, NOTIFY)).toBe(NOTIFY_MAX);
   });
+
+  // The one response the reorder changed: this was a 429 while the limiter sat above the roster read.
+  it("answers 200, not 429, for an empty state once the budget is used up", async () => {
+    const f = await firm();
+    await staff(f.cookie);
+    const api = mailApi(200);
+
+    for (let i = 0; i < NOTIFY_MAX; i++) {
+      expect((await post("/firm/rule-change/notify", f.cookie, RULE)).status).toBe(200);
+    }
+    expect(await slots(f.firmId, NOTIFY)).toBe(NOTIFY_MAX);
+    api.mockClear();
+
+    const empty = await post("/firm/rule-change/notify", f.cookie, { ...RULE, state_slug: "alabama" });
+    expect(empty.status).toBe(200);
+    expect(await empty.json<NotifyBody>()).toMatchObject({ sent: 0, skipped: 0, total: 0 });
+    expect(api).not.toHaveBeenCalled();
+    expect(await slots(f.firmId, NOTIFY)).toBe(NOTIFY_MAX);
+  });
 });
