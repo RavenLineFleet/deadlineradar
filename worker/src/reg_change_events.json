@@ -1,16 +1,16 @@
 {
   "_meta": {
     "purpose": "Publishable rule-change events for the public changes feed.",
-    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (17 currently promoted).",
+    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (18 currently promoted).",
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
     "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'.",
-    "as_of": "2026-11-04",
-    "changes_published": 17,
+    "as_of": "2026-11-07",
+    "changes_published": 18,
     "changes_upcoming": 3,
-    "changes_recent": 14,
+    "changes_recent": 15,
     "source_conflicts_published": 4,
-    "live_monitoring_count": 17
+    "live_monitoring_count": 18
   },
   "events": [
     {
@@ -229,6 +229,26 @@
       "status": "ENACTED",
       "status_evidence": "Approved by Governor 2026-05-05 per the Oklahoma Legislature's own bill-status page for HB4317 (2026 session), with no later repeal, delay or amending action as of 2026-11-04; the Accountancy Board's official Rule Impact Statement (oklahoma.gov/oab) independently states HB4317 'takes effect November 1, 2026' and describes the statutory amendment in detail. The Board's published Sept 2026 rules compilation does not yet reflect HB4317; the Board's 2027 Proposed Permanent Rules Text (posted Oct 2026) would conform OAC 10:15-3-2, 10:15-18-4 and 10:15-21-1. Confirm rule status with the Board before relying on the new pathway.",
       "status_source_url": "https://www.oklegislature.gov/BillInfo.aspx?Bill=hb4317&Session=2600",
+      "upcoming": false,
+      "needs_reverification": false,
+      "source": "difflab_reg_change_engine"
+    },
+    {
+      "event_id": "virginia-regwatch-55445a8b7566",
+      "jurisdiction_slug": "virginia",
+      "jurisdiction": "Virginia",
+      "topic": "CPA regulatory/statutory change",
+      "citation": "18VAC5-22-20, -50, -80, -130, -150, -170, -180; 18VAC5-22-30 (repealed); Virginia Register Vol. 43, Iss. 4",
+      "citation_url": "https://law.lis.virginia.gov/admincodefull/title18/agency5/chapter22/",
+      "secondary_url": "https://register.dls.virginia.gov/vol43/iss04/v43i04.pdf",
+      "verified_date": "2026-11-07",
+      "confidence": "dual_source",
+      "summary_public": "The Board of Accountancy's final regulation, effective November 4, 2026, eliminates the $20 fee for processing additional applications to take one or more sections of the CPA examination (the $120 initial-application fee stays). It also removes restrictions for re-examination requirements and clarifies CPA license eligibility requirements, clarifies CPA firm ownership requirements, requires firms to report changes in ownership or organizational structure to the Board, and repeals 18VAC5-22-30 as redundant.",
+      "kind": "rule_change",
+      "effective_date": "2026-11-04",
+      "status": "ADOPTED_RULE",
+      "status_evidence": "Register Vol. 43, Iss. 4: \"Effective Date: November 4, 2026.\"; \"The amendments (i) eliminate the certified public accountant (CPA) re-exam fee\"; 18VAC5-22-20 history: \"Volume 43, Issue 4 , eff. November 4, 2026.\"; 18VAC5-22-30: \"(Repealed.)\"",
+      "status_source_url": "https://register.dls.virginia.gov/vol43/iss04/v43i04.pdf",
       "upcoming": false,
       "needs_reverification": false,
       "source": "difflab_reg_change_engine"
