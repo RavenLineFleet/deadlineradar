@@ -4137,9 +4137,9 @@ _MIRROR_HOST_RE = re.compile(
 # Retire these once /Code (or a per-rule URL under it) serves R156-1 /
 # R156-26a text to a plain fetch.
 _MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
-    "ut-all": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
-    "ut-cpe": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
-    "utah-reinstatement": "adminrules.utah.gov eRules platform down site-wide since the 2026-10-16 relaunch (confirmed 2026-10-18); no reachable official host exists for this citation right now.",
+    "ut-all": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
+    "ut-cpe": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
+    "utah-reinstatement": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
 }
 
 

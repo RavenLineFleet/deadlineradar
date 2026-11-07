@@ -1221,7 +1221,7 @@
       "secondary_source_url": "https://adminrules.utah.gov/public/rule/R156-1/Current%20Rules",
       "last_verified": "2026-11-06",
       "wave": 6,
-      "data_gap_note": "The official Utah rule-lookup website has been down site-wide since a platform relaunch on October 16, 2026 (confirmed October 18, 2026), so the citation link above points to a reputable third-party legal-reference mirror (Cornell Law School's Legal Information Institute) instead of the state's own page for now. The underlying fact (December 31, even years, for both license types) is independently confirmed on that mirror and unchanged. We will switch the link back to the state's own page once it is working again.",
+      "data_gap_note": "Utah's official administrative-rules website relaunched on October 16, 2026 and retired its old per-rule links; its new Administrative Code browser is an interactive app with no stable per-rule link we can cite, so the citation link above points to a reputable third-party legal-reference mirror (Cornell Law School's Legal Information Institute) instead of the state's own page for now. The underlying fact (December 31, even years, for both license types) is independently confirmed on that mirror and unchanged. We will switch the link back to the state's own page once it offers a stable link to this rule.",
       "citation_is_substitute_source": true,
       "citation": "Utah Admin. Code R156-1-308a",
       "citation_url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-1-308a",
