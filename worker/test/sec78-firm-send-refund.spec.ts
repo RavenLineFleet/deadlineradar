@@ -241,3 +241,22 @@ describe("rule-change notify for a state nobody on the roster holds (SEC-79)", (
     expect(await slots(f.firmId, NOTIFY)).toBe(NOTIFY_MAX);
   });
 });
+
+describe("rule-change notify from a test tenant (GATE-109)", () => {
+  it("mails nobody and says why", async () => {
+    const f = await firm();
+    await staff(f.cookie);
+    await env.DB.prepare("UPDATE firms SET is_test_tenant = 1 WHERE id = ?1").bind(f.firmId).run();
+    const api = mailApi(200);
+
+    const res = await post("/firm/rule-change/notify", f.cookie, RULE);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      sent: 0,
+      skipped: 1,
+      total: 1,
+      reason: "This is a test tenant -- emails aren't sent from it.",
+    });
+    expect(api).not.toHaveBeenCalled();
+  });
+});

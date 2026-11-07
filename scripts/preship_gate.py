@@ -7256,6 +7256,26 @@ def _blank_strings_and_comments(text: str, keep_strings: bool = False) -> str:
     return "".join(out)
 
 
+def _is_constant_zero(expr: str) -> bool:
+    """True if `expr` is a bare `0`, alone or ANDed in, so it can never be truthy.
+
+    GATE-109 (SecurityLab, filed as GATE-108, 2026-11-07): this was a regex for
+    `0` followed by `&&` or end of string, which also matched the right operand
+    of `x > 0`, `x || 0` and `a ? b : 0`. That blanked live blocks, 26 functions
+    in worker/src, and hid handleFirmRuleChangeNotify's send from the DEMO-EMAIL
+    check. Reads the condition's structure instead, so a comparison is never dead."""
+    e = _strip_enclosing_parens(expr.strip()).strip()
+    while e.startswith("!!"):
+        e = _strip_enclosing_parens(e[2:].strip()).strip()
+    disjuncts = _split_top_level(e, "||")
+    if len(disjuncts) > 1:
+        return all(_is_constant_zero(d) for d in disjuncts)
+    conjuncts = _split_top_level(e, "&&")
+    if len(conjuncts) > 1:
+        return any(_is_constant_zero(c) for c in conjuncts)
+    return e == "0"
+
+
 def _condition_is_constant_false(cond: str) -> bool:
     """True if an `if(...)` condition string is a literal-false short-circuit
     (`false`, `false && x`, `x && false`, `!true`, `!1`) rather than a real
@@ -7276,7 +7296,7 @@ def _condition_is_constant_false(cond: str) -> bool:
     stripped = re.sub(r"\bfalse\s*[=!]==?", "", stripped)
     if re.search(r"\bfalse\b", stripped):
         return True
-    if re.search(r"(?<![\w.])0(?![\w.])\s*(&&|$)", cond.strip()):
+    if _is_constant_zero(cond):
         return True
     if re.search(r"(?<![!\w])!\s*true\b", cond):
         return True

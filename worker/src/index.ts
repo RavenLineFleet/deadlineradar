@@ -6428,10 +6428,13 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
   // AuditLab DEMO-4 (MEDIUM, 2026-08-07): fans out to every roster staffer
   // in the state -- see handleFirmStaffCpeReminder's own comment for the
   // "gate the send, not the edit" reasoning.
-  const demoLocked = session.firm.demo_locked;
   let sent = 0;
   let skipped = 0;
-  if (demoLocked) {
+  if (session.firm.demo_locked) {
+    skipped = targets.length;
+  } else if (session.firm.is_test_tenant) {
+    // migration 0079: same "gate the send" posture as demo_locked above,
+    // synthetic operator test tenant -- never demo_locked itself.
     skipped = targets.length;
   } else if (targets.length > 0 && env.RESEND_API_KEY) {
     const stateName = stateNameFromSlug(stateSlug);
@@ -6479,11 +6482,13 @@ async function handleFirmRuleChangeNotify(request: Request, env: Env): Promise<R
     sent,
     skipped,
     total: targets.length,
-    reason: demoLocked
+    reason: session.firm.demo_locked
       ? "This is a shared demo account -- emails aren't sent from it."
-      : !env.RESEND_API_KEY
-        ? "Email sending isn't configured."
-        : null,
+      : session.firm.is_test_tenant
+        ? "This is a test tenant -- emails aren't sent from it."
+        : !env.RESEND_API_KEY
+          ? "Email sending isn't configured."
+          : null,
   });
 }
 
