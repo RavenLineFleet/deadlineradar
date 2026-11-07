@@ -7860,9 +7860,15 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     # should lower these constants in that same commit, with a comment
     # explaining why -- same posture as every other hand-maintained
     # baseline in this file.
-    SENDER_COUNT_FLOOR = 32
-    DEMO_LOCKED_GUARDED_FLOOR = 13
-    DEMO_LOCKED_ENFORCED_FLOOR = 9
+    #
+    # GATE-110 (AuditLab + SecurityLab, 2026-11-06): re-anchored from 32/13/9
+    # to the counts measured at af3626de4. GATE-109 made the stripper stop
+    # hiding code behind a zero comparison, which raised the real counts to
+    # 38/18/13 and left the backstop with 6/5/4 of slack it had no reason to
+    # have.
+    SENDER_COUNT_FLOOR = 38
+    DEMO_LOCKED_GUARDED_FLOOR = 18
+    DEMO_LOCKED_ENFORCED_FLOOR = 13
     worker_src = repo_root / "worker" / "src"
     if not worker_src.exists():
         print("  (skipping demo-locked-email-coverage check -- worker/ tree not present in this checkout)")
@@ -8001,8 +8007,8 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     elif senders_found < SENDER_COUNT_FLOOR:
         errors.append(
             f"[GATE-30] found only {senders_found} functions calling sendEmail( anywhere in "
-            f"worker/src/*.ts -- below the recorded floor of {SENDER_COUNT_FLOOR} (2026-09-23 "
-            "baseline, commit 9ebb96f2d). GATE-11 above only catches a full drop to zero; this "
+            f"worker/src/*.ts -- below the recorded floor of {SENDER_COUNT_FLOOR} (2026-11-06 "
+            "baseline, commit af3626de4). GATE-11 above only catches a full drop to zero; this "
             "catches a partial one -- either the scan broke (a refactor moved sends somewhere "
             "_balanced_brace_function_bodies() doesn't reach) or senders were actually removed. "
             "If this drop is real and reviewed, lower SENDER_COUNT_FLOOR in the same commit with "
@@ -8011,10 +8017,10 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
     # GATE-30 (SecurityLab, 2026-09-23): the sender-count floor above only
     # proves sendEmail( is still being called somewhere -- it says nothing
     # about whether the demo_locked GUARD itself survived. A refactor could
-    # hold senders_found steady at 32 while every guard on them quietly
+    # hold senders_found steady while every guard on them quietly
     # broke (e.g. a shared helper's condition gets inverted or deleted) and
     # this whole function would still report 0 [DEMO-EMAIL] errors, because
-    # every one of those 32 would just fail the per-function check above --
+    # every one of those would just fail the per-function check above --
     # which is loud -- UNLESS the same refactor also widened the allowlist
     # to cover them, which is exactly the silent-decay shape this file's
     # other GATE-3x/DEMO-x siblings exist to catch. These two floors are the
@@ -8024,7 +8030,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         errors.append(
             f"[GATE-30] only {demo_locked_guarded_count} functions have a live demo_locked guard "
             f"on their sendEmail( call -- below the recorded floor of {DEMO_LOCKED_GUARDED_FLOOR} "
-            "(2026-09-23 baseline, commit 9ebb96f2d). A guard may have been silently removed or "
+            "(2026-11-06 baseline, commit af3626de4). A guard may have been silently removed or "
             "broken. If this drop is real and reviewed, lower DEMO_LOCKED_GUARDED_FLOOR in the "
             "same commit with a comment explaining why."
         )
@@ -8032,7 +8038,7 @@ def check_demo_locked_email_coverage(repo_root: Path) -> list[str]:
         errors.append(
             f"[GATE-30] only {demo_locked_enforced_count} functions rely on their demo_locked "
             "guard (rather than the allowlist) to pass -- below the recorded floor of "
-            f"{DEMO_LOCKED_ENFORCED_FLOOR} (2026-09-23 baseline, commit 9ebb96f2d). If this drop "
+            f"{DEMO_LOCKED_ENFORCED_FLOOR} (2026-11-06 baseline, commit af3626de4). If this drop "
             "is real and reviewed (e.g. a guarded sender was legitimately moved to the allowlist), "
             "lower DEMO_LOCKED_ENFORCED_FLOOR in the same commit with a comment explaining why."
         )
