@@ -4443,8 +4443,8 @@ def check_hedge_language_enforced(repo_root: Path) -> list[str]:
 # "the source doesn't state Y" (routine prose about an unrelated fact) --
 # kept it. Re-tested full coverage + zero false positives after this change.
 _PARTIAL_CITATION_ADMISSION_RE = re.compile(
-    r"does not itself (state|name|spell out|establish|cover|confirm)|"
-    r"not independently confirmed|not confirmed in|"
+    r"does not itself (state|say|name|spell out|establish|cover|confirm)|"
+    r"not independently (?:confirmed|verified)|not confirmed in|"
     r"instead confirmed|confirmed instead|corroborated (?:separately|instead)|"
     r"(?:is|remains|stays) silent on|"
     r"inferred,? not cited|inferred rather than cited",

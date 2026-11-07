@@ -100,3 +100,13 @@ def test_real_nevada_fee_note_trips_when_edited(tmp_path):
 
 def test_every_dataset_declares_how_it_clears():
     assert set(gate._CITE29_CLEARED_BY) == set(DATASETS)
+
+
+# GATE-112 (AuditLab 2026-11-07): live SRC-183 wording one synonym off the list.
+@pytest.mark.parametrize("phrase", [
+    "The statute does not itself say they're paid together.",
+    "We have not independently verified the grace period.",
+])
+def test_gate112_synonyms_are_caught(tmp_path, phrase):
+    errors = _run(tmp_path, "cpa_deadlines", {"id": "x", "cycle_description": phrase})
+    assert len(errors) == 1 and "cycle_description admits" in errors[0]
