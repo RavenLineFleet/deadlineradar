@@ -141,7 +141,7 @@ describe("GET /assistant/reinstatement", () => {
   });
 
   it("SRC-120: citation_links is null for a single-chapter record", async () => {
-    const body = (await (await getAssistant("/api/assistant/reinstatement?state=ohio")).json()) as {
+    const body = (await (await getAssistant("/api/assistant/reinstatement?state=kentucky")).json()) as {
       citation_links: unknown;
     };
     expect(body.citation_links).toBeNull();

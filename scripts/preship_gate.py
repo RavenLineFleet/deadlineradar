@@ -1076,6 +1076,7 @@ _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
         "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
     },
     "reinstatement.json": {
+        "citation_gap_limbs": "gate input (CITE29), the sentence itself is served in penalty_cpe_notes",
         "id": "internal key",
         "last_manual_verified_date": "provenance", "secondary_source_url": "provenance", "source_url": "provenance",
         "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
@@ -4639,7 +4640,15 @@ _CITE29_NOT_PROSE_FIELDS = frozenset({
     "manual_verified_raw_hash",
     "manual_verified_anchor",  # a quote from the source, not our wording
     "verification_history", "verification_note",  # audit trail, never rendered
+    "citation_gap_limbs",  # names sentences already scanned in their own field
 })
+# GATE-119 (AuditLab, 2026-11-08): the admission scan is phrase-level but its only
+# remedy is record-level, so one honest sentence about one sub-question demoted the
+# record's whole sourcing line. A record may name such a sentence in
+# citation_gap_limbs: [{field, sentence}]. It must be verbatim, must itself be an
+# admission, and may sit only in a field listed here, because a field that states
+# the record's headline claim can't be a side limb.
+_CITE29_LIMB_FIELDS = frozenset({"penalty_cpe_notes"})
 # SRC-179: how each dataset's pages stop a confident sourcing claim sitting beside
 # an admission. citation_covers_full_claim is read only by trust_line()'s callers,
 # which take cpa_deadlines and reinstatement records. cpe_hours pages key off
@@ -4733,7 +4742,23 @@ def check_partial_citation_flag_set(repo_root: Path) -> list[str]:
                 continue  # already flagged -- the contradiction is already suppressed
             if cleared_by == "hours_basis_note" and r.get(cleared_by):
                 continue  # already disclosed -- the sourced-to-the-rule wording is already suppressed
+            limb_sentences: dict[str, list[str]] = {}
+            limbs = r.get("citation_gap_limbs")
+            for limb in limbs if isinstance(limbs, list) else []:
+                if not isinstance(limb, dict):
+                    continue  # a malformed entry clears nothing, so the scan below still fires
+                limb_field, sentence = limb.get("field"), limb.get("sentence") or ""
+                if cleared_by != "citation_covers_full_claim" or limb_field not in _CITE29_LIMB_FIELDS:
+                    errors.append(f"[CITE29][{name}.json:{r.get('id')}] citation_gap_limbs can't name {limb_field!r} here.")
+                elif not _PARTIAL_CITATION_ADMISSION_RE.search(sentence):
+                    errors.append(f"[CITE29][{name}.json:{r.get('id')}] citation_gap_limbs sentence is not an admission: {sentence[:60]!r}")
+                elif sentence not in (r.get(limb_field) or ""):
+                    errors.append(f"[CITE29][{name}.json:{r.get('id')}] citation_gap_limbs sentence is not in {limb_field}: {sentence[:60]!r}")
+                else:
+                    limb_sentences.setdefault(limb_field, []).append(sentence)
             for field, prose in _cite29_prose_fields(r):
+                for sentence in limb_sentences.get(field, ()):
+                    prose = prose.replace(sentence, "")
                 match = _PARTIAL_CITATION_ADMISSION_RE.search(prose)
                 if not match:
                     continue

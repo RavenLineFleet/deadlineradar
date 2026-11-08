@@ -121,3 +121,9 @@ def test_find_urls_walks_citation_links_entries():
     assert ("records[0].citation_links[1].url", "https://example.gov/ch-b-ONLY-HERE.pdf") in found
     assert ("records[0].citation_links[0].url", "https://example.gov/ch-a.pdf") in found
     assert not any(u == "https://example.gov/not-reader-facing" for _, u in found)
+
+
+def test_mon24_texas_viewer_200_is_never_live():
+    url = "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=999999"
+    verdict, reason = ccl.classify(200, b"x" * 2526, 404, b"y" * 1056, url=url)
+    assert verdict == "UNVERIFIABLE", (verdict, reason)

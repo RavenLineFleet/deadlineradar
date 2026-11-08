@@ -130,3 +130,43 @@ def test_gate112_residual_wordings_are_caught(tmp_path, phrase):
 ])
 def test_gate112_residual_traps_stay_clean(tmp_path, phrase):
     assert _run(tmp_path, "cpa_deadlines", {"id": "x", "cycle_description": phrase}) == []
+
+
+# GATE-119: a named side-limb hedge doesn't demote the whole record.
+LIMB = {"field": "penalty_cpe_notes", "sentence": ADMISSION}
+
+
+def test_named_limb_sentence_clears_only_itself(tmp_path):
+    record = {"id": "x", "penalty_cpe_notes": f"Figures are codified. {ADMISSION}", "citation_gap_limbs": [LIMB]}
+    assert _run(tmp_path, "reinstatement", record) == []
+
+
+def test_second_admission_in_the_limb_field_still_trips(tmp_path):
+    other = "The rule does not itself say the rest."
+    record = {"id": "x", "penalty_cpe_notes": f"{ADMISSION} {other}", "citation_gap_limbs": [LIMB]}
+    assert len(_run(tmp_path, "reinstatement", record)) == 1
+
+
+def test_same_sentence_in_another_field_still_trips(tmp_path):
+    record = {"id": "x", "penalty_cpe_notes": ADMISSION, "data_gap_note": ADMISSION, "citation_gap_limbs": [LIMB]}
+    assert len(_run(tmp_path, "reinstatement", record)) == 1
+
+
+def test_limb_cannot_name_a_headline_field(tmp_path):
+    record = {"id": "x", "data_gap_note": ADMISSION, "citation_gap_limbs": [{"field": "data_gap_note", "sentence": ADMISSION}]}
+    assert len(_run(tmp_path, "reinstatement", record)) == 2
+
+
+def test_stale_limb_sentence_is_an_error(tmp_path):
+    record = {"id": "x", "penalty_cpe_notes": "Reworded.", "citation_gap_limbs": [LIMB]}
+    assert len(_run(tmp_path, "reinstatement", record)) == 1
+
+
+def test_non_admission_limb_is_an_error(tmp_path):
+    record = {"id": "x", "penalty_cpe_notes": "Plain.", "citation_gap_limbs": [{"field": "penalty_cpe_notes", "sentence": "Plain."}]}
+    assert len(_run(tmp_path, "reinstatement", record)) == 1
+
+
+def test_limb_is_an_error_on_a_dataset_without_the_flag(tmp_path):
+    record = {"id": "x", "penalty_cpe_notes": ADMISSION, "citation_gap_limbs": [LIMB]}
+    assert len(_run(tmp_path, "cpe_hours", record)) == 2

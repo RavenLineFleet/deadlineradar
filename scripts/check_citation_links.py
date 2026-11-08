@@ -331,6 +331,11 @@ def _looks_like_empty_spa_shell(body: bytes | None) -> bool:
 BROWSER_VERIFIED_MAX_AGE_DAYS = 180
 BROWSER_VERIFIED = {}
 
+# MON-24 (AuditLab, 2026-11-08): the Texas SOS rule viewer serves the same 2,526-byte
+# app shell for a valid and a bogus recordId, while the garbage-path control 404s, so
+# the control can't catch it. A 200 here says nothing about the rule behind the link.
+_VISUAL_CHECK_ONLY_HOSTS = frozenset({"texas-sos.appianportalsgov.com"})
+
 
 def browser_verified_note(url: str, today=None):
     """Returns the human-verification note for an UNVERIFIABLE url if it is on
@@ -402,6 +407,8 @@ def assert_citation_in_content(real_body: bytes | None, sig_body: bytes | None, 
 
 def classify(real_status, real_body, sig_status, sig_body, citation=None, url=None) -> tuple[str, str]:
     """Returns (verdict, reason). verdict is one of LIVE / DEAD / UNVERIFIABLE / WRONG-PAGE."""
+    if real_status == 200 and url and urlparse(url).hostname in _VISUAL_CHECK_ONLY_HOSTS:
+        return "UNVERIFIABLE", "viewer serves one app shell for every recordId -- needs a visual read in a browser (MON-24)"
     # Bot defense: a 403 on the real citation, or on the control probe
     # itself (can't establish any baseline for this host), is not proof of
     # anything either way -- AuditLab confirmed all 26 sweep 403s were
