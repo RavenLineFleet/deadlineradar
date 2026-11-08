@@ -53,6 +53,20 @@ function assistantCitationLinks(raw: unknown): { url: string; label: string }[] 
   return links.length ? links : null;
 }
 
+// SRC-201 (AuditLab, 2026-11-08): a record whose citation covers only part of its
+// claim looks identical to a fully cited one if the API serves just the cite. The
+// page says so in a sentence (generate.py trust_line, status "partial"), so the API
+// serves that sentence. Same test as _record_citation_status: an operational record
+// is not "partial", and an absent flag means fully cited.
+export const PARTIAL_CITATION_NOTE =
+  "Sourced from the state board's own page. The citation covers part of this claim but not all of it, " +
+  "so we could not independently confirm the rest against codified statute or administrative rule text.";
+
+function assistantCitationScopeNote(citation: unknown, citationClass: unknown, coversFullClaim: unknown): string | null {
+  if (citationClass === "operational_record" || !citation) return null;
+  return coversFullClaim !== undefined && !coversFullClaim ? PARTIAL_CITATION_NOTE : null;
+}
+
 interface AssistantDeadlineResult {
   state: string;
   state_slug: string;
@@ -62,6 +76,7 @@ interface AssistantDeadlineResult {
   next_deadline_computed: string | null;
   grace_period_note: string | null;
   data_gap_note: string | null;
+  citation_scope_note: string | null;
   citation: string | null;
   citation_url: string | null;
   citation_links: { url: string; label: string }[] | null;
@@ -91,6 +106,7 @@ export function lookupAssistantDeadlines(
       next_deadline_computed: resolvedNextDeadlineComputed(r as unknown as CpaRecord, asOf),
       grace_period_note: typeof r.grace_period_note === "string" && r.grace_period_note ? r.grace_period_note : null,
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
+      citation_scope_note: assistantCitationScopeNote(r.citation, r.citation_class, r.citation_covers_full_claim),
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
       citation_links: assistantCitationLinks(r.citation_links),
@@ -163,6 +179,7 @@ interface AssistantReinstatementResult {
   penalty_ethics_label: string | null;
   lapse_trigger: string | null;
   data_gap_note: string | null;
+  citation_scope_note: string | null;
   citation: string | null;
   citation_url: string | null;
   citation_links: { url: string; label: string }[] | null;
@@ -189,6 +206,7 @@ export function lookupAssistantReinstatement(stateSlug: string): AssistantReinst
     penalty_ethics_label: typeof r.penalty_ethics_label === "string" && r.penalty_ethics_label ? r.penalty_ethics_label : null,
     lapse_trigger: typeof r.lapse_trigger === "string" ? r.lapse_trigger : null,
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
+    citation_scope_note: assistantCitationScopeNote(r.citation, r.citation_class, r.citation_covers_full_claim),
     citation: typeof r.citation === "string" ? r.citation : null,
     citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
     citation_links: assistantCitationLinks(r.citation_links),

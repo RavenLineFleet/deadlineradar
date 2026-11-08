@@ -347,6 +347,28 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     expect(lookupAssistantReinstatement("alabama")!.penalty_ethics_label).toBeNull();
   });
 
+  // SRC-201: derived from the data, so a newly flagged record is covered without editing this test.
+  it("serves the partial-citation note on exactly the partially cited records", async () => {
+    const { lookupAssistantDeadlines, lookupAssistantReinstatement, PARTIAL_CITATION_NOTE } = await import("../src/assistant");
+    const isPartial = (r: Record<string, unknown>) =>
+      r.citation_class !== "operational_record" && !!r.citation && r.citation_covers_full_claim === false;
+    const cpa = (await import("../src/cpa_deadlines.json")).default.records as Record<string, unknown>[];
+    const rein = (await import("../src/reinstatement.json")).default.records as Record<string, unknown>[];
+    expect(cpa.filter(isPartial).length).toBeGreaterThanOrEqual(9);
+    expect(rein.filter(isPartial).length).toBeGreaterThanOrEqual(10);
+    for (const r of cpa) {
+      const served = lookupAssistantDeadlines(String(r.state_slug), String(r.license_type))[0]!;
+      expect(served.citation_scope_note, `${r.state_slug}/${r.license_type}`).toBe(isPartial(r) ? PARTIAL_CITATION_NOTE : null);
+    }
+    for (const r of rein) {
+      expect(lookupAssistantReinstatement(String(r.state_slug))!.citation_scope_note, String(r.state_slug)).toBe(
+        isPartial(r) ? PARTIAL_CITATION_NOTE : null
+      );
+    }
+    expect(lookupAssistantDeadlines("new-york", "individual")[0]!.citation_scope_note).toContain("covers part of this claim");
+    expect(lookupAssistantReinstatement("arkansas")!.citation_scope_note).toContain("covers part of this claim");
+  });
+
   it("serves a renewal-fee data_gap_note only where the page shows it", async () => {
     const { lookupAssistantRenewalFee } = await import("../src/assistant");
     expect(lookupAssistantRenewalFee("delaware")!.data_gap_note).toContain("by design");

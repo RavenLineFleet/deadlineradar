@@ -1059,10 +1059,10 @@ def _served_strings(record: dict, spec: str) -> list[str]:
 # served "4 ethics hours" for New Mexico without the "confirm with the Board" caveat the page shows.
 # Every populated dataset field must be either read by its lookup or named here with the reason it is
 # withheld, so a new field fails this check until someone decides which it is.
+# "Withheld" means the lookup doesn't read the field raw; next_deadline_computed still reaches the API.
 _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
     "cpa_deadlines.json": {
         "id": "internal key", "next_deadline_computed": "served through resolvedNextDeadlineComputed, not a raw read",
-        "citation_class": "render control", "citation_covers_full_claim": "render control",
         "citation_is_substitute_source": "render control", "cohort_groups": "input to next_deadline_computed",
         "computation": "input to next_deadline_computed", "last_manual_verified_date": "provenance",
         "renewal_pattern": "input to next_deadline_computed", "secondary_source_url": "provenance",
@@ -1076,7 +1076,7 @@ _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
         "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
     },
     "reinstatement.json": {
-        "id": "internal key", "citation_class": "render control", "citation_covers_full_claim": "render control",
+        "id": "internal key",
         "last_manual_verified_date": "provenance", "secondary_source_url": "provenance", "source_url": "provenance",
         "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
     },
