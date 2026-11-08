@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "status": "LIVE on main -- 50 of 55 states/territories have a confirmed flat individual renewal fee; the rest (Colorado, Delaware, Illinois, Iowa, Nevada) have no confirmable flat figure from an official source, disclosed via data_gap_note rather than guessed.",
+    "status": "LIVE on main -- 53 of 55 states/territories have a confirmed flat individual renewal fee; the other 2 (Delaware, Illinois) have no confirmable flat figure from an official source and disclose why on the record (Delaware via data_gap_note, Illinois via fee_notes: a per-year rate, not a flat fee) rather than guessing.",
     "states_total": 55,
     "confirmed_count": 50
   },
