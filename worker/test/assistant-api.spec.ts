@@ -339,6 +339,30 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     vi.resetModules();
   });
 
+  // SRC-200: fields the state page shows beside a number must reach the API too.
+  it("serves the penalty ethics label with its caveat", async () => {
+    const { lookupAssistantReinstatement } = await import("../src/assistant");
+    expect(lookupAssistantReinstatement("new-mexico")!.penalty_ethics_label).toContain("confirm with the Board");
+    expect(lookupAssistantReinstatement("north-carolina")!.penalty_ethics_label).toContain("statutes-and-rules");
+    expect(lookupAssistantReinstatement("alabama")!.penalty_ethics_label).toBeNull();
+  });
+
+  it("serves a renewal-fee data_gap_note only where the page shows it", async () => {
+    const { lookupAssistantRenewalFee } = await import("../src/assistant");
+    expect(lookupAssistantRenewalFee("delaware")!.data_gap_note).toContain("by design");
+    expect(lookupAssistantRenewalFee("maryland")!.data_gap_note).toContain("COMAR");
+    for (const slug of ["texas", "colorado", "dc", "northern-mariana-islands"]) {
+      expect(lookupAssistantRenewalFee(slug)!.data_gap_note).toBeNull();
+    }
+  });
+
+  it("serves the CPE hour notes and the Ohio grace-period note", async () => {
+    const { lookupAssistantCpe, lookupAssistantDeadlines } = await import("../src/assistant");
+    expect(lookupAssistantCpe("louisiana")!.ethics_hours_note).toContain("board-approved");
+    expect(lookupAssistantCpe("nebraska")!.hours_basis_note).toContain("ten days");
+    expect(lookupAssistantDeadlines("ohio", "individual")[0]!.grace_period_note).toContain("December 31");
+  });
+
   it("lookupAssistantReinstatement nulls a javascript: citation_url instead of passing it through", async () => {
     vi.resetModules();
     vi.doMock("../src/reinstatement.json", () => ({

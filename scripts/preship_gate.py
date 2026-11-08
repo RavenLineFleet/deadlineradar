@@ -1006,9 +1006,10 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # SEC-64: "citation_links[].label" is a path, not a field name -- citation_links is a list of
     # dicts, and naming it plainly would be skipped as non-str. Walked by _served_strings(). Only the
     # label: the url beside it is a URL by design and would trip the snake_case pattern.
-    "cpa_deadlines.json": ["cycle_description", "data_gap_note", "citation", "citation_links[].label"],
-    "cpe_hours.json": ["notes", "data_gap_note", "citation", "applicability_note", "citation_links[].label"],
-    "reinstatement.json": ["reinstatement_fee_notes", "penalty_cpe_notes", "lapse_trigger", "data_gap_note", "citation",
+    "cpa_deadlines.json": ["cycle_description", "grace_period_note", "data_gap_note", "citation", "citation_links[].label"],
+    "cpe_hours.json": ["notes", "ethics_hours_note", "hours_basis_note", "data_gap_note", "citation", "applicability_note",
+                       "citation_links[].label"],
+    "reinstatement.json": ["reinstatement_fee_notes", "penalty_cpe_notes", "penalty_ethics_label", "lapse_trigger", "data_gap_note", "citation",
                            "citation_links[].label"],
     # fee_basis/confidence are deliberately excluded -- both are short,
     # fixed-vocabulary enum tags (fee_basis: "board_schedule"/"codified"/
@@ -1018,7 +1019,7 @@ _ASSISTANT_API_FIELDS_BY_DATASET: dict[str, list[str]] = {
     # nothing but guaranteed false positives (fee_basis's own values ARE
     # snake_case, by design, every time) -- confirmed by an actual run
     # before excluding them, not assumed.
-    "renewal_fees.json": ["fee_notes", "citation", "citation_links[].label"],
+    "renewal_fees.json": ["fee_notes", "data_gap_note", "citation", "citation_links[].label"],
     # reg_change_events.json (2026-09-23, orchestrator_20260919_promote_
     # shape_rule_and_gate_reg_change_events.md item 2): summary_public is
     # rendered to /api/assistant/rule-changes and was the source field for
@@ -1051,6 +1052,88 @@ def _served_strings(record: dict, spec: str) -> list[str]:
                 found.append(val)
         nodes = found
     return [n for n in nodes if isinstance(n, str) and n]
+
+
+# SRC-200 (AuditLab, 2026-11-08): the leak guard above stops an internal field reaching the API. Nothing
+# stopped the opposite: a customer-facing field never added to assistant.ts's allowlist, so the API
+# served "4 ethics hours" for New Mexico without the "confirm with the Board" caveat the page shows.
+# Every populated dataset field must be either read by its lookup or named here with the reason it is
+# withheld, so a new field fails this check until someone decides which it is.
+_ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
+    "cpa_deadlines.json": {
+        "id": "internal key", "next_deadline_computed": "served through resolvedNextDeadlineComputed, not a raw read",
+        "citation_class": "render control", "citation_covers_full_claim": "render control",
+        "citation_is_substitute_source": "render control", "cohort_groups": "input to next_deadline_computed",
+        "computation": "input to next_deadline_computed", "last_manual_verified_date": "provenance",
+        "renewal_pattern": "input to next_deadline_computed", "secondary_source_url": "provenance",
+        "source_url": "provenance", "terminal_disclosure": "render control", "verification_history": "internal",
+        "verification_note": "internal", "verified_method": "provenance", "wave": "internal",
+    },
+    "cpe_hours.json": {
+        "id": "internal key", "annual_minimum_basis": "render control", "last_manual_verified_date": "provenance",
+        "manual_verified_anchor": "provenance", "manual_verified_raw_byte_length": "provenance",
+        "manual_verified_raw_hash": "provenance", "secondary_source_url": "provenance", "source_url": "provenance",
+        "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
+    },
+    "reinstatement.json": {
+        "id": "internal key", "citation_class": "render control", "citation_covers_full_claim": "render control",
+        "last_manual_verified_date": "provenance", "secondary_source_url": "provenance", "source_url": "provenance",
+        "terminal_disclosure": "render control", "verification_history": "internal", "verified_method": "provenance",
+    },
+    "renewal_fees.json": {
+        "id": "internal key", "last_manual_verified_date": "provenance", "manual_verified_anchor": "provenance",
+        "manual_verified_raw_byte_length": "provenance", "manual_verified_raw_hash": "provenance",
+        "secondary_source_url": "provenance", "source_url": "provenance", "terminal_disclosure": "render control",
+        "verification_history": "internal", "verified_method": "provenance",
+    },
+    "reg_change_events.json": {
+        "event_id": "internal key", "confidence": "internal", "status_evidence": "internal",
+        "status_source_url": "provenance", "source": "provenance", "secondary_url": "provenance",
+        "conflict_summary": "internal",
+    },
+}
+
+
+def check_assistant_projection_classifies_every_field(repo_root: Path) -> list[str]:
+    """SRC-200. Reads the field accesses in each lookupAssistant* body, so it fails closed if a lookup
+    is renamed or a dataset import moves. Empty values don't count: a field no record populates has
+    nothing to withhold."""
+    src_path = repo_root / "worker" / "src" / "assistant.ts"
+    if not src_path.exists():
+        return [f"[SRC-200] {src_path} not found -- can't compare the assistant projection with its datasets"]
+    src = src_path.read_text(encoding="utf-8")
+    imports = dict(re.findall(r'^import (\w+) from "\./([\w.]+\.json)";', src, re.M))
+    projected: dict[str, set[str]] = {}
+    for m in re.finditer(r"^export function lookupAssistant\w+\(.*?^\}$", src, re.M | re.S):
+        body = m.group(0)
+        var = re.search(r"\b(\w+Data)\.(?:records|events)\b", body)
+        if var and var.group(1) in imports:
+            projected.setdefault(imports[var.group(1)], set()).update(re.findall(r"\b(?:r|e)\.(\w+)", body))
+    # The in-force helper reads the event for the served status, outside the lookup's own body.
+    helper = re.search(r"^function ruleChangeInForceStatus\(.*?^\}$", src, re.M | re.S)
+    if helper and "reg_change_events.json" in projected:
+        projected["reg_change_events.json"].update(re.findall(r"\be\.(\w+)", helper.group(0)))
+    errors: list[str] = []
+    for filename, withheld in _ASSISTANT_WITHHELD_FIELDS.items():
+        fields = projected.get(filename)
+        if not fields:
+            errors.append(f"[SRC-200] no lookupAssistant* reads {filename}: this check parses assistant.ts and found nothing to compare")
+            continue
+        path = repo_root / "data" / filename
+        if not path.exists():
+            errors.append(f"[SRC-200] {path} not found -- assistant.ts imports this dataset, this check can't verify it")
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        records = data["events"] if "events" in data else data.get("records", [])
+        populated = {k for r in records if isinstance(r, dict) for k, v in r.items() if v not in (None, "", [], {})}
+        for field in sorted(populated - fields - set(withheld)):
+            errors.append(
+                f"[SRC-200] {filename}: {field!r} is populated but neither served by assistant.ts nor listed in "
+                f"_ASSISTANT_WITHHELD_FIELDS. If customers see it on a page, add it to the projection; if not, list it with a reason."
+            )
+        for field in sorted(fields & set(withheld)):
+            errors.append(f"[SRC-200] {filename}: {field!r} is listed as withheld but assistant.ts reads it. Remove one.")
+    return errors
 
 
 def check_assistant_api_fields_no_internal_notes(data_dir: Path) -> list[str]:
@@ -10833,6 +10916,7 @@ def main():
     all_errors += check_no_internal_ids_in_shipped_comments(html_files)
     all_errors += check_calculator_widget_data_no_internal_notes(html_files)
     all_errors += check_assistant_api_fields_no_internal_notes(repo_root / "data")
+    all_errors += check_assistant_projection_classifies_every_field(repo_root)
     all_errors += check_cpe_requirements_blob_no_internal_notes(html_files)
     all_errors += check_firm_mobility_verification_marker_leak(repo_root)
     all_errors += check_mobility_verification_marker_leak(repo_root)

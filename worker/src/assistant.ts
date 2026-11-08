@@ -60,6 +60,7 @@ interface AssistantDeadlineResult {
   license_type_label: string;
   cycle_description: string;
   next_deadline_computed: string | null;
+  grace_period_note: string | null;
   data_gap_note: string | null;
   citation: string | null;
   citation_url: string | null;
@@ -88,6 +89,7 @@ export function lookupAssistantDeadlines(
       // date past the DATE-2/DATE-3 roll-forward that every other surface
       // already applies. See deadline.ts's own docstring on that function.
       next_deadline_computed: resolvedNextDeadlineComputed(r as unknown as CpaRecord, asOf),
+      grace_period_note: typeof r.grace_period_note === "string" && r.grace_period_note ? r.grace_period_note : null,
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),
@@ -104,6 +106,9 @@ interface AssistantCpeResult {
   annual_minimum_hours: number | null;
   ethics_hours: number | null;
   ethics_period_years: number | null;
+  // Both are shown beside these hours on the state page (SRC-200).
+  ethics_hours_note: string | null;
+  hours_basis_note: string | null;
   notes: string | null;
   // Who the duty applies to / carve-outs (AuditLab SRC-87); null when the
   // record states no condition.
@@ -127,6 +132,8 @@ export function lookupAssistantCpe(stateSlug: string): AssistantCpeResult | null
     annual_minimum_hours: typeof r.annual_minimum_hours === "number" ? r.annual_minimum_hours : null,
     ethics_hours: typeof r.ethics_hours === "number" ? r.ethics_hours : null,
     ethics_period_years: typeof r.ethics_period_years === "number" ? r.ethics_period_years : null,
+    ethics_hours_note: typeof r.ethics_hours_note === "string" && r.ethics_hours_note ? r.ethics_hours_note : null,
+    hours_basis_note: typeof r.hours_basis_note === "string" && r.hours_basis_note ? r.hours_basis_note : null,
     notes: typeof r.notes === "string" && r.notes ? r.notes : null,
     applicability_note:
       typeof r.applicability_note === "string" && r.applicability_note.trim() ? r.applicability_note.trim() : null,
@@ -151,6 +158,9 @@ interface AssistantReinstatementResult {
   penalty_cpe_basis: "total" | "minimum" | "per_year" | "increment" | null;
   penalty_cpe_notes: string | null;
   penalty_ethics_hours: number | null;
+  // What the ethics number counts, and any caveat on it. Read it with
+  // penalty_ethics_hours: on some records the number alone misstates the rule (SRC-200).
+  penalty_ethics_label: string | null;
   lapse_trigger: string | null;
   data_gap_note: string | null;
   citation: string | null;
@@ -176,6 +186,7 @@ export function lookupAssistantReinstatement(stateSlug: string): AssistantReinst
         : "total",
     penalty_cpe_notes: typeof r.penalty_cpe_notes === "string" && r.penalty_cpe_notes ? r.penalty_cpe_notes : null,
     penalty_ethics_hours: typeof r.penalty_ethics_hours === "number" ? r.penalty_ethics_hours : null,
+    penalty_ethics_label: typeof r.penalty_ethics_label === "string" && r.penalty_ethics_label ? r.penalty_ethics_label : null,
     lapse_trigger: typeof r.lapse_trigger === "string" ? r.lapse_trigger : null,
     data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
     citation: typeof r.citation === "string" ? r.citation : null,
@@ -190,6 +201,10 @@ interface AssistantRenewalFeeResult {
   state_slug: string;
   fee_usd: number | null;
   fee_notes: string | null;
+  // Null unless the state page shows the note, which is generate.py's rule: a fee
+  // below high confidence, or no fee and no fee_notes. The other records' notes are
+  // not published anywhere (SRC-200).
+  data_gap_note: string | null;
   fee_basis: string | null;
   confidence: string | null;
   citation: string | null;
@@ -207,6 +222,10 @@ export function lookupAssistantRenewalFee(stateSlug: string): AssistantRenewalFe
     state_slug: String(r.state_slug ?? ""),
     fee_usd: typeof r.fee_usd === "number" ? r.fee_usd : null,
     fee_notes: typeof r.fee_notes === "string" && r.fee_notes ? r.fee_notes : null,
+    data_gap_note:
+      typeof r.data_gap_note === "string" && r.data_gap_note && (r.confidence !== "high" || (r.fee_usd == null && !r.fee_notes))
+        ? r.data_gap_note
+        : null,
     fee_basis: typeof r.fee_basis === "string" ? r.fee_basis : null,
     confidence: typeof r.confidence === "string" ? r.confidence : null,
     citation: typeof r.citation === "string" ? r.citation : null,
