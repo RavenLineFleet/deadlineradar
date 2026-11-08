@@ -3,12 +3,12 @@
   "jurisdictions_monitored": 55,
   "monitoring_started": "2026-08-02",
   "capture_cadence": "daily, 6:00 AM local",
-  "last_checked_at": "2026-11-06T12:19:18.768999+00:00",
-  "last_checked_capture_id": "regchange_20261106_0500",
-  "current_source_live_rate_pct": 90.5,
-  "clean_monitoring_streak_days": 96,
-  "full_capture_count": 98,
-  "diffs_reviewed_total": 3623,
+  "last_checked_at": "2026-11-07T12:19:18.725058+00:00",
+  "last_checked_capture_id": "regchange_20261107_0500",
+  "current_source_live_rate_pct": 90.3,
+  "clean_monitoring_streak_days": 97,
+  "full_capture_count": 99,
+  "diffs_reviewed_total": 3677,
   "real_events_found": 22,
-  "computed_at": "2026-11-06T12:19:19.533888+00:00"
+  "computed_at": "2026-11-07T12:19:19.331276+00:00"
 }
