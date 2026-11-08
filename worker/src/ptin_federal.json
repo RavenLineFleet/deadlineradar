@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "status": "LIVE -- 1 record, federal only, sourced 2026-09-01",
+    "status": "NOT RENDERED FROM THIS FILE -- 1 record, federal only, sourced 2026-09-01; no code consumer (0 imports). The /my/ PTIN date is code-derived (worker/src/index.ts nextAnnualMonthEnd(..., 12) + static copy in generate.py), so re-verifying this record does not change the product",
     "purpose": "Roadmap PTIN directive (orchestrator, 2026-09-01, Devin-approved): a separate, standalone dataset for the federal PTIN (Preparer Tax Identification Number) renewal requirement -- deliberately NOT merged into cpa_deadlines.json's 55-jurisdiction state records. PTIN is a single federal requirement with zero state variation; folding it into cpa_deadlines.json would silently inflate every 'all 55 jurisdictions' count and stat cited across the site (mobility coverage, verification methodology, renewal_fees.json, etc.) to 56, corrupting claims that are already load-bearing trust copy. Same 2-source verification standard as every other dataset in this repo.",
     "created": "2026-09-01",
     "no_state_variation": true,

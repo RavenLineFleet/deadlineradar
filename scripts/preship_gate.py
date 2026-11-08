@@ -2765,7 +2765,7 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
 # dated dataset therefore fails the build until someone decides which.
 _FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
     "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator; every claim surface (/, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/, /for-firms/, /pricing/, /methodology/, /es/methodology/) names the 4 datasets in a parenthetical so the excluded ones (this file, and worker/src/mobility_rules.json which this data/ scan cannot see) sit outside the claim's stated scope -- COPY-53, enforced by check_freshness_claim_names_its_datasets; /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening the denominator is an open product call (FRESH-4/5)",
-    "ptin_federal.json": "worker-side only, no static page renders its dates (FRESH-4 table)",
+    "ptin_federal.json": "read by NOTHING (0 consumers in generate.py or worker/src imports, SRC-191); the /my/ PTIN date is code-derived (index.ts nextAnnualMonthEnd + generate.py static copy), not from this record -- if any code starts reading it, move it into the denominator",
     "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
 
