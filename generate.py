@@ -24837,6 +24837,11 @@ def _reinstatement_cpe_line_html(record: dict) -> str:
             parts.append(f"<li><strong>{ethics} {esc(label)}</strong></li>")
         elif basis == "increment":
             parts.append(f"<li><strong>{ethics} ethics hours</strong>, within your normal CPE requirement -- not the added catch-up hours above.</li>")
+        elif basis == "minimum":
+            # SRC-198 (AuditLab, 2026-11-08): the headline is "At least N", so
+            # there is no total for "that total" to point at. West Virginia's
+            # 4 ethics hours sit inside each prong of its greater-of.
+            parts.append(f"<li><strong>{ethics} ethics hours</strong>, within that minimum.</li>")
         else:
             parts.append(f"<li><strong>{ethics} ethics hours</strong>, within that total.</li>")
     return "\n    ".join(parts)

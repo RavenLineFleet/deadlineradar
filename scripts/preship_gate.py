@@ -3086,6 +3086,41 @@ def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
     return errors
 
 
+# GATE-117 (AuditLab, 2026-11-08): the ethics line's referent is basis-aware
+# in generate.py, but no gate read it -- SRC-198's fix changed West Virginia's
+# headline to "At least 40" and left "4 ethics hours, within that total."
+# dangling. Render the real line and check the referent against the basis.
+_KNOWN_PENALTY_CPE_BASES = {None, "total", "minimum", "per_year", "increment"}
+
+
+def check_penalty_ethics_referent_matches_basis(repo_root: Path) -> list[str]:
+    data_path = repo_root / "data" / "reinstatement.json"
+    if not data_path.exists():
+        return [f"[GATE-117] {data_path} not found -- check_penalty_ethics_referent_matches_basis() is measuring nothing without it"]
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as generate_module
+    except ImportError:
+        return ["[GATE-117] generate.py could not be imported to render the ethics line -- this check is measuring nothing and must be repaired, not skipped"]
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    errors = []
+    for r in data["records"]:
+        basis = r.get("penalty_cpe_basis")
+        if basis not in _KNOWN_PENALTY_CPE_BASES:
+            errors.append(f"[GATE-117][reinstatement/{r['id']}] unknown penalty_cpe_basis {basis!r} -- generate.py renders it as a flat total")
+            continue
+        if r.get("penalty_ethics_hours") is None or r.get("penalty_ethics_label"):
+            continue
+        html = generate_module._reinstatement_cpe_line_html(r)
+        if basis in ("minimum", "increment") and "within that total" in html:
+            errors.append(
+                f"[GATE-117][reinstatement/{r['id']}] {r.get('state')} -- penalty_cpe_basis={basis!r} "
+                f"(headline is not a total) but the ethics line renders 'within that total', which has no "
+                f"antecedent. Give generate.py a basis-aware referent or set penalty_ethics_label (SRC-198)."
+            )
+    return errors
+
+
 def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     """MON-3 (AuditLab, 2026-08-20, orchestrator's refined ruling): 17 days
     of real staleness on /rule-changes/'s "watching ... daily" claim turned
@@ -10822,6 +10857,7 @@ def main():
     all_errors += check_manual_date_promise_count(repo_root, docs_dir)
     all_errors += check_annual_minimum_not_alternative_track(repo_root)
     all_errors += check_penalty_cpe_basis_matches_notes(repo_root)
+    all_errors += check_penalty_ethics_referent_matches_basis(repo_root)
     all_errors += check_rule_change_monitoring_currency(repo_root)
     all_errors += check_mobility_sunset_field(repo_root)
     all_errors += check_published_sunset_prose(repo_root)

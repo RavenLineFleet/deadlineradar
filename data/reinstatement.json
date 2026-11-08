@@ -1071,7 +1071,7 @@
       "reinstatement_fee_notes": "Formula: $85 reinstatement fee + $85 annual renewal fee + $50 late fee ($220 base) plus $75 for each additional month lapsed past July 31, capped at $445 total per the board's own renewal page -- the cap is the board's stated practice, not in the fee rule itself (W. Va. C.S.R. Sec1-1-18 sets each component but contains no ceiling).",
       "penalty_cpe_hours": 40,
       "penalty_cpe_basis": "minimum",
-      "penalty_cpe_notes": "The greater of (a) the CPE hours deficient from the last non-compliant year, or (b) 40 hours total, all completed within the prior 2 calendar years.",
+      "penalty_cpe_notes": "The greater of (a) the CPE hours deficient from your last non-compliant year, completed after the last year you were in compliance, or (b) 40 hours. Either way, the hours must fall within the previous 2 calendar years plus the part of the current year in which you apply, and must include at least 4 hours of ethics.",
       "penalty_ethics_hours": 4,
       "lapse_trigger": "Licenses expire annually June 30; a July 1-31 grace period allows late renewal with a $50 late fee. If not renewed by July 31, the licensee is listed as 'Lapsed' and must file a formal reinstatement application rather than a normal renewal. CPE noncompliance in the prior year also routes into the reinstatement process.",
       "citation": "W. Va. Code R. Sec1-1-7 (Certificate Renewal, subsections 7.4-7.5) and Sec1-1-18 (Fees)",
