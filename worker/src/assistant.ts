@@ -144,6 +144,11 @@ interface AssistantReinstatementResult {
   reinstatement_fee_usd: number | null;
   reinstatement_fee_notes: string | null;
   penalty_cpe_hours: number | null;
+  // SRC-196: what penalty_cpe_hours MEANS -- "total" (the whole catch-up),
+  // "minimum" (a floor; notes state more on some paths), "per_year"
+  // (a rate per year lapsed) or "increment" (on top of normal CPE).
+  // Same flag the static page's headline renders from.
+  penalty_cpe_basis: "total" | "minimum" | "per_year" | "increment" | null;
   penalty_cpe_notes: string | null;
   penalty_ethics_hours: number | null;
   lapse_trigger: string | null;
@@ -164,6 +169,11 @@ export function lookupAssistantReinstatement(stateSlug: string): AssistantReinst
     reinstatement_fee_usd: typeof r.reinstatement_fee_usd === "number" ? r.reinstatement_fee_usd : null,
     reinstatement_fee_notes: typeof r.reinstatement_fee_notes === "string" && r.reinstatement_fee_notes ? r.reinstatement_fee_notes : null,
     penalty_cpe_hours: typeof r.penalty_cpe_hours === "number" ? r.penalty_cpe_hours : null,
+    penalty_cpe_basis: typeof r.penalty_cpe_hours !== "number"
+      ? null
+      : r.penalty_cpe_basis === "minimum" || r.penalty_cpe_basis === "per_year" || r.penalty_cpe_basis === "increment"
+        ? r.penalty_cpe_basis
+        : "total",
     penalty_cpe_notes: typeof r.penalty_cpe_notes === "string" && r.penalty_cpe_notes ? r.penalty_cpe_notes : null,
     penalty_ethics_hours: typeof r.penalty_ethics_hours === "number" ? r.penalty_ethics_hours : null,
     lapse_trigger: typeof r.lapse_trigger === "string" ? r.lapse_trigger : null,

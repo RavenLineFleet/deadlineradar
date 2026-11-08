@@ -375,6 +375,17 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     vi.resetModules();
   });
 
+  it("lookupAssistantReinstatement carries penalty_cpe_basis so a floor is never read as the whole catch-up (SRC-196)", async () => {
+    const { lookupAssistantReinstatement } = await import("../src/assistant");
+    // Real records: Colorado's 80 is a floor (up to 160), Georgia's is a
+    // per-year rate, Idaho's is the whole obligation.
+    expect(lookupAssistantReinstatement("colorado")!.penalty_cpe_basis).toBe("minimum");
+    expect(lookupAssistantReinstatement("rhode-island")!.penalty_cpe_basis).toBe("minimum");
+    expect(lookupAssistantReinstatement("new-york")!.penalty_cpe_basis).toBe("minimum");
+    expect(lookupAssistantReinstatement("georgia")!.penalty_cpe_basis).toBe("per_year");
+    expect(lookupAssistantReinstatement("idaho")!.penalty_cpe_basis).toBe("total");
+  });
+
   it("lookupAssistantRenewalFee nulls a javascript: citation_url instead of passing it through", async () => {
     vi.resetModules();
     vi.doMock("../src/renewal_fees.json", () => ({

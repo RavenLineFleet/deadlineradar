@@ -2989,6 +2989,11 @@ _PENALTY_CPE_RATE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# GATE-115: "160 hours total", "(240 total)", "120 total CPE hours".
+_PENALTY_CPE_TOTAL_RE = re.compile(r"(\d+)\s*(?:CPE\s*)?(?:hours?\s*)?total\b", re.IGNORECASE)
+# GATE-115: an accrual stated in words, e.g. "for each full quarter".
+_PENALTY_CPE_ACCRUAL_RE = re.compile(r"\bfor each full\s+[\w-]+", re.IGNORECASE)
+
 
 def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
     """GATE-17 (AuditLab, 2026-08-29, self-directed): penalty_cpe_basis is
@@ -3025,6 +3030,24 @@ def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
         basis = r.get("penalty_cpe_basis")
         notes = r.get("penalty_cpe_notes") or ""
         if hours is None or basis:
+            continue
+        # GATE-115 (AuditLab, 2026-11-08): the numeral-only rate regex saw
+        # 0 of SRC-196's 3 records, whose larger obligation is spelled as a
+        # bigger "N total" (Colorado 160, Rhode Island 240) or as a
+        # worded accrual ("for each full quarter" / "six-month period").
+        # Either shape under an implicit-total headline means the headline
+        # is a partial: set penalty_cpe_basis ('minimum' if it is a floor).
+        bigger_totals = [int(t) for t in _PENALTY_CPE_TOTAL_RE.findall(notes) if int(t) > hours]
+        accrual = _PENALTY_CPE_ACCRUAL_RE.search(notes)
+        if bigger_totals or accrual:
+            what = (f"a total of {max(bigger_totals)} hours" if bigger_totals
+                    else f"a worded accrual ('{accrual.group(0)}')")
+            errors.append(
+                f"[PENALTY-BASIS][reinstatement/{r['id']}] {r.get('state')} -- penalty_cpe_hours "
+                f"({hours}) renders as the whole catch-up obligation (no penalty_cpe_basis), but "
+                f"penalty_cpe_notes states {what}. Set penalty_cpe_basis='minimum' if {hours} is a "
+                f"floor, or 'per_year'/'increment' if it is a rate (GATE-115 / SRC-196)."
+            )
             continue
         m = _PENALTY_CPE_RATE_RE.search(notes)
         if not m:

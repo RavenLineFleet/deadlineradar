@@ -24804,6 +24804,13 @@ def _reinstatement_cpe_line_html(record: dict) -> str:
             parts.append(f"<li><strong>{hours} CPE hours on top of normal CPE</strong> {esc(notes)}</li>")
         elif basis == "per_year":
             parts.append(f"<li><strong>{hours} CPE hours per year lapsed</strong> {esc(notes)}</li>")
+        elif basis == "minimum":
+            # SRC-196 (AuditLab, 2026-11-08): the number is a floor, not the
+            # whole obligation -- the notes state more on some paths
+            # (Colorado up to 160, Rhode Island 240 at 5+ years, New York's
+            # pro rata share after re-entry). "At least" keeps the headline
+            # true on every path; the notes carry the larger figures.
+            parts.append(f"<li><strong>At least {hours} CPE hours</strong> {esc(notes)}</li>")
         else:
             parts.append(f"<li><strong>{hours} CPE hours</strong> {esc(notes)}</li>")
     elif notes:
