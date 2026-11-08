@@ -579,6 +579,7 @@
       "penalty_cpe_basis": "per_year",
       "penalty_cpe_notes": "40 CPE hours for each 12-month compliance period missed, capped at 120 hours (3 years' worth), earned within 36 months of the reinstatement application (Rule 2.4.4) -- a ceiling, not a fixed add-on. Must include the standard 3-hour ethics and 1-hour MS law/regulations courses within that total, the same triennial requirement normal licensees owe, not an extra requirement.",
       "penalty_ethics_hours": 3,
+      "penalty_ethics_label": "ethics hours, counted inside the catch-up CPE above, not on top of it.",
       "lapse_trigger": "A license is automatically cancelled if the holder fails to register and pay the annual fee by January 1 AND then fails to cure within 10 days of a certified-mail default notice. A license can also be lost via revocation, suspension, or voluntary surrender, all triggering the same reinstatement track.",
       "citation": "Miss. Code Ann. Sec73-33-7(2),(4); 30 Miss. Code R. Part 1, Ch. 2, Rules 2.3 (Registration) and 2.4 (Reinstatement); Schedule of Fees, Appendix to 30 Miss. Code R. Part 1",
       "citation_url": "https://www.msbpa.ms.gov/sites/accounting/files/Effective%20JULY%202026%20FINAL%20-%20UPDATED.pdf",

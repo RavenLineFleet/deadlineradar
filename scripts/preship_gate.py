@@ -3112,7 +3112,11 @@ def check_penalty_ethics_referent_matches_basis(repo_root: Path) -> list[str]:
         if r.get("penalty_ethics_hours") is None or r.get("penalty_ethics_label"):
             continue
         html = generate_module._reinstatement_cpe_line_html(r)
-        if basis in ("minimum", "increment") and "within that total" in html:
+        # GATE-118 (AuditLab, 2026-11-08): per_year was excluded and that
+        # exclusion protected 0 records -- New Mexico is skipped by its label
+        # anyway -- while it hid Mississippi's dangling "within that total"
+        # under a per-year RATE headline. A rate is not a total either.
+        if basis in ("minimum", "increment", "per_year") and "within that total" in html:
             errors.append(
                 f"[GATE-117][reinstatement/{r['id']}] {r.get('state')} -- penalty_cpe_basis={basis!r} "
                 f"(headline is not a total) but the ethics line renders 'within that total', which has no "
