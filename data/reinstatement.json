@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "status": "LIVE on main -- all 51 states + DC published (batch 4, 2026-07-25)",
+    "status": "LIVE on main -- all 50 states + DC published (51 jurisdictions) (batch 4, 2026-07-25)",
     "purpose": "Per-state CPA license reinstatement cost + penalty-CPE data: what a lapsed CPA actually owes to get reinstated (fee + catch-up CPE hours + ethics hours), sourced fresh -- this dataset did not exist anywhere on the site before 2026-07-25. Same 2-source verification standard as cpa_deadlines.json and cpe_hours.json: a board page + a codified rule/statute for every record. Genuinely empty shelf per ScoutLab's 2026-07-21 product register (no per-state reinstatement calculator exists anywhere) -- built as the free lead-magnet the affiliate-only monetization pivot recommended, not a paid SKU.",
     "created": "2026-07-25",
     "batch": 4,
