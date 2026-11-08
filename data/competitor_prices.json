@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "status": "LIVE on main -- 3 practice-management-suite competitors (Canopy/Karbon/TaxDome) + 1 CPE-hours platform (MYCPE ONE), each independently verified against the vendor's own published pricing page.",
+    "status": "NOT RENDERED -- no consumer since /compare/ and /cost-calculator/ were removed 2026-08-12 (see scripts/preship_gate.py _FRESHNESS_DENOMINATOR_EXCLUSIONS). Data retained, formerly live: 3 practice-management-suite competitors (Canopy/Karbon/TaxDome) + 1 CPE-hours platform (MYCPE ONE), each independently verified against the vendor's own published pricing page.",
     "staleness_threshold_days": 90,
     "note": "per_seat_annual_usd is DERIVED math (cost_basis converted to a per-seat annual figure), not a separately-sourced claim -- cross-checked against the vendor's own 6-person-firm total already published elsewhere on this site (annual_cost_6_person / 6 == per_seat_annual_usd for all 3, confirmed at the time this file was created). Re-verify per_seat_annual_usd alongside cost_basis on every recheck, not just one or the other."
   },
