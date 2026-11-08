@@ -2993,6 +2993,12 @@ _PENALTY_CPE_RATE_RE = re.compile(
 _PENALTY_CPE_TOTAL_RE = re.compile(r"(\d+)\s*(?:CPE\s*)?(?:hours?\s*)?total\b", re.IGNORECASE)
 # GATE-115: an accrual stated in words, e.g. "for each full quarter".
 _PENALTY_CPE_ACCRUAL_RE = re.compile(r"\bfor each full\s+[\w-]+", re.IGNORECASE)
+# GATE-116: a floor stated in words. Matched per record against the headline
+# numeral, so a SUBSET minimum ("at least 24 credits" of a 120 total, Ohio)
+# doesn't match: only a floor phrase governing the headline figure itself.
+_PENALTY_CPE_FLOOR_PHRASE = r"\b(?:at least|no less than|not less than|a minimum of)"
+_PENALTY_CPE_GREATER_RE = re.compile(
+    r"\b(?:the greater of|whichever is greater|whichever is more)\b", re.IGNORECASE)
 
 
 def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
@@ -3039,14 +3045,27 @@ def check_penalty_cpe_basis_matches_notes(repo_root: Path) -> list[str]:
         # is a partial: set penalty_cpe_basis ('minimum' if it is a floor).
         bigger_totals = [int(t) for t in _PENALTY_CPE_TOTAL_RE.findall(notes) if int(t) > hours]
         accrual = _PENALTY_CPE_ACCRUAL_RE.search(notes)
-        if bigger_totals or accrual:
+        # GATE-116 (AuditLab, 2026-11-08): SRC-198's two records state the
+        # floor in words with no larger numeral -- South Dakota "at least 24
+        # hours", West Virginia "the greater of (a) ... or (b) 40 hours
+        # total". Flag a floor phrase directly before the headline numeral,
+        # or a greater-of in the same sentence as it.
+        floor = re.search(_PENALTY_CPE_FLOOR_PHRASE + rf"\s+{hours}\b(?!\s*%)", notes, re.IGNORECASE)
+        if not floor:
+            for sentence in re.split(r"(?<=[.;])\s+", notes):
+                greater = _PENALTY_CPE_GREATER_RE.search(sentence)
+                if greater and re.search(rf"\b{hours}\b(?!\s*%)", sentence):
+                    floor = greater
+                    break
+        if bigger_totals or accrual or floor:
             what = (f"a total of {max(bigger_totals)} hours" if bigger_totals
-                    else f"a worded accrual ('{accrual.group(0)}')")
+                    else f"a worded accrual ('{accrual.group(0)}')" if accrual
+                    else f"a floor in words ('{floor.group(0)}')")
             errors.append(
                 f"[PENALTY-BASIS][reinstatement/{r['id']}] {r.get('state')} -- penalty_cpe_hours "
                 f"({hours}) renders as the whole catch-up obligation (no penalty_cpe_basis), but "
                 f"penalty_cpe_notes states {what}. Set penalty_cpe_basis='minimum' if {hours} is a "
-                f"floor, or 'per_year'/'increment' if it is a rate (GATE-115 / SRC-196)."
+                f"floor, or 'per_year'/'increment' if it is a rate (GATE-115/116, SRC-196/198)."
             )
             continue
         m = _PENALTY_CPE_RATE_RE.search(notes)
