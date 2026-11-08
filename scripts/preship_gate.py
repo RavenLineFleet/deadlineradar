@@ -525,9 +525,10 @@ BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
 # GUARD-24 reply rather than reverted. florida left the list for its SRC-90
 # approval record (29 remain); texas-to-oklahoma-cpa-mobility left
 # for its SRC-156 r2 approval record (28 remain); seven mobility posts left
-# for their PROSE-6/SRC-159 approval records (21 remain).
-BLOG_GRANDFATHERED_COUNT = 20
-BLOG_GRANDFATHERED_SHA256 = "9c18b3bc527e3560239899a7fb7f4b6c26ce5c4c77200871a90395f59d7c4305"
+# for their PROSE-6/SRC-159 approval records (21 remain); tennessee
+# and california left for their SRC-177 and SRC-208 records (19 remain).
+BLOG_GRANDFATHERED_COUNT = 19
+BLOG_GRANDFATHERED_SHA256 = "c4bae391f39239c04a59e2c5df855cbc7c8eae492fe1f60c1182766ab4aacf6e"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 

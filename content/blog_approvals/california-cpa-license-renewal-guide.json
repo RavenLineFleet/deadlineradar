@@ -1,0 +1,17 @@
+{
+  "slug": "california-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "2df49d00a2e1d3edf85b44ce4841ac03128c6a8e5d61ec64ab8a2a18ce79798e",
+      "verdict_file": "auditlab_20261108_blog_APPROVED_california-cpa-license-renewal-guide.md",
+      "sent": "2026-11-08 11:08 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "2df49d00a2e1d3edf85b44ce4841ac03128c6a8e5d61ec64ab8a2a18ce79798e",
+      "verdict_file": "orchestrator_20261108_blog_APPROVED_california-cpa-license-renewal-guide.md",
+      "sent": "2026-11-08 11:35 UTC"
+    }
+  ]
+}

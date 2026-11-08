@@ -25688,6 +25688,7 @@ June 30 re-establishment period, with proof reported by December 31 and before y
         # applied here.
         "slug": "california-cpa-license-renewal-guide",
         "published": "2026-08-27",  # first-introduction commit date, from git history
+        "content_modified": "2026-11-08",  # SRC-208: catch-up CPE formula scoped to its two real triggers
         "title": "California CPA License Renewal: Birth Month, CPE, and Fees",
         # AuditLab SEO-5 (2026-08-28): round-1 measured the `title` field, not
         # the rendered <title> tag (title + " — Deadline-Radar" = 75 chars,
@@ -25731,11 +25732,15 @@ happen to be renewing.</p>
 <h2>If you miss your date</h2>
 <p>A lapsed California permit is called "delinquent," not revoked, and it can still be renewed for
 up to five years after expiration. Reinstating costs a $200 delinquency fee ($170 if your license
-expired before July 1, 2026) &mdash; California sets this at 50% of the standard renewal fee &mdash;
-plus an extra CE penalty: 20 additional hours of continuing education for every full six-month
-period between your expiration date and the date you apply to renew, capped at 80 extra hours on top
-of the normal 80-hour requirement. Less than six full months late, and there's no extra CE at all
-(Cal. Bus. & Prof. Code &sect; 5070.6, &sect; 5070.5, &sect; 163.5; 16 CCR &sect; 81). After five
+expired before July 1, 2026) &mdash; California sets this at 50% of the standard renewal fee
+(Cal. Bus. & Prof. Code &sect; 5070.6, &sect; 5070.5, &sect; 163.5). To renew in active status you
+also need the standard 80 hours of continuing education, completed in the two years before you
+apply, with no carryover from another renewal period (16 CCR &sect; 81(a), &sect; 87). The
+additional-hours formula applies in two narrower cases: your initial license expired (16 CCR
+&sect; 87.1(h)), or your license expired after the expiration date immediately following a
+conversion or restoration to active status (16 CCR &sect; 80.2(f)). In those cases the rule requires
+an additional 20 hours for each full six-month period between expiration and your renewal
+application, up to a total of 80 hours, and none if that period is under six full months. After five
 years, a delinquent permit can no longer be renewed at all.</p>
 
 <p class="bottom-line"><strong>Bottom line:</strong> your California renewal date isn't on a public
