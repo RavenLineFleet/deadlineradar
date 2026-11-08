@@ -15880,6 +15880,33 @@ function drSwitchView(view) {
     var isActive = (a.getAttribute('data-view') === view);
     a.classList.toggle('is-active', isActive);
     a.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    a.setAttribute('tabindex', isActive ? '0' : '-1');
+  });
+}
+
+// One tab stop for the tab group; arrows, Home and End move focus between
+// tabs. Enter or Space opens one. Focus-only on purpose: drSwitchView moves
+// focus into the panel, so opening on arrow would end the traversal after one
+// keypress.
+function drWireTabKeys() {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.dr-nav a[role="tab"]'));
+  tabs.forEach(function(tab, i) {
+    tab.addEventListener('keydown', function(ev) {
+      if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+      var target = -1;
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowRight') target = (i + 1) % tabs.length;
+      else if (ev.key === 'ArrowUp' || ev.key === 'ArrowLeft') target = (i - 1 + tabs.length) % tabs.length;
+      else if (ev.key === 'Home') target = 0;
+      else if (ev.key === 'End') target = tabs.length - 1;
+      else if (ev.key === ' ') {
+        ev.preventDefault();
+        drSwitchView(tab.getAttribute('data-view'));
+        return;
+      }
+      if (target === -1) return;
+      ev.preventDefault();
+      tabs[target].focus();
+    });
   });
 }
 
@@ -19794,6 +19821,7 @@ document.addEventListener('DOMContentLoaded', function() {
       drSwitchView(a.getAttribute('data-view'));
     });
   });
+  drWireTabKeys();
 
   // Roadmap #25: the panel's own items are rendered dynamically (after this
   // DOMContentLoaded block already ran), so they can't be caught by the
@@ -21212,6 +21240,8 @@ def _dashboard_sidebar_html(active: str, tabs_live_here: bool) -> str:
             return f'<li><a href="/firm-mobility/"{cls}>{icon}{esc(label)}</a></li>'
         if tabs_live_here:
             aria = "true" if is_current else "false"
+            # A11Y-38: roving tabindex, kept current by drSwitchView.
+            roving = "0" if is_current else "-1"
             # AuditLab A11Y-2 (MEDIUM, 2026-08-04): aria-controls links this tab
             # to the panel it opens -- the ARIA scaffolding (role=tab/tabpanel,
             # aria-selected) was otherwise already correct, this was the one
@@ -21223,7 +21253,7 @@ def _dashboard_sidebar_html(active: str, tabs_live_here: bool) -> str:
             # landed on a region with no accessible name -- worse than not
             # moving focus at all, since a screen-reader user is relocated
             # without being told where. id here is that reciprocal link.
-            return f'<li><a href="#"{cls} data-view="{view}" role="tab" id="dr-tab-{view}" aria-selected="{aria}" aria-controls="dr-view-{view}">{icon}{esc(label)}</a></li>'
+            return f'<li><a href="#"{cls} data-view="{view}" role="tab" id="dr-tab-{view}" tabindex="{roving}" aria-selected="{aria}" aria-controls="dr-view-{view}">{icon}{esc(label)}</a></li>'
         return f'<li><a href="/firm-dashboard/#{view}"{cls}>{icon}{esc(label)}</a></li>'
 
     _NAV_ORDER = (
@@ -21309,7 +21339,7 @@ def _dashboard_sidebar_html(active: str, tabs_live_here: bool) -> str:
     # tablist despite living in a later, non-tablist <ul> in the DOM.
     _tab_ids_in_order = " ".join(f"dr-tab-{v}" for v, _l in _NAV_ORDER if v != "mobility")
     _tablist_attrs = (
-        f' role="tablist" aria-label="Dashboard views" aria-owns="{_tab_ids_in_order}"' if tabs_live_here else ""
+        f' role="tablist" aria-orientation="vertical" aria-label="Dashboard views" aria-owns="{_tab_ids_in_order}"' if tabs_live_here else ""
     )
     return f"""<aside class="dr-sidebar">
     {firm_name_html}
