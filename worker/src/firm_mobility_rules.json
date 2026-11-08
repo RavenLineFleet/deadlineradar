@@ -704,19 +704,19 @@
     "attest_exemption": {
       "exists": true,
       "citation": "S.C. Code sections 40-2-40(B)(3), 40-2-30(I)",
-      "citation_url": "https://www.scstatehouse.gov/code/t40c002.php",
+      "citation_url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
       "notes": "No-SC-office firm must register only if performing attest/compilation for an SC client, unless exempt under 40-2-30(I)'s practice-privilege pathway. No-office firm doing ONLY non-attest services isn't captured by any part of section 40-2-40(B), no registration needed."
     },
     "physical_office_trigger": {
       "exists": true,
       "citation": "S.C. Code section 40-2-40(B)(1)-(2)",
-      "citation_url": "https://www.scstatehouse.gov/code/t40c002.php",
+      "citation_url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
       "notes": "SC-office firm must register if performing attest/practice of accounting OR using CPA/CPA-firm titling. 'Practice of accounting' broadly defined -- essentially any active SC office triggers registration in practice."
     },
     "peer_review_conditions_permit": {
       "exists": true,
       "citation": "S.C. Code section 40-2-255(C)",
-      "citation_url": "https://www.scstatehouse.gov/code/t40c002.php",
+      "citation_url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
       "notes": "As a renewal condition, an applicant engaging in attest/compilation must provide evidence of satisfactory peer review no more than once every 3 years."
     },
     "confidence": "dual_source",
