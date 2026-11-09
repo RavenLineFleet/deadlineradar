@@ -41,7 +41,10 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # 9309's 401/403-on-robots.txt-means-disallow rule), even though the host has no real policy
 # against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
 # ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
-# override so every other host keeps the honest, self-identifying UA.
+# override so every other host this module fetches keeps the honest, self-identifying UA. That
+# default covers this module only, not the repo: source_check.py (which preship_gate.py calls on .gov
+# citation URLs), citation_auto_extend_check.py, codified_source_audit.py and
+# amendment_currency_check.py each send a Chrome UA to every host.
 # www.tn.gov was dropped from this list on 2026-11-03 (GATE-107) because its 403 was intermittent
 # then. Re-added 2026-11-09: tn-cpe failed 2 runs in a row with the GATE-107 retry in place. The 403
 # follows the UA and alternates: AuditLab's 80 interleaved honest/browser pairs (2026-11-09, 10:06-
