@@ -4302,11 +4302,11 @@ _MIRROR_HOST_RE = re.compile(
 # (200 but a JS shell with no R156 text as of 2026-10-25) and rules.utah.gov.
 # Retire these once /Code (or a per-rule URL under it) serves R156-1 /
 # R156-26a text to a plain fetch.
-_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {
-    "ut-all": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
-    "ut-cpe": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
-    "utah-reinstatement": "adminrules.utah.gov relaunched 2026-10-16 and retired the /public/rule/ per-rule URLs (SRC-93, SRC-187: the site itself serves 200); the /Code browser is a JS app with no citable per-rule URL, so no stable official link exists for this citation right now.",
-}
+# SRC-211 (AuditLab + AssetLab, 2026-11-09): all three Utah entries retired. R156-1 is
+# /Rule/250 and R156-26a is /Rule/263, both serving the rule text to a plain fetch, and
+# the three records now cite those pages. A real browser with a service worker left
+# over from the old site renders them blank until a hard reload; new visitors are fine.
+_MIRROR_CITATION_EXCEPTIONS: dict[str, str] = {}
 
 
 def check_citations_are_primary(repo_root: Path) -> list[str]:

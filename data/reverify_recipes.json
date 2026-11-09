@@ -5155,7 +5155,7 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "hand 2026-10-02",
+  "provenance": "hand 2026-10-02; hours check moved to the state rule page 2026-11-09 (SRC-211)",
   "checks": [
    {
     "url": "http://commerce.utah.gov//wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf",
@@ -5167,14 +5167,13 @@
     "field": "reinstatement_fee_usd"
    },
    {
-    "url": "https://www.law.cornell.edu/regulations/utah/Utah-Admin-Code-R156-26a-307",
+    "url": "https://adminrules.utah.gov/Rule/263",
     "alt_urls": [],
     "method": "http",
     "anchor": "allowed their license to lapse; and (b)",
     "window": 60,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
-    "field": "penalty_cpe_hours",
-    "nonofficial_host_ok": "SRC-41 grandfathered 2026-10-13: non-state host; re-source to the issuing state's own host, then delete this key"
+    "field": "penalty_cpe_hours"
    }
   ]
  },
