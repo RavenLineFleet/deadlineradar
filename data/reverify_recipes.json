@@ -2937,16 +2937,16 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02; hand 2026-11-09 (RVF-10): pinned the cycle-start and the expiry the record publishes, both on the one cited sentence",
   "checks": [
    {
     "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "year beginning on",
-    "window": 15,
+    "window": 45,
     "pattern": null,
-    "expect_text": "November 1"
+    "expect_text": "November 1 and expiring on October 31"
    }
   ]
  },
@@ -2956,16 +2956,16 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02; hand 2026-11-09 (RVF-10): pinned the cycle-start and the expiry the record publishes, both on the one cited sentence",
   "checks": [
    {
     "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "years beginning on",
-    "window": 14,
+    "window": 45,
     "pattern": null,
-    "expect_text": "October 1"
+    "expect_text": "October 1 and expiring on September 30"
    }
   ]
  },
