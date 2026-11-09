@@ -451,8 +451,9 @@ def _http_error(url, code):
 
 
 def test_gate107_transient_robots_403_is_retried_with_honest_ua():
-    """GATE-107 (AuditLab 2026-11-03): www.tn.gov's robots.txt 403 was intermittent, so a single 403
-    followed by a 200 must NOT read as a blanket disallow, and tn.gov keeps the honest UA."""
+    """GATE-107 (AuditLab 2026-11-03): a single robots.txt 403 followed by a 200 must NOT read as a
+    blanket disallow, and a host off the override list keeps the honest UA throughout. Uses a
+    generic host since www.tn.gov joined the override list on 2026-11-09 (403 reproduced on demand)."""
     seen, sleeps, n = [], [], [0]
 
     def opener(req, timeout=None):
@@ -464,10 +465,15 @@ def test_gate107_transient_robots_403_is_retried_with_honest_ua():
             return Resp(b"User-agent: *\nAllow: /")
         return Resp(b"<p>hello</p>")
     f = Fetcher(opener=opener, sleep=sleeps.append, clock=lambda: 0.0)
-    r = f.get("https://www.tn.gov/commerce/x.html")
+    r = f.get("https://www.example.gov/commerce/x.html")
     assert r.ok and n[0] == 2 and fetch.ROBOTS_RETRY_SLEEP_S in sleeps
     assert all("DeadlineRadar-Reverify" in ua and "Mozilla" not in ua for _, ua in seen)
-    assert "www.tn.gov" not in fetch.UA_HOST_OVERRIDES
+    assert "www.example.gov" not in fetch.UA_HOST_OVERRIDES
+
+
+def test_override_list_is_exactly_the_two_measured_hosts():
+    """A browser UA is the exception: each host needs a 403 reproduced on demand (see fetch.py)."""
+    assert set(fetch.UA_HOST_OVERRIDES) == {"www.maine.gov", "www.tn.gov"}
 
 
 def test_gate107_persistent_robots_403_still_disallows():

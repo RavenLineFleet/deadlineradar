@@ -42,14 +42,16 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
 # ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
 # override so every other host keeps the honest, self-identifying UA.
-# www.tn.gov is deliberately NOT here (GATE-107, AuditLab 2026-11-03): its 403 on /robots.txt was
-# intermittent (honest UA 200 on robots + page when re-measured, plus a connection reset on a cold
-# first hit), so the fix is ROBOTS_RETRIES below, not a spoofed UA. A host goes on this list only
-# with a 403 reproduced on demand. Re-test maine.gov whenever its recipes are touched.
+# www.tn.gov was dropped from this list on 2026-11-03 (GATE-107) because its 403 was intermittent
+# then. Re-added 2026-11-09: the 403 now reproduces on demand (honest UA 403 x3 on /robots.txt and
+# x3 on the page, awselb/2.0; a browser UA 200 on both; the robots.txt it serves is "Allow: /"), and
+# tn-cpe failed 2 runs in a row with the GATE-107 retry in place. A host goes on this list only with
+# a 403 reproduced on demand. Re-test maine.gov and tn.gov whenever their recipes are touched.
 _BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 UA_HOST_OVERRIDES = {
     "www.maine.gov": _BROWSER_UA,
+    "www.tn.gov": _BROWSER_UA,
 }
 TIMEOUT_S = 30
 MIN_INTERVAL_S = 1.0
