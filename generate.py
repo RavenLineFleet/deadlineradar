@@ -27082,6 +27082,7 @@ so both clocks work for you instead of quietly running past you.</p>
     {
         "slug": "virginia-cpa-license-renewal-guide",
         "published": "2026-10-30",
+        "content_modified": "2026-11-09",  # SRC-213: 180(B) exception keys on the application date
         "title": "Virginia CPA License Renewal: June 30 Every Year, 120 CPE Hours on a Rolling Three Years, and What July 1 Means",
         "seo_title": "Virginia CPA Renewal: June 30, 120 CPE Hours",
         "meta_description": (
@@ -27091,7 +27092,7 @@ so both clocks work for you instead of quietly running past you.</p>
 <p class="intro">Virginia CPA licenses renew every year on a single fixed date: <strong>June 30</strong>. The renewal window opens <strong>March 1</strong>, the fee is <strong>$60</strong> for an individual and <strong>$75</strong> for a firm, and a license that isn't renewed is treated as expired starting <strong>July 1</strong>. For Active licensees, CPE runs on a different clock: 120 hours over a rolling three calendar years, with a floor every year, phased in for the newly licensed.</p>
 
 <h2>The deadline: June 30, every year</h2>
-<p>The Board of Accountancy's rule, 18VAC5-22-180, says the holder of a Virginia license "shall annually renew his license on or before June 30 of each calendar year." The Virginia Board of Accountancy (VBOA) renewal page adds that a license "may be renewed beginning March 1," so the window is March 1 through June 30. One exception for new licensees: if you got your initial license, or were reinstated, on or after March 1 of a year, the rule says your license "will not expire until June 30 of the following calendar year."</p>
+<p>The Board of Accountancy's rule, 18VAC5-22-180, says the holder of a Virginia license "shall annually renew his license on or before June 30 of each calendar year." The Virginia Board of Accountancy (VBOA) renewal page adds that a license "may be renewed beginning March 1," so the window is March 1 through June 30. One exception for new or reinstated licensees: if you applied for your initial license, or for reinstatement, on or after March 1 of a year, the rule says your license "will not expire until June 30 of the following calendar year."</p>
 <p>Renewal is an online application plus the fee. You don't send CPE certificates with it. The VBOA says renewals "require affirmation of meeting CPE requirements," and you keep the documentation in case of an audit.</p>
 <p><a href="../../virginia/">Check your Virginia dates here</a>.</p>
 
