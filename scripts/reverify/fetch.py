@@ -43,10 +43,14 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
 # override so every other host keeps the honest, self-identifying UA.
 # www.tn.gov was dropped from this list on 2026-11-03 (GATE-107) because its 403 was intermittent
-# then. Re-added 2026-11-09: the 403 now reproduces on demand (honest UA 403 x3 on /robots.txt and
-# x3 on the page, awselb/2.0; a browser UA 200 on both; the robots.txt it serves is "Allow: /"), and
-# tn-cpe failed 2 runs in a row with the GATE-107 retry in place. A host goes on this list only with
-# a 403 reproduced on demand. Re-test maine.gov and tn.gov whenever their recipes are touched.
+# then. Re-added 2026-11-09: tn-cpe failed 2 runs in a row with the GATE-107 retry in place. The 403
+# is still intermittent, but it follows the UA: 16 interleaved honest/browser pairs over 96s gave the
+# honest UA 403 x5 in one ~25s window (awselb/2.0) and the browser UA 200 x16, including inside that
+# window. A 2s retry can't outlast a window. The robots.txt the host serves is "Allow: /".
+# A host goes on this list only with honest-UA 403s the browser UA doesn't get, shown by interleaved
+# pairs over at least 2 minutes. A short burst can land wholly inside or outside a window and mislead
+# either way. Re-test maine.gov and tn.gov like that whenever their recipes are touched, and for
+# both by 2026-12-09.
 _BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 UA_HOST_OVERRIDES = {
