@@ -845,7 +845,7 @@
       "state": "Virginia",
       "state_slug": "virginia",
       "fee_usd": 60,
-      "fee_notes": "Individual (person) flat $60 renewal fee, plus a $25 processing fee if paying by check; a $100 additional fee if the renewal is not timely, and a $350 non-refundable fee to reinstate an expired individual license -- all codified in 18VAC5-22-20(A). The CPA Firm license renews separately (same June 30 annual date) at a DISTINCT $75 timely-renewal fee, with the same $100 late-renewal penalty as individuals but a higher $500 firm reinstatement fee -- also codified in 18VAC5-22-20(A) as its own line items ('timely renewal of a firm's Virginia license ... $75'; 'reinstatement of a firm's Virginia license ... $500').",
+      "fee_notes": "Individual (person) flat $60 renewal fee, plus a $25 processing fee if paying by check; a $100 additional fee if the renewal is not timely, and a $350 non-refundable fee to reinstate an expired individual license -- all codified in 18VAC5-22-20(A). The CPA Firm license renews separately (same June 30 annual date, with the same 18VAC5-22-180(B) exception: an entity that applies for an initial license or reinstatement on or after March 1 of a calendar year keeps it until June 30 of the following calendar year) at a DISTINCT $75 timely-renewal fee, with the same $100 late-renewal penalty as individuals but a higher $500 firm reinstatement fee -- also codified in 18VAC5-22-20(A) as its own line items ('timely renewal of a firm's Virginia license ... $75'; 'reinstatement of a firm's Virginia license ... $500').",
       "source_url": "https://boa.virginia.gov/individual-cpas/renew/",
       "confidence": "high",
       "verified_date": "2026-11-04",
