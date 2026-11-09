@@ -453,7 +453,7 @@ def _http_error(url, code):
 def test_gate107_transient_robots_403_is_retried_with_honest_ua():
     """GATE-107 (AuditLab 2026-11-03): a single robots.txt 403 followed by a 200 must NOT read as a
     blanket disallow, and a host off the override list keeps the honest UA throughout. Uses a
-    generic host since www.tn.gov joined the override list on 2026-11-09 (403 reproduced on demand)."""
+    generic host since www.tn.gov joined the override list on 2026-11-09."""
     seen, sleeps, n = [], [], [0]
 
     def opener(req, timeout=None):
@@ -472,7 +472,8 @@ def test_gate107_transient_robots_403_is_retried_with_honest_ua():
 
 
 def test_override_list_is_exactly_the_two_measured_hosts():
-    """A browser UA is the exception: each host needs a 403 reproduced on demand (see fetch.py)."""
+    """A browser UA is the exception. The bar for adding a host is in the comment above
+    UA_HOST_OVERRIDES in fetch.py; meet it before editing this set."""
     assert set(fetch.UA_HOST_OVERRIDES) == {"www.maine.gov", "www.tn.gov"}
 
 

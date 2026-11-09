@@ -44,13 +44,15 @@ UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandrav
 # override so every other host keeps the honest, self-identifying UA.
 # www.tn.gov was dropped from this list on 2026-11-03 (GATE-107) because its 403 was intermittent
 # then. Re-added 2026-11-09: tn-cpe failed 2 runs in a row with the GATE-107 retry in place. The 403
-# is still intermittent, but it follows the UA: 16 interleaved honest/browser pairs over 96s gave the
-# honest UA 403 x5 in one ~25s window (awselb/2.0) and the browser UA 200 x16, including inside that
-# window. A 2s retry can't outlast a window. The robots.txt the host serves is "Allow: /".
+# follows the UA and alternates: AuditLab's 80 interleaved honest/browser pairs (2026-11-09, 10:06-
+# 10:13Z) gave the honest UA 403 x46 (awselb/2.0; 22 of 28 on the recipe page) and the browser UA 403
+# x0. The host flips between a 403 state and a 200 state, ~20-35s in each. A 2s retry can't outlast
+# that. The robots.txt the host serves is "Allow: /".
 # A host goes on this list only with honest-UA 403s the browser UA doesn't get, shown by interleaved
-# pairs over at least 2 minutes. A short burst can land wholly inside or outside a window and mislead
-# either way. Re-test maine.gov and tn.gov like that whenever their recipes are touched, and for
-# both by 2026-12-09.
+# pairs over at least 2 minutes. A short burst can land wholly inside one state and mislead either
+# way. Re-test maine.gov and tn.gov like that whenever their recipes are touched, and for both by
+# 2026-12-09. For tn.gov expect roughly half the honest-UA probes to 403: some 200s don't mean it
+# cleared. That reading is how this entry was wrongly dropped on 11-03.
 _BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 UA_HOST_OVERRIDES = {
