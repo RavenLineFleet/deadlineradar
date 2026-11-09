@@ -7125,6 +7125,25 @@ def check_pricing_matches_tiers(repo_root: Path) -> list[str]:
         n = emails_cap_text.count("Your roster of up to ${details.freeCap} staff")
         if n != 2:
             errors.append(f"[SYNC] Could not find the trial-ending notice's interpolated 'Your roster of up to ${{details.freeCap}} staff' in both bodies of worker/src/emails.ts (found {n}, want 2) -- markup shape may have changed; update check_pricing_matches_tiers()'s SEC-40 arm")
+        # SEC-41 (AuditLab, 2026-10-24, recovered 2026-11-09): the trial-ending
+        # notice states the entry price in prose and no arm read it, so a wrong
+        # price in a customer email passed the whole gate. Anchor count fails
+        # closed on a rewording; the census catches a literal price added
+        # anywhere else in the file. Comment lines are exempt.
+        price_anchor = re.compile(r"Paid plans start at \$(\d+(?:\.\d+)?) a year or \$(\d+(?:\.\d+)?) a month")
+        anchors = list(price_anchor.finditer(emails_cap_text))
+        if len(anchors) != 2:
+            errors.append(f"[SYNC] Could not find the trial-ending notice's 'Paid plans start at $X a year or $Y a month' in both bodies of worker/src/emails.ts (found {len(anchors)}, want 2) -- markup shape may have changed; update check_pricing_matches_tiers()'s SEC-41 arm")
+        want_entry = (lowest_tier["priceUsd"], lowest_tier["monthlyPriceUsd"])
+        for m in anchors:
+            if (float(m.group(1)), float(m.group(2))) != want_entry:
+                line_no = emails_cap_text.count("\n", 0, m.start()) + 1
+                errors.append(f"[SYNC] worker/src/emails.ts:{line_no} states {m.group(0)!r}, but worker/src/tiers.ts's entry tier is ${want_entry[0]:g} a year or ${want_entry[1]:g} a month (SEC-41)")
+        for line_no, line in enumerate(price_anchor.sub("", emails_cap_text).splitlines(), 1):
+            if line.lstrip().startswith(("//", "*", "/*")):
+                continue
+            for m in re.finditer(r"\$\d+(?:\.\d+)?", line):
+                errors.append(f"[SYNC] worker/src/emails.ts:{line_no} states a literal dollar amount {m.group(0)!r} outside the SEC-41 anchor -- interpolate it, or extend check_pricing_matches_tiers()'s SEC-41 arm to tie it to tiers.ts")
     if scheduler_ts.exists():
         if not re.search(r"buildTrialEndingNoticeEmail\(\{[^}]*\bfreeCap\b[^}]*\}\)", scheduler_ts.read_text(encoding="utf-8")):
             errors.append("[SYNC] worker/src/scheduler.ts's buildTrialEndingNoticeEmail({...}) call does not pass freeCap -- the notice would render 'up to undefined staff' (SEC-40)")

@@ -173,3 +173,52 @@ def test_scheduler_dropping_free_cap_is_not_silent(tmp_path):
 def test_missing_emails_or_scheduler_fails_closed(tmp_path):
     errors = _fixture(tmp_path, omit=("worker/src/emails.ts",))
     assert any("emails.ts not found" in e for e in errors), errors
+
+
+_ENTRY = "$199 a year or $20 a month"
+
+
+def _sec41(errors):
+    return [e for e in errors if "SEC-41" in e]
+
+
+def test_sec41_wrong_price_in_both_bodies_is_not_silent(tmp_path):
+    errors = _fixture(tmp_path, emails_fn=lambda t: t.replace(_ENTRY, "$111 a year or $11 a month"))
+    assert len(_sec41(errors)) == 2, errors
+    assert len(errors) == 2, errors
+
+
+def test_sec41_wrong_price_in_one_body_is_not_silent(tmp_path):
+    errors = _fixture(tmp_path, emails_fn=lambda t: t.replace(_ENTRY, "$199 a year or $21 a month", 1))
+    assert len(_sec41(errors)) == 1, errors
+
+
+def test_sec41_tier_table_moves_without_the_email(tmp_path):
+    errors = _fixture(tmp_path, ts_fn=lambda t: t.replace("priceUsd: 199,", "priceUsd: 249,", 1))
+    assert len(_sec41(errors)) == 2, errors
+
+
+def test_sec41_consistent_price_change_is_clean_on_this_arm(tmp_path):
+    errors = _fixture(
+        tmp_path,
+        ts_fn=lambda t: t.replace("priceUsd: 199,", "priceUsd: 249,", 1),
+        emails_fn=lambda t: t.replace(_ENTRY, "$249 a year or $20 a month"),
+    )
+    assert _sec41(errors) == [], errors
+
+
+def test_sec41_rewording_one_body_fails_closed(tmp_path):
+    errors = _fixture(tmp_path, emails_fn=lambda t: t.replace(
+        "Paid plans start at " + _ENTRY, "Plans begin at $199 yearly", 1))
+    assert any("found 1, want 2" in e for e in errors), errors
+    assert any("literal dollar amount '$199'" in e for e in errors), errors
+
+
+def test_sec41_new_literal_price_elsewhere_is_not_silent(tmp_path):
+    errors = _fixture(tmp_path, emails_fn=lambda t: t + "\nconst x = `Upgrade for $99 today`;\n")
+    assert any("literal dollar amount '$99'" in e for e in errors), errors
+
+
+def test_sec41_comment_lines_are_exempt(tmp_path):
+    errors = _fixture(tmp_path, emails_fn=lambda t: t + "\n// old tier was $39/mo\n * and $40 before\n")
+    assert _sec41(errors) == [], errors
