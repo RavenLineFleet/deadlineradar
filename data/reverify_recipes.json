@@ -3127,16 +3127,18 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02; hand 2026-11-09 (RVF-9): pinned the rule's first-day-of-July clause on the cited OAH text, not the readoption banner; Board copy of the rule is the fetch fallback",
   "checks": [
    {
-    "url": "https://nccpaboard.gov/resource-snippet/section-0100-requirements-2/",
-    "alt_urls": [],
+    "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html",
+    "alt_urls": [
+     "https://nccpaboard.gov/resource-snippet/section-0100-requirements-2/"
+    ],
     "method": "http",
-    "anchor": "- Requirements Effective",
-    "window": 11,
+    "anchor": "shall renew their certificates annually by the",
+    "window": 20,
     "pattern": null,
-    "expect_text": "June 1"
+    "expect_text": "first day of July"
    }
   ]
  },
@@ -5767,13 +5769,13 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02; hand 2026-11-09 (RVF-9): pinned the cycle-start clause of the cited section 30-9-12(a), mirroring wv-firm, not the late-renewal window",
   "checks": [
    {
-    "url": "https://www.boa.wv.gov/Licensing/LicenseRenewal.asp",
+    "url": "https://code.wvlegislature.gov/30-9-12/",
     "alt_urls": [],
     "method": "http",
-    "anchor": "deadline. Late renewals will be accepted between the dates of",
+    "anchor": "shall renew a certificate for a one-year period beginning on",
     "window": 11,
     "pattern": null,
     "expect_text": "July 1"
