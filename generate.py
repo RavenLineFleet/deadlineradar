@@ -4690,10 +4690,21 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
             f"{'It has not been adopted' if _proposed else 'We have not confirmed it has been adopted'}, "
             f"so it could still change or be withdrawn."
         )
+    # SRC-219 (AuditLab, 2026-11-10): this callout stated a date from a single_source record with no
+    # caveat and no verified date, while /rule-changes/ showed both for the same record and /methodology/
+    # promises no in-between state. Flag only what is below the two-source standard (MOB-2 posture), so
+    # anything not positively dual_source is disclosed, including a missing or unrecognised confidence.
+    sourcing_html = (
+        ""
+        if e.get("confidence") == "dual_source"
+        else f'<p class="rc-cite"><span class="rc-conf">Sourcing: {esc(_rc_source_label(e))}</span></p>'
+    )
     return f"""<div class="callout" style="border-left-color:var(--gold);">
   <p class="label">Heads up</p>
   <p>{lead}
   {esc(summary)}{citation_link_html}</p>
+  {sourcing_html}
+  {_rc_verified_html(e)}
 </div>"""
 
 
@@ -10516,6 +10527,22 @@ def _rule_change_status_label(status: str | None) -> str:
     }.get(status or "", "Status undetermined")
 
 
+def _rc_source_label(e: dict) -> str:
+    """The sourcing-basis wording for a rule-change event. Shared by the
+    /rule-changes/ card and the state-page callout (SRC-219) so the two cannot
+    describe the same record differently. See the CONF-1/CONF-2 notes in
+    _rule_change_card_html for why an unknown confidence must not read as dual."""
+    if e.get("source") == "difflab_reg_change_engine":
+        if e.get("confidence") == "single_source":
+            return "automated source monitoring (not yet independently confirmed by a second source)"
+        return "automated source monitoring"
+    if e.get("confidence") == "single_source":
+        return "single-source legal research (not yet independently confirmed by a second source)"
+    if e.get("confidence") == "dual_source":
+        return "dual-source legal research"
+    return "sourcing basis unconfirmed"
+
+
 def _rc_verified_html(e: dict) -> str:
     # AuditLab STALE-76 (MEDIUM, 2026-10-23): RC-23 put data-verified on the
     # conflict cards only, so _STALE_BADGE_RUNTIME_JS reached 4 of 21 cards on
@@ -10594,16 +10621,7 @@ def _rule_change_card_html(e: dict) -> str:
     # withholds anything off-charter before it reaches this function
     # (VALID_CONFIDENCE_VALUES), but this renderer stays defense-in-depth
     # against a hand-edit the same way REGEN-10's renderer-side fix does.
-    if e.get("source") == "difflab_reg_change_engine":
-        source_label = "automated source monitoring"
-        if e.get("confidence") == "single_source":
-            source_label += " (not yet independently confirmed by a second source)"
-    elif e.get("confidence") == "single_source":
-        source_label = "single-source legal research (not yet independently confirmed by a second source)"
-    elif e.get("confidence") == "dual_source":
-        source_label = "dual-source legal research"
-    else:
-        source_label = "sourcing basis unconfirmed"
+    source_label = _rc_source_label(e)
     # Same recompute as the date line above -- a passed event must not keep
     # the gold "upcoming" badge while its own text says it took effect.
     badge_class = "rc-badge rc-badge-upcoming" if _is_still_upcoming(e) else "rc-badge"
