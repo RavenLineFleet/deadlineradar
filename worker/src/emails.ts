@@ -1286,15 +1286,22 @@ export function buildRuleChangeNotificationEmail(
     : `confirm directly with the ${stateName} board of accountancy`;
   const isEnacted = status === "ENACTED" || status === "ADOPTED_RULE";
   const isProposed = status === "PROPOSED";
+  // SRC-217: adopted by the agency, but goes into effect only if the legislature approves it.
+  const isPendingLegislature = status === "ADOPTED_PENDING_LEGISLATURE";
   const headingNoun = isEnacted
     ? changeNoun
-    : isProposed
-      ? `proposed ${changeNoun} (not adopted)`
-      : `${changeNoun} (adoption not confirmed)`;
+    : isPendingLegislature
+      ? `${changeNoun} (adopted, pending legislative approval)`
+      : isProposed
+        ? `proposed ${changeNoun} (not adopted)`
+        : `${changeNoun} (adoption not confirmed)`;
   const subject = `${jurisdiction} ${headingNoun} -- ${safeFirmName}`;
   const flaggedLead = isEnacted
     ? `flagged an upcoming ${flaggedPhrase} in ${jurisdiction} that may affect you.`
-    : `flagged a ${isProposed ? "proposed " : ""}${flaggedPhrase} in ${jurisdiction} that may affect you. ` +
+    : isPendingLegislature
+      ? `flagged a ${flaggedPhrase} in ${jurisdiction} that may affect you. ` +
+        "The agency has adopted it, but it goes into effect only if the legislature approves it."
+      : `flagged a ${isProposed ? "proposed " : ""}${flaggedPhrase} in ${jurisdiction} that may affect you. ` +
       (isProposed ? "It has not been adopted" : "We have not confirmed it has been adopted") +
       ", so it could still change or be withdrawn.";
   const dateLead = isEnacted ? `Effective ${effectiveDateLabel}` : `Target effective date ${effectiveDateLabel}`;

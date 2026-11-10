@@ -337,6 +337,11 @@ describe("isEmailableRuleChangeEvent() -- AuditLab ALERT-1", () => {
     expect(isEmailableRuleChangeEvent(baseEvent({ needs_reverification: true }), FIXED_TODAY)).toBe(false);
   });
 
+  it("SRC-217: does NOT email a rule adopted by the agency but still awaiting the legislature", async () => {
+    const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
+    expect(isEmailableRuleChangeEvent(baseEvent({ status: "ADOPTED_PENDING_LEGISLATURE" }), FIXED_TODAY)).toBe(false);
+  });
+
   it("does NOT email a PROPOSED (not yet ENACTED) rule with a future effective date -- the exact Idaho shape, but upcoming", async () => {
     const { isEmailableRuleChangeEvent } = await import("../src/scheduler");
     expect(isEmailableRuleChangeEvent(baseEvent({ status: "PROPOSED" }), FIXED_TODAY)).toBe(false);
@@ -494,6 +499,19 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab STATUS-3 (a PROPOSED ru
       expect(body).not.toMatch(/(^|[^ ])Effective January/);
     }
     expect(built.htmlBody).toContain("Idaho proposed CPA regulatory/statutory change (not adopted)</h1>");
+  });
+
+  it("SRC-217: ADOPTED_PENDING_LEGISLATURE says adopted and pending, never 'not adopted', 'upcoming' or 'Effective'", async () => {
+    const built = await idaho("ADOPTED_PENDING_LEGISLATURE");
+    expect(built.subject).toBe("Idaho CPA regulatory/statutory change (adopted, pending legislative approval) -- Acme CPA");
+    expect(built.textBody).toContain("The agency has adopted it, but it goes into effect only if the legislature approves it.");
+    expect(built.textBody).toContain("Target effective date January 1, 2028:");
+    for (const body of [built.textBody, built.htmlBody]) {
+      expect(body).not.toContain("not adopted");
+      expect(body).not.toContain("has not been adopted");
+      expect(body).not.toContain("upcoming");
+      expect(body).not.toMatch(/(^|[^ ])Effective January/);
+    }
   });
 
   it("missing or unrecognised status fails safe: no settled framing, and no 'not adopted' claim it can't back", async () => {

@@ -580,6 +580,16 @@ describe("SRC-80 regression -- in_force_status/needs_reverification mirror the H
     expect(result[0]!.in_force_status).toBe("not_adopted");
   });
 
+  it("SRC-217 -- adopted but awaiting the legislature -> its own value, dated or not, never not_adopted or upcoming", async () => {
+    mockEvents([
+      { ...base, event_id: "p1", status: "ADOPTED_PENDING_LEGISLATURE", effective_date: "2028-01-01", verified_date: "2026-11-10", upcoming: true, needs_reverification: false },
+      { ...base, event_id: "p2", status: "ADOPTED_PENDING_LEGISLATURE", effective_date: null, verified_date: "2026-11-10", upcoming: false, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result.map((r) => r.in_force_status)).toEqual(["pending_legislative_approval", "pending_legislative_approval"]);
+  });
+
   it("STATUS-4 -- PROPOSED with a future effective_date -> not_adopted, never the same value as an ENACTED upcoming change", async () => {
     mockEvents([
       { ...base, event_id: "g", status: "PROPOSED", effective_date: "2028-01-01", verified_date: "2026-08-29", upcoming: true, needs_reverification: false },

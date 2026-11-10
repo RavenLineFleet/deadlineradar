@@ -334,7 +334,7 @@ interface AssistantRuleChangeResult {
   in_force_status: RuleChangeInForceStatus;
 }
 
-type RuleChangeInForceStatus = "not_adopted" | "upcoming" | "pending_reverification" | "settled" | null;
+type RuleChangeInForceStatus = "not_adopted" | "pending_legislative_approval" | "upcoming" | "pending_reverification" | "settled" | null;
 
 /** Mirrors generate.py's _rule_change_card_html()/_is_still_upcoming() honesty
  * signals (AuditLab SRC-80, 2026-10-23): the HTML page hedges a passed-but-
@@ -356,6 +356,8 @@ function ruleChangeInForceStatus(
   const eff = typeof e.effective_date === "string" ? e.effective_date : null;
   // AuditLab STATUS-10 (2026-11-04): the adoption test comes before the date guard, or a
   // proposal with no effective date reads null instead of not_adopted.
+  // SRC-217: agency-adopted but awaiting the legislature is neither "not_adopted" nor in force.
+  if (e.status === "ADOPTED_PENDING_LEGISLATURE") return "pending_legislative_approval";
   if (e.status !== "ENACTED" && e.status !== "ADOPTED_RULE") return "not_adopted";
   if (!eff) return null;
   // AuditLab STATUS-4 (2026-10-25): every arm below is timing-only, so a

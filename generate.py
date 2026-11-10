@@ -4675,6 +4675,13 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     # (PROPOSED, or a status we couldn't establish) is stated as not adopted, same as /rule-changes/.
     if _rc_is_enacted(e):
         lead = f"A {esc(topic_phrase)} is coming to {esc(jurisdiction)}, effective {esc(eff_human)}."
+    elif e.get("status") == "ADOPTED_PENDING_LEGISLATURE":
+        # SRC-217: not ADOPTED_RULE, which would read "is coming" over a rule the legislature can still reject.
+        lead = (
+            f"A {esc(topic_phrase)} for {esc(jurisdiction)} has a target effective date of {esc(eff_human)}. "
+            f"The agency has adopted it as a pending rule, but it is not final: "
+            f"it goes into effect only if the legislature approves it."
+        )
     else:
         _proposed = e.get("status") == "PROPOSED"
         lead = (
@@ -10503,6 +10510,7 @@ def _rule_change_status_label(status: str | None) -> str:
         "ENACTED": "Enacted",
         "ENACTED_DATE_PENDING": "Enacted, date pending",
         "ADOPTED_RULE": "Adopted rule",
+        "ADOPTED_PENDING_LEGISLATURE": "Adopted, pending legislature",
         "PROPOSED": "Proposed",
         "DIED_WITHDRAWN": "Died / withdrawn",
     }.get(status or "", "Status undetermined")
@@ -10550,7 +10558,8 @@ def _rule_change_card_html(e: dict) -> str:
     if eff:
         eff_date = fmt_date(date.fromisoformat(eff))
         if _is_still_upcoming(e):
-            eff_html = f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; not yet in force.</p>'
+            _eff_word = "Effective" if _rc_is_enacted(e) else "Target effective date"
+            eff_html = f'<p class="rc-date"><strong>{_eff_word} {esc(eff_date)}</strong> &mdash; not yet in force.</p>'
         elif _rc_pending_reverification(e):
             eff_html = (
                 f'<p class="rc-date"><strong>Effective {esc(eff_date)}</strong> &mdash; passed; we '
@@ -10824,9 +10833,9 @@ and clearly labelled where we could only confirm it against the board's own page
 <p class="rc-section-note">A dated, signed change that hasn't taken effect yet.</p>
 {upcoming_html}
 {f'''
-<h2>Proposed, with a target effective date ({len(upcoming_proposed)})</h2>
-<p class="rc-section-note">Formally proposed with a target effective date, but not yet signed into
-law or adopted as a final rule -- nothing is enforceable until it is.</p>
+<h2>Not yet final, with a target effective date ({len(upcoming_proposed)})</h2>
+<p class="rc-section-note">Proposed, or adopted by an agency and awaiting legislative approval, with a
+target effective date. Not yet signed into law or adopted as a final rule -- nothing is enforceable until it is.</p>
 {upcoming_proposed_html}
 ''' if upcoming_proposed else ""}
 {f'''
@@ -10836,9 +10845,9 @@ set yet -- we move it to Upcoming the moment one is pinned.</p>
 {undated_enacted_html}
 ''' if undated_enacted else ""}
 {f'''
-<h2>Proposed, not yet dated ({len(undated_proposed)})</h2>
-<p class="rc-section-note">Formally proposed, but not yet signed into law with a scheduled effective
-date -- we move it up the page the moment a target effective date is set.</p>
+<h2>Not yet final or dated ({len(undated_proposed)})</h2>
+<p class="rc-section-note">Proposed, or adopted by an agency and awaiting legislative approval, but not
+yet signed into law with a scheduled effective date -- we move it up the page the moment a target effective date is set.</p>
 {undated_proposed_html}
 ''' if undated_proposed else ""}
 <h2>Recently changed, pending re-verification ({len(recent_pending)})</h2>
@@ -15970,15 +15979,17 @@ function drOpenRuleChangeModal(event, triggerBtn) {
   document.getElementById('dr-rule-change-modal-date').innerHTML = drRuleChangeIsEnacted(event)
     ? '<strong>Effective ' + drRuleChangeDateLabel + '</strong> &mdash; not yet in force.'
     : '<strong>Target effective date ' + drRuleChangeDateLabel + '</strong> &mdash; ' +
-      (event.status === 'PROPOSED' ? 'proposed, not adopted' : 'adoption not confirmed') +
-      '; it could still change or be withdrawn.';
+      (event.status === 'ADOPTED_PENDING_LEGISLATURE'
+        ? 'adopted by the agency, pending legislative approval; it goes into effect only if approved.'
+        : (event.status === 'PROPOSED' ? 'proposed, not adopted' : 'adoption not confirmed') +
+          '; it could still change or be withdrawn.');
   // AuditLab STATUS-7 (LOW, 2026-10-26): this chip was a hardcoded gold "Upcoming",
   // so a PROPOSED event read as settled beside the STATUS-3 hedge above. Same
   // labels as generate.py's _rule_change_status_label() on /rule-changes/.
   var drRuleChangeBadge = document.getElementById('dr-rule-change-modal-badge');
   drRuleChangeBadge.textContent = ({
     ENACTED: 'Enacted', ENACTED_DATE_PENDING: 'Enacted, date pending', ADOPTED_RULE: 'Adopted rule',
-    PROPOSED: 'Proposed', DIED_WITHDRAWN: 'Died / withdrawn'
+    ADOPTED_PENDING_LEGISLATURE: 'Adopted, pending legislature', PROPOSED: 'Proposed', DIED_WITHDRAWN: 'Died / withdrawn'
   })[event.status] || 'Status undetermined';
   drRuleChangeBadge.className = drRuleChangeIsEnacted(event) ? 'rc-badge rc-badge-upcoming' : 'rc-badge';
   document.getElementById('dr-rule-change-modal-summary').textContent = event.summary;
@@ -16172,13 +16183,13 @@ function drRenderCalendar() {
       // (no touch, no keyboard focus, inconsistent screen-reader support).
       var chipTopic = e.topic ? drRuleChangeShortTopic(e.topic) : 'rule change';
       // STATUS-3: a proposed rule's chip says so, visibly and to a screen reader.
-      var chipStatus = drRuleChangeIsEnacted(e) ? '' : (e.status === 'PROPOSED' ? 'proposed' : 'unconfirmed');
+      var chipStatus = drRuleChangeIsEnacted(e) ? '' : (e.status === 'ADOPTED_PENDING_LEGISLATURE' ? 'pending approval' : e.status === 'PROPOSED' ? 'proposed' : 'unconfirmed');
       if (chipStatus) chipTopic = chipStatus + ' ' + chipTopic;
       var chipDetail = [e.jurisdiction, e.topic || 'rule change'].join(' — ') +
         (e.summary ? ': ' + e.summary : '');
       return '<button type="button" class="dr-cal-item--rule-change" data-rule-change-id="' + drEscapeHtml(e.id) + '" ' +
         'title="' + drEscapeHtml(chipDetail) + '" ' +
-        'aria-label="' + (!chipStatus ? 'Rule change: ' : chipStatus === 'proposed' ? 'Proposed rule change, not adopted: ' : 'Rule change, adoption not confirmed: ') + drEscapeHtml(chipDetail) + '">' +
+        'aria-label="' + (!chipStatus ? 'Rule change: ' : chipStatus === 'pending approval' ? 'Rule change adopted by the agency, pending legislative approval: ' : chipStatus === 'proposed' ? 'Proposed rule change, not adopted: ' : 'Rule change, adoption not confirmed: ') + drEscapeHtml(chipDetail) + '">' +
         drEscapeHtml(e.jurisdiction) + ': ' + drEscapeHtml(chipTopic) + '</button>';
     }).join('');
     // --has-item (staff) and --has-rule-change (regulatory) are separate
