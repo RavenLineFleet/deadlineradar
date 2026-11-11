@@ -218,6 +218,24 @@ def _parses_as_date(value: object) -> bool:
     except (TypeError, ValueError):
         return False
 
+# SRC-230 (AuditLab, 2026-11-11): needs_reverification used to come only from "has the effective
+# date passed?", which is unfireable for a record with NO effective date -- every PROPOSED,
+# ADOPTED_PENDING_LEGISLATURE and SOURCE_CONFLICT record (7 of 22 at 74ef8721a). Those are the
+# records whose status is most likely to move without us noticing. Same 30-day bar as every
+# sibling staleness check (cpa_deadlines_staleness_check.py et al.). A dated record keeps its
+# existing derivation untouched; a missing/unparseable verified_date counts as stale.
+NULL_DATE_REVERIFY_DAYS = 30
+
+
+def _null_date_record_stale(parsed: "date | None", verified_date: object, today: date) -> bool:
+    if parsed is not None:
+        return False
+    try:
+        verified = date.fromisoformat(str(verified_date))
+    except (TypeError, ValueError):
+        return True
+    return (today - verified).days > NULL_DATE_REVERIFY_DAYS
+
 
 def build(today: date) -> tuple[list[dict], list[str]]:
     rules = json.loads(RULES.read_text(encoding="utf-8"))["records"]
@@ -342,7 +360,8 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 # Deliberately NOT one of the charter's law-status labels: this
                 # is not a law changing, it is our two sources disagreeing.
                 "status": "SOURCE_CONFLICT",
-                "needs_reverification": False,
+                # SRC-230: was hardcoded False, so a conflict card could never flag.
+                "needs_reverification": _null_date_record_stale(None, r.get("verified_date"), today),
                 # Authored basis for the classification (RC-17) -- internal
                 # field, not rendered on its own; _public_summary() already
                 # produces the public-safe sentence for this kind.
@@ -522,10 +541,16 @@ def load_difflab_events(today: date) -> tuple[list[dict], list[str]]:
             # honours an explicit producer claim, but only when it is paired with a verified_date that
             # actually parses (an unexplained "trust me, re-verified" with no date behind it falls back
             # to the same conservative default as before, never to the charter's weaker posture).
+            # SRC-230: the age arm is ORed over BOTH branches -- LA/CO producer files carry an
+            # explicit needs_reverification: false + verified_date, so an arm applied only when the
+            # producer is silent would still never fire for them.
             "needs_reverification": (
-                bool(raw.get("needs_reverification"))
-                if isinstance(raw.get("needs_reverification"), bool) and _parses_as_date(raw.get("verified_date"))
-                else bool(parsed and parsed <= today)
+                (
+                    bool(raw.get("needs_reverification"))
+                    if isinstance(raw.get("needs_reverification"), bool) and _parses_as_date(raw.get("verified_date"))
+                    else bool(parsed and parsed <= today)
+                )
+                or _null_date_record_stale(parsed, raw.get("verified_date"), today)
             ),
             "source": "difflab_reg_change_engine",
         })
@@ -890,7 +915,9 @@ def main() -> int:
                              "whose status cannot be established from structure are not emitted.",
         "reverification_rule": "needs_reverification=true means the effective date has passed "
                                "and we have NOT re-checked. The page must say 'effective [date]; "
-                               "we re-verify on/after that date' -- never 'is now in effect'.",
+                               "we re-verify on/after that date' -- never 'is now in effect'. "
+                               "For a record with no effective date (proposed, pending, source "
+                               "conflict) it means verified_date is more than 30 days old (SRC-230).",
         "as_of": today.isoformat(),
         # Plain numeric fields so the page renders honest counts without
         # string-parsing `generated_from` or hardcoding a figure that

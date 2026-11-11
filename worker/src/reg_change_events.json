@@ -4,7 +4,7 @@
     "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (18 currently promoted).",
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
-    "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'.",
+    "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'. For a record with no effective date (proposed, pending, source conflict) it means verified_date is more than 30 days old (SRC-230).",
     "as_of": "2026-11-07",
     "changes_published": 18,
     "changes_upcoming": 3,
@@ -330,7 +330,7 @@
       "status_evidence": "Colorado State Board of Accountancy – Permanent Rulemaking Hearing – October 21, 2026. The Colorado Board of Accountancy will hold a Rulemaking Hearing on October 21, 2026 at 9:00 A.M., to allow stakeholders a final opportunity to testify before the Board decides on proposed revisions to Rule 1.4 – BOARD ORGANIZATION AND ADMINISTRATION, Rule 1.5 - EDUCATION REQUIREMENTS FOR EXAMINATION AND CERTIFICATION, Rule 1.6 - EXAMINATION GENERAL REQUIREMENTS AND PROHIBITED CONDUCT, Rule 1.7 - EXPERIENCE REQUIREMENTS FOR CERTIFICATION, Rule 1.8 - REQUIREMENTS FOR CERTIFICATION, Rule 1.9 - CERTIFICATE REQUIREMENTS, DISCIPLINE, MAINTENANCE, AND STATUS CHANGES and Rule 1.14 – PRACTICE PRIVILEGE/MOBILITY. The purpose of the proposed revisions is to implement Colorado Senate Bill 26-076.",
       "status_source_url": "https://dpo.colorado.gov/Accountancy",
       "upcoming": false,
-      "needs_reverification": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {
@@ -388,7 +388,7 @@
       "status_evidence": "The Board is currently in the process of amending its rules to conform with the new CPA Pathway Legislation that was signed into law...became effective August 1, 2026...A request for a Public Hearing must be received by October 10, 2026...All Public Comments must be received by 4:30 PM on October 21, 2026.",
       "status_source_url": "https://cpaboard.state.la.us/rules-statutes/",
       "upcoming": false,
-      "needs_reverification": false,
+      "needs_reverification": true,
       "source": "difflab_reg_change_engine"
     },
     {

@@ -36,7 +36,14 @@ def main() -> None:
     data_path = repo_root / "data" / "reg_change_events.json"
     data = json.loads(data_path.read_text(encoding="utf-8"))
 
-    conflicts = [e for e in data["events"] if e.get("kind") == "source_conflict"]
+    # SRC-230 (AuditLab, 2026-11-11): widened from source_conflict cards alone to every event with
+    # no effective_date (PROPOSED, ADOPTED_PENDING_LEGISLATURE, SOURCE_CONFLICT). A dated event is
+    # covered by build_change_events.py's effective-date re-verification rule; an undated one had
+    # no freshness check anywhere.
+    conflicts = [
+        e for e in data["events"]
+        if e.get("kind") == "source_conflict" or not e.get("effective_date")
+    ]
 
     today = date.today()
     fresh, stale, unparseable, missing = [], [], [], []
@@ -53,7 +60,7 @@ def main() -> None:
         age_days = (today - verified).days
         (stale if age_days > STALENESS_THRESHOLD_DAYS else fresh).append((e, age_days))
 
-    print(f"Conflict-card staleness check -- {today.isoformat()} (threshold {STALENESS_THRESHOLD_DAYS}d)")
+    print(f"Undated-event staleness check (conflict cards + no-effective-date changes, {len(conflicts)} events) -- {today.isoformat()} (threshold {STALENESS_THRESHOLD_DAYS}d)")
     print(f"  fresh: {len(fresh)}   stale: {len(stale)}   unparseable: {len(unparseable)}   missing verified_date: {len(missing)}")
 
     if stale:
