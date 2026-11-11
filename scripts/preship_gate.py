@@ -7182,7 +7182,7 @@ def _noindex_paths(html_files: list[Path], docs_dir: Path) -> set[str]:
 
 
 # CRAWL-8 (AuditLab, 2026-10-02): check_sitemap_completeness treats noindex as a
-# blanket exemption from the sitemap requirement -- correct for the 34 thin
+# blanket exemption from the sitemap requirement -- correct for the 32 thin
 # reinstatement pages by design, but nothing anywhere asserted WHICH pages are
 # *supposed* to carry it. Proved by simulation: a throwaway /nevada/
 # noindex-added + sitemap-removal produced 0 gate errors, identical to
@@ -7192,8 +7192,8 @@ def _noindex_paths(html_files: list[Path], docs_dir: Path) -> set[str]:
 # noindex set must equal the ACTUAL one, both directions. The slug set's
 # length+hash are pinned too, so adding or removing a slug is a deliberate
 # two-constant edit here, not a silent one in generate.py alone.
-NOINDEX_REINSTATEMENT_SLUG_COUNT = 34
-NOINDEX_REINSTATEMENT_SLUG_SHA256 = "39d1c3ff763d4d45a37e4f5348b6b68563dbb6653882ec9f08f9743e4f5d1855"
+NOINDEX_REINSTATEMENT_SLUG_COUNT = 32  # was 34; ND+VA removed 2026-11-11 (Devin)
+NOINDEX_REINSTATEMENT_SLUG_SHA256 = "d7974eb6a27826bd368ebe1fe746991cea471bf8beeea6b057d77df2da6b0964"
 
 # Signed-in app screens and mid-authentication utility pages -- noindexed for
 # an entirely different reason than the thinness exemption above (see each

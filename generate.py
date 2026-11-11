@@ -23776,12 +23776,14 @@ REINSTATEMENT_PAGES: list[dict] = []
 # nofollow) and dropped from sitemap.xml. One constant to revert: empty this set (or
 # remove individual slugs once GrowthLab's next re-measure, post-boilerplate-cut,
 # shows a page has cleared the thinness bar) and both effects disappear automatically.
+# 2026-11-11: north-dakota and virginia removed (now 32) on Devin's direct request
+# relayed by Orchestrator, after GSC reported both as excluded by noindex.
 SEO_NOINDEX_REINSTATEMENT_SLUGS: frozenset[str] = frozenset({
     "alaska", "arizona", "arkansas", "colorado", "connecticut", "dc", "delaware",
     "georgia", "idaho", "indiana", "kentucky", "louisiana", "maine", "maryland",
     "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "nebraska",
-    "nevada", "new-hampshire", "new-mexico", "north-carolina", "north-dakota",
-    "oklahoma", "oregon", "rhode-island", "utah", "virginia", "washington",
+    "nevada", "new-hampshire", "new-mexico", "north-carolina",
+    "oklahoma", "oregon", "rhode-island", "utah", "washington",
     "west-virginia", "wisconsin", "wyoming",
 })
 

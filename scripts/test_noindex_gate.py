@@ -13,7 +13,7 @@ check_noindex_set_matches_intent exists (or is skipped), and pass once the
 assertion runs, because /nevada/ -- unlike nevada-cpa-license-reinstatement
 -- is not in the intended noindex set.
 
-    1. happy path: the real 34+5 intended set, nothing else noindexed -> PASS
+    1. happy path: the real 32+5 intended set, nothing else noindexed -> PASS
     2. AuditLab's /nevada/ simulation: a core page silently noindexed +
        dropped from sitemap                                           -> ERROR
     3. a reinstatement page loses its noindex tag (exemption silently
@@ -41,8 +41,8 @@ REAL_SLUGS = frozenset({
     "alaska", "arizona", "arkansas", "colorado", "connecticut", "dc", "delaware",
     "georgia", "idaho", "indiana", "kentucky", "louisiana", "maine", "maryland",
     "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "nebraska",
-    "nevada", "new-hampshire", "new-mexico", "north-carolina", "north-dakota",
-    "oklahoma", "oregon", "rhode-island", "utah", "virginia", "washington",
+    "nevada", "new-hampshire", "new-mexico", "north-carolina",
+    "oklahoma", "oregon", "rhode-island", "utah", "washington",
     "west-virginia", "wisconsin", "wyoming",
 })
 
@@ -71,7 +71,7 @@ def _write_sitemap(docs_dir, paths):
 
 
 def _build_intended_set(docs_dir, slugs=REAL_SLUGS):
-    """The 34 reinstatement pages + 5 app/auth pages, correctly noindexed,
+    """The 32 reinstatement pages + 5 app/auth pages, correctly noindexed,
     plus a couple of ordinary indexable pages for realism."""
     for slug in slugs:
         _write_page(docs_dir, f"/{slug}-cpa-license-reinstatement/", noindex=True)
@@ -109,7 +109,7 @@ def test_2_nevada_silently_noindexed_and_dropped_is_caught(tmp_path):
     docs_dir = tmp_path / "docs"
     _build_intended_set(docs_dir)
     # The simulated regression: /nevada/ (a core state page, NOT one of the
-    # 34 reinstatement slugs) gets noindex,follow AND is dropped from
+    # 32 reinstatement slugs) gets noindex,follow AND is dropped from
     # sitemap.xml, exactly as AuditLab's throwaway repro did.
     _write_page(docs_dir, "/nevada/", noindex=True)
     _write_sitemap(docs_dir, ["/south-carolina-cpa-license-reinstatement/"])  # /nevada/ omitted
