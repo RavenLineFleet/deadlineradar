@@ -657,9 +657,14 @@ def check_no_replacement_char_in_shipped_data(repo_root: Path) -> list[str]:
     UTF-8) wrote U+FFFD into verification_history and into three reverify anchors, where it was
     the live match key. Nothing caught it for weeks. U+FFFD is never a legitimate character in
     our data, so any occurrence in a shipped dataset (data/*.json, the Worker's bundled
-    worker/src/*.json) or in the recipe file is a decode bug upstream -- fail the build."""
+    worker/src/*.json, scripts/reverify/hand_spec.json) or in the recipe file is a decode bug upstream -- fail the build."""
     errors = []
     paths = sorted((repo_root / "data").glob("*.json")) + sorted((repo_root / "worker" / "src").glob("*.json"))
+    # SRC-237 (AuditLab, 2026-11-11): hand_spec.json holds the reverify anchors' hand-authored
+    # source (141 anchors), outside both globs above. A U+FFFD there fails the same way: NO_ANCHOR.
+    hand_spec = repo_root / "scripts" / "reverify" / "hand_spec.json"
+    if hand_spec.exists():
+        paths.append(hand_spec)
     for path in paths:
         try:
             text = path.read_text(encoding="utf-8")

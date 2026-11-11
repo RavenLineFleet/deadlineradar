@@ -50,6 +50,16 @@ def test_gate_fails_on_replacement_char(tmp_path: pathlib.Path):
     assert len(errs) == 1 and "worker/src/bad.json carries 2 U+FFFD" in errs[0]
 
 
+def test_src237_hand_spec_is_scanned(tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "worker" / "src").mkdir(parents=True)
+    spec = tmp_path / "scripts" / "reverify"
+    spec.mkdir(parents=True)
+    (spec / "hand_spec.json").write_text(json.dumps({"anchor": "x" + FFFD}, ensure_ascii=False), encoding="utf-8")
+    errs = preship_gate.check_no_replacement_char_in_shipped_data(tmp_path)
+    assert len(errs) == 1 and "scripts/reverify/hand_spec.json carries 1 U+FFFD" in errs[0]
+
+
 def test_repo_data_is_clean_now():
     assert preship_gate.check_no_replacement_char_in_shipped_data(HERE.parent) == []
 

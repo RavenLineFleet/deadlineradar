@@ -962,10 +962,10 @@
     "url": "https://www2.myfloridalicense.com/certified-public-accounting/renewing-and-maintaining-your-license/",
     "alt_urls": [],
     "method": "http",
-    "anchor": "lic accountant shall, as a part of the biennial licensure renewal, on or before",
-    "window": 16,
+    "anchor": "Firm Renewals All firm licenses expire",
+    "window": 33,
     "pattern": null,
-    "expect_text": "December 31"
+    "expect_text": "December 31st each odd year"
    }
   ]
  },
