@@ -36,6 +36,10 @@ WORKER_COPIES = {f: "worker/src/" + os.path.basename(f) for f in DATA_FILES}
 # MON-3 (2026-10-05): resynced each run so a stale capture can never block this job's own gate --
 # a fleet-wide pause stops ordinary ships, but this unattended job runs regardless (not throttle-gated).
 COVERAGE_STATS_FILE = "data/rule_change_coverage_stats.json"
+# SRC-236 (2026-11-11): undated rule-change events gain needs_reverification by age (SRC-230 arm), but
+# that field is stored and nothing else re-derives it daily. refresh_event_reverification.py ORs the arm
+# in place (one-way: never clears) and writes both copies; a flip alone is reason enough to commit.
+EVENT_FILES = ["data/reg_change_events.json", "worker/src/reg_change_events.json"]
 # DROP-1 re-opened (2026-10-20): the scheduled task's own environment never carries these, so
 # preship_gate.py's silent-drop advisory could never execute from this job -- only a skip line.
 CLOUDFLARE_ENV_FILE = os.environ.get("REVERIFY_CLOUDFLARE_ENV_FILE", r"C:\Users\Devin\AssetLab\.secrets\cloudflare.env")
@@ -173,7 +177,8 @@ def run(mode, push=True):
     if r.returncode != 0:
         note("RUNNER_FAILED", r.stdout[-2000:] + r.stderr[-2000:])
         return 1
-    if not sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE).stdout.strip():
+    _refresh_events(py)
+    if not sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE, *EVENT_FILES).stdout.strip():
         log("no data changes (nothing newly CONFIRMED); nothing to deploy")
         if push:
             _publish_status(True)
@@ -210,9 +215,19 @@ def run(mode, push=True):
     return 3
 
 
+def _refresh_events(py):
+    """SRC-236: never fatal -- a failure is logged and noted, and the dated-record reverify still ships."""
+    rf = sh(py, "scripts/refresh_event_reverification.py", check=False)
+    log(f"event reverification refresh rc={rf.returncode}: {rf.stdout.strip()[-300:]}")
+    if rf.returncode != 0:
+        note("EVENT_REFRESH_FAILED", rf.stdout[-1500:] + rf.stderr[-1500:])
+        sh("git", "checkout", "--force", "--", *EVENT_FILES)
+
+
 def _gate_commit(mode, py, push):
     """Mirror worker copies, run all gates, commit. Returns an exit code, or "pushed?" when ready to push."""
-    changed = sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE).stdout.strip()
+    _refresh_events(py)                       # again: a replay reset the tree to a fresh origin/main
+    changed = sh("git", "status", "--porcelain", "--", *DATA_FILES, COVERAGE_STATS_FILE, *EVENT_FILES).stdout.strip()
     if not changed:
         log("nothing left to commit after replay (main already carries these dates)")
         if push:
@@ -239,7 +254,7 @@ def _gate_commit(mode, py, push):
             advisory = _extract_advisory_stanza(g.stdout, "silent-drop advisory")
             if advisory:
                 log(f"silent-drop advisory:\n{advisory}")
-    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), COVERAGE_STATS_FILE, "docs")
+    sh("git", "add", "--", *DATA_FILES, *WORKER_COPIES.values(), COVERAGE_STATS_FILE, *EVENT_FILES, "docs")
     n = sum(1 for ln in changed.splitlines())
     sh("git", "-c", "user.name=reverify-bot", "-c", "user.email=raven@mooseandraven.com", "commit", "-q", "-m",
        f"reverify: automated {mode} re-verification {datetime.now():%Y-%m-%d} ({n} data file(s) updated)")
