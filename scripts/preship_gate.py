@@ -1092,6 +1092,8 @@ _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
         "event_id": "internal key", "confidence": "internal", "status_evidence": "internal",
         "status_source_url": "provenance", "source": "provenance", "secondary_url": "provenance",
         "conflict_summary": "internal",
+        # SRC-231: the conflict card's second-link label and further sources, same class as secondary_url.
+        "secondary_citation": "provenance", "additional_sources": "provenance",
     },
 }
 
@@ -6419,6 +6421,10 @@ def check_citation_manifest_coverage(repo_root: Path) -> list[str]:
             slug = e.get("jurisdiction_slug", "")
             check_url(slug, e.get("citation_url"), "reg_change_events.json source_conflict citation_url")
             check_url(slug, e.get("secondary_url"), "reg_change_events.json source_conflict secondary_url")
+            # SRC-231: the conflict card now renders these too, so they need monitoring like the other two.
+            for src in e.get("additional_sources") or []:
+                if isinstance(src, dict):
+                    check_url(slug, src.get("url"), "reg_change_events.json source_conflict additional_sources")
 
     return errors
 

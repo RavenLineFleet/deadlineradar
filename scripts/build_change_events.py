@@ -347,6 +347,14 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 # field, not rendered on its own; _public_summary() already
                 # produces the public-safe sentence for this kind.
                 "conflict_summary": r.get("conflict_summary"),
+                # SRC-231 (AuditLab, 2026-11-11): Oregon's card linked only
+                # the side that agrees with the statute (ORS + Board page);
+                # the OAR it says disagrees had no URL. These carry the
+                # second link's label and any further sources, so the card
+                # can link every side of the conflict it asserts.
+                "secondary_citation": r.get("secondary_citation"),
+                **({"additional_sources": r["additional_sources"]}
+                   if isinstance(r.get("additional_sources"), list) else {}),
             })
         elif not r.get("status"):
             # AuditLab REGEN-1/REGEN-3 (2026-08-26): every record in this

@@ -425,7 +425,8 @@
       "firm_registration_attest_other_ssae": true,
       "firm_registration_attest_split_conditions": "SSARS review and compilation are exempt from a Guam firm permit under 22 GCA section 35107(a)(2) if the firm meets the ownership/competency qualifications in section 35107(d) and the peer-review standard in section 35107(i), and performs the work through an individual with section 35122 practice privileges. \"Other SSAE\" engagements do NOT qualify for this exemption in Guam -- they require a permit like the core tier.",
       "verified_method": "manual",
-      "last_manual_verified_date": "2026-09-23"
+      "last_manual_verified_date": "2026-09-23",
+      "secondary_citation": "25 GAR Ch. 2, Guam Accountancy Administrative Rules (incl. the § 2103(d)(2)(B)(iv) $175 fee)"
     },
     {
       "state": "Hawaii",
@@ -778,7 +779,8 @@
       "home_state_substantially_equivalent": true,
       "home_state_substantially_equivalent_note": null,
       "verified_method": "manual",
-      "last_manual_verified_date": "2026-09-23"
+      "last_manual_verified_date": "2026-09-23",
+      "secondary_citation": "Michigan LARA “CPA Firms” page (the Board's own guidance)"
     },
     {
       "state": "Minnesota",
@@ -1191,7 +1193,8 @@
       "individual_criteria_confirmed": false,
       "individual_criteria_ambiguity_note": "The Commonwealth's own law doesn't actually contain a practice-privilege provision for out-of-state CPAs -- only the board's own rule describes one, on a discretionary, case-by-case basis. We can't treat this as a settled, as-of-right privilege. Confirm directly with the CNMI Board before relying on this.",
       "verified_method": "manual",
-      "last_manual_verified_date": "2026-09-23"
+      "last_manual_verified_date": "2026-09-23",
+      "secondary_citation": "NMIAC Ch. 1-10, Board of Accountancy Rules (incl. § 1-10-801)"
     },
     {
       "state": "Ohio",
@@ -1295,7 +1298,18 @@
       "firm_registration_attest_other_ssae": false,
       "firm_registration_attest_split_conditions": "Exempt from firm registration under ORS 673.160(3)(a) if the firm meets the ownership qualifications in ORS 673.160(5) and performs the work through an ORS 673.153-authorized individual -- but registration-exempt is NOT peer-review-exempt: ORS 673.455(2) still requires peer-review participation even when registration itself isn't required.",
       "verified_method": "manual",
-      "last_manual_verified_date": "2026-09-23"
+      "last_manual_verified_date": "2026-09-23",
+      "secondary_citation": "Oregon Board of Accountancy peer-review page (the Board's own guidance)",
+      "additional_sources": [
+        {
+          "url": "https://secure.sos.state.or.us/oard/view.action?ruleNumber=801-010-0345",
+          "citation": "OAR 801-010-0345(3) (out-of-state firms performing attestation engagements must register)"
+        },
+        {
+          "url": "https://secure.sos.state.or.us/oard/view.action?ruleNumber=801-005-0010",
+          "citation": "OAR 801-005-0010(6)(b) (“attestation services” includes SSARS reviews)"
+        }
+      ]
     },
     {
       "state": "Pennsylvania",

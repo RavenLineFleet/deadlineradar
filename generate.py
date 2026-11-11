@@ -10656,6 +10656,18 @@ def _rule_conflict_card_html(e: dict) -> str:
         f' <a href="{http_href(_secondary_url)}">{esc(e.get("secondary_citation") or "Second source")}</a>'
         if _has_secondary else ""
     )
+    # AuditLab SRC-231 (MEDIUM, 2026-11-11): Oregon's two links were both
+    # the narrow (statute-agreeing) side; the OAR the card says disagrees
+    # had no link, so "read both citations yourself" couldn't be done from
+    # the page. additional_sources carries the remaining sides. A source
+    # with no http(s) URL or no label is skipped, never rendered as a
+    # bare/unlabelled link.
+    for _src in e.get("additional_sources") or []:
+        if not isinstance(_src, dict):
+            continue
+        _u, _c = _src.get("url"), _src.get("citation")
+        if isinstance(_u, str) and _u.startswith(("http://", "https://")) and isinstance(_c, str) and _c:
+            secondary_html += f' <a href="{http_href(_u)}">{esc(_c)}</a>'
     # AuditLab RC-19 (2026-09-23): these cards had no visible date at all --
     # Guam's was 26 days old, the other 5 were 53 days old, with nothing on
     # the page or in a gate surfacing it. verified_date was already in the
