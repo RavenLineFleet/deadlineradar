@@ -6777,10 +6777,24 @@ def _cite_chip_html(record: dict, max_chars: int | None = None) -> str:
         if last_space > max_chars * 0.6:  # don't chop a short first word down to nothing
             truncated = truncated[:last_space]
         display = truncated.rstrip() + "…"
-    return (
+    chip = (
         f'<a class="cite" href="{http_href(record["citation_url"])}" title="{esc(citation)}">{_CITE_ICON_SVG}'
         f'{esc(display)}</a>'
     )
+    # SRC-233 (AuditLab, 2026-11-11): a citation naming two documents (Alabama's
+    # 30-X-5 expiry + 30-X-3 fee deadline; Alaska's form + 12 AAC 04; Guam's
+    # 22 GCA + 25 GAR) linked only citation_url here, so the state page left one
+    # cited authority unreachable even where citation_links named it (only
+    # _source_cite_html read that field). Each other link gets its own chip.
+    # The hero teaser (max_chars) keeps one chip for space.
+    if max_chars is None:
+        for link in record.get("citation_links") or []:
+            if link["url"] != record["citation_url"]:
+                chip += (
+                    f' <a class="cite" href="{http_href(link["url"])}" title="{esc(link["label"])}">'
+                    f'{_CITE_ICON_SVG}{esc(link["label"])}</a>'
+                )
+    return chip
 
 
 # DATA-14 (AuditLab, 2026-10-08): for most records next_deadline_computed IS the

@@ -4651,7 +4651,7 @@
   "provenance": "bootstrap 2026-10-02",
   "checks": [
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "a renewal fee, if any. (C) A licensee shall document",
@@ -4660,7 +4660,7 @@
     "field": "total_hours"
    },
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "uded in the documented hours of continuing professional education. No less than",
@@ -4669,7 +4669,7 @@
     "field": "ethics_hours"
    },
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "ours of continuing professional education. No less than two hours of the annual",
@@ -4688,7 +4688,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "(28) \"Renewal due date\" is",
@@ -4707,7 +4707,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "(28) \"Renewal due date\" is",
@@ -4782,7 +4782,7 @@
     "field": "reinstatement_fee_usd"
    },
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "alt_urls": [],
     "method": "http",
     "anchor": "(C) A licensee shall document",

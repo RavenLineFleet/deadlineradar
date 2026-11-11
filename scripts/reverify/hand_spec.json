@@ -867,7 +867,7 @@
   "keep_auto": false,
   "checks": [
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "kind": "text",
     "field": null,
     "anchor": "(28) \"Renewal due date\" is",
@@ -879,7 +879,7 @@
   "keep_auto": false,
   "checks": [
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "kind": "text",
     "field": null,
     "anchor": "(28) \"Renewal due date\" is",
@@ -1255,7 +1255,7 @@
     "anchor": "pay the $95 renewal fee, and pay a"
    },
    {
-    "url": "https://www.scstatehouse.gov/code/statmast.php?title=40&chapter=2",
+    "url": "https://www.scstatehouse.gov/code/t40c002.php",
     "kind": "hours",
     "field": "penalty_cpe_hours",
     "anchor": "(C) A licensee shall document"
