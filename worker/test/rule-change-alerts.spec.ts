@@ -60,8 +60,15 @@ async function sessionCookieFor(firmId: string, memberId: string): Promise<strin
 // its status went the OTHER direction since the "exact Louisiana shape"
 // comment below was written against it as the negative example). Still no
 // synthetic-event injection path -- the real fix that lasts.
-const REAL_EVENT_ID = "louisiana-regwatch-e607d2e5b164";
-const REAL_EVENT_STATE = "louisiana";
+//
+// SWAPPED AGAIN (2026-11-11, SRC-224): Louisiana Act 653 took effect
+// 2026-08-01, so its event is no longer upcoming and the same 6 failures
+// came back. Swapped to arizona-regwatch-0e1d89d5ca13 (ENACTED,
+// needs_reverification: false, effective 2027-01-01) -- the ONLY remaining
+// ENACTED upcoming event (Idaho is ADOPTED_PENDING_LEGISLATURE). This
+// fixture expires 2027-01-01; an injection path is still the lasting fix.
+const REAL_EVENT_ID = "arizona-regwatch-0e1d89d5ca13";
+const REAL_EVENT_STATE = "arizona";
 
 describe("store.findFirmsEligibleForRuleChangeAlert()", () => {
   it("includes a firm with alerts enabled and an active roster license in the event's state", async () => {
