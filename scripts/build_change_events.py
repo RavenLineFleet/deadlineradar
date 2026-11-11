@@ -366,6 +366,12 @@ def build(today: date) -> tuple[list[dict], list[str]]:
                 # field, not rendered on its own; _public_summary() already
                 # produces the public-safe sentence for this kind.
                 "conflict_summary": r.get("conflict_summary"),
+                # SRC-232 (AuditLab, 2026-11-11): the record's citation_url is
+                # the mobility page's primary link (e.g. MI 727a = individual
+                # privilege), which need not carry the conflict's claim (MI
+                # 339.728(1); NMI codified 4 CMC 3422, not the enacting PDF).
+                # A regen used to swap the card's link back to it.
+                "citation_url": _http(r.get("conflict_citation_url")) or citation_url,
                 # SRC-231 (AuditLab, 2026-11-11): Oregon's card linked only
                 # the side that agrees with the statute (ORS + Board page);
                 # the OAR it says disagrees had no URL. These carry the

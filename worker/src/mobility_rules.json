@@ -780,7 +780,8 @@
       "home_state_substantially_equivalent_note": null,
       "verified_method": "manual",
       "last_manual_verified_date": "2026-09-23",
-      "secondary_citation": "Michigan LARA “CPA Firms” page (the Board's own guidance)"
+      "secondary_citation": "Michigan LARA “CPA Firms” page (the Board's own guidance)",
+      "conflict_citation_url": "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-339-728"
     },
     {
       "state": "Minnesota",
@@ -1194,7 +1195,8 @@
       "individual_criteria_ambiguity_note": "The Commonwealth's own law doesn't actually contain a practice-privilege provision for out-of-state CPAs -- only the board's own rule describes one, on a discretionary, case-by-case basis. We can't treat this as a settled, as-of-right privilege. Confirm directly with the CNMI Board before relying on this.",
       "verified_method": "manual",
       "last_manual_verified_date": "2026-09-23",
-      "secondary_citation": "NMIAC Ch. 1-10, Board of Accountancy Rules (incl. § 1-10-801)"
+      "secondary_citation": "NMIAC Ch. 1-10, Board of Accountancy Rules (incl. § 1-10-801)",
+      "conflict_citation_url": "https://cnmilaw.gov/commonwealth-code/3742"
     },
     {
       "state": "Ohio",
