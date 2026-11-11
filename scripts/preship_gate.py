@@ -648,6 +648,33 @@ def check_blog_body_change_advances_modified(
     return errors
 
 
+REPLACEMENT_CHAR = chr(0xFFFD)
+NEWLINE = chr(10)
+
+
+def check_no_replacement_char_in_shipped_data(repo_root: Path) -> list[str]:
+    """SRC-216 (AuditLab, amended 2026-11-11): a mis-decoded source page (windows-1252 read as
+    UTF-8) wrote U+FFFD into verification_history and into three reverify anchors, where it was
+    the live match key. Nothing caught it for weeks. U+FFFD is never a legitimate character in
+    our data, so any occurrence in a shipped dataset (data/*.json, the Worker's bundled
+    worker/src/*.json) or in the recipe file is a decode bug upstream -- fail the build."""
+    errors = []
+    paths = sorted((repo_root / "data").glob("*.json")) + sorted((repo_root / "worker" / "src").glob("*.json"))
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            errors.append(f"SRC-216: {path.relative_to(repo_root).as_posix()} is not valid UTF-8 ({e})")
+            continue
+        n = text.count(REPLACEMENT_CHAR)
+        if n:
+            line = text.count(NEWLINE, 0, text.index(REPLACEMENT_CHAR)) + 1
+            errors.append(f"SRC-216: {path.relative_to(repo_root).as_posix()} carries {n} U+FFFD replacement "
+                          f"character(s), first at line {line} -- a source page was decoded with the wrong "
+                          f"charset (see source_check._decode_html_body)")
+    return errors
+
+
 def check_blog_approval_gate(repo_root: Path, blog_articles: list[dict] | None = None) -> list[str]:
     """Every slug in BLOG_ARTICLES must be either grandfathered (shipped
     before this gate existed) or carry a committed two-party approval record
@@ -10961,6 +10988,7 @@ def main():
     all_errors += check_prose_leak_shapes(html_files)
     all_errors += check_double_hyphen_hand_copy_pages(docs_dir)
     all_errors += check_blog_approval_gate(repo_root)
+    all_errors += check_no_replacement_char_in_shipped_data(repo_root)
     all_errors += check_blog_body_change_advances_modified(repo_root)
     all_errors += check_no_shipped_html_comments(html_files)
     all_errors += check_no_fleet_codenames_in_shipped_html(html_files)

@@ -31,6 +31,7 @@ Exit code 0 always (it's a reporter, not a gate).
 """
 from __future__ import annotations
 
+import codecs
 import io
 import json
 import re
@@ -318,7 +319,41 @@ def _decode_html_body(body: bytes) -> str:
                 return body.decode("utf-16-be")
             except UnicodeDecodeError:
                 pass
-    return body.decode("utf-8", errors="replace")
+    # SRC-216 (AuditLab, amended 2026-11-11): ilga.gov and leg.state.nv.us serve windows-1252
+    # (declared in a <meta> tag, not the Content-Type header) and the old utf-8/replace fallback
+    # turned every NBSP and curly quote into U+FFFD -- in served verification_history AND in
+    # three reverify anchors that only matched because both sides were corrupted identically.
+    # Order: strict UTF-8 first (the browser path hands us page.content() re-encoded as UTF-8
+    # while the page still declares windows-1252, so the declaration must not win over bytes
+    # that already decode cleanly), then the declared <meta> charset, then windows-1252 (the
+    # WHATWG legacy default; iso-8859-1/latin-1/ascii labels map to it too).
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    enc = _declared_meta_charset(body)
+    if enc is not None:
+        return body.decode(enc, errors="replace")
+    return body.decode("cp1252", errors="replace")
+
+
+_META_CHARSET_RE = re.compile(rb"""<meta[^>]+charset\s*=\s*["']?\s*([A-Za-z0-9_.:-]+)""", re.I)
+_SINGLE_BYTE_ALIASES = {"iso-8859-1", "iso8859-1", "latin-1", "latin1", "l1", "us-ascii", "ascii",
+                        "windows-1252", "cp1252", "x-cp1252"}
+
+
+def _declared_meta_charset(body: bytes) -> str | None:
+    """The charset a <meta> tag in the first 4 KB declares, as a Python codec name, or None."""
+    m = _META_CHARSET_RE.search(body[:4096])
+    if not m:
+        return None
+    label = m.group(1).decode("ascii", "ignore").strip().lower()
+    if label in _SINGLE_BYTE_ALIASES:
+        return "cp1252"
+    try:
+        return codecs.lookup(label).name
+    except LookupError:
+        return None
 
 
 def _extract_html(body: bytes) -> str | None:
