@@ -22,6 +22,7 @@ import {
 } from "../src/validation";
 import * as store from "../src/store";
 import { fillBucket, freeOneSlot, slotsUsed } from "./rate-limit-slots";
+import { withNonHolidayClock } from "./non-holiday-clock";
 import {
   CPA_DEADLINES_STALENESS_WARNING_DAYS,
   GATED_DATASET_STALENESS_THRESHOLD_DAYS,
@@ -5834,8 +5835,10 @@ describe("AuditLab NEWS-1 (MEDIUM, 2026-08-13): scheduled() actually invokes run
     const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
     const envWithKey = { ...env, RESEND_API_KEY: "test-key-not-real" };
     try {
-      await expect(worker.scheduled({} as ScheduledController, envWithKey, ctx)).resolves.not.toThrow();
-      await Promise.all(waited);
+      await withNonHolidayClock(async () => {
+        await expect(worker.scheduled({} as ScheduledController, envWithKey, ctx)).resolves.not.toThrow();
+        await Promise.all(waited);
+      });
       // Before the fix, this line never appeared -- runComplianceNewsletterPass
       // was defined and fully tested in isolation (newsletter.spec.ts) but
       // never called from scheduled(), so real double-opted-in subscribers

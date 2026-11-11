@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
 import { buildTrialEndingNoticeEmail } from "../src/emails";
 import { runTrialEndingAlertPass, runTrialEndingNoticePass } from "../src/scheduler";
+import { withNonHolidayClock } from "./non-holiday-clock";
 
 const APPROVED = { SEND_APPROVED_PASSES: "trialEndingNotice", RESEND_API_KEY: "test-key" };
 
@@ -128,6 +129,7 @@ describe("runTrialEndingNoticePass -- built dark", () => {
   });
 
   it("WIRED: scheduled() really dispatches it -- approved => a Resend call to the firm; unapproved => none", async () => {
+    await withNonHolidayClock(async () => {
     const worker = (await import("../src/index")).default;
     const f = await makeFirm("Notice Wired Firm", 1, 2);
     const resendTo: string[] = [];
@@ -151,6 +153,7 @@ describe("runTrialEndingNoticePass -- built dark", () => {
     await worker.scheduled({} as ScheduledController, { ...env, ...APPROVED } as never, waitingCtx);
     await Promise.all(waits);
     expect(resendTo).toContain(f.email);
+    });
   });
 });
 
