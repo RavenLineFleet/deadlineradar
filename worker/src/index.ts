@@ -327,10 +327,11 @@ import {
   removeCouponFromSubscription,
   setInvoiceReferralCustomField,
   verifyWebhookSignature,
+  stripeKeyLivemode,
   StripeApiError,
   type StripeWebhookEvent,
 } from "./stripe";
-import { alertUnsynced, applySubscriptionUpdatedEvent } from "./subscription_sync";
+import { alertUnsynced, applySubscriptionUpdatedEvent, noteWebhookSignatureFailure } from "./subscription_sync";
 import { buildIcs, type IcsEvent } from "./ics";
 import { handleTrackedLink } from "./tracked_links";
 
@@ -4658,6 +4659,8 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   const sigHeader = request.headers.get("Stripe-Signature");
   const verified = await verifyWebhookSignature(rawBody, sigHeader, env.STRIPE_WEBHOOK_SECRET);
   if (!verified) {
+    // BILL-68: this exit used to be silent. See noteWebhookSignatureFailure.
+    await noteWebhookSignatureFailure(env, sigHeader !== null);
     return jsonResponse(400, { error: "Invalid signature." });
   }
 
@@ -4669,6 +4672,19 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   }
   if (!event.id || !event.type) {
     return jsonResponse(400, { error: "Invalid event." });
+  }
+  // SEC-86 (AuditLab 2026-11-12, HIGH): a valid signature only proves Stripe
+  // sent the event, not which MODE it came from. Prod verified 21 test-clock
+  // events on 11-12, and checkout.session.completed below writes plan_tier
+  // from metadata.firm_id alone, so anyone holding a test key for this
+  // account could have granted a paid tier to a named production firm. The
+  // event's livemode must equal the mode of the key this deployment uses.
+  // Strict boolean match: a missing or non-boolean livemode is rejected, and
+  // so is every event when the key's mode can't be told (fail closed). It
+  // runs before the idempotency ledger, so a rejected event leaves no row.
+  const expectedLivemode = stripeKeyLivemode(env.STRIPE_SECRET_KEY);
+  if (expectedLivemode === null || event.livemode !== expectedLivemode) {
+    return jsonResponse(400, { error: "Event mode doesn't match this deployment." });
   }
 
   const object = event.data.object as Record<string, unknown>;
@@ -4949,9 +4965,13 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
 
   if (event.type === "invoice.payment_failed") {
     // Best-effort record only -- Stripe's own retry/dunning cycle handles
-    // the grace period, so this does not revoke access mid-retry. If
-    // retries exhaust, Stripe itself fires customer.subscription.deleted
-    // (handled above), which is what actually changes access.
+    // the grace period, so this does not revoke access mid-retry. When
+    // retries exhaust, what changes access depends on the account's
+    // failed-payment setting: "cancel" fires customer.subscription.deleted
+    // (handled above); "mark unpaid" moves the subscription to `unpaid`,
+    // which customer.subscription.updated revokes (REVOKED_STATUSES in
+    // subscription_sync.ts, SEC-83); "leave past_due" changes nothing
+    // (SEC-85).
     const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, null);
     if (isNew) {
       await store.markWebhookEventProcessed(env.DB, event.id);
@@ -7525,6 +7545,11 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     // this changes what they're shown, not what they can do.
     cancel_at_period_end: session.role === "partner" ? Boolean(session.firm.cancel_at_period_end) : undefined,
     current_period_end: session.role === "partner" ? session.firm.current_period_end : undefined,
+    // AuditLab BILL-66 (2026-11-12): a firm SEC-83 revoked to free keeps its
+    // stripe_subscription_id, so checkout 400s already_subscribed and points at
+    // Manage billing. The free-tier panel needs to know to render that button.
+    // Partner-only, like the two fields above and the portal route itself.
+    has_subscription: session.role === "partner" ? Boolean(session.firm.stripe_subscription_id) : undefined,
     // Account-tab lockdown (2026-08-06, reported live against the newly
     // public demo): the frontend needs this to grey out email/password/
     // billing/delete controls up front, rather than letting a demo visitor

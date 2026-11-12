@@ -245,6 +245,7 @@ export const KNOWN_SEND_PASSES = [
   "stripePriceParityAlert",
   "trialEndingAlert",
   "trialEndingNotice",
+  "webhookSignatureFailureAlert",
 ] as const;
 
 /** The known passes currently approved (names only). */
@@ -2764,6 +2765,12 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     await retain("outcome=skipped_no_stripe_key");
     return;
   }
+  // AuditLab BILL-67 (MEDIUM, 2026-11-12): every other retain() is at a
+  // terminal exit, after up to 10 Stripe round-trips. A run cut short in
+  // between (waitUntil ended) wrote nothing, so 11-11 read the same as
+  // "never ran". Same-day id, so any terminal exit below overwrites this;
+  // a row left at "started" means the run began and never finished.
+  await retain("outcome=started");
 
   // PR6-A (AuditLab, 2026-10-02, HOLD on a2a9471b4): stripePriceIdForTier()'s
   // new `interval` parameter defaults to "annual" so every PRE-PR6 call

@@ -55,7 +55,7 @@ async function signPayload(secret: string, ts: number, payload: string): Promise
   return `t=${ts},v1=${[...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 async function postUpdated(subId: string, eventId: string, overrides: Record<string, unknown> = {}): Promise<Response> {
-  const payload = JSON.stringify({ id: eventId, type: "customer.subscription.updated", data: { object: { id: subId } } });
+  const payload = JSON.stringify({ id: eventId, type: "customer.subscription.updated", livemode: false, data: { object: { id: subId } } });
   const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
   return workerFetch(
     new Request("https://deadline-radar.com/stripe/webhook", { method: "POST", headers: { "content-type": "application/json", "Stripe-Signature": sig }, body: payload }),
@@ -551,7 +551,7 @@ describe("customer.subscription.updated -> firm row", () => {
   it("a bad webhook signature is still rejected (the new branch does not bypass verification)", async () => {
     const { sub } = await makeFirm();
     const calls = installFetch({ [sub]: { items: [{ price: "price_sd_a", quantity: 1 }] } });
-    const payload = JSON.stringify({ id: "evt_badsig", type: "customer.subscription.updated", data: { object: { id: sub } } });
+    const payload = JSON.stringify({ id: "evt_badsig", type: "customer.subscription.updated", livemode: false, data: { object: { id: sub } } });
     const r = await workerFetch(new Request("https://deadline-radar.com/stripe/webhook", { method: "POST", headers: { "Stripe-Signature": "t=1,v1=deadbeef" }, body: payload }));
     expect(r.status).toBeGreaterThanOrEqual(400);
     expect(calls.subGets).toHaveLength(0);

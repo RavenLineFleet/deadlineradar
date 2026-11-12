@@ -118,7 +118,7 @@ describe("POST /stripe/webhook -- checkout.session.completed rejects an unrecogn
     const eventId = `evt_allowlist_${firmId}`;
     const payload = JSON.stringify({
       id: eventId,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: `cus_${eventId}`,
@@ -146,7 +146,7 @@ describe("POST /stripe/webhook -- checkout.session.completed rejects an unrecogn
     const eventId = `evt_individual_${firmId}`;
     const payload = JSON.stringify({
       id: eventId,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: `cus_${eventId}`,
@@ -173,7 +173,7 @@ describe("POST /stripe/webhook -- checkout.session.completed rejects an unrecogn
     const eventId = `evt_realtier_${firmId}`;
     const payload = JSON.stringify({
       id: eventId,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: `cus_${eventId}`,

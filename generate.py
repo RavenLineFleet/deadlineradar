@@ -15798,6 +15798,24 @@ function drRenderBillingPanel() {
   var body = document.getElementById('dr-billing-body');
   if (!body || !drBilling) return;
   var tierDef = drPaidTierLabel(drBilling.planTier);
+  if (!tierDef && drBilling.hasSubscription) {
+    // AuditLab BILL-66 (2026-11-12): the subscription exists but isn't paying
+    // (unpaid / paused / incomplete_expired), so the firm is on free access.
+    // Checkout would refuse a second subscription, so the only way back is
+    // the billing portal: update the card or change plan there.
+    body.innerHTML = '<p class="dr-panel-empty">Your subscription isn&rsquo;t active right now, so your firm is on the free tier. ' +
+      'Open Manage billing to update your payment method or change plan.</p>';
+    if (DR_SELF_SERVE_PLAN_CHANGE_ENABLED && !drBilling.demoLocked) {
+      var revokedManageBtn = document.createElement('button');
+      revokedManageBtn.type = 'button';
+      revokedManageBtn.id = 'dr-billing-manage-btn';
+      revokedManageBtn.className = 'dr-btn-secondary';
+      revokedManageBtn.textContent = 'Manage billing';
+      revokedManageBtn.addEventListener('click', function() { drOpenBillingPortal(revokedManageBtn); });
+      body.appendChild(revokedManageBtn);
+    }
+    return;
+  }
   if (!tierDef) {
     // Task #12 (2026-08-05): a real, always-visible upgrade trigger on the
     // Account tab, rather than making a free-tier firm discover paid plans
@@ -16004,7 +16022,8 @@ function drToggleCancellation(cancel, btn) {
         trialEndsAt: drBilling.trialEndsAt,
         activeStaffChoiceAt: drBilling.activeStaffChoiceAt,
         checkoutFirstChargeAt: drBilling.checkoutFirstChargeAt,
-        checkoutFoundingTrial: drBilling.checkoutFoundingTrial
+        checkoutFoundingTrial: drBilling.checkoutFoundingTrial,
+        hasSubscription: drBilling.hasSubscription
       };
       if (okEl) {
         okEl.textContent = cancel ? 'Subscription set to cancel at period end.' : 'Subscription resumed.';
@@ -19370,7 +19389,11 @@ function drLoadLicenses() {
         checkoutFirstChargeAt: data.checkout_first_charge_at || null,
         // AuditLab BILL-63: true while a Founding Firms grant is unused --
         // its checkout charges nothing for a year, so no charge line shows.
-        checkoutFoundingTrial: Boolean(data.checkout_founding_trial)
+        checkoutFoundingTrial: Boolean(data.checkout_founding_trial),
+        // AuditLab BILL-66: a free-tier firm that still holds a Stripe
+        // subscription (revoked for non-payment) gets Manage billing, not
+        // upgrade buttons that checkout would refuse.
+        hasSubscription: Boolean(data.has_subscription)
       };
       drRole = data.role || 'partner';
       drMemberId = data.member_id || null;

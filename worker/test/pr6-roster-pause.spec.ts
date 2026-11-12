@@ -468,7 +468,7 @@ describe("PR6-B end-to-end: over-cap trial -> picker -> only the chosen staff ge
 
     const payload = JSON.stringify({
       id: `evt_pr6b_upgrade_${firmId}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: { object: { customer: "cus_pr6b_1", subscription: "sub_pr6b_1", metadata: { firm_id: firmId, target_plan_tier: "firm_growth" } } }, // cap 10, covers all 6
     });
     const SECRET = "whsec_pr6b_test_secret";

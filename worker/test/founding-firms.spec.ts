@@ -86,7 +86,7 @@ async function checkout(cookie: string, body: Record<string, unknown>): Promise<
 async function completed(firmId: string, subId: string, metadata: Record<string, string>, eventId = `evt_${crypto.randomUUID()}`): Promise<Response> {
   const payload = JSON.stringify({
     id: eventId,
-    type: "checkout.session.completed",
+    type: "checkout.session.completed", livemode: false,
     data: { object: { customer: "cus_ff_1", subscription: subId, payment_status: "no_payment_required", metadata: { firm_id: firmId, ...metadata } } },
   });
   const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
@@ -469,7 +469,7 @@ describe("day 365: Stripe cancels the trial -> customer.subscription.deleted", (
     await grant(firmId, 1);
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
     await completed(firmId, "sub_end", { target_plan_tier: "firm_growth", founding_firm_slot: "1" });
-    const payload = JSON.stringify({ id: `evt_del_${firmId}`, type: "customer.subscription.deleted", data: { object: { id: "sub_end" } } });
+    const payload = JSON.stringify({ id: `evt_del_${firmId}`, type: "customer.subscription.deleted", livemode: false, data: { object: { id: "sub_end" } } });
     const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
     const r = await workerFetch(
       new Request("https://deadline-radar.com/stripe/webhook", { method: "POST", headers: { "content-type": "application/json", "Stripe-Signature": sig }, body: payload })

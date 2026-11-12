@@ -38,7 +38,7 @@ async function sign(payload: string): Promise<string> {
 async function postUpdated(subId: string, eventId: string, overrides: Record<string, unknown>, previous?: Record<string, unknown>): Promise<Response> {
   const payload = JSON.stringify({
     id: eventId,
-    type: "customer.subscription.updated",
+    type: "customer.subscription.updated", livemode: false,
     data: { object: { id: subId }, ...(previous ? { previous_attributes: previous } : {}) },
   });
   const worker = (await import("../src/index")).default;

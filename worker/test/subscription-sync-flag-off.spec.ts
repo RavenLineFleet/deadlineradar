@@ -52,7 +52,7 @@ describe("self-serve plan change is OFF as shipped", () => {
     const firm = await store.createFirm(env.DB, { name: "Off Firm 2", adminEmail: `off2-${crypto.randomUUID()}@example.com` });
     await env.DB.prepare("UPDATE firms SET stripe_subscription_id='sub_off2', stripe_customer_id='cus_off2', plan_tier='firm_growth' WHERE id=?1").bind(firm.id).run();
     const spy = vi.spyOn(globalThis, "fetch");
-    const payload = JSON.stringify({ id: "evt_off_1", type: "customer.subscription.updated", data: { object: { id: "sub_off2" } } });
+    const payload = JSON.stringify({ id: "evt_off_1", type: "customer.subscription.updated", livemode: false, data: { object: { id: "sub_off2" } } });
     const r = await workerFetch(new Request("https://deadline-radar.com/stripe/webhook", { method: "POST", headers: { "Stripe-Signature": await sign(payload) }, body: payload }));
     expect(r.status).toBe(200);
     expect(spy).not.toHaveBeenCalled();

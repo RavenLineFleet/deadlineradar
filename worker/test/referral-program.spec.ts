@@ -61,7 +61,7 @@ async function checkoutCompletedPayload(
 ): Promise<string> {
   return JSON.stringify({
     id: eventId,
-    type: "checkout.session.completed",
+    type: "checkout.session.completed", livemode: false,
     data: {
       object: {
         customer: `cus_${eventId}`,
@@ -924,7 +924,7 @@ describe("GET /firm/licenses -- referral fields", () => {
 async function invoiceCreatedPayload(eventId: string, invoiceId: string, subscriptionId: string): Promise<string> {
   return JSON.stringify({
     id: eventId,
-    type: "invoice.created",
+    type: "invoice.created", livemode: false,
     data: { object: { id: invoiceId, subscription: subscriptionId } },
   });
 }
@@ -992,7 +992,7 @@ describe("POST /stripe/webhook -- invoice.created referral code mint + print", (
       const eventId = `evt_basil_${firm.id}`;
       const payload = JSON.stringify({
         id: eventId,
-        type: "invoice.created",
+        type: "invoice.created", livemode: false,
         data: { object: { id: "in_basil_1", parent: { subscription_details: { subscription: "sub_basil" } } } },
       });
       const t = Math.floor(Date.now() / 1000);

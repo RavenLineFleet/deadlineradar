@@ -3310,6 +3310,39 @@ export function buildBillingSyncAlertEmail(details: { firmId: string; subscripti
 }
 
 /**
+ * BILL-68 (AuditLab 2026-11-12, CRITICAL): internal-only alert, sent at most
+ * once per UTC day, when a request to the Stripe webhook carries a
+ * Stripe-Signature header that does not verify against STRIPE_WEBHOOK_SECRET.
+ * A live event signed for a different endpoint (the 08-05..11-12 state: prod
+ * held the TEST endpoint's secret on a LIVE key) fails here silently, so a
+ * paid checkout never grants the tier. Stripe retries a failed delivery for
+ * up to 3 days, so fixing the secret inside that window self-heals it.
+ */
+export function buildWebhookSignatureFailureAlertEmail(details: { dayUtc: string }): BuiltEmail {
+  const subject = "Deadline-Radar: a Stripe webhook failed signature verification";
+  const textBody =
+    `A request to /api/stripe/webhook on ${details.dayUtc} (UTC) carried a Stripe-Signature header that did ` +
+    `NOT verify against STRIPE_WEBHOOK_SECRET, so it was rejected with 400 and nothing was applied.
+
+` +
+    `If Stripe sent it, the Worker's secret does not match the endpoint, and a paid checkout will not grant ` +
+    `the firm its plan. Check the live-mode webhook endpoint's delivery log in the Stripe dashboard. Stripe ` +
+    `retries a failed delivery for up to 3 days, so fixing the secret inside that window applies the event.
+
+` +
+    `This alert is sent at most once per UTC day; it can also be set off by a request that was never from Stripe.`;
+  const htmlBody =
+    `<p>A request to <code>/api/stripe/webhook</code> on ${esc(details.dayUtc)} (UTC) carried a ` +
+    `<code>Stripe-Signature</code> header that did <strong>not</strong> verify against ` +
+    `<code>STRIPE_WEBHOOK_SECRET</code>, so it was rejected with 400 and nothing was applied.</p>` +
+    `<p>If Stripe sent it, the Worker's secret does not match the endpoint, and a paid checkout will not grant ` +
+    `the firm its plan. Check the live-mode webhook endpoint's delivery log in the Stripe dashboard. Stripe ` +
+    `retries a failed delivery for up to 3 days, so fixing the secret inside that window applies the event.</p>` +
+    `<p>This alert is sent at most once per UTC day; it can also be set off by a request that was never from Stripe.</p>`;
+  return { subject, textBody, htmlBody, headers: {} };
+}
+
+/**
  * Self-serve plan change (2026-10-07). Sent to the firm's own partner when a
  * plan switch completed in the Stripe portal leaves the live roster above the
  * new tier's cap (the portal configuration normally prevents this by only

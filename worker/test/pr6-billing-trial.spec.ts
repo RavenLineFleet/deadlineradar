@@ -378,7 +378,7 @@ describe("PR6 -- POST /stripe/webhook: billing_interval persistence", () => {
     const { firmId } = await createFirmWithSession("Webhook Interval A", `whinterval-a-${Date.now()}@example.com`);
     const payload = JSON.stringify({
       id: `evt_pr6_monthly_${firmId}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: { object: { customer: "cus_pr6_1", subscription: "sub_pr6_1", metadata: { firm_id: firmId, target_plan_tier: "firm_growth", billing_interval: "monthly" } } },
     });
     expect((await postWebhook(payload)).status).toBe(200);
@@ -390,7 +390,7 @@ describe("PR6 -- POST /stripe/webhook: billing_interval persistence", () => {
     const { firmId } = await createFirmWithSession("Webhook Interval B", `whinterval-b-${Date.now()}@example.com`);
     const payload = JSON.stringify({
       id: `evt_pr6_noival_${firmId}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: { object: { customer: "cus_pr6_2", subscription: "sub_pr6_2", metadata: { firm_id: firmId, target_plan_tier: "firm_growth" } } },
     });
     expect((await postWebhook(payload)).status).toBe(200);
@@ -402,7 +402,7 @@ describe("PR6 -- POST /stripe/webhook: billing_interval persistence", () => {
     const { firmId } = await createFirmWithSession("Webhook Interval C", `whinterval-c-${Date.now()}@example.com`);
     const payload = JSON.stringify({
       id: `evt_pr6_garbage_${firmId}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: { object: { customer: "cus_pr6_3", subscription: "sub_pr6_3", metadata: { firm_id: firmId, target_plan_tier: "firm_growth", billing_interval: "weekly'); DROP TABLE firms;--" } } },
     });
     expect((await postWebhook(payload)).status).toBe(200);
@@ -413,7 +413,7 @@ describe("PR6 -- POST /stripe/webhook: billing_interval persistence", () => {
   it("customer.subscription.deleted leaves billing_interval untouched (reverting to free makes it moot, not wrong)", async () => {
     const { firmId } = await createFirmWithSession("Webhook Interval D", `whinterval-d-${Date.now()}@example.com`);
     await env.DB.prepare("UPDATE firms SET plan_tier = 'firm_growth', stripe_subscription_id = 'sub_pr6_delete', billing_interval = 'monthly' WHERE id = ?1").bind(firmId).run();
-    const payload = JSON.stringify({ id: `evt_pr6_deleted_${firmId}`, type: "customer.subscription.deleted", data: { object: { id: "sub_pr6_delete" } } });
+    const payload = JSON.stringify({ id: `evt_pr6_deleted_${firmId}`, type: "customer.subscription.deleted", livemode: false, data: { object: { id: "sub_pr6_delete" } } });
     expect((await postWebhook(payload)).status).toBe(200);
     const firm = await store.getFirmById(env.DB, firmId);
     expect(firm?.plan_tier).toBe("free");

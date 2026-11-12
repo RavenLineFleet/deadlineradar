@@ -34,9 +34,10 @@ describe("approvedKnownPasses", () => {
     const e = { ...env, SEND_APPROVED_PASSES: "billingSyncAlert,sekrit_typo_token,billingsyncalert" } as never;
     expect(approvedKnownPasses(e)).toEqual(["billingSyncAlert"]);
   });
-  it("lists ten distinct names (nine passes plus trialEndingNotice)", () => {
-    expect(new Set(KNOWN_SEND_PASSES).size).toBe(10);
+  it("lists eleven distinct names (nine passes plus trialEndingNotice and webhookSignatureFailureAlert)", () => {
+    expect(new Set(KNOWN_SEND_PASSES).size).toBe(11);
     expect(KNOWN_SEND_PASSES).toContain("trialEndingNotice");
+    expect(KNOWN_SEND_PASSES).toContain("webhookSignatureFailureAlert");
   });
 });
 

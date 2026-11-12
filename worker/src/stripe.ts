@@ -714,7 +714,24 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 export interface StripeWebhookEvent {
   id: string;
   type: string;
+  /** Stripe sets this on every event: true for live mode, false for test. */
+  livemode?: unknown;
   data: {
     object: Record<string, unknown>;
   };
+}
+
+/**
+ * SEC-86 (AuditLab 2026-11-12, HIGH): which Stripe mode this deployment's
+ * API key belongs to. A webhook event is only honoured when its `livemode`
+ * matches, so a validly-signed test-mode event can never write billing state
+ * into a deployment that runs on a live key (and vice versa). Returns null
+ * for a key whose mode can't be told from its prefix -- the caller treats
+ * that as "match nothing" (fail closed).
+ */
+export function stripeKeyLivemode(secretKey: string | undefined): boolean | null {
+  if (!secretKey) return null;
+  if (secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_")) return true;
+  if (secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_")) return false;
+  return null;
 }

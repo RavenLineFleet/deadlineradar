@@ -44,7 +44,7 @@ import {
 } from "./tiers";
 import { requireSendApproval } from "./scheduler";
 import { sendEmail } from "./sender";
-import { buildBillingSyncAlertEmail, buildPlanChangeOverCapEmail } from "./emails";
+import { buildBillingSyncAlertEmail, buildPlanChangeOverCapEmail, buildWebhookSignatureFailureAlertEmail } from "./emails";
 
 const INTERNAL_NOTIFY_EMAIL = "support@deadline-radar.com";
 const SYNCED_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -55,8 +55,10 @@ const SYNCED_STATUSES = new Set(["active", "trialing", "past_due"]);
  * (Stripe's "mark unpaid" failed-payment setting) or `paused` must revoke it
  * here -- customer.subscription.deleted only fires on cancellation. The
  * subscription id is kept, so a later recovery to `active` re-derives the
- * tier through the normal path below. `past_due` (retries still running)
- * stays entitled: how long it lasts is the account's retry schedule. */
+ * tier through the normal path below. `past_due` stays entitled; how long
+ * it lasts is the retry schedule PLUS the failed-payment setting: "cancel"
+ * and "mark unpaid" end it (deleted / `unpaid` above), "leave past_due"
+ * never does (SEC-85, needs the live dashboard read). */
 const REVOKED_STATUSES = new Set(["unpaid", "incomplete_expired", "paused"]);
 
 /** The dropped discounts must not be a non-referral coupon (SecurityLab LOW-1):
@@ -96,6 +98,40 @@ export async function alertUnsynced(env: Env, eventId: string, firmId: string, s
     env.EMAIL_ALLOWLIST,
     env.EMAIL_PREVIEW_LOG_BODY
   );
+}
+
+/**
+ * BILL-68 (AuditLab 2026-11-12, CRITICAL; detector per SecurityLab 17:05Z):
+ * the webhook's 400 "Invalid signature." exit was completely silent, which is
+ * how a test-endpoint secret on a live key sat unnoticed for 99 days. Every
+ * failure with a Stripe-Signature header now logs, and the first per UTC day
+ * leaves a durable `stripe_sig_fail:<day>` ledger row (readable in D1 even
+ * with the send off) and, only if "webhookSignatureFailureAlert" is in
+ * SEND_APPROVED_PASSES, one internal email. A request with no header is a
+ * scanner, not Stripe, and is only logged. Never throws: the caller's 400
+ * must not turn into a 500.
+ */
+export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: boolean): Promise<void> {
+  console.warn(
+    `[stripe-webhook] signature verification FAILED (Stripe-Signature ${hadSignatureHeader ? "present" : "absent"}); ` +
+      `if Stripe sent this, STRIPE_WEBHOOK_SECRET does not match the endpoint (BILL-68)`
+  );
+  if (!hadSignatureHeader) return;
+  try {
+    const dayUtc = new Date().toISOString().slice(0, 10);
+    const first = await store.recordWebhookEventIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail", null);
+    if (!first) return;
+    if (!requireSendApproval(env, "webhookSignatureFailureAlert") || !env.RESEND_API_KEY) return;
+    await sendEmail(
+      env.RESEND_API_KEY,
+      INTERNAL_NOTIFY_EMAIL,
+      buildWebhookSignatureFailureAlertEmail({ dayUtc }),
+      env.EMAIL_ALLOWLIST,
+      env.EMAIL_PREVIEW_LOG_BODY
+    );
+  } catch (err) {
+    console.log(`[stripe-webhook] signature-failure record/alert failed: ${String(err)}`);
+  }
 }
 
 export async function applySubscriptionUpdatedEvent(

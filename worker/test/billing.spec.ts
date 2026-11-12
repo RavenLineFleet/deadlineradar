@@ -480,7 +480,7 @@ describe("POST /stripe/webhook", () => {
   const SECRET = "whsec_test_secret";
 
   it("400s on a missing/invalid signature -- body is never trusted", async () => {
-    const payload = JSON.stringify({ id: "evt_bad", type: "checkout.session.completed", data: { object: {} } });
+    const payload = JSON.stringify({ id: "evt_bad", type: "checkout.session.completed", livemode: false, data: { object: {} } });
     const resp = await postWebhook(payload, null, { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: SECRET });
     expect(resp.status).toBe(400);
   });
@@ -489,7 +489,7 @@ describe("POST /stripe/webhook", () => {
     const { firmId } = await createFirmWithSession("Webhook Firm A", `webhooka-${Date.now()}@example.com`);
     const payload = JSON.stringify({
       id: `evt_checkout_${firmId}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: "cus_test_1",
@@ -514,7 +514,7 @@ describe("POST /stripe/webhook", () => {
     const eventId = `evt_dup_${firmId}`;
     const payload = JSON.stringify({
       id: eventId,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: "cus_test_2",
@@ -576,7 +576,7 @@ describe("POST /stripe/webhook", () => {
     const eventId = `evt_transient_http_${firmId}`;
     const payload = JSON.stringify({
       id: eventId,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: "cus_test_transient",
@@ -609,7 +609,7 @@ describe("POST /stripe/webhook", () => {
 
     const payload = JSON.stringify({
       id: `evt_cancel_${firmId}`,
-      type: "customer.subscription.deleted",
+      type: "customer.subscription.deleted", livemode: false,
       data: { object: { id: "sub_test_3" } },
     });
     const t = Math.floor(Date.now() / 1000);
@@ -631,7 +631,7 @@ describe("POST /stripe/webhook", () => {
 
     const payload = JSON.stringify({
       id: `evt_failed_${firmId}`,
-      type: "invoice.payment_failed",
+      type: "invoice.payment_failed", livemode: false,
       data: { object: { id: "in_test_1" } },
     });
     const t = Math.floor(Date.now() / 1000);
@@ -644,8 +644,167 @@ describe("POST /stripe/webhook", () => {
   });
 
   it("503s when webhook secret isn't configured", async () => {
-    const payload = JSON.stringify({ id: "evt_noconfig", type: "checkout.session.completed", data: { object: {} } });
+    const payload = JSON.stringify({ id: "evt_noconfig", type: "checkout.session.completed", livemode: false, data: { object: {} } });
     const resp = await postWebhook(payload, "t=1,v1=deadbeef", { STRIPE_SECRET_KEY: "sk_test_x" });
     expect(resp.status).toBe(503);
+  });
+});
+
+describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the deployment's key mode", () => {
+  const SECRET = "whsec_test_secret";
+
+  async function checkoutEvent(firmId: string, eventId: string, livemode: unknown): Promise<string> {
+    const event: Record<string, unknown> = {
+      id: eventId,
+      type: "checkout.session.completed",
+      data: { object: { customer: "cus_sec86", subscription: "sub_sec86", metadata: { firm_id: firmId, target_plan_tier: "firm_growth" } } },
+    };
+    if (livemode !== "omit") event.livemode = livemode;
+    return JSON.stringify(event);
+  }
+
+  async function ledgerRows(eventId: string): Promise<number> {
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE id = ?1").bind(eventId).first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
+  const rejected: Array<[string, string, unknown]> = [
+    ["a validly-signed TEST event against a LIVE key", "sk_live_x", false],
+    ["a validly-signed TEST event against a LIVE restricted key", "rk_live_x", false],
+    ["a LIVE event against a TEST key", "sk_test_x", true],
+    ["an event with no livemode field", "sk_live_x", "omit"],
+    ["an event whose livemode is a string, not a boolean", "sk_live_x", "false"],
+    ["any event when the key's mode can't be told from its prefix", "pk_live_x", true],
+  ];
+  for (const [label, key, livemode] of rejected) {
+    it(`400s ${label}, writes no plan_tier and no ledger row`, async () => {
+      const { firmId } = await createFirmWithSession(`SEC86 ${label}`, `sec86-${Math.random().toString(36).slice(2)}@example.com`);
+      const eventId = `evt_sec86_${firmId}`;
+      const payload = await checkoutEvent(firmId, eventId, livemode);
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const resp = await postWebhook(payload, sig, { STRIPE_SECRET_KEY: key, STRIPE_WEBHOOK_SECRET: SECRET });
+      expect(resp.status).toBe(400);
+      expect(((await resp.json()) as { error: string }).error).toBe("Event mode doesn't match this deployment.");
+      const firm = await store.getFirmById(env.DB, firmId);
+      expect(firm?.plan_tier).toBe("free");
+      expect(firm?.stripe_subscription_id ?? null).toBeNull();
+      expect(await ledgerRows(eventId)).toBe(0);
+    });
+  }
+
+  const accepted: Array<[string, string, boolean]> = [
+    ["a LIVE event against a LIVE key", "sk_live_x", true],
+    ["a LIVE event against a LIVE restricted key", "rk_live_x", true],
+    ["a TEST event against a TEST key", "sk_test_x", false],
+  ];
+  for (const [label, key, livemode] of accepted) {
+    it(`accepts ${label} (positive control: same payload shape, mode matches)`, async () => {
+      const { firmId } = await createFirmWithSession(`SEC86 ok ${label}`, `sec86ok-${Math.random().toString(36).slice(2)}@example.com`);
+      const eventId = `evt_sec86ok_${firmId}`;
+      const payload = await checkoutEvent(firmId, eventId, livemode);
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const resp = await postWebhook(payload, sig, { STRIPE_SECRET_KEY: key, STRIPE_WEBHOOK_SECRET: SECRET });
+      expect(resp.status).toBe(200);
+      const firm = await store.getFirmById(env.DB, firmId);
+      expect(firm?.plan_tier).toBe("firm_growth");
+      expect(await ledgerRows(eventId)).toBe(1);
+    });
+  }
+
+  it("the signature check still runs first: a bad signature 400s as 'Invalid signature.' whatever livemode says", async () => {
+    const payload = JSON.stringify({ id: "evt_sec86_badsig", type: "checkout.session.completed", livemode: true, data: { object: {} } });
+    const resp = await postWebhook(payload, "t=1,v1=deadbeef", { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET });
+    expect(resp.status).toBe(400);
+    expect(((await resp.json()) as { error: string }).error).toBe("Invalid signature.");
+  });
+});
+
+describe("BILL-68 (AuditLab 2026-11-12, CRITICAL): a failed webhook signature is no longer silent", () => {
+  const SECRET = "whsec_test_secret";
+  const LIVE_ENV = { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET };
+  const dayRowId = () => `stripe_sig_fail:${new Date().toISOString().slice(0, 10)}`;
+  async function dayRows(): Promise<number> {
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE id = ?1").bind(dayRowId()).first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+  async function clearDayRow(): Promise<void> {
+    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id = ?1").bind(dayRowId()).run();
+  }
+  // The exact shape of the 08-05..11-12 defect: a real Stripe-signed event,
+  // signed with the endpoint's secret, arriving at a Worker holding another one.
+  async function liveEventSignedForOtherEndpoint(): Promise<{ payload: string; sig: string }> {
+    const payload = JSON.stringify({ id: `evt_b68_${Math.random().toString(36).slice(2)}`, type: "checkout.session.completed", livemode: true, data: { object: {} } });
+    const sig = await signPayload("whsec_the_live_endpoints_secret", Math.floor(Date.now() / 1000), payload);
+    return { payload, sig };
+  }
+
+  it("a mis-signed event still 400s, logs, and leaves exactly one durable row per UTC day; no email while the pass is unapproved", async () => {
+    await clearDayRow();
+    const warnSpy = vi.spyOn(console, "warn");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      for (let i = 0; i < 3; i++) {
+        const { payload, sig } = await liveEventSignedForOtherEndpoint();
+        const resp = await postWebhook(payload, sig, { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "" });
+        expect(resp.status).toBe(400);
+        expect(((await resp.json()) as { error: string }).error).toBe("Invalid signature.");
+      }
+      expect(warnSpy.mock.calls.filter((c) => String(c[0]).includes("signature verification FAILED")).length).toBe(3);
+      expect(await dayRows()).toBe(1);
+      expect(fetchSpy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend")).length).toBe(0);
+    } finally {
+      warnSpy.mockRestore();
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("with webhookSignatureFailureAlert approved, the first failure of the day sends ONE internal alert and the rest send none", async () => {
+    await clearDayRow();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "em_1" }), { status: 200 }));
+    try {
+      for (let i = 0; i < 3; i++) {
+        const { payload, sig } = await liveEventSignedForOtherEndpoint();
+        const resp = await postWebhook(payload, sig, { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" });
+        expect(resp.status).toBe(400);
+      }
+      const sends = fetchSpy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend"));
+      expect(sends.length).toBe(1);
+      const body = JSON.parse(String((sends[0]![1] as RequestInit).body)) as { to: unknown; subject: string };
+      expect(JSON.stringify(body.to)).toContain("support@deadline-radar.com");
+      expect(body.subject).toContain("failed signature verification");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("a request with no Stripe-Signature header (a scanner, not Stripe) is logged but leaves no row", async () => {
+    await clearDayRow();
+    const resp = await postWebhook(JSON.stringify({ id: "evt_b68_nohdr", type: "x", data: { object: {} } }), null, LIVE_ENV);
+    expect(resp.status).toBe(400);
+    expect(await dayRows()).toBe(0);
+  });
+
+  it("positive control: a correctly-signed event leaves no signature-failure row", async () => {
+    await clearDayRow();
+    const payload = JSON.stringify({ id: `evt_b68_ok_${Date.now()}`, type: "invoice.created", livemode: true, data: { object: {} } });
+    const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+    const resp = await postWebhook(payload, sig, LIVE_ENV);
+    expect(resp.status).toBe(200);
+    expect(await dayRows()).toBe(0);
+  });
+});
+
+describe("BILL-66 (AuditLab 2026-11-12): GET /firm/licenses tells the dashboard a revoked firm still holds a subscription", () => {
+  it("has_subscription is true for a free-tier firm that kept its stripe_subscription_id (SEC-83 revoke), false without one", async () => {
+    const revoked = await createFirmWithSession("BILL66 revoked", `bill66r-${Date.now()}@example.com`);
+    await env.DB.prepare("UPDATE firms SET plan_tier = 'free', stripe_customer_id = 'cus_b66', stripe_subscription_id = 'sub_b66' WHERE id = ?1")
+      .bind(revoked.firmId).run();
+    const r1 = (await (await getFirmLicenses(revoked.cookie)).json()) as { plan_tier: string; has_subscription?: boolean };
+    expect(r1.plan_tier).toBe("free");
+    expect(r1.has_subscription).toBe(true);
+
+    const plain = await createFirmWithSession("BILL66 plain", `bill66p-${Date.now()}@example.com`);
+    const r2 = (await (await getFirmLicenses(plain.cookie)).json()) as { has_subscription?: boolean };
+    expect(r2.has_subscription).toBe(false);
   });
 });

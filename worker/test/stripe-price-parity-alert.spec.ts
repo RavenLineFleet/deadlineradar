@@ -147,6 +147,34 @@ describe("runStripePriceParityAlertPass -- the gated, thresholded send", () => {
     }
   });
 
+  // AuditLab BILL-67 (2026-11-12): a run cut off between its first Stripe GET
+  // and its terminal exit must leave a row, not nothing. The row as it stands
+  // DURING the first Stripe round-trip is exactly what a cut run leaves.
+  it("BILL-67: a started run reads outcome=started mid-loop, then the terminal exit overwrites it", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    let seenMidRun: string | null | undefined;
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (seenMidRun === undefined && url.startsWith("https://api.stripe.com/")) seenMidRun = await parityOutcomeRow();
+      if (url === STRIPE_PRICE_URL("price_starter")) return Response.json(stripePriceResponse({ unit_amount: 19900 }));
+      if (url === STRIPE_PRICE_URL("price_growth")) return Response.json(stripePriceResponse({ unit_amount: 29900 }));
+      if (url === STRIPE_PRICE_URL("price_standard")) return Response.json(stripePriceResponse({ unit_amount: 39900 }));
+      if (url === STRIPE_PRICE_URL("price_scale")) return Response.json(stripePriceResponse({ unit_amount: 54900 }));
+      const ok = pr6OkResponse(url);
+      if (ok) return ok;
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      expect(await parityOutcomeRow()).toBeNull();
+      await freshRun({ SEND_APPROVED_PASSES: undefined, ...PR6_ENV });
+      expect(seenMidRun).toBe("stripe_price_parity:outcome=started");
+      expect(await parityOutcomeRow()).toBe("stripe_price_parity:outcome=clean,compared=10,checks=10,mismatches=0,mismatched=,not_configured=");
+    } finally {
+      spy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
   it("BILL-46: an unapproved mismatch retains outcome=mismatch_unapproved naming the env var, never a price id or key", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const { spy, resendCalls } = allMatchFetch(18800);

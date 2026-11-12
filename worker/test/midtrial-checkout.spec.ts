@@ -182,7 +182,7 @@ describe("checkout.session.completed for a deferred-charge checkout", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
     const payload = JSON.stringify({
       id: `evt_${crypto.randomUUID()}`,
-      type: "checkout.session.completed",
+      type: "checkout.session.completed", livemode: false,
       data: {
         object: {
           customer: "cus_mt_1",
