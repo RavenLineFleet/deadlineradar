@@ -711,6 +711,58 @@ describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the
     });
   }
 
+  describe("BILL-69 (AuditLab 2026-11-12, MEDIUM): the mode-mismatch exit is no longer silent", () => {
+    const modeRowId = () => `stripe_mode_reject:${new Date().toISOString().slice(0, 10)}`;
+    async function modeRows(): Promise<number> {
+      return ledgerRows(modeRowId());
+    }
+    async function clearModeRow(): Promise<void> {
+      await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id = ?1").bind(modeRowId()).run();
+    }
+
+    it("3 test-mode events on a live key: each 400s and logs, exactly one daily marker row, no email, no event row", async () => {
+      await clearModeRow();
+      const warnSpy = vi.spyOn(console, "warn");
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      try {
+        for (let i = 0; i < 3; i++) {
+          const { firmId } = await createFirmWithSession(`BILL69 ${i}`, `bill69-${Math.random().toString(36).slice(2)}@example.com`);
+          const eventId = `evt_bill69_${firmId}`;
+          const payload = await checkoutEvent(firmId, eventId, false);
+          const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+          const resp = await postWebhook(payload, sig, { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" });
+          expect(resp.status).toBe(400);
+          expect(((await resp.json()) as { error: string }).error).toBe("Event mode doesn't match this deployment.");
+          expect(await ledgerRows(eventId)).toBe(0);
+        }
+        expect(warnSpy.mock.calls.filter((c) => String(c[0]).includes("event mode MISMATCH")).length).toBe(3);
+        expect(await modeRows()).toBe(1);
+        expect(fetchSpy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend")).length).toBe(0);
+      } finally {
+        warnSpy.mockRestore();
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it("positive control: a mode-matched event leaves no mode-reject row", async () => {
+      await clearModeRow();
+      const { firmId } = await createFirmWithSession("BILL69 ok", `bill69ok-${Math.random().toString(36).slice(2)}@example.com`);
+      const payload = await checkoutEvent(firmId, `evt_bill69ok_${firmId}`, true);
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const resp = await postWebhook(payload, sig, { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET });
+      expect(resp.status).toBe(200);
+      expect(await modeRows()).toBe(0);
+    });
+
+    it("the daily marker insert is a no-op on repeat, not a thrown constraint error (RL-11 LOW)", async () => {
+      const id = `stripe_mode_reject:test-${Math.random().toString(36).slice(2)}`;
+      expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_mode_reject")).toBe(true);
+      expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_mode_reject")).toBe(false);
+      expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_mode_reject")).toBe(false);
+      expect(await ledgerRows(id)).toBe(1);
+    });
+  });
+
   it("the signature check still runs first: a bad signature 400s as 'Invalid signature.' whatever livemode says", async () => {
     const payload = JSON.stringify({ id: "evt_sec86_badsig", type: "checkout.session.completed", livemode: true, data: { object: {} } });
     const resp = await postWebhook(payload, "t=1,v1=deadbeef", { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET });

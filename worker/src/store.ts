@@ -4114,6 +4114,21 @@ export async function recordWebhookEventIfNew(
   }
 }
 
+/**
+ * BILL-69 / RL-11 (AuditLab 2026-11-12, LOW): a once-per-UTC-day marker row
+ * in the webhook ledger (`stripe_sig_fail:<day>`, `stripe_mode_reject:<day>`).
+ * ON CONFLICT DO NOTHING, so the 2nd..Nth call of a day is one no-op
+ * statement, not a thrown constraint exception per request. True only for
+ * the call that wrote the row.
+ */
+export async function recordDailyWebhookMarkerIfNew(db: D1Database, markerId: string, eventType: string): Promise<boolean> {
+  const res = await db
+    .prepare(`INSERT INTO stripe_webhook_events (id, event_type, firm_id, received_at) VALUES (?1,?2,NULL,?3) ON CONFLICT(id) DO NOTHING`)
+    .bind(markerId, eventType, nowIso())
+    .run();
+  return (res.meta?.changes ?? 0) === 1;
+}
+
 export async function markWebhookEventProcessed(db: D1Database, eventId: string): Promise<void> {
   await db
     .prepare(`UPDATE stripe_webhook_events SET processed_at = ?1 WHERE id = ?2`)

@@ -331,7 +331,7 @@ import {
   StripeApiError,
   type StripeWebhookEvent,
 } from "./stripe";
-import { alertUnsynced, applySubscriptionUpdatedEvent, noteWebhookSignatureFailure } from "./subscription_sync";
+import { alertUnsynced, applySubscriptionUpdatedEvent, noteWebhookModeMismatch, noteWebhookSignatureFailure } from "./subscription_sync";
 import { buildIcs, type IcsEvent } from "./ics";
 import { handleTrackedLink } from "./tracked_links";
 
@@ -4684,6 +4684,8 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   // runs before the idempotency ledger, so a rejected event leaves no row.
   const expectedLivemode = stripeKeyLivemode(env.STRIPE_SECRET_KEY);
   if (expectedLivemode === null || event.livemode !== expectedLivemode) {
+    // BILL-69: log + one daily ledger marker; see noteWebhookModeMismatch.
+    await noteWebhookModeMismatch(env, event.id, event.type, event.livemode, expectedLivemode);
     return jsonResponse(400, { error: "Event mode doesn't match this deployment." });
   }
 

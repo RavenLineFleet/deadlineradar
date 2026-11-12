@@ -119,7 +119,7 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
   if (!hadSignatureHeader) return;
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    const first = await store.recordWebhookEventIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail", null);
+    const first = await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
     if (!first) return;
     if (!requireSendApproval(env, "webhookSignatureFailureAlert") || !env.RESEND_API_KEY) return;
     await sendEmail(
@@ -131,6 +131,34 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
     );
   } catch (err) {
     console.log(`[stripe-webhook] signature-failure record/alert failed: ${String(err)}`);
+  }
+}
+
+/**
+ * BILL-69 (AuditLab 2026-11-12, MEDIUM): the SEC-86 mode-mismatch 400 was
+ * silent, and it is the exit that carries traffic (all 21 of 11-12's
+ * test-clock events would land here). A buggy mode guard looks exactly like
+ * BILL-68: card charged, tier never flips, no trace. Every rejection now
+ * logs, and the first per UTC day leaves a `stripe_mode_reject:<day>` row.
+ * No email (no new send trigger). Only Stripe-signed events reach this exit.
+ * Never throws: the caller's 400 must not turn into a 500.
+ */
+export async function noteWebhookModeMismatch(
+  env: Env,
+  eventId: string,
+  eventType: string,
+  eventLivemode: unknown,
+  expectedLivemode: boolean | null
+): Promise<void> {
+  console.warn(
+    `[stripe-webhook] event mode MISMATCH: ${eventId} (${eventType}) livemode=${JSON.stringify(eventLivemode) ?? "absent"}, ` +
+      `deployment expects ${expectedLivemode === null ? "unknown (key prefix unrecognised)" : String(expectedLivemode)}; rejected (SEC-86/BILL-69)`
+  );
+  try {
+    const dayUtc = new Date().toISOString().slice(0, 10);
+    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_mode_reject:${dayUtc}`, "stripe_mode_reject");
+  } catch (err) {
+    console.log(`[stripe-webhook] mode-mismatch record failed: ${String(err)}`);
   }
 }
 
