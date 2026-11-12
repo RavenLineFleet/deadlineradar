@@ -133,11 +133,24 @@ function textLink(url: string, label: string): string {
   );
 }
 
-function htmlFooter(unsubscribeUrl: string, addr: string): string {
+// WALK-1 (2026-11-12, buyer walk): a firm-added staff member never asked to be
+// tracked -- their firm added them -- so "because you asked" was false on every
+// firm-side staff email. firmName non-null switches the consent clause only;
+// a self-signup subscriber (firmName null) renders byte-identical to before.
+// `enc` is esc for the HTML footer and identity for the text footer; only the
+// interpolated names pass through it, so the fixed copy is never re-escaped.
+function footerConsentClause(firmName: string | null, enc: (s: string) => string): string {
+  return firmName
+    ? `You're getting this because ${enc(firmName)} added you to ${enc(SITE_NAME)} to track your CPA ` +
+        `license renewal deadline.`
+    : `You're getting this because you asked ${enc(SITE_NAME)} to track a CPA license renewal deadline.`;
+}
+
+function htmlFooter(unsubscribeUrl: string, addr: string, firmName: string | null = null): string {
   return (
     `<p class="dr-muted" style="font-size:12px;color:${LIGHT.muted};line-height:1.6;margin:0 0 10px;">` +
-    `You're getting this because you asked ${esc(SITE_NAME)} to track a CPA license renewal ` +
-    `deadline. We send only renewal reminders for that one deadline &mdash; no marketing, ever.` +
+    `${footerConsentClause(firmName, esc)} We send only renewal reminders for that one deadline ` +
+    `&mdash; no marketing, ever.` +
     `</p>` +
     `<p style="font-size:13px;margin:0 0 10px;">${textLink(unsubscribeUrl, "Unsubscribe")}</p>` +
     `<p class="dr-muted" style="font-size:11px;color:${LIGHT.muted};line-height:1.5;margin:0;">` +
@@ -169,10 +182,10 @@ function advisoryDisclaimerText(subject: string): string {
   );
 }
 
-function textFooter(unsubscribeUrl: string, addr: string): string {
+function textFooter(unsubscribeUrl: string, addr: string, firmName: string | null = null): string {
   return (
     `\n\n---\n` +
-    `You're getting this because you asked ${SITE_NAME} to track a CPA license renewal deadline. ` +
+    `${footerConsentClause(firmName, (s) => s)} ` +
     `We send only renewal reminders for that one deadline -- no marketing, ever.\n\n` +
     `Unsubscribe any time, instantly: ${unsubscribeUrl}\n\n` +
     `${SENDER_LINE}\n${addr}\n\n` +
@@ -492,7 +505,7 @@ export function buildReminderEmail(
     `${renewedUrl}\n\n` +
     snoozeTextCta +
     `Nothing to do yet? We'll remind you again as it gets closer, right up through the day before.` +
-    `${textFooter(unsubscribeUrl, addr)}`;
+    `${textFooter(unsubscribeUrl, addr, firmName)}`;
 
   const htmlBody = htmlShell(
     `${lead}: ${stateName} CPA renewal due ${deadlineDateStr}`,
@@ -524,7 +537,7 @@ export function buildReminderEmail(
         13,
         LIGHT.muted
       ),
-    htmlFooter(unsubscribeUrl, addr)
+    htmlFooter(unsubscribeUrl, addr, firmName)
   );
 
   return { subject, textBody, htmlBody, headers };
@@ -2112,7 +2125,7 @@ export function buildFirmStaffAddedEmail(
     `asked:\n\n` +
     `${unsubscribeUrl}\n\n` +
     `Questions about why you're getting this? Reply to this email or reach your firm directly.` +
-    `${textFooter(unsubscribeUrl, addr)}`;
+    `${textFooter(unsubscribeUrl, addr, firmName)}`;
 
   const htmlBody = htmlShell(
     preheader,
@@ -2132,7 +2145,7 @@ export function buildFirmStaffAddedEmail(
       ) +
       `<p style="margin:0 0 20px;">${button(unsubscribeUrl, "Remove me")}</p>` +
       p("Questions about why you're getting this? Reply to this email or reach your firm directly.", 13, LIGHT.muted),
-    htmlFooter(unsubscribeUrl, addr)
+    htmlFooter(unsubscribeUrl, addr, firmName)
   );
 
   return { subject, textBody, htmlBody, headers: listUnsubHeaders(unsubscribeUrl) };

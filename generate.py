@@ -13666,8 +13666,13 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
     state_options = "\n".join(
         f'<option value="{esc(slug)}">{esc(by_slug[slug][0]["state"])}</option>' for slug in all_slugs
     )
+    # WALK-1 (2026-11-12, buyer walk): the shared renderer's placeholder is
+    # written for a self-signup ("applies to you"); here the admin is filling
+    # it in for a staff member, so it is re-addressed on this form only.
     blocks = {
-        slug: _state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug)
+        slug: _state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug).replace(
+            "Select the one that applies to you", "Select the one that applies to this person"
+        )
         + _firm_add_form_scope_hint_html(slug, by_slug[slug])
         for slug in all_slugs
     }
@@ -15180,8 +15185,8 @@ function drRenderOnboardingChecklist() {
   if (!drOnboardingChecklistPending) { panel.hidden = true; return; }
   panel.hidden = false;
   var visitedCalendar = false, visitedMap = false;
-  try { visitedCalendar = localStorage.getItem(DR_ONBOARDING_VISIT_KEYS.calendar) === '1'; } catch (e) {}
-  try { visitedMap = localStorage.getItem(DR_ONBOARDING_VISIT_KEYS.map) === '1'; } catch (e) {}
+  try { visitedCalendar = localStorage.getItem(drOnboardingVisitKey('calendar')) === '1'; } catch (e) {}
+  try { visitedMap = localStorage.getItem(drOnboardingVisitKey('map')) === '1'; } catch (e) {}
   var steps = [
     {id: 'dr-onboarding-step-staff', done: drLicenses.length > 0},
     {id: 'dr-onboarding-step-calendar', done: visitedCalendar},
@@ -16071,9 +16076,25 @@ function drRenderDemoBanner(demoLocked) {
 // server-side column/round trip for something this low-stakes. Keyed per
 // BROWSER, not per firm -- a courtesy for whoever's actually clicking
 // around, not a cross-device completion record.
+// WALK-1 (2026-11-12, buyer walk): the keys were browser-wide, so a prospect
+// who clicked through the shared Live Demo first opened their brand-new
+// account to "2 of 4 done". Now scoped to the signed-in firm by a short hash
+// of its admin email (never the address itself), set from /firm/licenses; a
+// visit before that response lands is simply not counted.
 var DR_ONBOARDING_VISIT_KEYS = {calendar: 'dr_visited_calendar', map: 'dr_visited_map'};
+var drOnboardingVisitScope = '';
+function drOnboardingScopeFor(email) {
+  var h = 5381, str = String(email || '').toLowerCase();
+  for (var i = 0; i < str.length; i++) { h = ((h * 33) ^ str.charCodeAt(i)) >>> 0; }
+  return str ? h.toString(36) : '';
+}
+function drOnboardingVisitKey(view) {
+  var base = DR_ONBOARDING_VISIT_KEYS[view];
+  if (!base || !drOnboardingVisitScope) return null;
+  return base + ':' + drOnboardingVisitScope;
+}
 function drMarkOnboardingVisit(view) {
-  var key = DR_ONBOARDING_VISIT_KEYS[view];
+  var key = drOnboardingVisitKey(view);
   if (!key) return;
   try { localStorage.setItem(key, '1'); } catch (e) {}
   drRenderOnboardingChecklist();
@@ -19375,6 +19396,7 @@ function drLoadLicenses() {
       // needs drCpeEntries, not loaded yet at this point in the function --
       // rendered again once drLoadCpeEntries() resolves, below.
       drOnboardingChecklistPending = Boolean(data.onboarding_checklist_pending);
+      drOnboardingVisitScope = drOnboardingScopeFor(data.admin_email);
       drRenderOnboardingChecklist();
       drRenderBillingPanel();
       drRenderMapValueCallout();
@@ -23748,8 +23770,6 @@ def build_firm_dashboard_page(
       <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="White-label / custom branding"> White-label / custom branding</label>
       <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="API access"> API access</label>
       <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="CPE certificate upload"> CPE certificate upload</label>
-      <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="Slack / Teams notifications"> Slack / Teams notifications</label>
-      <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="Custom reminder schedule"> Custom reminder schedule</label>
       <label for="dr-questionnaire-other" style="margin-top:0.7rem;">Something else? <span class="field-hint">(optional)</span></label>
       <textarea id="dr-questionnaire-other" class="dr-questionnaire-other" name="other_text" rows="2" maxlength="1000"></textarea>
       <div class="dr-modal-actions">
