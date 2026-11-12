@@ -286,7 +286,7 @@ import {
 } from "./mobility";
 import firmMobilityRulesData from "./firm_mobility_rules.json";
 import { evaluateFirmMobility, normalizeFirmRuleRow, type FirmMobilityRuleRow } from "./firm_mobility";
-import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, deferredFirstChargeAt, trialLiftsSeatCap, isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
+import { checkPaidFeatureAccess, paidFeatureDenialMessage, hasValueLineAccess, hasActiveTrial, deferredFirstChargeAt, DEFERRED_CHECKOUT_SESSION_TTL_S, trialLiftsSeatCap, isPreCutoverSignup, PAID_PLAN_TIERS } from "./entitlements";
 import { addViolatesAfterInsert, computeSeatUsage, decideAdd, decideEdit, editViolatesAfterUpdate, PER_PERSON_LINE_CEILING, FIRM_ENTITY_LINE_CEILING, FIRM_ENTITY_LINES_PER_TYPE } from "./seat_usage";
 import {
   lookupAssistantDeadlines,
@@ -4044,7 +4044,14 @@ async function handleFirmBillingCheckout(request: Request, env: Env): Promise<Re
       trialEndSeconds: firstChargeAt ? Math.floor(Date.parse(firstChargeAt) / 1000) : undefined,
       // One hour (Stripe allows 30 min - 24 h): a session minted just before an
       // operator revokes the grant cannot land a day later (AuditLab FFT-1).
-      expiresAtSeconds: foundingTrial ? Math.floor(Date.now() / 1000) + 3600 : undefined,
+      // A deferred session gets the same bound so it cannot be completed after
+      // its frozen trial_end has fallen under Stripe's 48h floor (SecurityLab
+      // SEC-84; invariant at DEFERRED_CHARGE_MIN_LEAD_MS).
+      expiresAtSeconds: foundingTrial
+        ? Math.floor(Date.now() / 1000) + 3600
+        : firstChargeAt
+          ? Math.floor(Date.now() / 1000) + DEFERRED_CHECKOUT_SESSION_TTL_S
+          : undefined,
     });
     return jsonResponse(200, { checkout_url: checkoutSession.url });
   } catch (err) {
@@ -7447,20 +7454,22 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
   // first charged at trial end, the dashboard says so; null means checkout
   // charges at once. Partner-only (only a partner can check out), and only for
   // a firm with no paid tier. Same deferredFirstChargeAt() call as the
-  // checkout route; the founding-grant read happens only when it could matter.
+  // checkout route. checkout_founding_trial is read on its own, outside the
+  // deferral check (AuditLab BILL-63): a founding checkout charges nothing for
+  // FOUNDING_FIRM_TRIAL_DAYS, so the dashboard must not fall through to the
+  // "starts billing today" line for it, whatever the trial's lead time.
   let checkoutFirstChargeAt: string | null = null;
+  let checkoutFoundingTrial = false;
   if (session.role === "partner" && !firmTierByPlanTier(session.firm.plan_tier) && !session.firm.stripe_subscription_id) {
     const referralCoupon = referralCheckoutDiscountEligible(session.firm, env);
-    if (deferredFirstChargeAt(session.firm.trial_ends_at, { foundingTrial: false, referralCoupon }) !== null) {
-      const grant = await store.getFoundingFirmGrant(env.DB, session.firm.id);
-      // Same four conditions as handleFirmBillingCheckout's foundingTrial.
-      const foundingTrial =
-        grant !== null &&
-        grant.trial_started_at === null &&
-        !session.firm.stripe_customer_id &&
-        (await store.countFirmLicenses(env.DB, session.firm.id)) <= (firmTierByPlanTier(FOUNDING_FIRM_PLAN_TIER)?.seatCap ?? 0);
-      checkoutFirstChargeAt = deferredFirstChargeAt(session.firm.trial_ends_at, { foundingTrial, referralCoupon });
-    }
+    const grant = await store.getFoundingFirmGrant(env.DB, session.firm.id);
+    // Same four conditions as handleFirmBillingCheckout's foundingTrial.
+    checkoutFoundingTrial =
+      grant !== null &&
+      grant.trial_started_at === null &&
+      !session.firm.stripe_customer_id &&
+      (await store.countFirmLicenses(env.DB, session.firm.id)) <= (firmTierByPlanTier(FOUNDING_FIRM_PLAN_TIER)?.seatCap ?? 0);
+    checkoutFirstChargeAt = deferredFirstChargeAt(session.firm.trial_ends_at, { foundingTrial: checkoutFoundingTrial, referralCoupon });
   }
   return jsonResponse(200, {
     licenses: items,
@@ -7486,6 +7495,7 @@ async function handleFirmLicensesList(request: Request, env: Env): Promise<Respo
     seat_count: computeSeatUsage(rows).people,
     trial_ends_at: session.firm.trial_ends_at,
     checkout_first_charge_at: checkoutFirstChargeAt,
+    checkout_founding_trial: checkoutFoundingTrial,
     // PR6-B (migration 0086, 2026-10-02): null until the admin's first
     // explicit roster-pause pick -- the dashboard uses this (plus whether
     // any `items[].paused` is true) to decide whether to show the picker.

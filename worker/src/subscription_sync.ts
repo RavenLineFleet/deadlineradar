@@ -48,6 +48,16 @@ import { buildBillingSyncAlertEmail, buildPlanChangeOverCapEmail } from "./email
 
 const INTERNAL_NOTIFY_EMAIL = "support@deadline-radar.com";
 const SYNCED_STATUSES = new Set(["active", "trialing", "past_due"]);
+/** Statuses in which the subscription no longer pays for anything, so the
+ * firm drops to `free` (SecurityLab SEC-83). Before mid-trial checkout every
+ * paid tier had been paid at least once; a deferred checkout grants the tier
+ * with nothing charged, so a first charge that fails and ends in `unpaid`
+ * (Stripe's "mark unpaid" failed-payment setting) or `paused` must revoke it
+ * here -- customer.subscription.deleted only fires on cancellation. The
+ * subscription id is kept, so a later recovery to `active` re-derives the
+ * tier through the normal path below. `past_due` (retries still running)
+ * stays entitled: how long it lasts is the account's retry schedule. */
+const REVOKED_STATUSES = new Set(["unpaid", "incomplete_expired", "paused"]);
 
 /** The dropped discounts must not be a non-referral coupon (SecurityLab LOW-1):
  * a dashboard-applied courtesy coupon vanishing in a switch must not be
@@ -109,10 +119,27 @@ export async function applySubscriptionUpdatedEvent(
     return;
   }
   // canceled -> customer.subscription.deleted owns the revert to free;
-  // incomplete/unpaid/paused are not states this mirror should entitle on.
-  if (!SYNCED_STATUSES.has(snapshot.status)) return;
+  // unpaid/incomplete_expired/paused revoke below; incomplete is not a state
+  // this mirror entitles on (and leaves a free firm free).
+  if (!SYNCED_STATUSES.has(snapshot.status) && !REVOKED_STATUSES.has(snapshot.status)) return;
   if (firm.stripe_customer_id && snapshot.customerId && snapshot.customerId !== firm.stripe_customer_id) {
     await alertUnsynced(env, eventId, firm.id, subscriptionId, "subscription belongs to a different Stripe customer than the firm record");
+    return;
+  }
+  if (REVOKED_STATUSES.has(snapshot.status)) {
+    if (firm.plan_tier !== "free") {
+      await store.updateFirmBilling(env.DB, firm.id, {
+        planTier: "free",
+        stripeCustomerId: firm.stripe_customer_id ?? snapshot.customerId ?? "",
+        stripeSubscriptionId: subscriptionId,
+      });
+      try {
+        await store.reconcileRosterPauseState(env.DB, firm.id);
+      } catch (err) {
+        console.log(`[subscription-sync] roster-pause reconcile failed for firm ${firm.id}: ${String(err)}`);
+      }
+      console.log(`[subscription-sync] firm ${firm.id} reverted to free: subscription ${subscriptionId} is ${snapshot.status}`);
+    }
     return;
   }
 

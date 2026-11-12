@@ -14043,6 +14043,15 @@ function drFormatLocalDate(iso) {
     return iso;
   }
 }
+// True only while a plan picked now would still be charged at trial end:
+// the server's date is read once at load, so the lead time is re-checked on
+// this clock (50h, the server's DEFERRED_CHARGE_MIN_LEAD_MS) before any copy
+// promises a later charge.
+function drDeferredChargeLive() {
+  if (!drBilling || !drBilling.checkoutFirstChargeAt) return false;
+  var t = Date.parse(drBilling.checkoutFirstChargeAt);
+  return isFinite(t) && Date.now() + 50 * 3600000 < t;
+}
 function drFormatDeadline(iso) {
   if (!iso) return '\\u2014';
   try {
@@ -15557,7 +15566,7 @@ function drRenderTrialBanner() {
          'pick a plan, or choose which ' + DR_FREE_STAFF_CAP + ' stay active, before then. Staff you don’t ' +
          'keep active are PAUSED (no reminders), never deleted, and restored instantly if you upgrade or ' +
          'change your pick.')
-      : (drBilling.checkoutFirstChargeAt
+      : (drDeferredChargeLive()
         ? ' Pick a plan any time; your card isn’t charged until the trial ends.'
         : ' Pick a plan any time to keep full access after that.');
     textEl.textContent = base + pickWarning;
@@ -15842,8 +15851,11 @@ function drRenderBillingPanel() {
     // Mid-trial checkout (Devin, 2026-11-12): say when the card is charged.
     // Only a partner can check out, so only a partner sees the charge line.
     var chargeNote = '';
-    if (drRole === 'partner') {
-      if (drBilling.checkoutFirstChargeAt) {
+    // A Founding Firms checkout charges nothing for a year, so neither line
+    // fits it (AuditLab BILL-63); drDeferredChargeLive() re-checks the lead
+    // time on this clock, not the one at load (BILL-64).
+    if (drRole === 'partner' && !drBilling.checkoutFoundingTrial) {
+      if (drDeferredChargeLive()) {
         chargeNote = ' Pick a plan now and your card is charged on ' +
           drEscapeHtml(drFormatLocalDate(drBilling.checkoutFirstChargeAt)) + ', when your trial ends.';
       } else if (drBilling.trialEndsAt && Date.now() < Date.parse(drBilling.trialEndsAt)) {
@@ -15991,7 +16003,8 @@ function drToggleCancellation(cancel, btn) {
         demoLocked: drBilling.demoLocked,
         trialEndsAt: drBilling.trialEndsAt,
         activeStaffChoiceAt: drBilling.activeStaffChoiceAt,
-        checkoutFirstChargeAt: drBilling.checkoutFirstChargeAt
+        checkoutFirstChargeAt: drBilling.checkoutFirstChargeAt,
+        checkoutFoundingTrial: drBilling.checkoutFoundingTrial
       };
       if (okEl) {
         okEl.textContent = cancel ? 'Subscription set to cancel at period end.' : 'Subscription resumed.';
@@ -19354,7 +19367,10 @@ function drLoadLicenses() {
         // Mid-trial checkout (Devin, 2026-11-12): when set, a plan picked now
         // is first charged at this time (the trial's end), not at checkout.
         // Server-computed (deferredFirstChargeAt) -- null means "charged now".
-        checkoutFirstChargeAt: data.checkout_first_charge_at || null
+        checkoutFirstChargeAt: data.checkout_first_charge_at || null,
+        // AuditLab BILL-63: true while a Founding Firms grant is unused --
+        // its checkout charges nothing for a year, so no charge line shows.
+        checkoutFoundingTrial: Boolean(data.checkout_founding_trial)
       };
       drRole = data.role || 'partner';
       drMemberId = data.member_id || null;

@@ -241,6 +241,9 @@ describe("POST /firm/billing/checkout with a founding grant", () => {
     const { firmId, cookie } = await makeFirm();
     await addRoster(firmId, 11);
     await grant(firmId, 1);
+    // No signup trial left: a charge-now checkout. (Inside the trial it would be
+    // a deferred mid-trial checkout, which carries its own expires_at, SEC-84.)
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(firmId).run();
     const { bodies } = mockStripe();
     expect((await checkout(cookie, { tier: "firm_growth" })).status).toBe(400); // Growth cannot hold 11: ordinary rule, not a founding dead end
     expect((await checkout(cookie, { tier: "firm_standard" })).status).toBe(200);
@@ -254,6 +257,9 @@ describe("POST /firm/billing/checkout with a founding grant", () => {
     const g = await makeFirm();
     await grant(g.firmId, 1);
     const plain = await makeFirm();
+    // Ordinary charge-now checkout (no signup trial left; a deferred mid-trial
+    // checkout is bounded too, pinned in midtrial-checkout.spec.ts, SEC-84).
+    await env.DB.prepare("UPDATE firms SET trial_ends_at = NULL WHERE id = ?1").bind(plain.firmId).run();
     const { bodies } = mockStripe();
     await checkout(g.cookie, { tier: "firm_growth" });
     await checkout(plain.cookie, { tier: "firm_growth" });

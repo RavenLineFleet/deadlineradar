@@ -10,7 +10,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
-import { DEFERRED_CHARGE_MIN_LEAD_MS, deferredFirstChargeAt } from "../src/entitlements";
+import { DEFERRED_CHARGE_MIN_LEAD_MS, DEFERRED_CHECKOUT_SESSION_TTL_S, deferredFirstChargeAt } from "../src/entitlements";
 
 const SECRET = "whsec_test_midtrial";
 const STRIPE_ENV = {
@@ -83,8 +83,11 @@ describe("deferredFirstChargeAt()", () => {
   it("CONTROL: one ms under the minimum lead -> charged now", () => {
     expect(deferredFirstChargeAt(new Date(now + DEFERRED_CHARGE_MIN_LEAD_MS - 1).toISOString(), none, now)).toBeNull();
   });
-  it("the minimum lead stays above Stripe's measured 48h floor", () => {
-    expect(DEFERRED_CHARGE_MIN_LEAD_MS).toBeGreaterThan(48 * 3_600_000);
+  it("SEC-84 invariant: lead minus the session TTL stays >= 48h floor + 1h margin", () => {
+    // trial_end is frozen at mint; the subscription is created at completion,
+    // up to the TTL later. Both constants are needed to state the invariant.
+    expect(DEFERRED_CHECKOUT_SESSION_TTL_S).toBeGreaterThanOrEqual(30 * 60); // Stripe's expires_at minimum
+    expect(DEFERRED_CHARGE_MIN_LEAD_MS - DEFERRED_CHECKOUT_SESSION_TTL_S * 1000).toBeGreaterThanOrEqual(49 * 3_600_000);
   });
   it("CONTROL: no trial, an expired trial, or an unparseable value -> charged now", () => {
     expect(deferredFirstChargeAt(null, none, now)).toBeNull();
@@ -110,21 +113,31 @@ describe("POST /firm/billing/checkout during a trial", () => {
     expect(b.get("payment_method_collection")).toBeNull();
     expect(b.get("success_url")).toMatch(/#account\?checkout=success_trial$/);
     expect(b.get("line_items[0][price]")).toBe("price_st_a");
+    // SEC-84: the session expires within the TTL, not Stripe's 24h default.
+    const exp = Number(b.get("expires_at"));
+    const nowS = Math.floor(Date.now() / 1000);
+    expect(exp).toBeGreaterThan(nowS);
+    expect(exp).toBeLessThanOrEqual(nowS + DEFERRED_CHECKOUT_SESSION_TTL_S);
+    expect(Number(b.get("subscription_data[trial_end]")) - exp).toBeGreaterThanOrEqual(48 * 3600);
   });
 
-  it("CONTROL: 48h of trial left (under the minimum) -> no trial_end, ordinary success return", async () => {
-    const { cookie } = await makeFirm(hoursFromNow(48));
+  it("CONTROL: 49.9h of trial left (under the 50h minimum) -> no trial_end, no expires_at, ordinary success return", async () => {
+    const { cookie } = await makeFirm(hoursFromNow(49.9));
     const { bodies } = mockStripe();
     expect((await checkout(cookie)).status).toBe(200);
     expect(bodies[0]!.get("subscription_data[trial_end]")).toBeNull();
+    expect(bodies[0]!.get("expires_at")).toBeNull();
     expect(bodies[0]!.get("success_url")).toMatch(/#account\?checkout=success$/);
   });
 
-  it("50h of trial left (over the minimum) -> trial_end set", async () => {
-    const { cookie } = await makeFirm(hoursFromNow(50));
+  it("50.1h of trial left (over the minimum) -> trial_end set, session bounded to the TTL", async () => {
+    const { cookie } = await makeFirm(hoursFromNow(50.1));
     const { bodies } = mockStripe();
     expect((await checkout(cookie)).status).toBe(200);
     expect(bodies[0]!.get("subscription_data[trial_end]")).not.toBeNull();
+    const exp = bodies[0]!.get("expires_at");
+    expect(exp).not.toBeNull();
+    expect(Number(exp)).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + DEFERRED_CHECKOUT_SESSION_TTL_S);
   });
 
   it("CONTROL: expired trial / no trial -> no trial_end", async () => {
@@ -197,7 +210,7 @@ describe("GET /firm/licenses checkout_first_charge_at", () => {
     expect(data.checkout_first_charge_at).toBe(new Date(await trialEndsAt(firmId)).toISOString());
   });
   it("CONTROL: under the minimum lead, referred firm, or already subscribed -> null", async () => {
-    const short = await makeFirm(hoursFromNow(48));
+    const short = await makeFirm(hoursFromNow(49.9));
     expect((await licenses(short.cookie)).checkout_first_charge_at).toBeNull();
     const referred = await makeFirm();
     await env.DB.prepare("UPDATE firms SET referral_discount_pending = 1 WHERE id = ?1").bind(referred.firmId).run();
@@ -205,5 +218,27 @@ describe("GET /firm/licenses checkout_first_charge_at", () => {
     const paid = await makeFirm();
     await env.DB.prepare("UPDATE firms SET plan_tier = 'firm_starter', stripe_subscription_id = 'sub_x' WHERE id = ?1").bind(paid.firmId).run();
     expect((await licenses(paid.cookie)).checkout_first_charge_at).toBeNull();
+  });
+  it("checkout_founding_trial: true for an unused grant at ANY lead time (BILL-63), false otherwise", async () => {
+    await env.DB.prepare("DELETE FROM founding_firm_grants").run();
+    const plain = await makeFirm();
+    expect((await licenses(plain.cookie)).checkout_founding_trial).toBe(false);
+    const cookies: string[] = [];
+    for (const [slot, lead] of [[4, undefined], [5, hoursFromNow(48)]] as const) {
+      const f = await makeFirm(lead);
+      cookies.push(f.cookie);
+      await env.DB.prepare(
+        "INSERT INTO founding_firm_grants (slot, firm_id, granted_at, verified_by, evidence_note, trial_started_at) VALUES (?1, ?2, ?3, 'devin', 'test', NULL)"
+      )
+        .bind(slot, f.firmId, new Date().toISOString())
+        .run();
+      const data = await licenses(f.cookie);
+      expect(data.checkout_founding_trial).toBe(true);
+      expect(data.checkout_first_charge_at).toBeNull();
+    }
+    // CONTROL: a grant already started is not a pending founding checkout.
+    await env.DB.prepare("UPDATE founding_firm_grants SET trial_started_at = ?1 WHERE slot = 4").bind(new Date().toISOString()).run();
+    expect((await licenses(cookies[0]!)).checkout_founding_trial).toBe(false);
+    await env.DB.prepare("DELETE FROM founding_firm_grants").run();
   });
 });

@@ -208,9 +208,18 @@ export function hasActiveTrial(trialEndsAt: string | null): boolean {
   return Number.isFinite(t) && Date.now() < t;
 }
 
-/** Stripe refuses a Checkout subscription_data[trial_end] under 2 days out;
- * one extra hour covers clock skew and request latency. */
-export const DEFERRED_CHARGE_MIN_LEAD_MS = 49 * 3_600_000;
+/** Stripe refuses a Checkout subscription_data[trial_end] under 2 days out.
+ * trial_end is fixed when the session is minted, but the subscription is
+ * created when the session is COMPLETED, up to DEFERRED_CHECKOUT_SESSION_TTL_S
+ * later (SecurityLab SEC-84). INVARIANT, keep both constants together:
+ *   DEFERRED_CHARGE_MIN_LEAD_MS - TTL >= 48h + 1h (skew/latency margin)
+ * 50h - 1h = 49h. midtrial-checkout.spec.ts pins it with both constants. The
+ * firm dashboard repeats the 50h (drDeferredChargeLive in generate.py). */
+export const DEFERRED_CHARGE_MIN_LEAD_MS = 50 * 3_600_000;
+/** expires_at on a deferred (trial_end) Checkout Session. Stripe allows
+ * 30 min to 24 h; its 24 h default would let a session minted at the minimum
+ * lead complete with ~26 h left. */
+export const DEFERRED_CHECKOUT_SESSION_TTL_S = 3600;
 
 /**
  * Mid-trial checkout (Devin, 2026-11-12): a firm that picks a plan during its
@@ -225,8 +234,11 @@ export const DEFERRED_CHARGE_MIN_LEAD_MS = 49 * 3_600_000;
  *    "no_payment_required", so deferring would leave the referrer unrewarded
  *    and the referee's coupon unmarked as spent.
  * The checkout route (which sets the Stripe trial_end) and GET /firm/licenses
- * (which tells the dashboard which sentence to show) both call this, so the
- * copy and the charge cannot disagree.
+ * (which tells the dashboard which sentence to show) both call this, so they
+ * agree only when evaluated at the same clock. The dashboard reads the value
+ * once at load, so it re-checks the lead time against its own Date.now()
+ * before showing the deferred-charge line (AuditLab BILL-64); a page left
+ * open past the cutoff falls back to the "starts billing today" line.
  */
 export function deferredFirstChargeAt(
   trialEndsAt: string | null,

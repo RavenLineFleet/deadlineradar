@@ -494,10 +494,36 @@ describe("customer.subscription.updated -> firm row", () => {
     await postUpdated(sub, `evt_${sub}_x`);
     expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
   });
-  it.each(["canceled", "incomplete", "unpaid", "paused", "incomplete_expired"])("status %s is not mirrored (deleted webhook owns cancellation)", async (status) => {
+  it.each(["canceled", "incomplete"])("status %s is not mirrored (deleted webhook owns cancellation)", async (status) => {
     const { firmId, sub } = await makeFirm({ tier: "firm_growth" });
     installFetch({ [sub]: { status, items: [{ price: "price_sd_a", quantity: 1 }] } });
     await postUpdated(sub, `evt_${sub}_${status}`);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
+  });
+  // SecurityLab SEC-83: a deferred mid-trial checkout grants the tier before
+  // any charge; a failed first charge that ends unpaid/paused must revoke it.
+  it.each(["unpaid", "paused", "incomplete_expired"])("SEC-83: status %s reverts the firm to free, keeps the subscription id, and a recovery to active re-derives the tier", async (status) => {
+    const { firmId, sub } = await makeFirm({ tier: "firm_growth" });
+    const subs: Record<string, SubStub | undefined> = { [sub]: { status, items: [{ price: "price_gr_a", quantity: 1 }] } };
+    installFetch(subs);
+    expect((await postUpdated(sub, `evt_${sub}_${status}`)).status).toBe(200);
+    let firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("free");
+    expect(firm?.stripe_subscription_id).toBe(sub);
+    expect(firm?.stripe_customer_id).toBe("cus_sync_1");
+    // Replay is harmless.
+    expect((await postUpdated(sub, `evt_${sub}_${status}`)).status).toBe(200);
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("free");
+    // The customer fixes the card and the invoice is paid -> active again.
+    subs[sub] = { status: "active", items: [{ price: "price_gr_a", quantity: 1 }] };
+    await postUpdated(sub, `evt_${sub}_${status}_recovered`);
+    firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("firm_growth");
+  });
+  it("SEC-83 CONTROL: an unpaid subscription that belongs to a different Stripe customer revokes nothing", async () => {
+    const { firmId, sub } = await makeFirm({ tier: "firm_growth", customer: "cus_sync_1" });
+    installFetch({ [sub]: { status: "unpaid", customer: "cus_someone_else", items: [{ price: "price_gr_a", quantity: 1 }] } });
+    await postUpdated(sub, `evt_${sub}_unpaid_x`);
     expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
   });
   it("past_due still mirrors a tier change (dunning does not freeze the plan record)", async () => {
