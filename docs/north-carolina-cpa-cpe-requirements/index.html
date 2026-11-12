@@ -79,7 +79,7 @@
 </div>
   
 </div>
-<p class="disclosure firm-scope">Firms: This page covers the individual CPA license only. Firm permit or registration renewal for North Carolina isn&#x27;t tracked here yet, so confirm your firm&#x27;s own date with the state board. <a href="https://nccpaboard.gov/cpa-firms/">The board's page for firms</a>.</p>
+
 <p>North Carolina&#x27;s CPE requirement has been governed by a minutes-based framework since January 1, 2020. Active CPAs must complete 2,000 CPE minutes annually by December 31 (.0401(d)), including at least 50 minutes of regulatory or behavioral ethics (.0401(e)). At the Board&#x27;s own 50-minutes-per-CPE-hour conversion, that is 40 hours/year including 1 ethics hour/year. The rule text was amended effective June 1, 2026 (the version now posted on the Board&#x27;s page): the 2,000-minute and 50-minute ethics figures are unchanged, but the amendment added explicit proration for newly-approved certificates (1,500/1,000/500 minutes for approvals in Apr-Jun/Jul-Sep/Oct-Dec of the same year), a carry-forward of up to 1,000 excess minutes into the following year (ethics minutes excluded from carry-forward), and a duplicate-course exclusion. CPE reporting is due with the July 1 license renewal each year (.0406(a)).</p>
 
 <div class="signup-form signup-form--compact" id="remind">
@@ -96,7 +96,12 @@
       <input type="email" id="cpe-email-north-carolina" name="email" required placeholder="you@example.com">
       <button type="submit">Remind me</button>
     </div>
-    
+    <label for="license_type_id">Which license?</label>
+<select id="license_type_id" name="license_type_id" required>
+  <option value="">Select the one that applies to you</option>
+  <option value="nc-all">CPA license (all licensees)</option>
+<option value="nc-firm">CPA firm registration</option>
+</select>
   </form>
 </div>
 

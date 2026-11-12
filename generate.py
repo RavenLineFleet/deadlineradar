@@ -24169,6 +24169,7 @@ YEAR_END_TEXT_REVIEWED_NOT_TARGET = {
     ("colorado", "individual"): "December 31 is the odd-year CPE-completion date; renewal is November 30",
     ("missouri", "individual"): "December 31, 2025 was a past late-renewal window",
     ("missouri", "firm"): "December 31, 2025 was a past late-renewal window",
+    ("north-carolina", "firm"): "December 31 is the Board's typical renewal-window close; the rule's date is January 31",
     ("puerto-rico", "individual"): "December 31 is an optional CPE-extension date, not a licence expiry",
     ("maryland", "individual"): "covered by the Maryland row note: the expiration date is personal to each licence",
     ("nevada", "firm"): "mentions the individual Dec 31 expiry already on the Nevada row; firm date is Jan 31",

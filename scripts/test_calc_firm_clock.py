@@ -24,7 +24,9 @@ import generate  # noqa: E402
 # Firm renews on a provably different date, or the individual answer is
 # personal/cohort/gap while the firm has one fixed date.
 DIFFERENT = {"colorado", "florida", "georgia", "idaho", "illinois", "kansas", "kentucky", "maryland",
-             "missouri", "nebraska", "nevada", "oklahoma", "oregon"}
+             "missouri", "nebraska", "nevada", "north-carolina", "oklahoma", "oregon"}
+# north-carolina joined 2026-11-12 with nc-firm: firm January 31 (21 NCAC 08J .0108(b)) vs
+# individual July 1 (.0101(a)), a provably different date.
 # Same date as the individual (AuditLab Bucket A) ...
 SEPARATE_SAME_DATE = {"alaska", "arkansas", "connecticut", "indiana", "iowa", "louisiana", "minnesota",
                       "mississippi", "north-dakota", "south-carolina", "virginia", "west-virginia",
@@ -48,7 +50,8 @@ def test_golden_buckets_for_the_current_dataset():
     assert {s for s, v in got.items() if v == "separate"} == SEPARATE_SAME_DATE | SEPARATE_NO_FIRM_DATE
     firm_types = generate._FIRM_ONLY_LICENSE_TYPES
     no_firm = {slug for slug, rs in by.items() if not any(r.get("license_type") in firm_types for r in rs)}
-    assert {s for s, v in got.items() if v == ""} == no_firm and len(no_firm) == 20
+    # 20 -> 19 on 2026-11-12: nc-firm took North Carolina out of the no-firm set.
+    assert {s for s, v in got.items() if v == ""} == no_firm and len(no_firm) == 19
 
 
 def _rec(kind, date):

@@ -3210,6 +3210,25 @@
    }
   ]
  },
+ "nc-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-11-12 (nc-firm created): pins .0108(b)'s renew-by date on the cited OAH text",
+  "checks": [
+   {
+    "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0108.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "all CPA firms shall renew annually by",
+    "window": 16,
+    "pattern": null,
+    "expect_text": "January 31"
+   }
+  ]
+ },
  "nd-cpe": {
   "dataset": "cpe_hours",
   "manual": null,

@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # SRC-239(c): California left the set when ca-firm shipped; Texas is next.
 # SRC-243 (AuditLab 2026-11-12): North Carolina was always in it. nc-all is license_type
 # "all" but covers only individual licensees (active + retired), so it is individual-only.
-SEVEN = ["michigan", "new-york", "north-carolina", "ohio", "pennsylvania", "puerto-rico", "texas"]
+# nc-firm (2026-11-12, 21 NCAC 08J .0108(b)) took North Carolina back out.
+SEVEN = ["michigan", "new-york", "ohio", "pennsylvania", "puerto-rico", "texas"]
 FIRM_ALL_LABEL = "Individual CPA/PA certificate and firm permit"
 
 
@@ -113,7 +114,7 @@ def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
     assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")
 
 
-COMPUTED = {"north-carolina", "ohio", "pennsylvania", "puerto-rico", "texas"}
+COMPUTED = {"ohio", "pennsylvania", "puerto-rico", "texas"}
 
 
 def _add_form_groups():
@@ -188,9 +189,28 @@ def test_no_firm_renewal_page_for_an_individual_only_state():
         assert not (ROOT / "docs" / f"{slug}-cpa-firm-renewal").exists(), slug
     sitemap = (ROOT / "docs" / "sitemap.xml").read_text(encoding="utf-8")
     for_firms = (ROOT / "docs" / "for-firms" / "index.html").read_text(encoding="utf-8")
-    nc = (ROOT / "docs" / "north-carolina" / "index.html").read_text(encoding="utf-8")
-    for text in (sitemap, for_firms, nc):
-        assert "north-carolina-cpa-firm-renewal" not in text
+    for slug in SEVEN:
+        assert f"{slug}-cpa-firm-renewal" not in sitemap and f"{slug}-cpa-firm-renewal" not in for_firms, slug
     # positive control: Alabama's all record names the firm permit, so its page stays
     assert (ROOT / "docs" / "alabama-cpa-firm-renewal" / "index.html").exists()
     assert "alabama-cpa-firm-renewal" in sitemap and "alabama-cpa-firm-renewal" in for_firms
+
+
+def test_north_carolina_firm_page_publishes_the_codified_january_31_not_july_1():
+    """nc-firm (2026-11-12): 21 NCAC 08J .0108(b) "all CPA firms shall renew annually by January 31".
+    SRC-245's defect was this page serving nc-all's individual July 1; the page is back, on the firm record."""
+    page = (ROOT / "docs" / "north-carolina-cpa-firm-renewal" / "index.html").read_text(encoding="utf-8")
+    assert "January 31" in page and "21 NCAC 08J .0108(b)" in page
+    assert "December 31" in page  # the Board's operational window is stated, not hidden
+    assert "first day of July" not in page and "July 1" not in page
+    sitemap = (ROOT / "docs" / "sitemap.xml").read_text(encoding="utf-8")
+    assert "north-carolina-cpa-firm-renewal" in sitemap
+    nc = (ROOT / "docs" / "north-carolina" / "index.html").read_text(encoding="utf-8")
+    assert 'class="disclosure firm-scope"' not in nc
+
+
+def test_north_carolina_add_form_offers_the_firm_registration_and_no_scope_hint():
+    groups, _ = _add_form_groups()
+    block = groups["north-carolina"]
+    assert "dr-firm-scope-hint" not in block
+    assert 'value="nc-firm"' in block and 'value="nc-all"' in block

@@ -3,7 +3,7 @@
     "generated_by": "scripts/gap_list_check.py",
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
-  "total_records": 247,
+  "total_records": 248,
   "gap_record_count": 2,
   "terminal_disclosure_count": 36,
   "note_bearing_record_count": 38,

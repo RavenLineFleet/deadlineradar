@@ -173,8 +173,6 @@
       "state_slug": "north-carolina",
       "license_type": "all",
       "license_type_label": "CPA license (all licensees)",
-      "firm_scope_note": "This page covers the individual CPA license only. Firm permit or registration renewal for North Carolina isn't tracked here yet, so confirm your firm's own date with the state board.",
-      "firm_scope_url": "https://nccpaboard.gov/cpa-firms/",
       "renewal_pattern": "fixed_calendar",
       "cycle_description": "All active CPAs must renew their certificates annually by the first day of July (21 NCAC 08J .0101(a), readopted effective June 1, 2026); individuals on CPA-retired status renew annually under the same rule via 21 NCAC 08A .0308(c). This applies every year -- not a multi-year cycle. (Some Board materials describe the practical cutoff as June 30; July 1 is the codified date we publish.) Missing the cutoff triggers a Letter of Demand.",
       "next_deadline_computed": "2027-07-01",
@@ -189,6 +187,30 @@
       "terminal_disclosure": true,
       "verified_method": "auto-anchor",
       "last_manual_verified_date": null
+    },
+    {
+      "id": "nc-firm",
+      "state": "North Carolina",
+      "state_slug": "north-carolina",
+      "license_type": "firm",
+      "license_type_label": "CPA firm registration",
+      "renewal_pattern": "fixed_calendar",
+      "cycle_description": "Annual. In addition to its initial registration, every CPA firm must renew its registration with the Board annually by January 31 (21 NCAC 08J .0108(b), readopted effective June 1, 2026). The Board's own firm page says the renewal period typically starts in November and ends on December 31. The rule's January 31 date is the one we publish.",
+      "next_deadline_computed": "2027-01-31",
+      "computation": {
+        "type": "fixed_calendar_recurring_no_anchor",
+        "fixed_date": "01-31",
+        "period_years": 1,
+        "note": "Annual, no anchor year needed (every year has an occurrence). 21 NCAC 08J .0108(b) (OAH, read 2026-11-12 by AssetLab): 'all CPA firms shall renew annually by January 31 with the Board upon forms provided by the Board'."
+      },
+      "source_url": "https://nccpaboard.gov/cpa-firms/",
+      "last_verified": "2026-11-12",
+      "last_manual_verified_date": "2026-11-12",
+      "verified_method": "manual",
+      "wave": 7,
+      "citation": "21 NCAC 08J .0108(b)",
+      "citation_url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0108.html",
+      "verification_history": "2026-11-12 (record created, work queue BACKLOG 11-12 #1, SRC-239(c)): read 21 NCAC 08J .0108 on OAH (http, body sha256 prefix 411dfdd9958b0f1a): '(b) In addition to the registration required by Paragraph (a) of this Rule, all CPA firms shall renew annually by January 31 with the Board upon forms provided by the Board.' History Note ends 'Readopted Eff. June 1, 2026.' Board firm page (nccpaboard.gov/cpa-firms/, read the same day): 'The 2027 firm registration renewal period is now open.' and 'The firm registration renewal period typically starts in November and ends on December 31.' The Board page cites 21 NCAC 08J .0101 for annual firm renewal; .0101 as read the same day addresses certificates only ('All active CPAs shall renew their certificates annually by the first day of July'), so this record cites .0108(b). Both dates are stated in cycle_description; the codified January 31 is published, the same codified-over-operational choice nc-all makes for July 1 vs June 30."
     },
     {
       "id": "mi-individual",

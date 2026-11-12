@@ -197,6 +197,12 @@
    "evidence": "must renew their certificates annually by the first day of July",
    "population": "uniform"
   },
+  "nc-firm": {
+   "kind": "renewal_due",
+   "evidence": "all CPA firms shall renew annually by January 31",
+   "population": "uniform",
+   "evidence_field": "verification_history"
+  },
   "nd-firm": {
    "kind": "renewal_due",
    "evidence": "is due for renewal June 30 each year",
