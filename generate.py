@@ -24781,8 +24781,14 @@ def _state_faq_html_and_schema(
     state whose fee_usd is None still gets an FAQ entry, disclosing exactly
     why no flat fee is confirmable rather than omitting the question."""
     primary = next((r for r in records if r.get("license_type") in ("individual", "individual_cpa", "all")), records[0])
+    # SRC-239: on an individual-only state the FAQ (a FAQPage JSON-LD rich
+    # result) must carry the same firm scope line as the page body, or a
+    # search snippet hands a firm the individual rule unqualified.
+    cycle_answer = primary["cycle_description"]
+    if records and all(r.get("license_type") == "individual" for r in records) and primary.get("firm_scope_note"):
+        cycle_answer = f"{cycle_answer} {primary['firm_scope_note']}"
     qa: list[tuple[str, str]] = [
-        (f"How does {state_name}'s CPA license renewal cycle work?", primary["cycle_description"])
+        (f"How does {state_name}'s CPA license renewal cycle work?", cycle_answer)
     ]
     if renewal_fee_record:
         if renewal_fee_record["fee_usd"] is None:

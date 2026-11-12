@@ -55,3 +55,24 @@ def test_shipped_population_is_the_seven_and_each_page_carries_one_line(rel):
         assert "coming soon" not in note.lower()
         page = (ROOT / "docs" / slug / "index.html").read_text(encoding="utf-8")
         assert page.count('class="disclosure firm-scope"') == 1, slug
+
+
+@pytest.mark.parametrize("slug", SEVEN)
+def test_faq_jsonld_cycle_answer_carries_the_scope_line(slug):
+    import re
+    data = json.loads((ROOT / "data/cpa_deadlines.json").read_text(encoding="utf-8"))
+    note = next(r["firm_scope_note"] for r in data["records"] if r["state_slug"] == slug)
+    page = (ROOT / "docs" / slug / "index.html").read_text(encoding="utf-8")
+    answers = []
+    for block in re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S):
+        d = json.loads(block)
+        for q in d.get("mainEntity", []) if isinstance(d, dict) else []:
+            if q["name"].startswith("How does"):
+                answers.append(q["acceptedAnswer"]["text"])
+    assert len(answers) == 1, slug
+    assert answers[0].endswith(note), slug
+
+
+def test_faq_control_state_with_a_firm_record_has_no_scope_line():
+    page = (ROOT / "docs" / "west-virginia" / "index.html").read_text(encoding="utf-8")
+    assert "isn't tracked here yet" not in page and "isn&#x27;t tracked here yet" not in page
