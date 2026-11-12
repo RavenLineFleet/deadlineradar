@@ -4141,6 +4141,36 @@ whether your birth year is odd or even). Firm permit: fill in the month and year
   </div>
 </div>
 <p class="field-hint">Your renewal cycle is set by your birth month and whether your birth year is odd or even.</p>"""
+    if state_slug == "texas":
+        # SRC-239(c): Texas tracks the firm office license too (tx-firm, 22 TAC
+        # 515.3(c)(1)), due the last day of a board-assigned renewal month. Same
+        # shape as California: one "Which license?" select, both fields shown,
+        # neither `required` in HTML; resolveDeadlineInput() enforces the right one.
+        return f"""<label for="license_type_id">Which license?</label>
+<select id="license_type_id" name="license_type_id" required>
+  <option value="">Select the one that applies</option>
+  <option value="tx-individual">Individual CPA license</option>
+  <option value="tx-firm">Firm office license</option>
+</select>
+<div class="signup-form-row">
+  <div>
+    <label for="birth_month">Birth month (individual license)</label>
+    <select id="birth_month" name="birth_month">
+      <option value="">Select&hellip;</option>
+      {_MONTH_OPTIONS}
+    </select>
+  </div>
+  <div>
+    <label for="renewal_month">Renewal month the Board assigned your firm</label>
+    <select id="renewal_month" name="renewal_month">
+      <option value="">Select&hellip;</option>
+      {_MONTH_OPTIONS}
+    </select>
+  </div>
+</div>
+<p class="field-hint">Individual license: renewal is due by the last day of your birth month, every year. Firm office
+license: fees are due by the last day of the renewal month the Board assigned your firm (all of its offices share it),
+every year.</p>"""
     if state_slug == "texas" or state_slug in BIRTH_MONTH_ANNUAL_STATES:
         state_name_for_hint = {"texas": "Texas", "oklahoma": "Oklahoma", "new-mexico": "New Mexico"}.get(
             state_slug, state_slug.title()
@@ -7035,8 +7065,13 @@ def render_data_gap_records(records: list[dict]) -> str:
                           if _computation.get("type") == "combined_individual_and_firm_not_computable" else None)
         note = r.get("data_gap_note") or _combined_note or _DEFAULT_GAP_NOTE
         cite_html = _cite_chip_html(r)
+        # SRC-239(c): ca-firm/tx-firm have no missing anchor year; the date is keyed to the firm's own
+        # approval or Board-assigned month, which only the firm knows.
+        _gap_label = ("Depends on your firm&#x27;s own month"
+                      if _computation.get("type") in ("permit_issue_month_parity", "assigned_month_annual")
+                      else "Anchor year not confirmed")
         side_html = (
-            f'{cite_html}<div class="verified unconfirmed">Anchor year not confirmed</div>'
+            f'{cite_html}<div class="verified unconfirmed">{_gap_label}</div>'
             if cite_html else '<div class="verified unconfirmed">Not independently verified</div>'
         )
         # ValueLab 11-06: a combined record's two license types run on two cycles, so its gap is not
@@ -8214,7 +8249,13 @@ def build_state_page(
         if ca_other:
             deadline_html += "\n" + _render_records_computed_cohort_gapped(ca_other)
     elif state_slug == "texas":
-        deadline_html = render_texas(records[0], as_of)
+        # SRC-239(c): tx-firm rides after the individual block through the
+        # generic fallback, same as California (records[0] alone would drop it).
+        tx_ind = next(r for r in records if r["id"] == "tx-individual")
+        deadline_html = render_texas(tx_ind, as_of)
+        tx_other = [r for r in records if r is not tx_ind]
+        if tx_other:
+            deadline_html += "\n" + _render_records_computed_cohort_gapped(tx_other)
     elif state_slug == "new-york":
         deadline_html = render_new_york(records[0])
     elif state_slug in PARITY_LOOKUP_STATES:

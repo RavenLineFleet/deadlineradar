@@ -341,8 +341,6 @@
       "state_slug": "texas",
       "license_type": "individual",
       "license_type_label": "Individual CPA license",
-      "firm_scope_note": "This page covers the individual CPA license only. Firm permit or registration renewal for Texas isn't tracked here yet, so confirm your firm's own date with the state board.",
-      "firm_scope_url": "https://www.tsbpa.texas.gov/online-services/",
       "renewal_pattern": "birth_month",
       "cycle_description": "Renewal fee is due annually by the last day of the licensee's own birth month.",
       "next_deadline_computed": null,
@@ -362,6 +360,32 @@
       "terminal_disclosure": true,
       "verified_method": "auto-anchor",
       "last_manual_verified_date": null
+    },
+    {
+      "id": "tx-firm",
+      "state": "Texas",
+      "state_slug": "texas",
+      "license_type": "firm",
+      "license_type_label": "Firm office license",
+      "renewal_pattern": "other",
+      "cycle_description": "Annual, on a renewal month the Board assigns to the firm, not any individual's birth month. Fees for a firm office license are due the last day of that board-assigned renewal month, every office of the firm has the same renewal month, and each office is licensed for a 12-month period after the initial licensing period (22 TAC 515.3(c)(1)).",
+      "next_deadline_computed": null,
+      "computation": {
+        "type": "assigned_month_annual",
+        "cycle_years": 1,
+        "day_of_month": "last",
+        "note": "Same arithmetic as tx-individual's birth-month rule, keyed to the renewal month the Board assigned the firm instead of a birth month. The month is assigned per firm and not published, so there is no single statewide date."
+      },
+      "data_gap_note": "There is no single statewide date: the Board assigns each firm its own renewal month, and every office of the firm shares it. Choose \"Firm office license\" in the reminder form below and enter that month, and each year's due date is worked out from it.",
+      "source_url": "https://www.tsbpa.texas.gov/cpas/renewal/",
+      "last_verified": "2026-11-12",
+      "wave": 7,
+      "citation": "22 TAC 515.3(c)(1) (License Renewals for Individuals and Firm Offices)",
+      "citation_url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=206373",
+      "citation_class": "codified_law",
+      "verification_history": "2026-11-12 (SRC-239(c), new record): 22 TAC 515.3(c)(1) as read verbatim by AuditLab on 2026-11-12 (t662, 01:25Z) on the Texas SOS Appian portal in a real browser (recordId=206373; the body renders only by screenshot, get_page_text returns the metadata container alone): '(c) License renewal requirements for firm offices shall be as follows: (1) Licenses for offices of firms have staggered expiration dates for payment of fees, which are due the last day of a board assigned renewal month. All offices of a firm will have the same renewal month. All offices of a firm will be issued a license for a 12-month period following the initial licensing period.' AssetLab re-read it 2026-11-12 ~06:35Z on the same portal page (recordId=206373) in real Chrome (Personal PC), by screenshot: subsection (c)(1) matches the quote above word for word. (c)(2), not used by this record, requires the board to send notice at least 30 days before a firm office license expires. AuditLab verifies each claim against the rule before this record ships. citation_url is the stable recordId form, not the browser's dated queryAsDate URL. Not inferred from the individual rule.",
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-11-12"
     },
     {
       "id": "ny-individual",

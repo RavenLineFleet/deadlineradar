@@ -3,13 +3,13 @@
     "generated_by": "scripts/gap_list_check.py",
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
-  "total_records": 248,
-  "gap_record_count": 2,
+  "total_records": 249,
+  "gap_record_count": 3,
   "terminal_disclosure_count": 36,
-  "note_bearing_record_count": 38,
+  "note_bearing_record_count": 39,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 34
+    "data_gap_note": 35
   },
   "block_claim_count": 0,
   "entries": [
@@ -52,6 +52,16 @@
       "note": "Texas's own licensing rule (22 TAC 515.3) confirms this directly: individual CPA licenses have staggered expiration dates tied to your own birth month, so your renewal is due by the last day of that month each year. The board's own renewal page tells CPAs the same thing, so the codified rule and the board agree on this cycle. The annual renewal fee itself isn't fixed in the rule -- the board sets that amount each year, on top of a separate $10.00 Scholarship Trust Fund fee that is fixed by rule. Because the fee is set by board action rather than written into the rule, it can change from year to year without a rule filing -- confirm the current figure with the board when you renew.",
       "is_block_claim": false,
       "terminal_disclosure": true
+    },
+    {
+      "dataset": "cpa_deadlines.json",
+      "id": "tx-firm",
+      "state": "Texas",
+      "state_slug": "texas",
+      "field": "data_gap_note",
+      "note": "There is no single statewide date: the Board assigns each firm its own renewal month, and every office of the firm shares it. Choose \"Firm office license\" in the reminder form below and enter that month, and each year's due date is worked out from it.",
+      "is_block_claim": false,
+      "terminal_disclosure": false
     },
     {
       "dataset": "cpa_deadlines.json",

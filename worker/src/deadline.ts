@@ -542,6 +542,16 @@ export function computeSubscriberDeadline(
     return nextAnchorDatePlusTerm(anchor, ANCHOR_TERM_YEARS[stateSlug] as number, asOf);
   }
 
+  if (stateSlug === "texas" && deadlineFields.license_type_id === "tx-firm") {
+    // SRC-239(c): a Texas firm office license (22 TAC 515.3(c)(1)) is due the
+    // last day of a board-assigned renewal month, every year. Same arithmetic
+    // as the individual rule below, keyed to that assigned month instead of a
+    // birth month; a bad or missing month returns null, never the birth month.
+    const month = Number.parseInt(deadlineFields.renewal_month ?? "", 10);
+    if (!Number.isInteger(month) || month < 1 || month > 12) return null;
+    return nextAnnualMonthEnd(asOf, month);
+  }
+
   if (stateSlug === "texas" || stateSlug === "oklahoma" || stateSlug === "new-mexico") {
     // Same pure birth-month-annual mechanism as Texas -- see
     // BIRTH_MONTH_ANNUAL_STATES' comment in generate.py for why Oklahoma

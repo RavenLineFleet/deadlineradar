@@ -773,7 +773,7 @@
       "state": "Texas",
       "state_slug": "texas",
       "fee_usd": 112,
-      "fee_notes": "Flat $112 annual individual license fee (includes a $10 scholarship fee), effective September 1, 2024, per the Board's own announcement. The Board sets this fee by resolution and has raised it in past years, so confirm the current amount with TSBPA before you pay.",
+      "fee_notes": "Flat $112 annual individual license fee (includes a $10 scholarship fee), effective September 1, 2024, per the Board's own announcement. The Board sets this fee by resolution and has raised it in past years, so confirm the current amount with TSBPA before you pay. This is the individual license fee; the Texas firm license fee isn't tracked here yet.",
       "source_url": "https://www.tsbpa.texas.gov/news/individual-license-fee-increase/",
       "confidence": "high",
       "verified_date": "2026-11-11",

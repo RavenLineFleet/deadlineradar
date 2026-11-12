@@ -59,7 +59,7 @@ describe("GET /assistant/deadline", () => {
   });
 
   it("404s a real state with no record for the requested license_type", async () => {
-    const resp = await getAssistant("/api/assistant/deadline?state=texas&license_type=firm");
+    const resp = await getAssistant("/api/assistant/deadline?state=ohio&license_type=firm");
     expect(resp.status).toBe(404);
   });
 
@@ -384,6 +384,11 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     // A firm asking for Ohio's firm record gets a 404 path (no record), not the individual rule.
     expect(lookupAssistantDeadlines("ohio", "firm")).toEqual([]);
     // SRC-239(c): California's firm question now gets ca-firm's own rule, not the birth-month rule.
+    // SRC-239(c): Texas's firm question gets tx-firm's board-assigned-month rule, not the birth month.
+    const txFirm = lookupAssistantDeadlines("texas", "firm");
+    expect(txFirm.map((r) => r.license_type_label)).toEqual(["Firm office license"]);
+    expect(txFirm[0]!.firm_scope_note).toBeNull();
+    expect(lookupAssistantDeadlines("texas", "individual")[0]!.firm_scope_note).toBeNull();
     const caFirm = lookupAssistantDeadlines("california", "firm");
     expect(caFirm.map((r) => r.license_type_label)).toEqual(["Firm permit (accountancy partnership or corporation)"]);
     expect(caFirm[0]!.firm_scope_note).toBeNull();

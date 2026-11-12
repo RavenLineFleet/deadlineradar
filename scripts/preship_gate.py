@@ -3350,7 +3350,7 @@ FEE_CAVEAT_REVIEWED = {
     "oklahoma-renewal-fee": "2b5e2d17ad1823eb",
     "puerto-rico-renewal-fee": "372677b9cf741bcc",
     "south-carolina-renewal-fee": "3ac40c7931870e49",
-    "texas-renewal-fee": "c6d0996672a5fd7d",
+    "texas-renewal-fee": "c5a64344f7ed73ad",
     "us-virgin-islands-renewal-fee": "62f25175c5456e62",
     "utah-renewal-fee": "c49c116db7b90303",
     "wisconsin-renewal-fee": "d7c3c68c6387d41d",

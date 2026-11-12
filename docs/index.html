@@ -325,7 +325,7 @@
     <div class="item"><span class="n">31</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">6</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">18</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">248 of 248</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last 30 days</span></div>
+    <div class="item"><span class="n">249 of 249</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last 30 days</span></div>
     <div class="item"><span class="n">2</span><span class="lbl">pending rule changes tracked</span></div><div class="item"><span class="n">4</span><span class="lbl">jurisdictions with a live source conflict</span></div>
   </div>
   <p class="trust-footnote">In the 18 jurisdictions that depend on your specific
@@ -971,10 +971,18 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
   min="2026-11-13" max="2030-05-15" data-dr-bound="future" required>
 <p class="field-hint">Enter the expiration date printed on your license &mdash; we can't look this one
 up automatically, so we'll remind you based on the date you give us.</p></div>
-<div class="signup-extra-fields" data-for-state="texas" hidden><label for="birth_month--texas">Birth month</label>
-<select id="birth_month--texas" name="birth_month" required>
-  <option value="">Select&hellip;</option>
-  <option value="1">January</option>
+<div class="signup-extra-fields" data-for-state="texas" hidden><label for="license_type_id--texas">Which license?</label>
+<select id="license_type_id--texas" name="license_type_id" required>
+  <option value="">Select the one that applies</option>
+  <option value="tx-individual">Individual CPA license</option>
+  <option value="tx-firm">Firm office license</option>
+</select>
+<div class="signup-form-row">
+  <div>
+    <label for="birth_month--texas">Birth month (individual license)</label>
+    <select id="birth_month--texas" name="birth_month">
+      <option value="">Select&hellip;</option>
+      <option value="1">January</option>
 <option value="2">February</option>
 <option value="3">March</option>
 <option value="4">April</option>
@@ -986,8 +994,30 @@ up automatically, so we'll remind you based on the date you give us.</p></div>
 <option value="10">October</option>
 <option value="11">November</option>
 <option value="12">December</option>
-</select>
-<p class="field-hint">Texas renewal is due by the last day of your birth month, every year.</p></div>
+    </select>
+  </div>
+  <div>
+    <label for="renewal_month--texas">Renewal month the Board assigned your firm</label>
+    <select id="renewal_month--texas" name="renewal_month">
+      <option value="">Select&hellip;</option>
+      <option value="1">January</option>
+<option value="2">February</option>
+<option value="3">March</option>
+<option value="4">April</option>
+<option value="5">May</option>
+<option value="6">June</option>
+<option value="7">July</option>
+<option value="8">August</option>
+<option value="9">September</option>
+<option value="10">October</option>
+<option value="11">November</option>
+<option value="12">December</option>
+    </select>
+  </div>
+</div>
+<p class="field-hint">Individual license: renewal is due by the last day of your birth month, every year. Firm office
+license: fees are due by the last day of the renewal month the Board assigned your firm (all of its offices share it),
+every year.</p></div>
 <div class="signup-extra-fields" data-for-state="virginia" hidden><label for="license_type_id--virginia">Which license?</label>
 <select id="license_type_id--virginia" name="license_type_id" required>
   <option value="">Select the one that applies to you</option>

@@ -1144,6 +1144,22 @@ function resolveDeadlineInput(stateSlug: string, form: Record<string, string>): 
     if (stateSlug === "california" && !["", "ca-individual"].includes((form.license_type_id ?? "").trim())) {
       return errorPage(400, "California needs to know which license this is -- individual or firm permit.");
     }
+    if (stateSlug === "texas" && (form.license_type_id ?? "").trim() === "tx-firm") {
+      // SRC-239(c): a Texas firm office license (22 TAC 515.3(c)(1)) is due the
+      // last day of the renewal month the Board assigned the firm, every year.
+      const renewalMonthInt = strictParseInt((form.renewal_month ?? "").trim());
+      if (renewalMonthInt === null || renewalMonthInt < 1 || renewalMonthInt > 12) {
+        return errorPage(400, "Texas firm office license needs the renewal month the Board assigned your firm.");
+      }
+      return {
+        deadlineFields: { license_type_id: "tx-firm", renewal_month: String(renewalMonthInt) },
+        deadlineSource: store.DEADLINE_SOURCE_COMPUTED,
+        userDeadline: null,
+      };
+    }
+    if (stateSlug === "texas" && !["", "tx-individual"].includes((form.license_type_id ?? "").trim())) {
+      return errorPage(400, "Texas needs to know which license this is -- individual or firm office.");
+    }
     if (stateSlug === "california" || stateSlug === "arizona") {
       // Arizona added 2026-08-18 (AuditLab DNC sweep) -- same birth-month +
       // birth-year-parity mechanism as California, see
@@ -6328,7 +6344,7 @@ function stringFieldsOf(body: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
-const DEADLINE_FIELD_KEYS = ["birth_month", "birth_year", "cohort_group", "parity_number", "license_type_id", "license_expiration_date", "anchor_date", "anchor_year", "term_years", "permit_month", "permit_year"];
+const DEADLINE_FIELD_KEYS = ["birth_month", "birth_year", "cohort_group", "parity_number", "license_type_id", "license_expiration_date", "anchor_date", "anchor_year", "term_years", "permit_month", "permit_year", "renewal_month"];
 
 /** The dashboard's clean status vocabulary (loosely mirrors generate.py's
  * illustrative _MOCKUP_STATUS_CLASS terminology -- Confirmed/Pending/Needs

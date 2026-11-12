@@ -7,11 +7,11 @@ import pytest
 import generate
 
 ROOT = Path(__file__).resolve().parent.parent
-# SRC-239(c): California left the set when ca-firm shipped; Texas is next.
+# SRC-239(c): California and Texas left the set when ca-firm and tx-firm shipped.
 # SRC-243 (AuditLab 2026-11-12): North Carolina was always in it. nc-all is license_type
 # "all" but covers only individual licensees (active + retired), so it is individual-only.
-# nc-firm (2026-11-12, 21 NCAC 08J .0108(b)) took North Carolina back out.
-SEVEN = ["michigan", "new-york", "ohio", "pennsylvania", "puerto-rico", "texas"]
+# nc-firm (2026-11-12, 21 NCAC 08J .0108(b)) and tx-firm (22 TAC 515.3(c)(1)) took NC and TX out.
+SEVEN = ["michigan", "new-york", "ohio", "pennsylvania", "puerto-rico"]
 FIRM_ALL_LABEL = "Individual CPA/PA certificate and firm permit"
 
 
@@ -114,7 +114,7 @@ def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
     assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")
 
 
-COMPUTED = {"ohio", "pennsylvania", "puerto-rico", "texas"}
+COMPUTED = {"ohio", "pennsylvania", "puerto-rico"}
 
 
 def _add_form_groups():
@@ -214,3 +214,20 @@ def test_north_carolina_add_form_offers_the_firm_registration_and_no_scope_hint(
     block = groups["north-carolina"]
     assert "dr-firm-scope-hint" not in block
     assert 'value="nc-firm"' in block and 'value="nc-all"' in block
+
+
+def test_texas_page_has_no_firm_scope_line_now_that_tx_firm_ships():
+    page = (ROOT / "docs" / "texas" / "index.html").read_text(encoding="utf-8")
+    assert 'class="disclosure firm-scope"' not in page
+    for apos in ("'", "&#x27;", "&#39;"):
+        assert f"renewal for Texas isn{apos}t tracked here yet" not in page
+    assert "Firm permits for Texas are not tracked" not in page
+    assert "board-assigned renewal month" in page or "board assigned renewal month" in page
+
+
+def test_texas_add_form_offers_the_firm_office_license_and_no_scope_hint():
+    groups, _ = _add_form_groups()
+    block = groups["texas"]
+    assert "dr-firm-scope-hint" not in block
+    assert 'value="tx-firm"' in block and 'value="tx-individual"' in block
+    assert 'name="renewal_month"' in block and 'name="birth_month"' in block
