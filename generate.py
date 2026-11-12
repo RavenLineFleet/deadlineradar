@@ -6315,13 +6315,13 @@ def _state_firm_scope_html(records: list[dict], state_name: str) -> str:
     state page showed one card and nothing saying firms are out of scope, so a
     California firm reading /california/ was handed the birth-month rule, which
     BPC 5070.5(b) does not apply to a partnership/corporation permit. Renders
-    only when every record on the page is license_type "individual"
-    (Connecticut's individual_cpa/cpa_firm pair is not caught, correctly: it
-    covers firms). The sentence is the record's own firm_scope_note, so the
+    only when no record on the page covers a firm (_state_is_individual_only:
+    North Carolina's nc-all joined on 2026-11-12, SRC-243; Connecticut's
+    individual_cpa/cpa_firm pair is not caught, correctly: it covers firms). The sentence is the record's own firm_scope_note, so the
     assistant API serves the same words; a new individual-only state with no
     note fails the build instead of shipping silently. The board link is the
     record's source_url. No date or "coming soon" claim, by ruling."""
-    if not records or any(r.get("license_type") != "individual" for r in records):
+    if not _state_is_individual_only(records):
         return ""
     missing = [r.get("id") for r in records if not r.get("firm_scope_note")]
     if missing:
@@ -8369,6 +8369,28 @@ def build_state_page(
 # ---------------------------------------------------------------------------
 
 _FIRM_ONLY_LICENSE_TYPES = {"firm", "cpa_firm"}
+
+_FIRM_WORD_RE = re.compile(r"\bfirm\b", re.I)
+
+
+def _record_covers_firm(r: dict) -> bool:
+    """SRC-243/SRC-245 (AuditLab 2026-11-12): does this record publish a FIRM
+    permit/registration obligation? A firm-type record does. An 'all' record does
+    only when its license_type_label names the firm: 13 of the 14 do ("...and firm
+    permit"), but nc-all is "CPA license (all licensees)" -- active plus retired
+    individuals -- and publishes no firm obligation. Reading license_type "all" as
+    "covers both" put NC's individual July 1 date on a firm page and left NC out of
+    the individual-only disclosure set. Matches on the label only, never a substring
+    of the whole record ("confirmed" contains "firm"). Fails closed: an 'all' label
+    without the word counts as individual-only, which then needs a firm_scope_note
+    or the build stops."""
+    if r.get("license_type") in _FIRM_ONLY_LICENSE_TYPES:
+        return True
+    return r.get("license_type") == "all" and bool(_FIRM_WORD_RE.search(r.get("license_type_label") or ""))
+
+
+def _state_is_individual_only(records: list[dict]) -> bool:
+    return bool(records) and not any(_record_covers_firm(r) for r in records)
 
 
 def state_hint(records: list[dict]) -> str:
@@ -13565,7 +13587,7 @@ def _firm_dashboard_map_svg_html(by_slug: dict[str, list[dict]]) -> str:
 # the form computes a date, say it is the individual license's; where the
 # user types the date (MI, NY), claim no computation.
 def _firm_add_form_scope_hint_html(state_slug: str, records: list[dict]) -> str:
-    if not records or any(r.get("license_type") != "individual" for r in records):
+    if not _state_is_individual_only(records):
         return ""
     if not all(r.get("firm_scope_note") for r in records):
         return ""
@@ -23932,7 +23954,7 @@ def _firm_relevant_record(records: list[dict]) -> dict | None:
             break
     if candidate is None:
         for r in records:
-            if r.get("license_type") == "all":
+            if r.get("license_type") == "all" and _record_covers_firm(r):
                 candidate = r
                 break
     if candidate is None or not candidate.get("next_deadline_computed"):
@@ -24864,7 +24886,7 @@ def _state_faq_html_and_schema(
     # result) must carry the same firm scope line as the page body, or a
     # search snippet hands a firm the individual rule unqualified.
     cycle_answer = primary["cycle_description"]
-    if records and all(r.get("license_type") == "individual" for r in records) and primary.get("firm_scope_note"):
+    if _state_is_individual_only(records) and primary.get("firm_scope_note"):
         cycle_answer = f"{cycle_answer} {primary['firm_scope_note']}"
     qa: list[tuple[str, str]] = [
         (f"How does {state_name}'s CPA license renewal cycle work?", cycle_answer)

@@ -8,7 +8,10 @@ import generate
 
 ROOT = Path(__file__).resolve().parent.parent
 # SRC-239(c): California left the set when ca-firm shipped; Texas is next.
-SEVEN = ["michigan", "new-york", "ohio", "pennsylvania", "puerto-rico", "texas"]
+# SRC-243 (AuditLab 2026-11-12): North Carolina was always in it. nc-all is license_type
+# "all" but covers only individual licensees (active + retired), so it is individual-only.
+SEVEN = ["michigan", "new-york", "north-carolina", "ohio", "pennsylvania", "puerto-rico", "texas"]
+FIRM_ALL_LABEL = "Individual CPA/PA certificate and firm permit"
 
 
 def _rec(license_type, **kw):
@@ -35,7 +38,7 @@ def test_individual_only_state_without_a_note_fails_the_build():
 
 def test_page_with_any_firm_or_all_record_gets_none():
     assert generate._state_firm_scope_html([_rec("individual"), _rec("firm")], "X") == ""
-    assert generate._state_firm_scope_html([_rec("all")], "X") == ""
+    assert generate._state_firm_scope_html([_rec("all", license_type_label=FIRM_ALL_LABEL)], "X") == ""
     # Connecticut's non-standard pair covers firms, so it must not get the line.
     assert generate._state_firm_scope_html([_rec("individual_cpa"), _rec("cpa_firm")], "X") == ""
     assert generate._state_firm_scope_html([], "X") == ""
@@ -110,7 +113,7 @@ def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
     assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")
 
 
-COMPUTED = {"ohio", "pennsylvania", "puerto-rico", "texas"}
+COMPUTED = {"north-carolina", "ohio", "pennsylvania", "puerto-rico", "texas"}
 
 
 def _add_form_groups():
@@ -142,7 +145,8 @@ def test_add_staff_form_hint_wording_follows_computed_vs_typed(slug):
 
 def test_add_form_hint_skips_states_that_cover_firms():
     assert generate._firm_add_form_scope_hint_html("x", [_rec("individual"), _rec("firm")]) == ""
-    assert generate._firm_add_form_scope_hint_html("x", [_rec("all", firm_scope_note="N.")]) == ""
+    assert generate._firm_add_form_scope_hint_html(
+        "x", [_rec("all", license_type_label=FIRM_ALL_LABEL, firm_scope_note="N.")]) == ""
     assert generate._firm_add_form_scope_hint_html("x", []) == ""
 
 
@@ -161,3 +165,32 @@ def test_california_add_form_offers_the_firm_permit_and_no_scope_hint():
     assert "dr-firm-scope-hint" not in block
     assert 'value="ca-firm"' in block and 'value="ca-individual"' in block
     assert 'name="permit_month"' in block and 'name="permit_year"' in block
+
+
+def test_an_all_record_covers_firms_only_when_its_label_names_the_firm():
+    """SRC-243/245: nc-all's label is "CPA license (all licensees)". The record contains "firm"
+    only inside "confirmed", so a substring census over the record would call it firm-covering."""
+    assert generate._record_covers_firm(_rec("firm")) and generate._record_covers_firm(_rec("cpa_firm"))
+    assert generate._record_covers_firm(_rec("all", license_type_label=FIRM_ALL_LABEL))
+    nc_like = _rec("all", license_type_label="CPA license (all licensees)",
+                   verification_note="confirmed against the rule; confirm again next cycle")
+    assert not generate._record_covers_firm(nc_like)
+    with pytest.raises(ValueError, match="SRC-239"):
+        generate._state_firm_scope_html([nc_like], "North Carolina")
+    assert generate._firm_relevant_record([{**nc_like, "next_deadline_computed": "2027-07-01"}]) is None
+
+
+def test_no_firm_renewal_page_for_an_individual_only_state():
+    """SRC-245: /north-carolina-cpa-firm-renewal/ said "Here's exactly when North Carolina's
+    firm-level filing is due" over nc-all's individual July 1 date. The NC board says firm
+    registration renewal typically ends December 31."""
+    for slug in SEVEN:
+        assert not (ROOT / "docs" / f"{slug}-cpa-firm-renewal").exists(), slug
+    sitemap = (ROOT / "docs" / "sitemap.xml").read_text(encoding="utf-8")
+    for_firms = (ROOT / "docs" / "for-firms" / "index.html").read_text(encoding="utf-8")
+    nc = (ROOT / "docs" / "north-carolina" / "index.html").read_text(encoding="utf-8")
+    for text in (sitemap, for_firms, nc):
+        assert "north-carolina-cpa-firm-renewal" not in text
+    # positive control: Alabama's all record names the firm permit, so its page stays
+    assert (ROOT / "docs" / "alabama-cpa-firm-renewal" / "index.html").exists()
+    assert "alabama-cpa-firm-renewal" in sitemap and "alabama-cpa-firm-renewal" in for_firms
