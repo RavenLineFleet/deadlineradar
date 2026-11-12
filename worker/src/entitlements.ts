@@ -208,6 +208,37 @@ export function hasActiveTrial(trialEndsAt: string | null): boolean {
   return Number.isFinite(t) && Date.now() < t;
 }
 
+/** Stripe refuses a Checkout subscription_data[trial_end] under 2 days out;
+ * one extra hour covers clock skew and request latency. */
+export const DEFERRED_CHARGE_MIN_LEAD_MS = 49 * 3_600_000;
+
+/**
+ * Mid-trial checkout (Devin, 2026-11-12): a firm that picks a plan during its
+ * 14-day trial is charged when the trial ends, not at checkout. Returns the
+ * ISO time of that first charge, or null when checkout charges at once
+ * (today's behaviour):
+ *  - no trial, or under DEFERRED_CHARGE_MIN_LEAD_MS left (Stripe's minimum);
+ *  - a Founding Firms checkout (it has its own 365-day no-card trial);
+ *  - a checkout that carries the referred firm's coupon. The referral reward
+ *    is claimed only on a checkout with payment_status "paid"
+ *    (applyReferralRewardIfEligible), and a deferred checkout completes as
+ *    "no_payment_required", so deferring would leave the referrer unrewarded
+ *    and the referee's coupon unmarked as spent.
+ * The checkout route (which sets the Stripe trial_end) and GET /firm/licenses
+ * (which tells the dashboard which sentence to show) both call this, so the
+ * copy and the charge cannot disagree.
+ */
+export function deferredFirstChargeAt(
+  trialEndsAt: string | null,
+  opts: { foundingTrial: boolean; referralCoupon: boolean },
+  nowMs: number = Date.now()
+): string | null {
+  if (opts.foundingTrial || opts.referralCoupon || !trialEndsAt) return null;
+  const t = Date.parse(trialEndsAt);
+  if (!Number.isFinite(t) || t - nowMs < DEFERRED_CHARGE_MIN_LEAD_MS) return null;
+  return new Date(t).toISOString();
+}
+
 /**
  * PR6 (migration 0085, 2026-10-02). Whether the 14-day trial should lift
  * this firm's seat cap entirely -- true only while BOTH an active trial

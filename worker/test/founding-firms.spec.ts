@@ -101,8 +101,15 @@ function recordFetch(): { calls: { url: string; method: string }[] } {
   });
   return { calls };
 }
+// The Founding Firms trial's own keys. subscription_data[trial_end] is the
+// separate mid-trial deferred charge (Devin, 2026-11-12): a non-founding firm
+// still inside its 14-day signup trial gets it on an ordinary paid checkout,
+// pinned in midtrial-checkout.spec.ts (including "never alongside a founding
+// trial"), so it is not a founding-trial key here.
 function trialKeys(b: URLSearchParams): string[] {
-  return [...b.keys()].filter((k) => k.startsWith("subscription_data") || k === "payment_method_collection");
+  return [...b.keys()].filter(
+    (k) => (k.startsWith("subscription_data") && k !== "subscription_data[trial_end]") || k === "payment_method_collection"
+  );
 }
 
 afterEach(() => vi.restoreAllMocks());

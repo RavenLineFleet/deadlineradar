@@ -14030,6 +14030,19 @@ function drPrettyLicenseType(id) {
     return part.charAt(0).toUpperCase() + part.slice(1);
   }).join(' ');
 }
+// A full ISO timestamp (not a YYYY-MM-DD deadline) shown as the viewer's own
+// local calendar date -- a charge at 03:00Z is still the previous evening in
+// the US, so drFormatDeadline()'s UTC date would be a day late there.
+function drFormatLocalDate(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  try {
+    var browserLocale;
+    return d.toLocaleDateString(browserLocale, {year: 'numeric', month: 'short', day: 'numeric'});
+  } catch (e) {
+    return iso;
+  }
+}
 function drFormatDeadline(iso) {
   if (!iso) return '\\u2014';
   try {
@@ -15544,7 +15557,9 @@ function drRenderTrialBanner() {
          'pick a plan, or choose which ' + DR_FREE_STAFF_CAP + ' stay active, before then. Staff you don’t ' +
          'keep active are PAUSED (no reminders), never deleted, and restored instantly if you upgrade or ' +
          'change your pick.')
-      : ' Pick a plan any time to keep full access after that.';
+      : (drBilling.checkoutFirstChargeAt
+        ? ' Pick a plan any time; your card isn’t charged until the trial ends.'
+        : ' Pick a plan any time to keep full access after that.');
     textEl.textContent = base + pickWarning;
   }
   el.hidden = false;
@@ -15824,8 +15839,19 @@ function drRenderBillingPanel() {
           drEscapeHtml(t.label) + '<br><span>' + drEscapeHtml(priceLabel) + ' &middot; ' + drEscapeHtml(seatLabel) + savingsLabel + '</span></button>';
       }).join('') +
       '</div>';
+    // Mid-trial checkout (Devin, 2026-11-12): say when the card is charged.
+    // Only a partner can check out, so only a partner sees the charge line.
+    var chargeNote = '';
+    if (drRole === 'partner') {
+      if (drBilling.checkoutFirstChargeAt) {
+        chargeNote = ' Pick a plan now and your card is charged on ' +
+          drEscapeHtml(drFormatLocalDate(drBilling.checkoutFirstChargeAt)) + ', when your trial ends.';
+      } else if (drBilling.trialEndsAt && Date.now() < Date.parse(drBilling.trialEndsAt)) {
+        chargeNote = ' Picking a plan now starts billing today.';
+      }
+    }
     body.innerHTML = '<p class="dr-panel-empty">You are on the free tier. Upgrade any time for the ' +
-      'map and firm-level registration check.</p>' + toggleHtml + tiersHtml;
+      'map and firm-level registration check.' + chargeNote + '</p>' + toggleHtml + tiersHtml;
     if (drBilling.demoLocked) body.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
     return;
   }
@@ -15964,7 +15990,8 @@ function drToggleCancellation(cancel, btn) {
         currentPeriodEnd: data.current_period_end || null,
         demoLocked: drBilling.demoLocked,
         trialEndsAt: drBilling.trialEndsAt,
-        activeStaffChoiceAt: drBilling.activeStaffChoiceAt
+        activeStaffChoiceAt: drBilling.activeStaffChoiceAt,
+        checkoutFirstChargeAt: drBilling.checkoutFirstChargeAt
       };
       if (okEl) {
         okEl.textContent = cancel ? 'Subscription set to cancel at period end.' : 'Subscription resumed.';
@@ -19323,7 +19350,11 @@ function drLoadLicenses() {
         // PR6-B round 2 (migration 0086, 2026-10-02): null until the
         // admin's first explicit roster-pause pick -- drRenderRosterPausePicker()'s
         // own "no pick yet, but already over cap" branch reads this.
-        activeStaffChoiceAt: data.active_staff_choice_at || null
+        activeStaffChoiceAt: data.active_staff_choice_at || null,
+        // Mid-trial checkout (Devin, 2026-11-12): when set, a plan picked now
+        // is first charged at this time (the trial's end), not at checkout.
+        // Server-computed (deferredFirstChargeAt) -- null means "charged now".
+        checkoutFirstChargeAt: data.checkout_first_charge_at || null
       };
       drRole = data.role || 'partner';
       drMemberId = data.member_id || null;
@@ -20161,6 +20192,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if (hashParams.get('checkout') === 'success') {
     drShowSuccess('Payment successful — your plan is now active.');
+  } else if (hashParams.get('checkout') === 'success_trial') {
+    // Mid-trial checkout (Devin, 2026-11-12): nothing was charged yet.
+    drShowSuccess('Your plan is now active. No charge today: your card is charged when your trial ends.');
   } else if (hashParams.get('checkout') === 'cancelled') {
     drShowError('Checkout was cancelled. No charge was made.');
   } else if (hashParams.get('email_changed') === '1') {

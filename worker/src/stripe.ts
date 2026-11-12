@@ -48,6 +48,15 @@ interface StripeCheckoutSessionParams {
    * no invoice, no charge, no past_due). Never combined with couponId by the
    * caller -- Stripe's discounts array is replaced wholesale, not merged. */
   noCardTrialDays?: number;
+  /** Mid-trial checkout (Devin, 2026-11-12): Unix seconds of the firm's own
+   * trial_ends_at. The card IS collected at checkout (the default for
+   * subscription mode) and Stripe makes the first charge at this time, so a
+   * firm that picks a plan with trial days left keeps them. Stripe refuses a
+   * Checkout trial_end less than 2 days out (measured in test mode
+   * 2026-11-12: 47h -> 400, 48h+60s -> 200); the caller only sets it at
+   * DEFERRED_CHARGE_MIN_LEAD_MS or more. Never combined with noCardTrialDays
+   * (Stripe rejects trial_end and trial_period_days together). */
+  trialEndSeconds?: number;
   /** Unix seconds after which the Checkout Session can no longer be completed.
    * Stripe allows 30 min .. 24 h (default 24 h). Founding Firms sessions use a
    * short window so a revoked grant's open session cannot land much later. */
@@ -92,6 +101,12 @@ export async function createCheckoutSession(
   }
   if (params.expiresAtSeconds !== undefined) {
     body.set("expires_at", String(params.expiresAtSeconds));
+  }
+  if (params.noCardTrialDays !== undefined && params.trialEndSeconds !== undefined) {
+    throw new Error("createCheckoutSession: noCardTrialDays and trialEndSeconds are mutually exclusive");
+  }
+  if (params.trialEndSeconds !== undefined) {
+    body.set("subscription_data[trial_end]", String(params.trialEndSeconds));
   }
   if (params.noCardTrialDays !== undefined) {
     body.set("subscription_data[trial_period_days]", String(params.noCardTrialDays));
