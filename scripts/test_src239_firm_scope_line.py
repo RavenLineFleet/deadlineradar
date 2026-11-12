@@ -107,3 +107,39 @@ def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
     urls = {r["state_slug"]: r.get("firm_scope_url") for r in data["records"] if r.get("firm_scope_note")}
     assert urls["puerto-rico"] is None
     assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")
+
+
+COMPUTED = {"california", "ohio", "pennsylvania", "puerto-rico", "texas"}
+
+
+def _add_form_groups():
+    import re
+    html = (ROOT / "docs" / "firm-dashboard" / "index.html").read_text(encoding="utf-8")
+    form = html[html.index('id="dr-add-staff-form"'):]
+    form = form[:form.index('id="dr-add-fee"')]
+    parts = re.split(r'<div class="signup-extra-fields" data-for-state="([a-z-]+)" hidden>', form)
+    return dict(zip(parts[1::2], parts[2::2])), html
+
+
+def test_add_staff_form_hint_on_exactly_the_seven():
+    groups, html = _add_form_groups()
+    assert html.count('class="field-hint dr-firm-scope-hint"') == 7
+    assert sorted(s for s, b in groups.items() if "dr-firm-scope-hint" in b) == SEVEN
+
+
+@pytest.mark.parametrize("slug", SEVEN)
+def test_add_staff_form_hint_wording_follows_computed_vs_typed(slug):
+    import re
+    groups, _ = _add_form_groups()
+    hint = re.search(r'<p class="field-hint dr-firm-scope-hint">(.*?)</p>', groups[slug], re.S).group(1)
+    assert "Firm permits for" in hint and "are not tracked here yet." in hint
+    if slug in COMPUTED:
+        assert "this computes the individual CPA license date" in hint
+    else:
+        assert "computes" not in hint and "date you enter" in hint
+
+
+def test_add_form_hint_skips_states_that_cover_firms():
+    assert generate._firm_add_form_scope_hint_html("x", [_rec("individual"), _rec("firm")]) == ""
+    assert generate._firm_add_form_scope_hint_html("x", [_rec("all", firm_scope_note="N.")]) == ""
+    assert generate._firm_add_form_scope_hint_html("x", []) == ""

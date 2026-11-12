@@ -13510,6 +13510,28 @@ def _firm_dashboard_map_svg_html(by_slug: dict[str, list[dict]]) -> str:
 </div>"""
 
 
+# Orchestrator ruling 1, 18:08 MST 11-11 (SRC-239 (b) cheap close): a firm
+# adding its OWN permit as a staff row in one of the 7 individual-only states
+# gets the individual rule. Say so on the add form. Same population test as
+# _state_firm_scope_html (every record individual + a firm_scope_note). Where
+# the form computes a date, say it is the individual license's; where the
+# user types the date (MI, NY), claim no computation.
+def _firm_add_form_scope_hint_html(state_slug: str, records: list[dict]) -> str:
+    if not records or any(r.get("license_type") != "individual" for r in records):
+        return ""
+    if not all(r.get("firm_scope_note") for r in records):
+        return ""
+    name = esc(records[0]["state"])
+    if _state_signup_supported(state_slug, records):
+        lead = f"For {name}, this computes the individual CPA license date."
+    else:
+        lead = f"For {name}, this tracks the individual CPA license date you enter."
+    return (
+        f'\n<p class="field-hint dr-firm-scope-hint">{lead} '
+        f"Firm permits for {name} are not tracked here yet.</p>"
+    )
+
+
 def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: date) -> str:
     """The "Add staff" form. Deliberately reuses the EXACT SAME per-state
     show/hide-by-state pattern as signup_form_homepage()/drUpdateFields() --
@@ -13531,11 +13553,15 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
     state_options = "\n".join(
         f'<option value="{esc(slug)}">{esc(by_slug[slug][0]["state"])}</option>' for slug in all_slugs
     )
-    field_groups = "\n".join(
-        f'<div class="signup-extra-fields" data-for-state="{esc(slug)}" hidden>'
-        f'{_state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug)}</div>'
+    blocks = {
+        slug: _state_scoped_field_ids(_extra_fields_html(slug, by_slug[slug], as_of), slug)
+        + _firm_add_form_scope_hint_html(slug, by_slug[slug])
         for slug in all_slugs
-        if _extra_fields_html(slug, by_slug[slug], as_of)
+    }
+    field_groups = "\n".join(
+        f'<div class="signup-extra-fields" data-for-state="{esc(slug)}" hidden>{blocks[slug]}</div>'
+        for slug in all_slugs
+        if blocks[slug]
     )
     return f"""<div class="signup-form" id="dr-add-staff">
   <h2>Add staff</h2>
