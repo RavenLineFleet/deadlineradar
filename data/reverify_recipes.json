@@ -2251,7 +2251,7 @@
  },
  "maine-reinstatement": {
   "dataset": "reinstatement",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.maine.gov's CloudFront WAF 403s script clients host-wide, the honest UA and the real headless browser's own UA alike (13 of 13 probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -2297,7 +2297,7 @@
  },
  "maine-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.maine.gov's CloudFront WAF 403s script clients host-wide, the honest UA and the real headless browser's own UA alike (13 of 13 probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -2486,7 +2486,7 @@
  },
  "me-all": {
   "dataset": "cpa_deadlines",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.maine.gov's CloudFront WAF 403s script clients host-wide, the honest UA and the real headless browser's own UA alike (13 of 13 probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -2505,7 +2505,7 @@
  },
  "me-cpe": {
   "dataset": "cpe_hours",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.maine.gov's CloudFront WAF 403s script clients host-wide, the honest UA and the real headless browser's own UA alike (13 of 13 probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -4851,7 +4851,7 @@
  },
  "tennessee-reinstatement": {
   "dataset": "reinstatement",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.tn.gov 403s script clients intermittently, the honest UA and the real headless browser's own UA alike (about half of interleaved probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -4888,7 +4888,7 @@
  },
  "tennessee-renewal-fee": {
   "dataset": "renewal_fees",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.tn.gov 403s script clients intermittently, the honest UA and the real headless browser's own UA alike (about half of interleaved probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -4935,7 +4935,7 @@
  },
  "tn-all": {
   "dataset": "cpa_deadlines",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.tn.gov 403s script clients intermittently, the honest UA and the real headless browser's own UA alike (about half of interleaved probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,
@@ -4954,7 +4954,7 @@
  },
  "tn-cpe": {
   "dataset": "cpe_hours",
-  "manual": null,
+  "manual": "SCRIPT-UNREADABLE (Ruling 4, 2026-11-12): www.tn.gov 403s script clients intermittently, the honest UA and the real headless browser's own UA alike (about half of interleaved probes), and a browser-UA disguise is not allowed. Re-verify by reading the source in a real browser before the 30-day wall; never solve or work around a challenge page.",
   "combine": "each",
   "field": null,
   "derivation": null,

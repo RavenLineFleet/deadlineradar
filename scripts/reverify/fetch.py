@@ -36,32 +36,27 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from source_check import _extract_docx, _extract_html, _extract_pdf  # noqa: E402
 
 UA = "DeadlineRadar-Reverify/1.0 (+https://deadline-radar.com; raven@mooseandraven.com)"
-# SRC-66 (AuditLab, 2026-10-21): www.maine.gov's CloudFront WAF 403s this honest UA host-wide,
-# including /robots.txt itself -- which urllib.robotparser then reads as a blanket disallow (RFC
-# 9309's 401/403-on-robots.txt-means-disallow rule), even though the host has no real policy
-# against this. Confirmed by hand: the same path and its robots.txt both return 200 for an
-# ordinary browser UA, and the real robots.txt does not disallow the recipe paths. Per-host
-# override so every other host this module fetches keeps the honest, self-identifying UA. That
-# default covers this module only, not the repo: source_check.py (which preship_gate.py calls on .gov
-# citation URLs), citation_auto_extend_check.py, codified_source_audit.py and
-# amendment_currency_check.py each send a Chrome UA to every host.
-# www.tn.gov was dropped from this list on 2026-11-03 (GATE-107) because its 403 was intermittent
-# then. Re-added 2026-11-09: tn-cpe failed 2 runs in a row with the GATE-107 retry in place. The 403
-# follows the UA and alternates: AuditLab's 80 interleaved honest/browser pairs (2026-11-09, 10:06-
-# 10:13Z) gave the honest UA 403 x46 (awselb/2.0; 22 of 28 on the recipe page) and the browser UA 403
-# x0. The host flips between a 403 state and a 200 state, ~20-35s in each. A 2s retry can't outlast
-# that. The robots.txt the host serves is "Allow: /".
-# A host goes on this list only with honest-UA 403s the browser UA doesn't get, shown by interleaved
-# pairs over at least 2 minutes. A short burst can land wholly inside one state and mislead either
-# way. Re-test maine.gov and tn.gov like that whenever their recipes are touched, and for both by
-# 2026-12-09. For tn.gov expect roughly half the honest-UA probes to 403: some 200s don't mean it
-# cleared. That reading is how this entry was wrongly dropped on 11-03.
-_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-               "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-UA_HOST_OVERRIDES = {
-    "www.maine.gov": _BROWSER_UA,
-    "www.tn.gov": _BROWSER_UA,
-}
+# Every request this module sends carries the honest UA above, for every host, on every path:
+# the http/pdf path sends it from urllib, and the browser path sends the headless browser's own
+# default user agent (Playwright is never given a user_agent= override). A script must not send a
+# browser user-agent string it is not (Orchestrator Ruling 4, 2026-11-12). That replaced the old
+# per-host browser-UA overrides for www.maine.gov (SRC-66) and www.tn.gov (GATE-107); do not
+# re-add a disguise, a headless-marker patch or any other fingerprint change for any host.
+#
+# Hosts that refuse script clients are listed below. Nothing is sent to them: get() returns
+# "host_unreadable_by_script" before any request, and their recipes are "manual", so their
+# records are confirmed by a person reading the page in a real browser before the 30-day wall.
+# Never solve or work around a challenge, CAPTCHA or human-verification page.
+# Measured 2026-11-12 04:59:43-05:01:49Z, 24 interleaved pairs (headless Chromium with its own
+# default UA, then the honest UA, 4 s apart), 4 recipe pages:
+#   www.maine.gov  6 of 6 pairs: browser 403 with a CloudFront "Request blocked" page, honest 403.
+#                  The honest UA's host-wide 403 is SRC-66.
+#   www.tn.gov     18 pairs on the 3 recipe pages: 12 both 200, 6 both 403 (one 403 state about
+#                  25 s long). The host refuses both clients together, so the browser path reads it
+#                  no better than urllib does.
+# A host comes off this list only on interleaved pairs over at least 2 minutes with 0 refusals
+# for a non-disguised client. Re-test both by 2026-12-09.
+SCRIPT_UNREADABLE_HOSTS = frozenset({"www.maine.gov", "www.tn.gov"})
 TIMEOUT_S = 30
 MIN_INTERVAL_S = 1.0
 RETRIABLE_HTTP_CODES = {403, 429, 503}
@@ -77,10 +72,6 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
-
-
-def _ua_for(host: str) -> str:
-    return UA_HOST_OVERRIDES.get(host, UA)
 
 
 class BlockedAddress(OSError):
@@ -217,7 +208,7 @@ class Fetcher:
         retried = False
         try:
             for _ in range(MAX_REDIRECTS + 2):   # +1 slot for the single GATE-107 retry
-                req = urllib.request.Request(target, headers={"User-Agent": _ua_for(urlparse(target).netloc)})
+                req = urllib.request.Request(target, headers={"User-Agent": UA})
                 self._throttle(urlparse(target).netloc)
                 try:
                     with self._open(req, timeout=TIMEOUT_S) as r:
@@ -247,19 +238,23 @@ class Fetcher:
         p = urlparse(url)
         if p.netloc not in self._robots:
             self._robots[p.netloc] = self._robots_loader(p.scheme, p.netloc)
-        return self._robots[p.netloc].can_fetch(_ua_for(p.netloc), url)
+        return self._robots[p.netloc].can_fetch(UA, url)
 
     # ---- fetch ----
     def get(self, url: str, method: str = "http") -> Fetched:
+        if urlparse(url).netloc in SCRIPT_UNREADABLE_HOSTS:
+            return Fetched(url, False, None, "host_unreadable_by_script", None, None, url)
         if method == "browser":
             return self._get_browser(url)
         cur = url
         hops = 0
         while True:
+            host = urlparse(cur).netloc
+            if host in SCRIPT_UNREADABLE_HOSTS:   # a redirect onto one: same as a direct request
+                return Fetched(url, False, None, "host_unreadable_by_script", None, None, cur)
             if not self.allowed(cur):
                 return Fetched(url, False, None, "robots_disallow", None, None, cur)
-            host = urlparse(cur).netloc
-            req = urllib.request.Request(cur, headers={"User-Agent": _ua_for(host), "Accept": "*/*"})
+            req = urllib.request.Request(cur, headers={"User-Agent": UA, "Accept": "*/*"})
             status, body, ctype, moved = None, None, "", None
             for attempt in range(2):
                 try:
@@ -322,12 +317,13 @@ class Fetcher:
         private: list[str] = []
         unresolved: list[str] = []
         too_many: list[str] = []
+        unreadable: list[str] = []
         final = url
         try:
             with sync_playwright() as pw:
                 b = pw.chromium.launch()
                 try:
-                    page = b.new_page(user_agent=_ua_for(urlparse(url).netloc))
+                    page = b.new_page()   # the browser's own default UA, never an override (Ruling 4)
 
                     def guard(route, request):
                         u = request.url
@@ -344,7 +340,8 @@ class Fetcher:
                             # asset-heavy page at 1 req/s per host would blow the networkidle timeout.
                             cur = u
                             for _ in range(MAX_REDIRECTS + 1):
-                                if not self._allow_private and _preflight_reason(cur):
+                                if (urlparse(cur).netloc in SCRIPT_UNREADABLE_HOSTS
+                                        or (not self._allow_private and _preflight_reason(cur))):
                                     route.abort()
                                     return
                                 try:
@@ -370,6 +367,10 @@ class Fetcher:
                         # only then let the browser load the validated final URL.
                         cur = u
                         for _ in range(MAX_REDIRECTS + 1):
+                            if urlparse(cur).netloc in SCRIPT_UNREADABLE_HOSTS:
+                                unreadable.append(cur)
+                                route.abort()
+                                return
                             if not self.allowed(cur):
                                 blocked.append(cur)
                                 route.abort()
@@ -413,6 +414,8 @@ class Fetcher:
                 finally:
                     b.close()
         except Exception as e:
+            if unreadable:
+                return Fetched(url, False, None, "host_unreadable_by_script", None, None, unreadable[-1])
             if private:
                 return Fetched(url, False, None, "blocked_address", None, None, private[-1])
             if unresolved:

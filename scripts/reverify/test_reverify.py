@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import urllib.error
+from urllib.parse import urlparse
 
 import pytest
 
@@ -429,21 +430,47 @@ def test_honest_user_agent_and_rate_limit():
     assert sleeps and abs(sum(sleeps) - 2.0) < 1e-9     # robots + 2 pages on one host => two 1s waits
 
 
-def test_maine_gov_uses_browser_ua_override_other_hosts_stay_honest():
-    """SRC-66 (AuditLab, 2026-10-21): www.maine.gov's WAF 403s the honest UA host-wide,
-    including /robots.txt, so Fetcher must send a browser UA to that one host and keep
-    the honest UA everywhere else."""
+def test_no_host_gets_a_browser_ua_and_unreadable_hosts_get_no_request():
+    """Ruling 4 (Orchestrator 2026-11-12): the old www.maine.gov/www.tn.gov browser-UA overrides
+    are gone. Every request carries the honest UA, and a SCRIPT_UNREADABLE_HOSTS host is never
+    contacted at all -- not its page, not its robots.txt -- directly or via a redirect."""
     seen = []
 
-    def h(req):
+    def opener(req, timeout=None):   # records robots.txt requests too, unlike make_fetcher
         seen.append((req.full_url, req.get_header("User-agent")))
+        if req.full_url.endswith("/robots.txt"):
+            return Resp(b"User-agent: *\nAllow: /")
+        if req.full_url == "https://b.gov/hop":
+            raise urllib.error.HTTPError(req.full_url, 302, "x", {"Location": "https://www.tn.gov/y"}, None)
         return Resp(b"<p>hello</p>")
-    f, _ = make_fetcher(h)
-    f.get("https://www.maine.gov/x")
-    f.get("https://b.gov/x")
-    by_host = dict(seen)
-    assert "Mozilla" in by_host["https://www.maine.gov/x"]
-    assert "DeadlineRadar-Reverify" in by_host["https://b.gov/x"] and "Mozilla" not in by_host["https://b.gov/x"]
+    f = Fetcher(opener=opener, sleep=lambda s: None, clock=lambda: 0.0)
+    for host in ("www.maine.gov", "www.tn.gov"):
+        for m in ("http", "pdf", "browser"):
+            r = f.get(f"https://{host}/x", method=m)
+            assert not r.ok and r.reason == "host_unreadable_by_script"
+    r = f.get("https://b.gov/hop")
+    assert not r.ok and r.reason == "host_unreadable_by_script" and r.final_url == "https://www.tn.gov/y"
+    assert f.get("https://b.gov/x").ok
+    assert seen and all("maine.gov" not in u and "tn.gov" not in u for u, _ in seen)
+    assert all("DeadlineRadar-Reverify" in ua and "Mozilla" not in ua for _, ua in seen)
+    assert not hasattr(fetch, "UA_HOST_OVERRIDES") and not hasattr(fetch, "_BROWSER_UA")
+    src = open(fetch.__file__, encoding="utf-8").read()
+    assert "user_agent=" not in src.split("def _get_browser", 1)[1]
+
+
+def test_unreadable_host_list_is_exactly_the_two_measured_hosts_and_their_recipes_are_manual():
+    """The bar for adding or removing a host is in the comment above SCRIPT_UNREADABLE_HOSTS in
+    fetch.py. Every recipe with a check on one of these hosts must be manual, so the daily run
+    files a hand re-verification ticket instead of failing the record."""
+    assert fetch.SCRIPT_UNREADABLE_HOSTS == {"www.maine.gov", "www.tn.gov"}
+    path = os.path.join(os.path.dirname(fetch.__file__), "..", "..", "data", "reverify_recipes.json")
+    with open(path, encoding="utf-8") as fh:
+        recipes = json.load(fh)
+    hit = {rid for rid, r in recipes.items() for c in (r.get("checks") or [])
+           for u in [c["url"], *c.get("alt_urls", [])] if urlparse(u).netloc in fetch.SCRIPT_UNREADABLE_HOSTS}
+    assert hit == {"tn-all", "tn-cpe", "tennessee-renewal-fee", "tennessee-reinstatement",
+                   "me-all", "me-cpe", "maine-renewal-fee", "maine-reinstatement"}
+    assert all(str(recipes[i]["manual"]).startswith("SCRIPT-UNREADABLE") for i in hit)
 
 
 def _http_error(url, code):
@@ -452,8 +479,8 @@ def _http_error(url, code):
 
 def test_gate107_transient_robots_403_is_retried_with_honest_ua():
     """GATE-107 (AuditLab 2026-11-03): a single robots.txt 403 followed by a 200 must NOT read as a
-    blanket disallow, and a host off the override list keeps the honest UA throughout. Uses a
-    generic host since www.tn.gov joined the override list on 2026-11-09."""
+    blanket disallow, and the honest UA is kept throughout. Uses a generic host since www.tn.gov
+    is in SCRIPT_UNREADABLE_HOSTS (Ruling 4, 2026-11-12)."""
     seen, sleeps, n = [], [], [0]
 
     def opener(req, timeout=None):
@@ -468,13 +495,6 @@ def test_gate107_transient_robots_403_is_retried_with_honest_ua():
     r = f.get("https://www.example.gov/commerce/x.html")
     assert r.ok and n[0] == 2 and fetch.ROBOTS_RETRY_SLEEP_S in sleeps
     assert all("DeadlineRadar-Reverify" in ua and "Mozilla" not in ua for _, ua in seen)
-    assert "www.example.gov" not in fetch.UA_HOST_OVERRIDES
-
-
-def test_override_list_is_exactly_the_two_measured_hosts():
-    """A browser UA is the exception. The bar for adding a host is in the comment above
-    UA_HOST_OVERRIDES in fetch.py; meet it before editing this set."""
-    assert set(fetch.UA_HOST_OVERRIDES) == {"www.maine.gov", "www.tn.gov"}
 
 
 def test_gate107_persistent_robots_403_still_disallows():
