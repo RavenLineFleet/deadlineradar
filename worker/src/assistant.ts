@@ -76,6 +76,8 @@ interface AssistantDeadlineResult {
   next_deadline_computed: string | null;
   grace_period_note: string | null;
   data_gap_note: string | null;
+  // SRC-239: the firm rule shown on an individual-only state page.
+  firm_scope_note: string | null;
   citation_scope_note: string | null;
   citation: string | null;
   citation_url: string | null;
@@ -106,6 +108,7 @@ export function lookupAssistantDeadlines(
       next_deadline_computed: resolvedNextDeadlineComputed(r as unknown as CpaRecord, asOf),
       grace_period_note: typeof r.grace_period_note === "string" && r.grace_period_note ? r.grace_period_note : null,
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
+      firm_scope_note: typeof r.firm_scope_note === "string" && r.firm_scope_note ? r.firm_scope_note : null,
       citation_scope_note: assistantCitationScopeNote(r.citation, r.citation_class, r.citation_covers_full_claim),
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),

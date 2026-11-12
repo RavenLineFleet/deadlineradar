@@ -369,6 +369,19 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
     expect(lookupAssistantReinstatement("arkansas")!.citation_scope_note).toContain("covers part of this claim");
   });
 
+  it("serves firm_scope_note only on the record that carries it (SRC-239)", async () => {
+    const { lookupAssistantDeadlines } = await import("../src/assistant");
+    const cpa = (await import("../src/cpa_deadlines.json")).default.records as Record<string, unknown>[];
+    for (const r of cpa) {
+      const served = lookupAssistantDeadlines(String(r.state_slug), String(r.license_type))[0]!;
+      expect(served.firm_scope_note, String(r.id)).toBe(typeof r.firm_scope_note === "string" ? r.firm_scope_note : null);
+    }
+    expect(lookupAssistantDeadlines("california")[0]!.firm_scope_note).toContain("isn't tracked here yet");
+    expect(lookupAssistantDeadlines("florida").every((r) => r.firm_scope_note === null)).toBe(true);
+    // A firm asking for California's firm record gets a 404 path (no record), not the birth-month rule.
+    expect(lookupAssistantDeadlines("california", "firm")).toEqual([]);
+  });
+
   it("serves a renewal-fee data_gap_note only where the page shows it", async () => {
     const { lookupAssistantRenewalFee } = await import("../src/assistant");
     expect(lookupAssistantRenewalFee("delaware")!.data_gap_note).toContain("by design");

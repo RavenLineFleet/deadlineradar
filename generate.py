@@ -6268,6 +6268,29 @@ def _state_data_gap_disclosure_html(records: list[dict]) -> str:
     return "\n".join(parts)
 
 
+def _state_firm_scope_html(records: list[dict], state_name: str) -> str:
+    """SRC-239 (AuditLab t660, 2026-11-12; Orchestrator ruling 17:35 MST):
+    7 jurisdictions carry only an individual record (no -firm, no -all). Their
+    state page showed one card and nothing saying firms are out of scope, so a
+    California firm reading /california/ was handed the birth-month rule, which
+    BPC 5070.5(b) does not apply to a partnership/corporation permit. Renders
+    only when every record on the page is license_type "individual"
+    (Connecticut's individual_cpa/cpa_firm pair is not caught, correctly: it
+    covers firms). The sentence is the record's own firm_scope_note, so the
+    assistant API serves the same words; a new individual-only state with no
+    note fails the build instead of shipping silently. The board link is the
+    record's source_url. No date or "coming soon" claim, by ruling."""
+    if not records or any(r.get("license_type") != "individual" for r in records):
+        return ""
+    missing = [r.get("id") for r in records if not r.get("firm_scope_note")]
+    if missing:
+        raise ValueError(f"SRC-239: individual-only state {state_name} has no firm_scope_note on {missing}")
+    notes = " ".join(esc(r["firm_scope_note"]) for r in records)
+    board = records[0].get("source_url")
+    link = f' <a href="{http_href(board)}">State board site</a>.' if board else ""
+    return f'<p class="disclosure firm-scope">Firms: {notes}{link}</p>'
+
+
 # ---------------------------------------------------------------------------
 # Per-state page builders
 # ---------------------------------------------------------------------------
@@ -8264,7 +8287,7 @@ def build_state_page(
 <p class="subhead">{esc(state_name)} CPA license renewal</p></div>
 {deadline_html}
 {trust_line(last_verified, source_url, all(_record_fully_cited(r) for r in records), all(_is_operational_record(r) for r in records), records=records, citation_exists=any(bool(r.get("citation")) for r in records), date_scoped=True)}
-{_state_data_gap_disclosure_html(records)}
+{_state_data_gap_disclosure_html(records)}{_state_firm_scope_html(records, state_name)}
 {_flag_wrong_html(state_name, state_slug)}
 {signup_form_for_state(state_slug, state_name, records, as_of)}
 {_firm_product_cta_html()}
