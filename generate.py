@@ -6286,8 +6286,13 @@ def _state_firm_scope_html(records: list[dict], state_name: str) -> str:
     if missing:
         raise ValueError(f"SRC-239: individual-only state {state_name} has no firm_scope_note on {missing}")
     notes = " ".join(esc(r["firm_scope_note"]) for r in records)
-    board = records[0].get("source_url")
-    link = f' <a href="{http_href(board)}">State board site</a>.' if board else ""
+    # Orchestrator 18:00 MST 11-11 (ValueLab walk): link the board's own firm
+    # page where one exists (firm_scope_url), else the board site. Plain link,
+    # no claim about the firm's date.
+    firm_page = records[0].get("firm_scope_url")
+    board = firm_page or records[0].get("source_url")
+    label = "The board's page for firms" if firm_page else "State board site"
+    link = f' <a href="{http_href(board)}">{label}</a>.' if board and http_href(board) != "#" else ""
     return f'<p class="disclosure firm-scope">Firms: {notes}{link}</p>'
 
 
@@ -24539,7 +24544,7 @@ def build_cpe_hours_page(
   {_source_cite_html(cpe_record)}
   {sourcing_note_html}
 </div>
-
+{_state_firm_scope_html(renewal_records, state_name)}
 <p>{esc(cpe_record.get('notes', ''))}</p>
 
 {_cpe_hours_signup_html(cpe_record, renewal_records, as_of)}
@@ -25043,7 +25048,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
   {sourcing_note_html}
 </div>
 
-<p><strong>What triggers lapsed status:</strong> {esc(record['lapse_trigger'])}</p>
+<p><strong>What triggers lapsed status:</strong> {esc(record['lapse_trigger'])}</p>{_state_firm_scope_html(renewal_records, state_name)}
 
 {trust_line(record["last_verified"], record["source_url"], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
 

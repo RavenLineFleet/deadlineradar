@@ -76,3 +76,34 @@ def test_faq_jsonld_cycle_answer_carries_the_scope_line(slug):
 def test_faq_control_state_with_a_firm_record_has_no_scope_line():
     page = (ROOT / "docs" / "west-virginia" / "index.html").read_text(encoding="utf-8")
     assert "isn't tracked here yet" not in page and "isn&#x27;t tracked here yet" not in page
+
+
+def test_firm_page_url_is_linked_over_the_board_site():
+    html = generate._state_firm_scope_html(
+        [_rec("individual", firm_scope_note="N.", source_url="https://board.example/",
+              firm_scope_url="https://board.example/firms")], "Ohio")
+    assert 'href="https://board.example/firms"' in html and "board's page for firms" in html
+    assert 'href="https://board.example/"' not in html
+
+
+TOPIC_PAGES = [f"{s}-cpa-{t}" for s in SEVEN if s != "puerto-rico"
+               for t in ("cpe-requirements", "license-reinstatement")]
+
+
+@pytest.mark.parametrize("page", TOPIC_PAGES)
+def test_topic_pages_of_the_seven_carry_one_scope_line(page):
+    html = (ROOT / "docs" / page / "index.html").read_text(encoding="utf-8")
+    assert html.count('class="disclosure firm-scope"') == 1, page
+
+
+def test_scope_line_appears_on_exactly_the_7_state_and_12_topic_pages():
+    hits = sorted(p.parent.name for p in (ROOT / "docs").rglob("index.html")
+                  if 'class="disclosure firm-scope"' in p.read_text(encoding="utf-8"))
+    assert hits == sorted(SEVEN + TOPIC_PAGES)
+
+
+def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
+    data = json.loads((ROOT / "data/cpa_deadlines.json").read_text(encoding="utf-8"))
+    urls = {r["state_slug"]: r.get("firm_scope_url") for r in data["records"] if r.get("firm_scope_note")}
+    assert urls["puerto-rico"] is None
+    assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")

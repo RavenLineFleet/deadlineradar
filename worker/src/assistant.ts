@@ -78,6 +78,8 @@ interface AssistantDeadlineResult {
   data_gap_note: string | null;
   // SRC-239: the firm rule shown on an individual-only state page.
   firm_scope_note: string | null;
+  // The board's own firm page for that note (http(s) only), or null.
+  firm_scope_url: string | null;
   citation_scope_note: string | null;
   citation: string | null;
   citation_url: string | null;
@@ -109,6 +111,7 @@ export function lookupAssistantDeadlines(
       grace_period_note: typeof r.grace_period_note === "string" && r.grace_period_note ? r.grace_period_note : null,
       data_gap_note: typeof r.data_gap_note === "string" && r.data_gap_note ? r.data_gap_note : null,
       firm_scope_note: typeof r.firm_scope_note === "string" && r.firm_scope_note ? r.firm_scope_note : null,
+      firm_scope_url: safeHttpUrl(typeof r.firm_scope_url === "string" ? r.firm_scope_url : null),
       citation_scope_note: assistantCitationScopeNote(r.citation, r.citation_class, r.citation_covers_full_claim),
       citation: typeof r.citation === "string" ? r.citation : null,
       citation_url: safeHttpUrl(typeof r.citation_url === "string" ? r.citation_url : null),

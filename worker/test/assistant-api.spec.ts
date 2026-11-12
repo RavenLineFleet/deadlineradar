@@ -377,6 +377,9 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
       expect(served.firm_scope_note, String(r.id)).toBe(typeof r.firm_scope_note === "string" ? r.firm_scope_note : null);
     }
     expect(lookupAssistantDeadlines("california")[0]!.firm_scope_note).toContain("isn't tracked here yet");
+    expect(lookupAssistantDeadlines("california")[0]!.firm_scope_url).toBe("https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml");
+    expect(lookupAssistantDeadlines("puerto-rico")[0]!.firm_scope_url).toBeNull();
+    expect(lookupAssistantDeadlines("florida").every((r) => r.firm_scope_url === null)).toBe(true);
     expect(lookupAssistantDeadlines("florida").every((r) => r.firm_scope_note === null)).toBe(true);
     // A firm asking for California's firm record gets a 404 path (no record), not the birth-month rule.
     expect(lookupAssistantDeadlines("california", "firm")).toEqual([]);
