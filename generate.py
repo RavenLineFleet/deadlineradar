@@ -9398,6 +9398,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   license type or cohort, there's no one date to list, but we still compute most of them from what you
   tell us at signup. In {_cov["byod"]} jurisdictions overall, the board's rule doesn't let us compute a date at all, so you
   enter the date on your license and we track it from there.</p>
+  {_year_end_promo_html(real_today)}
 </section>"""
 
     # ShopLab cold-read (2026-08-20, orchestrator-approved, "same fix batch" as
@@ -11389,6 +11390,7 @@ spreadsheet fails in three specific ways.</p>
 <p class="field-hint"><strong>{_verified_recent} of {_total_citations}</strong> dated records across this site's datasets (renewal deadlines,
 CPE hours, reinstatement, renewal fees) were individually re-checked against their source within the last {STALENESS_THRESHOLD_DAYS} days
 &mdash; <a href="/methodology/">see exactly how we verify every deadline</a>.</p>
+{_year_end_promo_html(real_today)}
 
 <h2 class="dr-pain-headline">Every hour completed. The filing still missed.</h2>
 <p class="subhead">Where a spreadsheet (and an individual CPA's own inbox) falls short:</p>
@@ -23962,7 +23964,8 @@ def _firm_relevant_record(records: list[dict]) -> dict | None:
     return candidate
 
 
-def build_firm_landing_page(state_slug: str, record: dict) -> tuple[str, str, str]:
+def build_firm_landing_page(state_slug: str, record: dict,
+                            year_end_firm_slugs: set[str] | None = None) -> tuple[str, str, str]:
     """Firm-admin-oriented SEO landing page -- same citation/sourcing standard as
     every individual state page, just reframed at the person who owns the FIRM's own
     registration/permit, not an individual CPA's license. Slug and copy are
@@ -24014,6 +24017,7 @@ renewal. Here's exactly when {esc(state_name)}'s firm-level filing is due.</p>
 </div>
 {trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
 {_state_data_gap_disclosure_html([record])}
+{_year_end_firm_link_html(state_slug, year_end_firm_slugs)}
 
 <div class="firm-cta">
 <h2>Tracking this for more than one firm, or want someone else watching it?</h2>
@@ -24856,6 +24860,31 @@ def _year_end_reverse_link_html(state_slug: str, year_end_cohort_slugs: set[str]
         )
     return (
         f'<p class="backlink-cross">One of several deadlines landing on December 31, 2026 &mdash; '
+        f'<a href="../{YEAR_END_PAGE_SLUG}/">see every state on that date &rarr;</a></p>'
+    )
+
+
+def _year_end_promo_html(real_today: date) -> str:
+    """BACKLOG 11-12 #8: one line on the homepage and /for-firms/ pointing at the
+    /year-end-renewals/ roundup until its target date passes (then the page is
+    noindexed and this renders nothing, same expiry as the state-page link).
+    No count in the copy: the roundup's own count has filing-date nuances."""
+    if real_today > YEAR_END_TARGET_DATE:
+        return ""
+    return (
+        '<p class="backlink-cross">Several states&#x27; CPA license and firm-permit deadlines land on '
+        'December 31, 2026. <a href="/year-end-renewals/">See every state on that date &rarr;</a></p>'
+    )
+
+
+def _year_end_firm_link_html(state_slug: str, year_end_firm_slugs: set[str] | None) -> str:
+    """BACKLOG 11-12 #8: firm landing page -> roundup, only where the FIRM
+    record's own date is the roundup's target (a state that is in the roundup
+    for its individual date alone gets no link from its firm page)."""
+    if not year_end_firm_slugs or state_slug not in year_end_firm_slugs:
+        return ""
+    return (
+        '<p class="backlink-cross">This firm deadline is one of several landing on December 31, 2026 &mdash; '
         f'<a href="../{YEAR_END_PAGE_SLUG}/">see every state on that date &rarr;</a></p>'
     )
 
@@ -28075,9 +28104,15 @@ def main() -> None:
     print(f"wrote {SITE_DIR.name}/index.html  ({len(built)} states)")
 
     FIRM_LANDING_PAGES.clear()
+    # BACKLOG 11-12 #8: firm pages whose own firm date is the roundup's target; empty once it has passed.
+    year_end_firm_slugs = (
+        set() if real_today > YEAR_END_TARGET_DATE
+        else {r["state_slug"] for r in _year_end_dec31_rows(by_slug)
+              if r["firm_date"] == YEAR_END_TARGET_DATE.isoformat()}
+    )
     for state_slug in firm_landing_state_slugs:
         record = _firm_relevant_record(by_slug[state_slug])
-        slug, title, page_html = build_firm_landing_page(state_slug, record)
+        slug, title, page_html = build_firm_landing_page(state_slug, record, year_end_firm_slugs)
         page_dir = SITE_DIR / slug
         page_dir.mkdir(parents=True, exist_ok=True)
         (page_dir / "index.html").write_text(page_html, encoding="utf-8")
