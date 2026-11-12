@@ -4089,8 +4089,11 @@ export async function countRewardedReferrals(db: D1Database, referrerFirmId: str
  * money taken, plan_tier never updated, nothing on our side reports it.
  * Same fix idiom as updateFirmAdminEmail() above: match on the confirmed
  * real error text for THIS table's PK conflict and re-throw anything else,
- * so a genuine transient failure surfaces as a 500 (Stripe retries) instead
- * of a silently-dropped event.
+ * so a genuine transient failure here becomes a non-2xx (the /stripe/webhook
+ * dispatcher returns 400 and logs it) and Stripe retries, instead of a
+ * silently-dropped event. That retry repairs a failure of THIS insert only:
+ * a throw later in the handler, after this row exists, is not re-run on
+ * redelivery (SEC-90, 2026-11-12).
  */
 export async function recordWebhookEventIfNew(
   db: D1Database,

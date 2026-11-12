@@ -331,7 +331,7 @@ import {
   StripeApiError,
   type StripeWebhookEvent,
 } from "./stripe";
-import { alertUnsynced, applySubscriptionUpdatedEvent, noteWebhookModeMismatch, noteWebhookSignatureFailure } from "./subscription_sync";
+import { alertUnsynced, applySubscriptionUpdatedEvent, noteWebhookDroppedEvent, noteWebhookHandlerThrow, noteWebhookModeMismatch, noteWebhookSignatureFailure } from "./subscription_sync";
 import { buildIcs, type IcsEvent } from "./ics";
 import { handleTrackedLink } from "./tracked_links";
 
@@ -4668,9 +4668,11 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   try {
     event = JSON.parse(rawBody) as StripeWebhookEvent;
   } catch {
+    await noteWebhookDroppedEvent(env, "invalid_payload");
     return jsonResponse(400, { error: "Invalid payload." });
   }
   if (!event.id || !event.type) {
+    await noteWebhookDroppedEvent(env, "invalid_event");
     return jsonResponse(400, { error: "Invalid event." });
   }
   // SEC-86 (AuditLab 2026-11-12, HIGH): a valid signature only proves Stripe
@@ -11698,12 +11700,14 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
       if (url.pathname === "/stripe/webhook") {
         try {
           return await handleStripeWebhook(request, env);
-        } catch {
-          // Deliberately 400, not the generic 500 a raw throw would produce
-          // -- Stripe treats anything outside 2xx as "retry me," and a body
-          // it can't recover from (e.g. a transient D1 error mid-processing)
-          // SHOULD be retried, same as every other failure mode this handler
-          // returns non-2xx for.
+        } catch (err) {
+          // 400 rather than the generic 500; Stripe retries either way. The
+          // retry only helps a throw that lands BEFORE the ledger insert in
+          // handleStripeWebhook. After it, the redelivery hits the ledger PK
+          // and returns 200 without re-running the body (SEC-90, 2026-11-12),
+          // so the throw has to be visible: noteWebhookHandlerThrow logs it
+          // and leaves a daily stripe_handler_throw row.
+          await noteWebhookHandlerThrow(env, err);
           return jsonResponse(400, { error: "Webhook processing failed." });
         }
       }

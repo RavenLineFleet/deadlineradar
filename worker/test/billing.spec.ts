@@ -763,6 +763,73 @@ describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the
     });
   });
 
+  describe("BILL-69 widening + SEC-90 remedy 1 (2026-11-12): the other silent webhook exits now leave a trace", () => {
+    const day = () => new Date().toISOString().slice(0, 10);
+    async function clearRow(id: string): Promise<void> {
+      await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id = ?1").bind(id).run();
+    }
+    const TEST_ENV = { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: SECRET };
+
+    it("a signed non-JSON body and a signed event with no type each 400 as before, warn, and leave one stripe_drop row", async () => {
+      const rowId = `stripe_drop:${day()}`;
+      await clearRow(rowId);
+      const warnSpy = vi.spyOn(console, "warn");
+      try {
+        const t = Math.floor(Date.now() / 1000);
+        const notJson = "not json {";
+        let resp = await postWebhook(notJson, await signPayload(SECRET, t, notJson), TEST_ENV);
+        expect(resp.status).toBe(400);
+        expect(((await resp.json()) as { error: string }).error).toBe("Invalid payload.");
+        const noType = JSON.stringify({ id: "evt_drop_notype", livemode: false, data: { object: {} } });
+        resp = await postWebhook(noType, await signPayload(SECRET, t, noType), TEST_ENV);
+        expect(resp.status).toBe(400);
+        expect(((await resp.json()) as { error: string }).error).toBe("Invalid event.");
+        expect(warnSpy.mock.calls.filter((c) => String(c[0]).includes("signed event DROPPED")).length).toBe(2);
+        expect(await ledgerRows(rowId)).toBe(1);
+        expect(await ledgerRows("evt_drop_notype")).toBe(0);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("SEC-90: updateFirmBilling throwing after the ledger insert returns 400, logs the error text, and leaves one stripe_handler_throw row", async () => {
+      const rowId = `stripe_handler_throw:${day()}`;
+      await clearRow(rowId);
+      const { firmId } = await createFirmWithSession("SEC90 throw", `sec90-${Math.random().toString(36).slice(2)}@example.com`);
+      const eventId = `evt_sec90_${firmId}`;
+      const payload = await checkoutEvent(firmId, eventId, false);
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const errSpy = vi.spyOn(console, "error");
+      const billSpy = vi.spyOn(store, "updateFirmBilling").mockRejectedValueOnce(new Error("D1_ERROR: sec90 transient"));
+      try {
+        const resp = await postWebhook(payload, sig, TEST_ENV);
+        expect(resp.status).toBe(400);
+        expect(((await resp.json()) as { error: string }).error).toBe("Webhook processing failed.");
+        expect(billSpy).toHaveBeenCalledTimes(1);
+        expect(errSpy.mock.calls.filter((c) => String(c[0]).includes("handler threw") && String(c[0]).includes("sec90 transient")).length).toBe(1);
+        expect(await ledgerRows(rowId)).toBe(1);
+        // Remedy 1 makes the loss visible; it does not repair it. The event is
+        // already ledgered, so a redelivery would 200 without re-running.
+        expect(await ledgerRows(eventId)).toBe(1);
+      } finally {
+        billSpy.mockRestore();
+        errSpy.mockRestore();
+      }
+    });
+
+    it("positive control: a clean checkout leaves no drop or handler-throw row", async () => {
+      await clearRow(`stripe_drop:${day()}`);
+      await clearRow(`stripe_handler_throw:${day()}`);
+      const { firmId } = await createFirmWithSession("SEC90 ok", `sec90ok-${Math.random().toString(36).slice(2)}@example.com`);
+      const payload = await checkoutEvent(firmId, `evt_sec90ok_${firmId}`, false);
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const resp = await postWebhook(payload, sig, TEST_ENV);
+      expect(resp.status).toBe(200);
+      expect(await ledgerRows(`stripe_drop:${day()}`)).toBe(0);
+      expect(await ledgerRows(`stripe_handler_throw:${day()}`)).toBe(0);
+    });
+  });
+
   it("the signature check still runs first: a bad signature 400s as 'Invalid signature.' whatever livemode says", async () => {
     const payload = JSON.stringify({ id: "evt_sec86_badsig", type: "checkout.session.completed", livemode: true, data: { object: {} } });
     const resp = await postWebhook(payload, "t=1,v1=deadbeef", { STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: SECRET });

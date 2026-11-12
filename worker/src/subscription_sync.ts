@@ -162,6 +162,44 @@ export async function noteWebhookModeMismatch(
   }
 }
 
+/**
+ * BILL-69 widening (SecurityLab 17:56Z + AuditLab 18:06Z, 2026-11-12, LOW):
+ * the two other post-signature exits, "Invalid payload." and "Invalid event.",
+ * were still silent. Only a validly-signed sender (Stripe) reaches them, so a
+ * drop there is the same defect class as the mode exit: Stripe gives up after
+ * its retries and nothing on our side says so. Logs every drop and leaves one
+ * `stripe_drop:<UTC day>` row. No email. Never throws.
+ */
+export async function noteWebhookDroppedEvent(env: Env, reason: "invalid_payload" | "invalid_event"): Promise<void> {
+  console.warn(`[stripe-webhook] signed event DROPPED (${reason}); Stripe sent a body this handler cannot use (BILL-69)`);
+  try {
+    const dayUtc = new Date().toISOString().slice(0, 10);
+    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_drop:${dayUtc}`, "stripe_drop");
+  } catch (err) {
+    console.log(`[stripe-webhook] drop record failed: ${String(err)}`);
+  }
+}
+
+/**
+ * SEC-90 remedy 1 (SecurityLab 18:13Z, AuditLab 18:17Z, 2026-11-12, HIGH):
+ * the /stripe/webhook dispatcher caught every handler throw with a bare
+ * `catch {` and no trace. That matters because the throw is NOT repaired by
+ * Stripe's retry: if it lands after the ledger insert (e.g. updateFirmBilling
+ * failing), the redelivery hits the ledger PK and returns 200 without
+ * re-running anything. This makes the throw visible: console.error with the
+ * error text, plus one `stripe_handler_throw:<UTC day>` row. It does NOT
+ * repair the lost event (remedy 3, separate). No email. Never throws.
+ */
+export async function noteWebhookHandlerThrow(env: Env, err: unknown): Promise<void> {
+  console.error(`[stripe-webhook] handler threw, returning 400 (a ledgered event will NOT be re-run on retry; SEC-90): ${String(err)}`);
+  try {
+    const dayUtc = new Date().toISOString().slice(0, 10);
+    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_handler_throw:${dayUtc}`, "stripe_handler_throw");
+  } catch (markErr) {
+    console.log(`[stripe-webhook] handler-throw record failed: ${String(markErr)}`);
+  }
+}
+
 export async function applySubscriptionUpdatedEvent(
   env: Env,
   eventId: string,
