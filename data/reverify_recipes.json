@@ -3216,7 +3216,7 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "hand 2026-11-12 (nc-firm created): pins .0108(b)'s renew-by date and .0108(h)'s weekend/holiday roll (SRC-250) on the cited OAH text",
+  "provenance": "hand 2026-11-12 (nc-firm created): pins .0108(b)'s renew-by date and .0108(h)'s weekend/holiday roll, paper and electronic limbs (SRC-250), on the cited OAH text",
   "checks": [
    {
     "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0108.html",
@@ -3232,6 +3232,15 @@
     "alt_urls": [],
     "method": "http",
     "anchor": "received in the Board office not later than the last day of January",
+    "window": 116,
+    "pattern": null,
+    "expect_text": "next business day"
+   },
+   {
+    "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0108.html",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "sent not later than midnight on the last day of January",
     "window": 116,
     "pattern": null,
     "expect_text": "next business day"
@@ -5104,6 +5113,15 @@
     "expect_text": "by the last day of your birth month"
    }
   ]
+ },
+ "tx-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": "BROWSER-ONLY (2026-11-12): the cited 22 TAC 515.3(c)(1) is served only by the Texas SOS Appian portal (a 2.5 KB JavaScript shell to a script client, rule text absent), and the Board's renewal page (tsbpa.texas.gov/cpas/renewal/) does not state the firm-office rule. No official script-readable copy found. Re-verify by reading recordId=206373 in a real browser before the 30-day wall.",
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-11-12 (tx-firm created)",
+  "checks": []
  },
  "us-virgin-islands-all": {
   "dataset": "cpa_deadlines",
