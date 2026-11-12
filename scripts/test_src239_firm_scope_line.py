@@ -7,7 +7,8 @@ import pytest
 import generate
 
 ROOT = Path(__file__).resolve().parent.parent
-SEVEN = ["california", "michigan", "new-york", "ohio", "pennsylvania", "puerto-rico", "texas"]
+# SRC-239(c): California left the set when ca-firm shipped; Texas is next.
+SEVEN = ["michigan", "new-york", "ohio", "pennsylvania", "puerto-rico", "texas"]
 
 
 def _rec(license_type, **kw):
@@ -109,7 +110,7 @@ def test_each_firm_scope_url_is_https_and_differs_from_board_site_except_pa():
     assert all(u.startswith("https://") for s, u in urls.items() if s != "puerto-rico")
 
 
-COMPUTED = {"california", "ohio", "pennsylvania", "puerto-rico", "texas"}
+COMPUTED = {"ohio", "pennsylvania", "puerto-rico", "texas"}
 
 
 def _add_form_groups():
@@ -123,7 +124,7 @@ def _add_form_groups():
 
 def test_add_staff_form_hint_on_exactly_the_seven():
     groups, html = _add_form_groups()
-    assert html.count('class="field-hint dr-firm-scope-hint"') == 7
+    assert html.count('class="field-hint dr-firm-scope-hint"') == len(SEVEN)
     assert sorted(s for s, b in groups.items() if "dr-firm-scope-hint" in b) == SEVEN
 
 
@@ -143,3 +144,20 @@ def test_add_form_hint_skips_states_that_cover_firms():
     assert generate._firm_add_form_scope_hint_html("x", [_rec("individual"), _rec("firm")]) == ""
     assert generate._firm_add_form_scope_hint_html("x", [_rec("all", firm_scope_note="N.")]) == ""
     assert generate._firm_add_form_scope_hint_html("x", []) == ""
+
+
+def test_california_page_has_no_firm_scope_line_now_that_ca_firm_ships():
+    page = (ROOT / "docs" / "california" / "index.html").read_text(encoding="utf-8")
+    assert 'class="disclosure firm-scope"' not in page
+    # the scope sentence itself, not the fee caveat ("the firm permit renewal fee isn't tracked here yet"), which is true
+    for apos in ("'", "&#x27;", "&#39;"):
+        assert f"renewal for California isn{apos}t tracked here yet" not in page
+    assert "Firm permits for California are not tracked" not in page
+
+
+def test_california_add_form_offers_the_firm_permit_and_no_scope_hint():
+    groups, _ = _add_form_groups()
+    block = groups["california"]
+    assert "dr-firm-scope-hint" not in block
+    assert 'value="ca-firm"' in block and 'value="ca-individual"' in block
+    assert 'name="permit_month"' in block and 'name="permit_year"' in block

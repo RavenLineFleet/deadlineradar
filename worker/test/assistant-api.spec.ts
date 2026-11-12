@@ -376,13 +376,18 @@ describe("XSS-2 regression -- citation_url scheme guard is load-bearing, not jus
       const served = lookupAssistantDeadlines(String(r.state_slug), String(r.license_type))[0]!;
       expect(served.firm_scope_note, String(r.id)).toBe(typeof r.firm_scope_note === "string" ? r.firm_scope_note : null);
     }
-    expect(lookupAssistantDeadlines("california")[0]!.firm_scope_note).toContain("isn't tracked here yet");
-    expect(lookupAssistantDeadlines("california")[0]!.firm_scope_url).toBe("https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml");
+    expect(lookupAssistantDeadlines("ohio")[0]!.firm_scope_note).toContain("isn't tracked here yet");
+    expect(lookupAssistantDeadlines("ohio")[0]!.firm_scope_url).toBe("https://acc.ohio.gov/for-firms");
     expect(lookupAssistantDeadlines("puerto-rico")[0]!.firm_scope_url).toBeNull();
     expect(lookupAssistantDeadlines("florida").every((r) => r.firm_scope_url === null)).toBe(true);
     expect(lookupAssistantDeadlines("florida").every((r) => r.firm_scope_note === null)).toBe(true);
-    // A firm asking for California's firm record gets a 404 path (no record), not the birth-month rule.
-    expect(lookupAssistantDeadlines("california", "firm")).toEqual([]);
+    // A firm asking for Ohio's firm record gets a 404 path (no record), not the individual rule.
+    expect(lookupAssistantDeadlines("ohio", "firm")).toEqual([]);
+    // SRC-239(c): California's firm question now gets ca-firm's own rule, not the birth-month rule.
+    const caFirm = lookupAssistantDeadlines("california", "firm");
+    expect(caFirm.map((r) => r.license_type_label)).toEqual(["Firm permit (accountancy partnership or corporation)"]);
+    expect(caFirm[0]!.firm_scope_note).toBeNull();
+    expect(lookupAssistantDeadlines("california", "individual")[0]!.firm_scope_note).toBeNull();
   });
 
   it("serves a renewal-fee data_gap_note only where the page shows it", async () => {

@@ -74,7 +74,7 @@
       "state": "California",
       "state_slug": "california",
       "fee_usd": 400,
-      "fee_notes": "$400 for licenses expiring after June 30, 2026 (current scheduled tier); $340 for licenses expiring before July 1, 2026.",
+      "fee_notes": "$400 for licenses expiring after June 30, 2026 (current scheduled tier); $340 for licenses expiring before July 1, 2026. This is the individual license renewal fee; the firm permit renewal fee isn't tracked here yet.",
       "source_url": "https://www.dca.ca.gov/cba/licensees/renewal-information.shtml",
       "confidence": "high",
       "verified_date": "2026-11-08",

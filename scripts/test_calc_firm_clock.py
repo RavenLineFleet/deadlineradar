@@ -30,7 +30,7 @@ SEPARATE_SAME_DATE = {"alaska", "arkansas", "connecticut", "indiana", "iowa", "l
                       "mississippi", "north-dakota", "south-carolina", "virginia", "west-virginia",
                       "wisconsin", "wyoming"}
 # ... or a firm record whose date is not computed (Bucket C).
-SEPARATE_NO_FIRM_DATE = {"arizona", "guam", "massachusetts", "new-jersey", "new-mexico", "vermont", "washington"}
+SEPARATE_NO_FIRM_DATE = {"arizona", "california", "guam", "massachusetts", "new-jersey", "new-mexico", "vermont", "washington"}
 
 
 def _states():
@@ -48,7 +48,7 @@ def test_golden_buckets_for_the_current_dataset():
     assert {s for s, v in got.items() if v == "separate"} == SEPARATE_SAME_DATE | SEPARATE_NO_FIRM_DATE
     firm_types = generate._FIRM_ONLY_LICENSE_TYPES
     no_firm = {slug for slug, rs in by.items() if not any(r.get("license_type") in firm_types for r in rs)}
-    assert {s for s, v in got.items() if v == ""} == no_firm and len(no_firm) == 21
+    assert {s for s, v in got.items() if v == ""} == no_firm and len(no_firm) == 20
 
 
 def _rec(kind, date):

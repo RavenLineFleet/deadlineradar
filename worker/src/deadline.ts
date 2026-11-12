@@ -446,6 +446,19 @@ export function computeSubscriberDeadline(
   const stateRecords = DATA.records.filter((r) => r.state_slug === stateSlug);
   if (stateRecords.length === 0) return null;
 
+  if (stateSlug === "california" && deadlineFields.license_type_id === "ca-firm") {
+    // SRC-239(c): firm permit, keyed to the month/year it was originally
+    // approved (index.ts resolveDeadlineInput). Same parity arithmetic, but
+    // searched from the year after approval, so a permit approved this
+    // month first expires two years out, not at the end of this month.
+    const month = Number.parseInt(deadlineFields.permit_month ?? "", 10);
+    const year = Number.parseInt(deadlineFields.permit_year ?? "", 10);
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1900 || year > 2100) return null;
+    const firstEligible = new Date(Date.UTC(year + 1, 0, 1));
+    const from = asOf.getTime() > firstEligible.getTime() ? asOf : firstEligible;
+    return nextBirthMonthParityDate(from, month, year % 2 === 1 ? "odd" : "even");
+  }
+
   if (stateSlug === "california" || stateSlug === "arizona") {
     // Arizona added 2026-08-18 (AuditLab DNC sweep) -- same birth-month +
     // birth-year-parity mechanism as California, see

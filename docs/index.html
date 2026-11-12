@@ -325,7 +325,7 @@
     <div class="item"><span class="n">31</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">6</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">18</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">246 of 246</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last 30 days</span></div>
+    <div class="item"><span class="n">247 of 247</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last 30 days</span></div>
     <div class="item"><span class="n">2</span><span class="lbl">pending rule changes tracked</span></div><div class="item"><span class="n">4</span><span class="lbl">jurisdictions with a live source conflict</span></div>
   </div>
   <p class="trust-footnote">In the 18 jurisdictions that depend on your specific
@@ -695,10 +695,16 @@ verified renewal rule, with a link back to the official source and a "last verif
   <option value="ar-individual">Individual CPA/PA license</option>
 <option value="ar-firm">Firm registration</option>
 </select></div>
-<div class="signup-extra-fields" data-for-state="california" hidden><div class="signup-form-row">
+<div class="signup-extra-fields" data-for-state="california" hidden><label for="license_type_id--california">Which license?</label>
+<select id="license_type_id--california" name="license_type_id" required>
+  <option value="">Select the one that applies</option>
+  <option value="ca-individual">Individual CPA license</option>
+  <option value="ca-firm">Firm permit (accountancy partnership or corporation)</option>
+</select>
+<div class="signup-form-row">
   <div>
-    <label for="birth_month--california">Birth month</label>
-    <select id="birth_month--california" name="birth_month" required>
+    <label for="birth_month--california">Birth month (individual license)</label>
+    <select id="birth_month--california" name="birth_month">
       <option value="">Select&hellip;</option>
       <option value="1">January</option>
 <option value="2">February</option>
@@ -715,11 +721,37 @@ verified renewal rule, with a link back to the official source and a "last verif
     </select>
   </div>
   <div>
-    <label for="birth_year--california">Birth year</label>
-    <input type="number" id="birth_year--california" name="birth_year" min="1900" max="2100" required placeholder="1985">
+    <label for="birth_year--california">Birth year (individual license)</label>
+    <input type="number" id="birth_year--california" name="birth_year" min="1900" max="2100" placeholder="1985">
   </div>
 </div>
-<p class="field-hint">Your renewal cycle is set by your birth month and whether your birth year is odd or even.</p></div>
+<div class="signup-form-row">
+  <div>
+    <label for="permit_month--california">Month the firm permit was originally approved</label>
+    <select id="permit_month--california" name="permit_month">
+      <option value="">Select&hellip;</option>
+      <option value="1">January</option>
+<option value="2">February</option>
+<option value="3">March</option>
+<option value="4">April</option>
+<option value="5">May</option>
+<option value="6">June</option>
+<option value="7">July</option>
+<option value="8">August</option>
+<option value="9">September</option>
+<option value="10">October</option>
+<option value="11">November</option>
+<option value="12">December</option>
+    </select>
+  </div>
+  <div>
+    <label for="permit_year--california">Year it was originally approved</label>
+    <input type="number" id="permit_year--california" name="permit_year" min="1900" max="2100" placeholder="2019">
+  </div>
+</div>
+<p class="field-hint">Individual license: fill in birth month and year (your cycle follows your birth month and
+whether your birth year is odd or even). Firm permit: fill in the month and year the CBA originally approved it
+(it expires on the last day of that month, every two years, in years odd or even like the approval year).</p></div>
 <div class="signup-extra-fields" data-for-state="colorado" hidden><label for="license_type_id--colorado">Which license?</label>
 <select id="license_type_id--colorado" name="license_type_id" required>
   <option value="">Select the one that applies to you</option>

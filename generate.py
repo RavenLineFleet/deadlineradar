@@ -4085,7 +4085,48 @@ after your anchor year &mdash; works whether you mean your own individual licens
   min="1900" max="2100" placeholder="e.g. 2023" required>
 <p class="field-hint">Your renewal cycle always lands on {esc(month_name)} {cfg['day']}, every
 {cfg['term_years']} years from that anchor year.</p>"""
-    if state_slug == "california" or state_slug in BIRTH_MONTH_YEAR_PARITY_STATES:
+    if state_slug == "california":
+        # SRC-239(c): California tracks the firm permit too (ca-firm, Bus. &
+        # Prof. Code 5070.5(b)), keyed to the month/year it was originally
+        # approved. Florida's precedent: one "Which license?" select, both
+        # field pairs shown, none of them `required` in HTML because only one
+        # pair applies; resolveDeadlineInput() enforces the right pair.
+        return f"""<label for="license_type_id">Which license?</label>
+<select id="license_type_id" name="license_type_id" required>
+  <option value="">Select the one that applies</option>
+  <option value="ca-individual">Individual CPA license</option>
+  <option value="ca-firm">Firm permit (accountancy partnership or corporation)</option>
+</select>
+<div class="signup-form-row">
+  <div>
+    <label for="birth_month">Birth month (individual license)</label>
+    <select id="birth_month" name="birth_month">
+      <option value="">Select&hellip;</option>
+      {_MONTH_OPTIONS}
+    </select>
+  </div>
+  <div>
+    <label for="birth_year">Birth year (individual license)</label>
+    <input type="number" id="birth_year" name="birth_year" min="1900" max="2100" placeholder="1985">
+  </div>
+</div>
+<div class="signup-form-row">
+  <div>
+    <label for="permit_month">Month the firm permit was originally approved</label>
+    <select id="permit_month" name="permit_month">
+      <option value="">Select&hellip;</option>
+      {_MONTH_OPTIONS}
+    </select>
+  </div>
+  <div>
+    <label for="permit_year">Year it was originally approved</label>
+    <input type="number" id="permit_year" name="permit_year" min="1900" max="2100" placeholder="2019">
+  </div>
+</div>
+<p class="field-hint">Individual license: fill in birth month and year (your cycle follows your birth month and
+whether your birth year is odd or even). Firm permit: fill in the month and year the CBA originally approved it
+(it expires on the last day of that month, every two years, in years odd or even like the approval year).</p>"""
+    if state_slug in BIRTH_MONTH_YEAR_PARITY_STATES:
         return f"""<div class="signup-form-row">
   <div>
     <label for="birth_month">Birth month</label>
@@ -8164,7 +8205,14 @@ def build_state_page(
     if state_slug == "ohio":
         deadline_html = render_ohio(records[0])
     elif state_slug == "california":
-        deadline_html = render_california(records[0], as_of)
+        # SRC-239(c): ca-firm rides after the individual table through the
+        # generic fallback, the same 2026-08-18 fix as the branches below
+        # (rendering records[0] alone would silently drop the firm record).
+        ca_ind = next(r for r in records if r["id"] == "ca-individual")
+        deadline_html = render_california(ca_ind, as_of)
+        ca_other = [r for r in records if r is not ca_ind]
+        if ca_other:
+            deadline_html += "\n" + _render_records_computed_cohort_gapped(ca_other)
     elif state_slug == "texas":
         deadline_html = render_texas(records[0], as_of)
     elif state_slug == "new-york":

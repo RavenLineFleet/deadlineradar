@@ -265,8 +265,6 @@
       "state_slug": "california",
       "license_type": "individual",
       "license_type_label": "Individual CPA license",
-      "firm_scope_note": "This page covers the individual CPA license only. Firm permit or registration renewal for California isn't tracked here yet, so confirm your firm's own date with the state board.",
-      "firm_scope_url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
       "renewal_pattern": "birth_month",
       "cycle_description": "CPA license expires every 2 years at midnight on the last day of the licensee's own birth month. Licensees with an odd birth year renew in odd expiration years; licensees with an even birth year renew in even expiration years.",
       "next_deadline_computed": null,
@@ -284,6 +282,34 @@
       "verification_history": "2026-08-14 (SRC-6 primary-citation sweep): citation_url set to https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=5070.5.  Agent evidence: B&P 5070.5(a): a permit 'expires at 12 midnight on the last day of the month of the legal birthday of the licensee during the second year of a two-year term if not renewed.' The odd/even mapping is in 16 CCR 93: permits 'expire at 12 midnight on the last day of the birth month of an odd numbered year if the licensee was born in an odd numbered year or of an even numbered year if the licensee was born in an even numbered year' (verified in the CBA's published regulations PDF, https://www.dca.ca.gov/cba/about/cba_regs.pdf).\n\n2026-09-01 (monthly re-verification, 08-13/08-14 cohort): Bus. & Prof. Code 5070.5(a)(1) re-read at leginfo: 'expires at 12 midnight on the last day of the month of the legal birthday of the licensee during the second year of a two-year term' unchanged.\n\n2026-09-21 (monthly re-verification, 2026-09-01 cohort): citation_url (Cal. Bus. & Prof. Code 5070.5(a)) confirms expiration 'at 12 midnight on the last day of the month of the legal birthday of the licensee during the second year of a two-year term' but does not itself state birth-year parity. The record's own companion citation, Cal. Code Regs. tit. 16, Section 93, states it directly (fetched via Cornell LII mirror): 'Permits issued under these rules expire at 12 midnight on the last day of the birth month of an odd numbered year if the licensee was born in an odd numbered year or of an even numbered year if the licensee was born in an even numbered year.' Exact match to published birth-year-parity mechanism.\n\n2026-10-02 (automated re-verification, auto-anchor): confirmed via https://www.law.cornell.edu/regulations/california/16-CCR-93, sha256=a07d86e7edd3aea7e2358909278c46d7f6797edd88964ef17e7b8bfbb2dd974a, anchor='Permits issued under these rules expire at 12 midnight on the'\n\n2026-10-04 (automated re-verification, auto-anchor): confirmed via https://www.law.cornell.edu/regulations/california/16-CCR-93, sha256=a07d86e7edd3aea7e2358909278c46d7f6797edd88964ef17e7b8bfbb2dd974a, anchor='Permits issued under these rules expire at 12 midnight on the'\n\n2026-10-14 (automated re-verification, auto-anchor): confirmed via https://www.law.cornell.edu/regulations/california/16-CCR-93, sha256=a07d86e7edd3aea7e2358909278c46d7f6797edd88964ef17e7b8bfbb2dd974a, anchor='Permits issued under these rules expire at 12 midnight on the'\n\n2026-11-02 (automated re-verification, auto-anchor): confirmed via https://www.law.cornell.edu/regulations/california/16-CCR-93, sha256=a07d86e7edd3aea7e2358909278c46d7f6797edd88964ef17e7b8bfbb2dd974a, anchor='Permits issued under these rules expire at 12 midnight on the'",
       "verified_method": "auto-anchor",
       "last_manual_verified_date": null
+    },
+    {
+      "id": "ca-firm",
+      "state": "California",
+      "state_slug": "california",
+      "license_type": "firm",
+      "license_type_label": "Firm permit (accountancy partnership or corporation)",
+      "renewal_pattern": "other",
+      "cycle_description": "Biennial, on the firm's own cycle, not any individual's birth month. A permit to practice as an accountancy partnership or accountancy corporation expires at 12 midnight on the last day of the month in which it was initially issued, during the second year of a two-year term, if not renewed (Cal. Bus. & Prof. Code 5070.5(b)). The CBA's firm licensure page states the year rule: a firm approved in an even-numbered year expires each even-numbered year, and one approved in an odd-numbered year expires each odd-numbered year, on the last day of the month it was originally approved. The CBA says it mails renewal forms about two months before expiration, and that if the renewal is not postmarked by the expiration date, the firm's practice rights cease until it is renewed.",
+      "next_deadline_computed": null,
+      "computation": {
+        "type": "permit_issue_month_parity",
+        "cycle_years": 2,
+        "day_of_month": "last",
+        "parity_rule": "expiration_year_parity_matches_original_approval_year_parity",
+        "note": "Same arithmetic as ca-individual's birth-month parity, keyed to the month and year the firm's permit was originally approved instead of a birth date. Requires that firm's own approval month and year, which is not a statewide fact, so there is no single published date."
+      },
+      "data_gap_note": "There is no single statewide date: it depends on the month and year the CBA originally approved your firm's permit. Choose \"Firm permit\" in the reminder form below and enter both, and each expiration is worked out from them.",
+      "source_url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
+      "last_verified": "2026-11-11",
+      "wave": 7,
+      "citation": "Cal. Bus. & Prof. Code 5070.5(b); CBA firm licensure page (Corporation and Partnership Renewal Cycle)",
+      "citation_url": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=5070.5",
+      "secondary_source_url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
+      "citation_class": "codified_law",
+      "verification_history": "2026-11-11 (SRC-239(c), new record, AssetLab manual read): Cal. Bus. & Prof. Code 5070.5(b) read at leginfo through the claim gate's own fetcher (honest UA; plain curl gets HTTP 403), sha256=eeb1d19a35b3e49c1b02fa91b12056d8595318e6bc3855a90a05349dc457d4c2: 'A permit to practice as an accountancy partnership or an accountancy corporation expires at 12 midnight on the last day of the month in which the permit was initially issued during the second year of a two-year term if not renewed.' History line: Amended by Stats. 2021, Ch. 300, Sec. 4 (AB 298), effective January 1, 2022. The statute's 'second year of a two-year term' does not by itself say which calendar year the first expiration falls in, so the year rule is taken from the CBA's firm licensure page (sha256=92404ad9ad7dfe6968468928d50a44a28dd66b4097b4707cad83975a517e5920), which states it identically under both 'Corporation Renewal Cycle' and 'Partnership Renewal Cycle': 'If approved in an even-numbered year, the license will expire each even-numbered year on the last day of the month in which it was originally approved. If approved in an odd-numbered year, the license will expire each odd-numbered year on the last day of the month in which it was originally approved.' The same page: 'If your renewal form is not completed, mailed, and postmarked by the license expiration date, your firm's practice rights cease until all deficiencies are corrected and the license is renewed.' Not inferred from the individual rule.",
+      "verified_method": "manual",
+      "last_manual_verified_date": "2026-11-11"
     },
     {
       "id": "tx-individual",

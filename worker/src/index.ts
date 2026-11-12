@@ -1118,6 +1118,32 @@ function resolveDeadlineInput(stateSlug: string, form: Record<string, string>): 
   const computable = isStateComputable(stateSlug);
 
   if (computable) {
+    if (stateSlug === "california" && (form.license_type_id ?? "").trim() === "ca-firm") {
+      // SRC-239(c): a California firm permit (Bus. & Prof. Code 5070.5(b))
+      // expires on the last day of the month it was originally approved, in
+      // years matching the approval year's parity (CBA firm licensure page).
+      // Same arithmetic as the individual rule below, keyed to the firm's own
+      // approval month/year. The year is kept (a firm fact, not personal
+      // data): the first expiration is in the second year, never the
+      // approval year itself.
+      const permitMonthInt = strictParseInt((form.permit_month ?? "").trim());
+      const permitYearInt = strictParseInt((form.permit_year ?? "").trim());
+      if (permitMonthInt === null || permitYearInt === null || permitMonthInt < 1 || permitMonthInt > 12 || permitYearInt < 1900 || permitYearInt > 2100) {
+        return errorPage(400, "California firm permit needs the month and year the permit was originally approved.");
+      }
+      const nowForPermit = new Date();
+      if (permitYearInt * 12 + permitMonthInt > nowForPermit.getUTCFullYear() * 12 + nowForPermit.getUTCMonth() + 1) {
+        return errorPage(400, "California firm permit approval month can't be in the future.");
+      }
+      return {
+        deadlineFields: { license_type_id: "ca-firm", permit_month: String(permitMonthInt), permit_year: String(permitYearInt) },
+        deadlineSource: store.DEADLINE_SOURCE_COMPUTED,
+        userDeadline: null,
+      };
+    }
+    if (stateSlug === "california" && !["", "ca-individual"].includes((form.license_type_id ?? "").trim())) {
+      return errorPage(400, "California needs to know which license this is -- individual or firm permit.");
+    }
     if (stateSlug === "california" || stateSlug === "arizona") {
       // Arizona added 2026-08-18 (AuditLab DNC sweep) -- same birth-month +
       // birth-year-parity mechanism as California, see
@@ -6302,7 +6328,7 @@ function stringFieldsOf(body: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
-const DEADLINE_FIELD_KEYS = ["birth_month", "birth_year", "cohort_group", "parity_number", "license_type_id", "license_expiration_date", "anchor_date", "anchor_year", "term_years"];
+const DEADLINE_FIELD_KEYS = ["birth_month", "birth_year", "cohort_group", "parity_number", "license_type_id", "license_expiration_date", "anchor_date", "anchor_year", "term_years", "permit_month", "permit_year"];
 
 /** The dashboard's clean status vocabulary (loosely mirrors generate.py's
  * illustrative _MOCKUP_STATUS_CLASS terminology -- Confirmed/Pending/Needs

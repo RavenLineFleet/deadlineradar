@@ -3,13 +3,13 @@
     "generated_by": "scripts/gap_list_check.py",
     "purpose": "SRC-4 (AuditLab, 2026-08-14): mechanically-derived inventory of every record carrying a sourcing gap/verification note, regenerated on every preship_gate.py run so it can never go stale or be a remembered subset. gap_record_count excludes AuditLab-verified terminal_disclosure records (2026-09-09) -- see note_bearing_record_count for the total including them."
   },
-  "total_records": 246,
-  "gap_record_count": 1,
+  "total_records": 247,
+  "gap_record_count": 2,
   "terminal_disclosure_count": 36,
-  "note_bearing_record_count": 37,
+  "note_bearing_record_count": 38,
   "field_breakdown": {
     "verification_note": 4,
-    "data_gap_note": 33
+    "data_gap_note": 34
   },
   "block_claim_count": 0,
   "entries": [
@@ -32,6 +32,16 @@
       "note": "Michigan's renewal rule is confirmed by two official sources: LARA's licensing page and Mich. Admin. Code R 339.1003(1), both stating that an individual CPA license expires biennially on July 31. Neither source states which year of the two-year cycle applies to a given license, so no single \"next July 31\" date applies to every CPA. Check your license or the Michigan Board of Accountancy (LARA) for your specific renewal year.",
       "is_block_claim": false,
       "terminal_disclosure": true
+    },
+    {
+      "dataset": "cpa_deadlines.json",
+      "id": "ca-firm",
+      "state": "California",
+      "state_slug": "california",
+      "field": "data_gap_note",
+      "note": "There is no single statewide date: it depends on the month and year the CBA originally approved your firm's permit. Choose \"Firm permit\" in the reminder form below and enter both, and each expiration is worked out from them.",
+      "is_block_claim": false,
+      "terminal_disclosure": false
     },
     {
       "dataset": "cpa_deadlines.json",

@@ -79,7 +79,7 @@
 </div>
   
 </div>
-<p class="disclosure firm-scope">Firms: This page covers the individual CPA license only. Firm permit or registration renewal for California isn&#x27;t tracked here yet, so confirm your firm&#x27;s own date with the state board. <a href="https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml">The board's page for firms</a>.</p>
+
 <p>80 hours in the 2-year period immediately preceding license expiration, minimum 20 hours each year (12 of which must be technical subject matter), including 4 hours of ethics education. A separate Regulatory Review course requirement (§87.8) also applies on a longer cycle -- not counted as &#x27;ethics&#x27; here since it&#x27;s a distinct named requirement, noted separately if this cluster expands.</p>
 
 <div class="signup-form signup-form--compact" id="remind">
@@ -96,10 +96,16 @@
       <input type="email" id="cpe-email-california" name="email" required placeholder="you@example.com">
       <button type="submit">Remind me</button>
     </div>
-    <div class="signup-form-row">
+    <label for="license_type_id">Which license?</label>
+<select id="license_type_id" name="license_type_id" required>
+  <option value="">Select the one that applies</option>
+  <option value="ca-individual">Individual CPA license</option>
+  <option value="ca-firm">Firm permit (accountancy partnership or corporation)</option>
+</select>
+<div class="signup-form-row">
   <div>
-    <label for="birth_month">Birth month</label>
-    <select id="birth_month" name="birth_month" required>
+    <label for="birth_month">Birth month (individual license)</label>
+    <select id="birth_month" name="birth_month">
       <option value="">Select&hellip;</option>
       <option value="1">January</option>
 <option value="2">February</option>
@@ -116,11 +122,37 @@
     </select>
   </div>
   <div>
-    <label for="birth_year">Birth year</label>
-    <input type="number" id="birth_year" name="birth_year" min="1900" max="2100" required placeholder="1985">
+    <label for="birth_year">Birth year (individual license)</label>
+    <input type="number" id="birth_year" name="birth_year" min="1900" max="2100" placeholder="1985">
   </div>
 </div>
-<p class="field-hint">Your renewal cycle is set by your birth month and whether your birth year is odd or even.</p>
+<div class="signup-form-row">
+  <div>
+    <label for="permit_month">Month the firm permit was originally approved</label>
+    <select id="permit_month" name="permit_month">
+      <option value="">Select&hellip;</option>
+      <option value="1">January</option>
+<option value="2">February</option>
+<option value="3">March</option>
+<option value="4">April</option>
+<option value="5">May</option>
+<option value="6">June</option>
+<option value="7">July</option>
+<option value="8">August</option>
+<option value="9">September</option>
+<option value="10">October</option>
+<option value="11">November</option>
+<option value="12">December</option>
+    </select>
+  </div>
+  <div>
+    <label for="permit_year">Year it was originally approved</label>
+    <input type="number" id="permit_year" name="permit_year" min="1900" max="2100" placeholder="2019">
+  </div>
+</div>
+<p class="field-hint">Individual license: fill in birth month and year (your cycle follows your birth month and
+whether your birth year is odd or even). Firm permit: fill in the month and year the CBA originally approved it
+(it expires on the last day of that month, every two years, in years odd or even like the approval year).</p>
   </form>
 </div>
 
