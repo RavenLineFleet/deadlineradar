@@ -519,6 +519,34 @@
    }
   ]
  },
+ "ca-firm": {
+  "dataset": "cpa_deadlines",
+  "manual": null,
+  "combine": "each",
+  "field": null,
+  "derivation": null,
+  "provenance": "hand 2026-11-12: pins the CBA firm page's renewal-cycle rule (both the 'practice rights' and 'good standing' copies) that ca-firm cites; the record has no single date, so this guards the rule text",
+  "checks": [
+   {
+    "url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "practice rights. The expiration date is based on the month and year the application was originally approved. If approved in an even-numbered year, the license will expire each even-numbered year on the",
+    "window": 64,
+    "pattern": null,
+    "expect_text": "last day of the month in which it was originally approved"
+   },
+   {
+    "url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "good standing. The expiration date is based on the month and year the application was originally approved. If approved in an even-numbered year, the license will expire each even-numbered year on the",
+    "window": 64,
+    "pattern": null,
+    "expect_text": "last day of the month in which it was originally approved"
+   }
+  ]
+ },
  "california-reinstatement": {
   "dataset": "reinstatement",
   "manual": null,
