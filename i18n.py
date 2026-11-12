@@ -616,7 +616,10 @@ EN: dict[str, str] = {
         # "no refund ... but you keep full access through the end of the
         # period" phrasing already used in Terms/the confirm dialog.
         "the period you already paid for, with no refund for the time already paid — you keep "
-        "full access through the end of that period either way."
+        # AuditLab BILL-65 (2026-11-12): disclose the deletion refund too, in
+        # AuditLab's own wording -- the page said only the no-refund half.
+        "full access through the end of that period either way. If you delete the account rather "
+        "than just cancelling, we refund the unused portion of the current period (Terms, Section 11)."
     ),
     "faq.firm.4_q": "Which plan should my firm pick?",
     "faq.firm.4_a": (
