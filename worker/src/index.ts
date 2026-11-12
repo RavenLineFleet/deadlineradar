@@ -14599,25 +14599,29 @@ export default {
     // Roadmap #70: skipped entirely on a recognized US federal holiday --
     // see holidays.ts's own docstring for why this never loses a reminder,
     // only delays that day's newly-due sends by up to 24h.
+    // SRC-226 (2026-11-12): this was `return`, which also skipped every pass
+    // registered below it (drip, rule-change alerts, digest, newsletter,
+    // trial-ending notice/alert, ...). Only the reminder pass skips; the rest
+    // run every day. Pinned by test/src228-holiday-skips-only-reminders.spec.ts.
     if (isUsFederalHoliday(new Date())) {
       console.log(`[reminder-cron] skipped -- US federal holiday`);
-      return;
-    }
-    ctx.waitUntil(
-      (async () => {
-        try {
-          const summary = await runReminderPass(env);
-          console.log(`[reminder-cron] ${JSON.stringify(summary)}`);
-        } catch (err) {
-          if (err instanceof SchedulerStaleDataError) {
-            console.log(`[reminder-cron] paused -- stale reference data: ${err.message}`);
-            await notifyOperatorOfStaleData(env, err.message);
-          } else {
-            console.log(`[reminder-cron] error: ${String(err)}`);
+    } else {
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const summary = await runReminderPass(env);
+            console.log(`[reminder-cron] ${JSON.stringify(summary)}`);
+          } catch (err) {
+            if (err instanceof SchedulerStaleDataError) {
+              console.log(`[reminder-cron] paused -- stale reference data: ${err.message}`);
+              await notifyOperatorOfStaleData(env, err.message);
+            } else {
+              console.log(`[reminder-cron] error: ${String(err)}`);
+            }
           }
-        }
-      })()
-    );
+        })()
+      );
+    }
 
     // Roadmap #34 (2026-08-08): the drip course's own independent pass, same
     // trigger. Deliberately NOT inside the holiday-skip check above -- that
