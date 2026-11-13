@@ -123,6 +123,21 @@ describe("POST /attr", () => {
     expect(after?.hit_count).toBe(startCount + 1);
   });
 
+  // ATTR-10 (AuditLab, 2026-11-13): tags in already-sent outreach, plus the
+  // /r/ codes the redirect appends as ?src= -- all were unlisted and counted 0.
+  it.each(["em-b3", "em-b4", "em-b5", "em-b5-p1", "fm-p2", "co1", "w1", "bsky", "mast", "nl"])(
+    "accepts the %s tag and counts it",
+    async (tag) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const before = await attrRow(today, tag);
+      const startCount = before?.hit_count ?? 0;
+      const resp = await postAttr(tag, "203.0.113.47");
+      expect(resp.status).toBe(204);
+      const after = await attrRow(today, tag);
+      expect(after?.hit_count).toBe(startCount + 1);
+    },
+  );
+
   it("keeps separate counters per src on the same day", async () => {
     const ip = "203.0.113.43";
     const today = new Date().toISOString().slice(0, 10);

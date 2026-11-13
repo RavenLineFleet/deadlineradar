@@ -1076,9 +1076,13 @@ export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3
 // ga = the Google Ads campaign Final URL suffix (GTM decision B, 2026-10-30): no Google tag on the site.
 // fm-p3 = GrowthLab contact-form outreach (batch18); em-reply = GrowthLab reply-playbook links.
 // ATTR-9 (AuditLab, 2026-11-13): both were in live use but missing here, so their clicks recorded nothing.
+// ATTR-10 (AuditLab, 2026-11-13): em-b3/em-b4/em-b5/em-b5-p1/fm-p2 are in already-sent outreach.
+// co1/w1/bsky/mast/nl are tracked_links.ts /r/ codes, which the redirect appends as ?src=<code>;
+// tracked-links.spec.ts asserts every TRACKED_LINK_CODES key is in this set.
 // No comments inside the Set literal: preship_gate ATTR-SYNC parses its body as the tag list.
 export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
   "em-w1", "em-b2", "li", "bs", "ma", "x", "blog", "rd", "ga", "fm-p3", "em-reply",
+  "em-b3", "em-b4", "em-b5", "em-b5-p1", "fm-p2", "co1", "w1", "bsky", "mast", "nl",
 ]);
 
 // Self-reported "How did you hear about us?" (Orchestrator directive,

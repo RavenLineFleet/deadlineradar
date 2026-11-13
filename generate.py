@@ -5219,7 +5219,9 @@ _TABLE_SCROLL_HINT_JS = """<script>
 # must never be able to break a real page load or a real signup.
 # ga = the Google Ads campaign Final URL suffix (Orchestrator GTM decision B, 2026-10-30: first-party
 # attribution instead of a Google tag).
-_ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,em-b2,li,bs,ma,x,blog,rd,ga,fm-p3,em-reply"
+# ATTR-10 (AuditLab, 2026-11-13): em-b3/em-b4/em-b5/em-b5-p1/fm-p2 are in already-sent outreach, and
+# co1/w1/bsky/mast/nl are the /r/ codes tracked_links.ts appends as ?src= -- all were unlisted.
+_ATTRIBUTION_SRC_ALLOWLIST_JS = "em-w1,em-b2,li,bs,ma,x,blog,rd,ga,fm-p3,em-reply,em-b3,em-b4,em-b5,em-b5-p1,fm-p2,co1,w1,bsky,mast,nl"
 _ATTRIBUTION_JS = f"""<script>
 (function () {{
   // AuditLab ATTR-3 (2026-10-02): a plain {{}} object's inherited

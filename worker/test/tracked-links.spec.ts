@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { classifyClick, EXTERNAL_LINK_SRC_VALUES, EXTERNAL_TRACKED_LINK_DESTINATIONS, TRACKED_LINK_CODES } from "../src/tracked_links";
+import { ATTRIBUTION_SRC_ALLOWLIST } from "../src/validation";
 
 type ClickRow = {
   id: number;
@@ -25,6 +26,15 @@ async function countClicks(code?: string): Promise<number> {
 }
 
 describe("GET /r/:code -- tracked outreach short links", () => {
+  // ATTR-10 (AuditLab, 2026-11-13): the redirect appends ?src=<code>, and the
+  // landing page's beacon (and /api/attr) drop any src off the attribution
+  // allowlist -- so a code missing there loses the attribution row and the
+  // signup's first_touch_src. 5 of 7 codes were missing from the day /r/ shipped.
+  it("every TRACKED_LINK_CODES key is an accepted attribution src", () => {
+    const missing = [...TRACKED_LINK_CODES.keys()].filter((code) => !ATTRIBUTION_SRC_ALLOWLIST.has(code));
+    expect(missing).toEqual([]);
+  });
+
   it("every allowlisted code 302s to its destination with ?src=<code> and logs one row", async () => {
     for (const [code, destination] of TRACKED_LINK_CODES) {
       const before = await countClicks(code);
