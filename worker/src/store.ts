@@ -4175,6 +4175,16 @@ export async function releaseDailyWebhookMarker(db: D1Database, markerId: string
   await db.prepare(`DELETE FROM stripe_webhook_events WHERE id = ?1`).bind(markerId).run();
 }
 
+/** event_type of a ledger row, or null if absent. Used to tell a founding-
+ * reject re-run (row type "founding_trial:rejected") from a first run. */
+export async function getWebhookEventType(db: D1Database, eventId: string): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT event_type FROM stripe_webhook_events WHERE id = ?1`)
+    .bind(eventId)
+    .first<{ event_type: string }>();
+  return row?.event_type ?? null;
+}
+
 export async function markWebhookEventProcessed(db: D1Database, eventId: string): Promise<void> {
   await db
     .prepare(`UPDATE stripe_webhook_events SET processed_at = ?1 WHERE id = ?2`)

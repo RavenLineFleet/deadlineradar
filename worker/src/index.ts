@@ -4742,7 +4742,9 @@ async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): P
     if (firmId && targetPlanTier && customerId && subscriptionId) {
       // SEC-90 remedy 3: a run that threw after claiming the event left
       // processed_at NULL; the redelivery takes it over and re-runs this body
-      // (every step below is re-entrant, see claimFoundingFirmTrialStart).
+      // (each step below is re-entrant or guarded on claim === "reclaimed":
+      // claimFoundingFirmTrialStart same-sub, the founding-reject short-
+      // circuit, and the referral-code reuse, SEC-94).
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
       const claim = isNew ? "new" : await store.reclaimWebhookEvent(env.DB, event.id);
       if (claim === "in_flight") {
@@ -4781,6 +4783,18 @@ async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): P
           } catch (err) {
             foundingStampError = `founding trial stamp failed: ${String(err)}`;
             claimed = true; // unknown, not "no grant" -- do not cancel on a D1 error
+          }
+          if (!claimed && claim === "reclaimed" &&
+              (await store.getWebhookEventType(env.DB, `${event.id}:founding:${subscriptionId}`).catch(() => null)) === "founding_trial:rejected") {
+            // Founding-reject re-run (AuditLab 2026-11-13, LOW): run 1 already
+            // cancelled (or alerted CANCEL FAILED) and recorded the rejection,
+            // then threw at the mark below. Re-cancelling an already-cancelled
+            // sub would send a false "CANCEL FAILED -- cancel it by hand" alert.
+            // The row is written only AFTER the cancel attempt, so its presence
+            // proves the cancel was attempted. Go straight to the mark.
+            console.warn(`[founding-firm] ${event.id} reclaim: rejection of ${subscriptionId} already recorded; skipping re-cancel and re-alert`);
+            await store.markWebhookEventProcessed(env.DB, event.id);
+            return jsonResponse(200, { received: true });
           }
           if (!claimed) {
             let cancelNote = "cancelled in Stripe";
@@ -4867,7 +4881,16 @@ async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): P
         try {
           const thisFirm = await store.getFirmById(env.DB, firmId);
           if (thisFirm && !thisFirm.demo_locked) {
-            const firstCode = await store.mintReferralCode(env.DB, firmId);
+            // SEC-94 (SecurityLab 2026-11-13, MEDIUM): mintReferralCode is the
+            // one non-re-entrant step here -- it rotates the code unconditionally.
+            // A SEC-90 reclaim re-runs this body after a throw at the final
+            // markWebhookEventProcessed, so re-minting would kill the code run 1
+            // already printed on the paid invoice (lookup is by current value).
+            // Reuse it on a reclaim only; a "new" run is unchanged (an annual
+            // firm still rotates at re-subscribe checkout).
+            const firstCode = (claim === "reclaimed" && thisFirm.referral_code)
+              ? thisFirm.referral_code
+              : await store.mintReferralCode(env.DB, firmId);
             const firstInvoiceId = typeof object.invoice === "string" ? object.invoice : null;
             // AuditLab REF-1 (2026-08-09, fixed 2026-08-13): this printed
             // "Refer a firm, get 10% off" on the actual Stripe invoice

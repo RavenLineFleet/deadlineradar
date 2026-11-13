@@ -116,11 +116,13 @@ export async function alertUnsynced(env: Env, eventId: string, firmId: string, s
  * written first and unconditionally (BILL-68's point: it must not depend on
  * the send being approved). The email claims `stripe_sig_fail_alert:<day>`
  * only AFTER the send gate, so a closed gate never spends the day's email,
- * and a failed send releases the claim so a later failure can retry it.
+ * and a failed send releases the claim so a later failure can retry it,
+ * at most SIG_FAIL_ALERT_ATTEMPTS_PER_DAY sends a day (SEC-95).
  * Not closed, by design: any anonymous POST with a junk Stripe-Signature can
  * still take the day's one email slot (bounded to one email a day; the 400
  * and the evidence row are unaffected).
  */
+export const SIG_FAIL_ALERT_ATTEMPTS_PER_DAY = 3;
 export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: boolean): Promise<void> {
   console.warn(
     `[stripe-webhook] signature verification FAILED (Stripe-Signature ${hadSignatureHeader ? "present" : "absent"}); ` +
@@ -134,6 +136,17 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
     const alertId = `stripe_sig_fail_alert:${dayUtc}`;
     const claimed = await store.recordDailyWebhookMarkerIfNew(env.DB, alertId, "stripe_sig_fail_alert");
     if (!claimed) return;
+    // SEC-95 (SecurityLab 2026-11-13, LOW): releasing the claim on every
+    // failed send turned "one Resend call a day" into "one per request" under
+    // a persistent send failure, and any anonymous POST with a junk
+    // signature header picks when that runs. Cap attempts at 3 a day: each
+    // attempt takes a never-released `<alertId>:<n>` slot; with none left the
+    // main claim is kept, so the day is spent.
+    let attemptSlot = false;
+    for (let n = 0; n < SIG_FAIL_ALERT_ATTEMPTS_PER_DAY && !attemptSlot; n++) {
+      attemptSlot = await store.recordDailyWebhookMarkerIfNew(env.DB, `${alertId}:${n}`, "stripe_sig_fail_alert_attempt");
+    }
+    if (!attemptSlot) return;
     let sent = false;
     try {
       sent = await sendEmail(

@@ -20,6 +20,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import { SIG_FAIL_ALERT_ATTEMPTS_PER_DAY } from "../src/subscription_sync";
 import { fillBucket, freeOneSlot, slotsUsed } from "./rate-limit-slots";
 import type { FirmRow } from "../src/store";
 
@@ -864,6 +865,32 @@ describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the
         }
       });
 
+      it("SEC-94: a throw at the final mark leaves the referral code minted; the reclaimed re-run keeps that code instead of rotating it", async () => {
+        const { firmId } = await createFirmWithSession("SEC94", `sec94-${Math.random().toString(36).slice(2)}@example.com`);
+        const eventId = `evt_sec94_${firmId}`;
+        const payload = await checkoutEvent(firmId, eventId, false);
+        const sig = () => signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+        const markSpy = vi.spyOn(store, "markWebhookEventProcessed").mockRejectedValueOnce(new Error("D1_ERROR: sec94 mark"));
+        const mintSpy = vi.spyOn(store, "mintReferralCode");
+        try {
+          expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(400);
+          expect(mintSpy).toHaveBeenCalledTimes(1); // run 1 got past the mint before the throw
+          const code1 = (await store.getFirmById(env.DB, firmId))?.referral_code;
+          expect(code1).toBeTruthy();
+          expect(await processedAt(eventId)).toBeNull();
+
+          await backdate(eventId, store.WEBHOOK_RECLAIM_AFTER_MS + 1000);
+          expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(200);
+          expect(await ledgerRows(`${eventId}:reclaimed`)).toBe(1);
+          expect(mintSpy).toHaveBeenCalledTimes(1); // reclaim reused, did not re-mint
+          expect((await store.getFirmById(env.DB, firmId))?.referral_code).toBe(code1);
+          expect(await processedAt(eventId)).not.toBeNull();
+        } finally {
+          markSpy.mockRestore();
+          mintSpy.mockRestore();
+        }
+      });
+
       it("BILL-15 race guard kept: an old row that IS processed is never reclaimed, and only one of two stale-row claims wins", async () => {
         const id = `evt_sec90r3_race_${Math.random().toString(36).slice(2)}`;
         expect(await store.recordWebhookEventIfNew(env.DB, id, "checkout.session.completed", null)).toBe(true);
@@ -960,7 +987,7 @@ describe("BILL-68 (AuditLab 2026-11-12, CRITICAL): a failed webhook signature is
   }
   const alertRowId = () => `stripe_sig_fail_alert:${new Date().toISOString().slice(0, 10)}`;
   async function clearDayRow(): Promise<void> {
-    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id IN (?1, ?2)").bind(dayRowId(), alertRowId()).run();
+    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id IN (?1, ?2) OR id LIKE ?2 || ':%'").bind(dayRowId(), alertRowId()).run();
   }
   const resendCalls = (spy: { mock: { calls: unknown[][] } }) =>
     spy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend")).length;
@@ -1049,6 +1076,23 @@ describe("BILL-68 (AuditLab 2026-11-12, CRITICAL): a failed webhook signature is
       ({ payload, sig } = await liveEventSignedForOtherEndpoint());
       expect((await postWebhook(payload, sig, ENV)).status).toBe(400);
       expect(resendCalls(fetchSpy)).toBe(2); // sent once, so the day's slot is spent
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("SEC-95: under a persistent send failure the day's alert is attempted at most 3 times, then the day is spent", async () => {
+    await clearDayRow();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "em_1" }), { status: 500 }));
+    const ENV = { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" };
+    try {
+      for (let i = 0; i < 6; i++) {
+        const { payload, sig } = await liveEventSignedForOtherEndpoint();
+        expect((await postWebhook(payload, sig, ENV)).status).toBe(400);
+        expect(resendCalls(fetchSpy)).toBe(Math.min(i + 1, 3));
+      }
+      expect(resendCalls(fetchSpy)).toBe(SIG_FAIL_ALERT_ATTEMPTS_PER_DAY);
+      expect(await dayRows()).toBe(1);
     } finally {
       fetchSpy.mockRestore();
     }
