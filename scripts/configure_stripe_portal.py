@@ -140,9 +140,9 @@ def main() -> int:
     secret = env.get("STRIPE_TEST_SECRET_KEY" if args.mode == "test" else "STRIPE_SECRET_KEY")
     if not secret:
         raise SystemExit("REFUSING: no secret key for this mode in the environment or .secrets/stripe.env")
-    expected_prefix = "sk_test_" if args.mode == "test" else "sk_live_"
-    if not secret.startswith(expected_prefix):
-        raise SystemExit(f"REFUSING: --mode {args.mode} but the key is not a {expected_prefix}* key")
+    expected_prefixes = ("sk_test_", "rk_test_") if args.mode == "test" else ("sk_live_", "rk_live_")
+    if not secret.startswith(expected_prefixes):
+        raise SystemExit(f"REFUSING: --mode {args.mode} but the key is not one of {expected_prefixes}")
     api = Stripe(secret)
 
     # Resolve every price -> its product; refuse if prices are missing, inactive,
