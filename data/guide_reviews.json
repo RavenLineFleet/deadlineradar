@@ -217,6 +217,12 @@
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
       "body_sha256": "6e326ac1f91765b4870702dc3a9207a295704514d4b3a06d69c5689c03e56bd4",
       "body_modified": "2026-11-06"
+    },
+    "texas-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-11-10",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "c60a2bd7671743b4941fe663ce9eff191c7ddc5418e09a18985fc2dbc535330f",
+      "body_modified": "2026-11-13"
     }
   }
 }

@@ -1,0 +1,17 @@
+{
+  "slug": "texas-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "4e0e9326e7de1afffd3d63a132f2531404d8d97f164757ea2a97bc827c0341cd",
+      "verdict_file": "auditlab_20261107_blog_APPROVED_texas-cpa-license-renewal-guide.md",
+      "sent": "2026-11-07 22:14 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "4e0e9326e7de1afffd3d63a132f2531404d8d97f164757ea2a97bc827c0341cd",
+      "verdict_file": "orchestrator_20261110_blog_APPROVED_texas-cpa-license-renewal-guide.md",
+      "sent": "2026-11-10 ~19:55 UTC"
+    }
+  ]
+}

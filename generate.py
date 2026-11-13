@@ -27534,6 +27534,66 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><em>Sources: Ark. Code Ann. &sect; 17-12-504, as amended by Acts 2025, No. 428 (the Board's published copy); Arkansas State Board of Public Accountancy rules, 17 CAR Part 236 (&sect;&sect; 236-604, 236-901, 236-1101, 236-1203, 236-1204, 236-1206, 236-1207), as published by the Board; the Board's license-renewal and Arkansas Ethics course pages. Checked November 2, 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Board.</em></p>
 ''',
     },
+    {
+        "slug": "texas-cpa-license-renewal-guide",
+        "published": "2026-11-13",
+        "title": "Texas CPA License Renewal: Your Birth Month Is Your Deadline, 120 CPE Hours Over Three Years, and an Ethics Course Every Other Year",
+        "seo_title": "Texas CPA Renewal: Birth Month, $112, CPE",
+        "meta_description": (
+            "Texas CPA licenses renew every year by the last day of your birth month. The $112 fee, the 120/20 CPE rule, the 4-hour ethics course every two years, and the late-renewal multipliers."
+        ),
+        "body_html": '''
+<p class="intro">A Texas CPA license is good for one year. It runs out on the <strong>last day of your birth month</strong>, and renewal means two things by that day: your CPE reported and the fee paid. The annual fee has been <strong>$112</strong> since September 2024. Over every three years you need <strong>120 CPE hours</strong>, at least 20 in each year. Every other year you also need a Board-approved <strong>4-hour Texas ethics course</strong>.</p>
+
+<h2>Your deadline is your birth month</h2>
+<p>Board Rule 515.3(a)(1) gives individual licenses "staggered expiration dates based on the last day of the individual's birth month." Each license is issued for 12 months. So a CPA born in March renews by March 31, every year. There's no single statewide renewal date.</p>
+<p>The Board says on its renewal page that you can start submitting your renewal through Online Services six weeks before the deadline. If everything is complete, "your license will be issued the next business day."</p>
+<p>The rule also requires the Board to mail a renewal notice at least 30 days before expiration. Don't wait for it. Rule 515.3(a)(3) says that "failure to receive notice does not relieve the licensee from the responsibility to timely renew." Missing pieces hold up the whole renewal. Under 515.3(a)(2), a license isn't renewed until the CPE, every part of the renewal, the affidavit and (if not already on file) fingerprints are all in.</p>
+<p><a href="../../texas/">Check your Texas dates here</a>.</p>
+
+<h2>What it costs</h2>
+<p>The fee isn't written into the rule. Rule 521.1 says the Board sets the individual license fee "on an annual basis," and it adds a $10 Scholarship Trust Fund fee. The Board's most recent announcement raised the annual individual fee "from $97 to $112 (includes $10 scholarship fee)," effective September 1, 2024. Because the Board can change it without a rule change, check the amount in Online Services when you renew.</p>
+
+<h2>CPE: 120 hours over three years, 20 in every year</h2>
+<p>Rule 523.112(a) sets the two numbers: "at least 120 CPE credits in each three-year period, and a minimum of 20 CPE credits in each one-year period." The windows are tied to your license period, not the calendar year. Once you're past your first few years, a renewal needs at least 120 hours completed in the 36 months before the new license period, with at least 20 of them in the most recent 12 months. The Board's renewal page adds that there's "no carryover of unused credits."</p>
+<p>New licensees build up to that:</p>
+<ul>
+<li><strong>Less than 12 months licensed:</strong> no CPE requirement.</li>
+<li><strong>First full 12-month license:</strong> still none. CPE earned before that first full period doesn't count toward the three-year total.</li>
+<li><strong>Second full period:</strong> 20 hours from the preceding 12 months.</li>
+<li><strong>Third:</strong> 60 hours from the preceding 24 months, with 20 in the last 12.</li>
+<li><strong>Fourth:</strong> 100 hours from the preceding 36 months, with 20 in the last 12.</li>
+<li><strong>Fifth on:</strong> the full 120 and 20.</li>
+</ul>
+<p>Keep your certificates. Rule 523.111(b) requires you to keep evidence for "the five most recent reporting periods," and the Board can ask for it.</p>
+<p><a href="../../texas-cpa-cpe-requirements/">The full Texas CPE breakdown is here</a>.</p>
+
+<h2>The ethics course, every other year</h2>
+<p>Texas doesn't accept just any ethics CPE. Rule 523.130 requires a <strong>Board-approved four-credit ethics course</strong>, built around the Board's own Rules of Professional Conduct. You take it every two years and report it "on the annual license renewal notice at least every second year." The requirement starts two years after your initial license period ends. The Board publishes the list of approved courses on its renewal page.</p>
+
+<h2>If you live outside Texas</h2>
+<p>A non-resident licensee can meet the Texas CPE requirement by meeting the CPE rules of the state where their principal place of business is, and signing a statement saying so during renewal (Rule 523.112(e)). If that state has no CPE requirement, Texas's own rules apply. The Texas ethics course is also waived for a non-resident "who has no clients within this state" and is current on their home state's ethics requirement (Rule 523.130(d)).</p>
+
+<h2>If you renew late</h2>
+<p>Texas doesn't use a flat late fee. Rule 515.5 multiplies the normal renewal fee by how long the license has been expired:</p>
+<ul>
+<li><strong>90 days or less:</strong> 1&frac12; times the normal fee.</li>
+<li><strong>More than 90 days but less than a year:</strong> 2 times.</li>
+<li><strong>One year but less than two:</strong> 3 times.</li>
+<li><strong>Two years or more:</strong> you pay "all renewal fees including late fees" for the gap.</li>
+</ul>
+<p>Don't let it go to three years. The Board's rules allow suspension for missing CPE and revocation "for failing to report the minimum required CPE credits for three consecutive years" (Rule 523.111(e)). The Board's reinstatement page describes revocation for failing to renew for three consecutive years. Getting a revoked license back takes a reinstatement process, not just a late renewal.</p>
+<p>Military service members get relief. Under Rule 515.3(b), a licensee who missed renewal because of military service is exempt from the late penalty or increased fee, and has two extra years to meet the other renewal requirements.</p>
+<p><a href="../../texas-cpa-license-reinstatement/">Full Texas reinstatement details here</a>.</p>
+
+<h2>Firms</h2>
+<p>Firm office licenses also renew every year, but not on an owner's birth month. Under Rule 515.3(c)(1), they're due "the last day of a board assigned renewal month," and every office of a firm shares the same month. A firm office license won't be renewed unless every CPA owner listed with the firm has a current individual license (515.3(c)(3)). A firm subject to peer review must also have met its peer review requirements (515.3(c)(4)). Firm fees are an annual fee per office plus an organization fee based on owner count, set under Rule 521.13.</p>
+
+<p><strong>Bottom line</strong>: Your Texas CPA license renews every year by the last day of your birth month. You can start six weeks early in Online Services. Have 120 CPE hours in the past 36 months, at least 20 in the past 12, and the Board-approved 4-hour ethics course every other year. The fee is $112 unless the Board has changed it. Each stretch of lateness raises the multiplier on that fee: 1&frac12; times, then 2, then 3.</p>
+
+<p><em>Sources: Texas State Board of Public Accountancy rules, 22 Tex. Admin. Code &sect;&sect; 515.3, 515.5, 521.1, 523.111, 523.112, 523.130; the Board's License Renewal and Reinstatement pages and its August 12, 2024 individual license fee announcement. Checked November 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Board.</em></p>
+''',
+    },
 ]
 
 
