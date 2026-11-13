@@ -6545,10 +6545,19 @@ def _last_checked_suffix_html(verified_date: str | None, data_gap_note: str | No
     only the page stopped showing it. Restores the freshness half (not the trust
     half) as a neutral sentence appended to the sourcing-note paragraph itself, so
     the 5 pages carrying a gap note -- exactly the ones where "when was this last
-    checked" matters most -- can still answer it."""
+    checked" matters most -- can still answer it.
+
+    SRC-257 limb 4 (AuditLab, 2026-11-13): the date was static text, so once a
+    build is live and later builds are blocked by the staleness gate, this note
+    kept saying "Last checked <date>" at 40/60/90 days with no caveat, while every
+    badge-carrying page self-caveats from day 31. data-verified on the wrapping
+    span opts it into _STALE_BADGE_RUNTIME_JS (attribute only; no badge class),
+    which appends the overdue note inside the span. Covers every caller: CPE,
+    reinstatement, per-record license notes, and the COUNCIL #2 renewal-rules pages."""
     if not data_gap_note or not verified_date:
         return ""
-    return f" (Last checked {esc(verified_date)}.)"
+    return (f' <span data-verified="{esc(verified_date)}">'
+            f'(Last checked {esc(verified_date)}.)</span>')
 
 
 _seal_uid_counter = [0]
@@ -25376,6 +25385,11 @@ def load_renewal_rules_by_slug() -> dict[str, dict]:
                   "verified_date"):
             if not r.get(k):
                 raise ValueError(f"{r['id']}: missing {k}")
+        # Strict YYYY-MM-DD: date.fromisoformat() also takes "20261113" and
+        # "2026-W46-5", which the runtime script's regex would silently ignore
+        # (AuditLab r3 note 1). Match the gate's own strptime format.
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["verified_date"]):
+            raise ValueError(f"{r['id']}: verified_date not YYYY-MM-DD: {r['verified_date']!r}")
         date.fromisoformat(r["verified_date"])
         out[r["state_slug"]] = r
     return out

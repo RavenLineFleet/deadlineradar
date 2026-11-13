@@ -2885,7 +2885,7 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
 _FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
     "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator; every claim surface (/, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/, /for-firms/, /pricing/, /methodology/, /es/methodology/) names the 4 datasets in a parenthetical so the excluded ones (this file, and worker/src/mobility_rules.json which this data/ scan cannot see) sit outside the claim's stated scope -- COPY-53, enforced by check_freshness_claim_names_its_datasets; /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening the denominator is an open product call (FRESH-4/5)",
     "ptin_federal.json": "read by NOTHING (0 consumers in generate.py or worker/src imports, SRC-191); the /my/ PTIN date is code-derived (index.ts nextAnnualMonthEnd + generate.py static copy), not from this record -- if any code starts reading it, move it into the denominator",
-    "renewal_rules.json": "COUNCIL #2 (2026-11-13): rendered on the /<state>-cpa-cpe-carryover/ and /<state>-cpa-license-late-renewal/ pages, staleness enforced at build time by check_renewal_rules_currency() (30 days, missing/unparseable = stale; SRC-257 -- the 2 gap-note pages carry only a static 'Last checked' date, so the runtime caveat is not the guard). Outside the sitewide tile for the same reason as reg_change_events.json: every claim surface names the 4 datasets in a parenthetical (COPY-53), and widening it re-words pinned es translations -- fold it in when that copy is next revised",
+    "renewal_rules.json": "COUNCIL #2 (2026-11-13): rendered on the /<state>-cpa-cpe-carryover/ and /<state>-cpa-license-late-renewal/ pages, staleness enforced at build time by check_renewal_rules_currency() (30 days, missing/unparseable = stale; SRC-257 -- the 2 gap-note pages carry only a static 'Last checked' date, limb 4 then put data-verified on that date so the runtime caveat covers a live build past 30 days). Outside the sitewide tile for the same reason as reg_change_events.json: every claim surface names the 4 datasets in a parenthetical (COPY-53), and widening it re-words pinned es translations -- fold it in when that copy is next revised",
     "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
 
@@ -5176,7 +5176,9 @@ def check_renewal_rules_currency(repo_root: Path) -> list[str]:
     runtime caveat can't see them either -- BADGE-2's "the build gate still
     enforces it" was false for this dataset. Same hard gate as
     check_cpe_hours_currency(): same field (verified_date), same 30-day bar,
-    reusing cpe_hours_staleness_check.collect_stale()."""
+    reusing cpe_hours_staleness_check.collect_stale(). Limb 4 (same day): the
+    "Last checked" date now carries data-verified, so a live build past 30 days
+    self-caveats at view time too; this gate still bounds the build itself."""
     sys.path.insert(0, str(repo_root / "scripts"))
     try:
         import cpe_hours_staleness_check as chsc
