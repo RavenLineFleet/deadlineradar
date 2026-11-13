@@ -348,6 +348,50 @@ describe("checkout.session.completed for a founding trial", () => {
     expect(trialKeys(bodies[0]!)).toEqual([]);
   });
 
+  it("SEC-90 remedy 3 (SecurityLab defect): run 1 stamps then updateFirmBilling throws; the reclaimed re-run keeps the stamp, cancels NOTHING, and writes the tier", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm();
+    await grant(firmId, 2);
+    const { calls } = recordFetch();
+    const eventId = `evt_${crypto.randomUUID()}`;
+    const meta = { target_plan_tier: "firm_growth", founding_firm_slot: "2" };
+    const billSpy = vi.spyOn(store, "updateFirmBilling").mockRejectedValueOnce(new Error("D1_ERROR: sec90 founding"));
+    expect((await completed(firmId, "sub_ff_r3", meta, eventId)).status).toBe(400);
+    const stamped = (await store.getFoundingFirmGrant(env.DB, firmId))?.trial_started_at;
+    expect(stamped).not.toBeNull(); // run 1 really did stamp before the throw
+    expect((await store.getFirmById(env.DB, firmId))?.plan_tier).not.toBe("firm_growth");
+    await env.DB.prepare("UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2")
+      .bind(new Date(Date.now() - store.WEBHOOK_RECLAIM_AFTER_MS - 1000).toISOString(), eventId)
+      .run();
+    const r = await completed(firmId, "sub_ff_r3", meta, eventId);
+    billSpy.mockRestore();
+    expect(r.status).toBe(200);
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+    const grantRow = await store.getFoundingFirmGrant(env.DB, firmId);
+    expect(grantRow?.trial_started_at).toBe(stamped); // COALESCE: original start kept
+    expect(grantRow?.stripe_subscription_id).toBe("sub_ff_r3");
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("firm_growth");
+    expect(firm?.stripe_subscription_id).toBe("sub_ff_r3");
+    const rejected = await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE event_type = 'founding_trial:rejected' AND firm_id = ?1")
+      .bind(firmId)
+      .first<{ n: number }>();
+    expect(rejected?.n).toBe(0);
+  });
+
+  it("claimFoundingFirmTrialStart: same subscription re-claims (true, start kept); a different subscription on a started grant is still refused (FFT-1/FFT-2)", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm();
+    await grant(firmId, 4);
+    expect(await store.claimFoundingFirmTrialStart(env.DB, firmId, "sub_a")).toBe(true);
+    const start = (await store.getFoundingFirmGrant(env.DB, firmId))?.trial_started_at;
+    expect(await store.claimFoundingFirmTrialStart(env.DB, firmId, "sub_a")).toBe(true);
+    expect(await store.claimFoundingFirmTrialStart(env.DB, firmId, "sub_b")).toBe(false);
+    const row = await store.getFoundingFirmGrant(env.DB, firmId);
+    expect(row?.trial_started_at).toBe(start);
+    expect(row?.stripe_subscription_id).toBe("sub_a");
+  });
+
   it("AuditLab FFT-2: a SECOND completed session for the same grant is cancelled in Stripe, never tracked; the first subscription stays on the firm", async () => {
     await clearGrants();
     const { firmId } = await makeFirm();

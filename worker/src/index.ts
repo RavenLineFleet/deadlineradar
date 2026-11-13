@@ -4647,6 +4647,8 @@ async function applyReferralRewardIfEligible(env: Env, referredFirmId: string, c
  * Idempotent via store.recordWebhookEventIfNew() (migration 0018's
  * stripe_webhook_events ledger) -- Stripe retries any non-2xx delivery, so a
  * redelivered event must be a no-op, not a second plan-tier flip.
+ * checkout.session.completed adds store.reclaimWebhookEvent(): a
+ * redelivery of a run that threw before marking processed is re-run (SEC-90).
  */
 async function handleStripeWebhook(request: Request, env: Env): Promise<Response> {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
@@ -4691,6 +4693,22 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     return jsonResponse(400, { error: "Event mode doesn't match this deployment." });
   }
 
+  // SEC-92 (SecurityLab 19:00Z/19:17Z, AuditLab 19:05Z, 2026-11-12, LOW): a
+  // per-event record of a throw, written where event.id is in scope. The
+  // dispatcher's daily row can't say which event was lost or whether the
+  // throw preceded the ledger insert; `<event id>:throw` names the event to
+  // reconcile against Stripe. `.catch`: a transient D1 error is what usually
+  // causes the throw, and the record must not turn the 400 into a 500.
+  // Re-throws, so the dispatcher's 400 and its daily row are unchanged.
+  try {
+    return await processStripeWebhookEvent(env, event);
+  } catch (err) {
+    await store.recordWebhookEventIfNew(env.DB, `${event.id}:throw`, "stripe_handler_throw", null).catch(() => false);
+    throw err;
+  }
+}
+
+async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): Promise<Response> {
   const object = event.data.object as Record<string, unknown>;
 
   if (event.type === "checkout.session.completed") {
@@ -4722,8 +4740,20 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     const billingInterval: "annual" | "monthly" = billingIntervalRaw === "monthly" ? "monthly" : "annual";
 
     if (firmId && targetPlanTier && customerId && subscriptionId) {
+      // SEC-90 remedy 3: a run that threw after claiming the event left
+      // processed_at NULL; the redelivery takes it over and re-runs this body
+      // (every step below is re-entrant, see claimFoundingFirmTrialStart).
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, firmId);
-      if (isNew) {
+      const claim = isNew ? "new" : await store.reclaimWebhookEvent(env.DB, event.id);
+      if (claim === "in_flight") {
+        console.warn(`[stripe-webhook] ${event.id} for firm ${firmId} is claimed but unfinished and inside the reclaim lease; returning 409 so Stripe retries`);
+        return jsonResponse(409, { error: "Event is still being processed." });
+      }
+      if (claim === "reclaimed") {
+        console.error(`[stripe-webhook] SEC-90 reclaim: ${event.id} for firm ${firmId} was claimed but never finished; re-processing`);
+        await store.recordWebhookEventIfNew(env.DB, `${event.id}:reclaimed`, "stripe_webhook_reclaimed", firmId).catch(() => false);
+      }
+      if (claim === "new" || claim === "reclaimed") {
         // Founding Firms (see FOUNDING_FIRMS_DESIGN.md). The slot in metadata is
         // only a marker that this session was minted as a founding trial; WHAT
         // decides is whether this firm has an unstarted grant right now
@@ -4735,9 +4765,13 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         //               and alert. Nothing was charged, nothing to refund.
         //   threw    -> keep going and write the tier (the checkout-side
         //               "never a Stripe customer" rule stops a second free
-        //               year), but alert. The retry a throw would rely on
-        //               cannot fire: the event id is already in the ledger
-        //               (SecurityLab HIGH-1, pre-existing ledger design).
+        //               year), but alert. Not left to a retry: a run that
+        //               reaches the tier write and finishes marks the event
+        //               processed, so no redelivery re-runs it
+        //               (SecurityLab HIGH-1).
+        //   re-run   -> a SEC-90 reclaim of a run that already stamped: the
+        //               claim matches the same subscription id and returns
+        //               true, so the re-run never cancels it.
         const foundingMarker = typeof metadata.founding_firm_slot === "string" ? metadata.founding_firm_slot : null;
         let foundingStampError: string | null = null;
         if (foundingMarker && /^[1-5]$/.test(foundingMarker)) {
@@ -4860,8 +4894,22 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   if (event.type === "customer.subscription.deleted") {
     const subscriptionId = typeof object.id === "string" ? object.id : null;
     if (subscriptionId) {
+      // SEC-90 remedy 3, same as checkout.session.completed above: a run that
+      // threw before marking processed (findFirm/updateFirmBilling) is re-run
+      // by a redelivery after the lease, so a cancelled firm doesn't keep a
+      // paid tier. Re-running is idempotent (it writes `free`, looked up by
+      // this subscription id).
       const isNew = await store.recordWebhookEventIfNew(env.DB, event.id, event.type, null);
-      if (isNew) {
+      const claim = isNew ? "new" : await store.reclaimWebhookEvent(env.DB, event.id);
+      if (claim === "in_flight") {
+        console.warn(`[stripe-webhook] ${event.id} (subscription.deleted) is claimed but unfinished and inside the reclaim lease; returning 409 so Stripe retries`);
+        return jsonResponse(409, { error: "Event is still being processed." });
+      }
+      if (claim === "reclaimed") {
+        console.error(`[stripe-webhook] SEC-90 reclaim: ${event.id} (subscription.deleted) was claimed but never finished; re-processing`);
+        await store.recordWebhookEventIfNew(env.DB, `${event.id}:reclaimed`, "stripe_webhook_reclaimed", null).catch(() => false);
+      }
+      if (claim === "new" || claim === "reclaimed") {
         const firm = await store.findFirmByStripeSubscriptionId(env.DB, subscriptionId);
         // A cancellation reverts to `free`, not a hard lockout -- Roster/
         // Calendar/CPE Hours stay fully usable (the free tier has no
@@ -4884,7 +4932,7 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
   if (event.type === "customer.subscription.updated") {
     // Self-serve plan change (2026-10-07): see subscription_sync.ts. Not
     // gated on recordWebhookEventIfNew -- the sync refetches Stripe's state
-    // and is idempotent, so a redelivery (or Stripe's retry after a 500)
+    // and is idempotent, so a redelivery (or Stripe's retry after a non-2xx)
     // must re-run it rather than be dropped as "already seen".
     // Observability only (AuditLab BILL-36): record that the event was
     // DELIVERED so enable-sequence step 9 has a ledger row to check. The
@@ -11701,12 +11749,13 @@ async function routeRequest(request: Request, env: Env, ctx: ExecutionContext): 
         try {
           return await handleStripeWebhook(request, env);
         } catch (err) {
-          // 400 rather than the generic 500; Stripe retries either way. The
-          // retry only helps a throw that lands BEFORE the ledger insert in
-          // handleStripeWebhook. After it, the redelivery hits the ledger PK
-          // and returns 200 without re-running the body (SEC-90, 2026-11-12),
-          // so the throw has to be visible: noteWebhookHandlerThrow logs it
-          // and leaves a daily stripe_handler_throw row.
+          // 400 rather than the generic 500; Stripe retries either way. A
+          // throw after the ledger insert is repaired by that retry only on
+          // the paths that reclaim an unfinished event (SEC-90 remedy 3:
+          // checkout.session.completed, customer.subscription.deleted), and
+          // only after the lease. noteWebhookHandlerThrow logs every throw and
+          // leaves a daily stripe_handler_throw row; the per-event
+          // `<event id>:throw` row is written inside handleStripeWebhook.
           await noteWebhookHandlerThrow(env, err);
           return jsonResponse(400, { error: "Webhook processing failed." });
         }

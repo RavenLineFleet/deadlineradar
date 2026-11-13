@@ -808,13 +808,74 @@ describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the
         expect(billSpy).toHaveBeenCalledTimes(1);
         expect(errSpy.mock.calls.filter((c) => String(c[0]).includes("handler threw") && String(c[0]).includes("sec90 transient")).length).toBe(1);
         expect(await ledgerRows(rowId)).toBe(1);
-        // Remedy 1 makes the loss visible; it does not repair it. The event is
-        // already ledgered, so a redelivery would 200 without re-running.
+        // Remedy 1 makes the loss visible; remedy 3 (below) repairs it.
         expect(await ledgerRows(eventId)).toBe(1);
+        // SEC-92: the per-event record names the lost event.
+        expect(await ledgerRows(`${eventId}:throw`)).toBe(1);
       } finally {
         billSpy.mockRestore();
         errSpy.mockRestore();
       }
+    });
+
+    describe("SEC-90 remedy 3: processed_at is the authority, so a redelivery repairs a run that threw", () => {
+      async function processedAt(id: string): Promise<string | null | undefined> {
+        const row = await env.DB.prepare("SELECT processed_at FROM stripe_webhook_events WHERE id = ?1").bind(id).first<{ processed_at: string | null }>();
+        return row === null ? undefined : row.processed_at;
+      }
+      async function backdate(id: string, msAgo: number): Promise<void> {
+        await env.DB.prepare("UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2")
+          .bind(new Date(Date.now() - msAgo).toISOString(), id)
+          .run();
+      }
+
+      it("throw -> in-lease redelivery 409s (Stripe keeps retrying, nothing re-run) -> after the lease the redelivery writes the tier, 200, processed, one reclaim row", async () => {
+        const { firmId } = await createFirmWithSession("SEC90 r3", `sec90r3-${Math.random().toString(36).slice(2)}@example.com`);
+        const eventId = `evt_sec90r3_${firmId}`;
+        const payload = await checkoutEvent(firmId, eventId, false);
+        const sig = () => signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+        const billSpy = vi.spyOn(store, "updateFirmBilling").mockRejectedValueOnce(new Error("D1_ERROR: sec90 r3"));
+        try {
+          expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(400);
+          expect(await processedAt(eventId)).toBeNull();
+          expect((await store.getFirmById(env.DB, firmId))?.plan_tier).not.toBe("firm_growth");
+
+          const early = await postWebhook(payload, await sig(), TEST_ENV);
+          expect(early.status).toBe(409);
+          expect(billSpy).toHaveBeenCalledTimes(1); // in-lease: body not re-run
+          expect(await processedAt(eventId)).toBeNull();
+
+          await backdate(eventId, store.WEBHOOK_RECLAIM_AFTER_MS + 1000);
+          const late = await postWebhook(payload, await sig(), TEST_ENV);
+          expect(late.status).toBe(200);
+          expect(billSpy).toHaveBeenCalledTimes(2);
+          const firm = await store.getFirmById(env.DB, firmId);
+          expect(firm?.plan_tier).toBe("firm_growth");
+          expect(firm?.stripe_subscription_id).toBe("sub_sec86");
+          expect(await processedAt(eventId)).not.toBeNull();
+          expect(await ledgerRows(`${eventId}:reclaimed`)).toBe(1);
+
+          // Once processed, a further redelivery is the old no-op 200.
+          const after = await postWebhook(payload, await sig(), TEST_ENV);
+          expect(after.status).toBe(200);
+          expect(billSpy).toHaveBeenCalledTimes(2);
+        } finally {
+          billSpy.mockRestore();
+        }
+      });
+
+      it("BILL-15 race guard kept: an old row that IS processed is never reclaimed, and only one of two stale-row claims wins", async () => {
+        const id = `evt_sec90r3_race_${Math.random().toString(36).slice(2)}`;
+        expect(await store.recordWebhookEventIfNew(env.DB, id, "checkout.session.completed", null)).toBe(true);
+        expect(await store.recordWebhookEventIfNew(env.DB, id, "checkout.session.completed", null)).toBe(false);
+        expect(await store.reclaimWebhookEvent(env.DB, id)).toBe("in_flight");
+        await backdate(id, store.WEBHOOK_RECLAIM_AFTER_MS + 1000);
+        const [a, b] = await Promise.all([store.reclaimWebhookEvent(env.DB, id), store.reclaimWebhookEvent(env.DB, id)]);
+        expect([a, b].sort()).toEqual(["in_flight", "reclaimed"]);
+        await store.markWebhookEventProcessed(env.DB, id);
+        await backdate(id, store.WEBHOOK_RECLAIM_AFTER_MS * 10);
+        expect(await store.reclaimWebhookEvent(env.DB, id)).toBe("done");
+      });
     });
 
     it("positive control: a clean checkout leaves no drop or handler-throw row", async () => {
@@ -827,6 +888,57 @@ describe("SEC-86 (AuditLab 2026-11-12, HIGH): an event's livemode must match the
       expect(resp.status).toBe(200);
       expect(await ledgerRows(`stripe_drop:${day()}`)).toBe(0);
       expect(await ledgerRows(`stripe_handler_throw:${day()}`)).toBe(0);
+      expect(await ledgerRows(`evt_sec90ok_${firmId}:throw`)).toBe(0);
+    });
+
+    it("SEC-90 remedy 3 on customer.subscription.deleted: a run that threw is re-run after the lease, so the cancelled firm drops to free", async () => {
+      const { firmId } = await createFirmWithSession("SEC90 r3 del", `sec90r3del-${Math.random().toString(36).slice(2)}@example.com`);
+      const subId = `sub_r3del_${firmId}`;
+      await env.DB.prepare("UPDATE firms SET plan_tier = 'firm_growth', stripe_customer_id = 'cus_r3del', stripe_subscription_id = ?2 WHERE id = ?1")
+        .bind(firmId, subId)
+        .run();
+      const eventId = `evt_r3del_${firmId}`;
+      const payload = JSON.stringify({ id: eventId, type: "customer.subscription.deleted", livemode: false, data: { object: { id: subId } } });
+      const sig = async () => signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const billSpy = vi.spyOn(store, "updateFirmBilling").mockRejectedValueOnce(new Error("D1_ERROR: r3 del"));
+      try {
+        expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(400);
+        expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("firm_growth");
+        expect(await ledgerRows(`${eventId}:throw`)).toBe(1);
+        expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(409);
+        await env.DB.prepare("UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2")
+          .bind(new Date(Date.now() - store.WEBHOOK_RECLAIM_AFTER_MS - 1000).toISOString(), eventId)
+          .run();
+        expect((await postWebhook(payload, await sig(), TEST_ENV)).status).toBe(200);
+        const firm = await store.getFirmById(env.DB, firmId);
+        expect(firm?.plan_tier).toBe("free");
+        expect(firm?.stripe_subscription_id).toBeNull();
+        expect(await ledgerRows(`${eventId}:reclaimed`)).toBe(1);
+        expect(billSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        billSpy.mockRestore();
+      }
+    });
+
+    it("SEC-92: a throw BEFORE the ledger insert still leaves the per-event :throw row (and no bare event row), so the lost event is named", async () => {
+      const eventId = `evt_sec92_pre_${Math.random().toString(36).slice(2)}`;
+      const payload = JSON.stringify({ id: eventId, type: "customer.subscription.deleted", livemode: false, data: { object: { id: `sub_${eventId}` } } });
+      const sig = await signPayload(SECRET, Math.floor(Date.now() / 1000), payload);
+      const recSpy = vi.spyOn(store, "recordWebhookEventIfNew").mockRejectedValueOnce(new Error("D1_ERROR: sec92 pre-ledger"));
+      try {
+        const resp = await postWebhook(payload, sig, TEST_ENV);
+        expect(resp.status).toBe(400);
+        expect(await ledgerRows(eventId)).toBe(0);
+        expect(await ledgerRows(`${eventId}:throw`)).toBe(1);
+        expect(await ledgerRows(`stripe_handler_throw:${day()}`)).toBe(1);
+      } finally {
+        recSpy.mockRestore();
+      }
+      // Not reclaimable: there is no claimed row, so Stripe's retry is a fresh first run.
+      const retry = await postWebhook(payload, await signPayload(SECRET, Math.floor(Date.now() / 1000), payload), TEST_ENV);
+      expect(retry.status).toBe(200);
+      expect(await ledgerRows(eventId)).toBe(1);
+      expect(await ledgerRows(`${eventId}:reclaimed`)).toBe(0);
     });
   });
 
@@ -846,9 +958,12 @@ describe("BILL-68 (AuditLab 2026-11-12, CRITICAL): a failed webhook signature is
     const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE id = ?1").bind(dayRowId()).first<{ n: number }>();
     return row?.n ?? 0;
   }
+  const alertRowId = () => `stripe_sig_fail_alert:${new Date().toISOString().slice(0, 10)}`;
   async function clearDayRow(): Promise<void> {
-    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id = ?1").bind(dayRowId()).run();
+    await env.DB.prepare("DELETE FROM stripe_webhook_events WHERE id IN (?1, ?2)").bind(dayRowId(), alertRowId()).run();
   }
+  const resendCalls = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend")).length;
   // The exact shape of the 08-05..11-12 defect: a real Stripe-signed event,
   // signed with the endpoint's secret, arriving at a Worker holding another one.
   async function liveEventSignedForOtherEndpoint(): Promise<{ payload: string; sig: string }> {
@@ -891,6 +1006,49 @@ describe("BILL-68 (AuditLab 2026-11-12, CRITICAL): a failed webhook signature is
       const body = JSON.parse(String((sends[0]![1] as RequestInit).body)) as { to: unknown; subject: string };
       expect(JSON.stringify(body.to)).toContain("support@deadline-radar.com");
       expect(body.subject).toContain("failed signature verification");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("SEC-91 limb 2: a failure while the pass is closed records evidence but does NOT spend the day's email; approving mid-day then sends", async () => {
+    await clearDayRow();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "em_1" }), { status: 200 }));
+    try {
+      let { payload, sig } = await liveEventSignedForOtherEndpoint();
+      expect((await postWebhook(payload, sig, { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "" })).status).toBe(400);
+      expect(await dayRows()).toBe(1);
+      expect(resendCalls(fetchSpy)).toBe(0);
+      ({ payload, sig } = await liveEventSignedForOtherEndpoint());
+      expect((await postWebhook(payload, sig, { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" })).status).toBe(400);
+      expect(resendCalls(fetchSpy)).toBe(1);
+      expect(await dayRows()).toBe(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("SEC-91 limb 3: a failed send releases the email claim, so the next failure that day retries it; the evidence row stays", async () => {
+    await clearDayRow();
+    let status = 500;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "em_1" }), { status }));
+    const ENV = { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" };
+    const alertRows = async () =>
+      (await env.DB.prepare("SELECT COUNT(*) AS n FROM stripe_webhook_events WHERE id = ?1").bind(alertRowId()).first<{ n: number }>())?.n ?? 0;
+    try {
+      let { payload, sig } = await liveEventSignedForOtherEndpoint();
+      expect((await postWebhook(payload, sig, ENV)).status).toBe(400);
+      expect(resendCalls(fetchSpy)).toBe(1);
+      expect(await alertRows()).toBe(0); // released
+      expect(await dayRows()).toBe(1);
+      status = 200;
+      ({ payload, sig } = await liveEventSignedForOtherEndpoint());
+      expect((await postWebhook(payload, sig, ENV)).status).toBe(400);
+      expect(resendCalls(fetchSpy)).toBe(2);
+      expect(await alertRows()).toBe(1);
+      ({ payload, sig } = await liveEventSignedForOtherEndpoint());
+      expect((await postWebhook(payload, sig, ENV)).status).toBe(400);
+      expect(resendCalls(fetchSpy)).toBe(2); // sent once, so the day's slot is spent
     } finally {
       fetchSpy.mockRestore();
     }

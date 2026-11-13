@@ -110,6 +110,16 @@ export async function alertUnsynced(env: Env, eventId: string, firmId: string, s
  * SEND_APPROVED_PASSES, one internal email. A request with no header is a
  * scanner, not Stripe, and is only logged. Never throws: the caller's 400
  * must not turn into a 500.
+ *
+ * SEC-91 (SecurityLab 18:52Z, AuditLab 19:07Z, 2026-11-12, LOW): the evidence
+ * row and the email's once-a-day claim are separate keys. The evidence row is
+ * written first and unconditionally (BILL-68's point: it must not depend on
+ * the send being approved). The email claims `stripe_sig_fail_alert:<day>`
+ * only AFTER the send gate, so a closed gate never spends the day's email,
+ * and a failed send releases the claim so a later failure can retry it.
+ * Not closed, by design: any anonymous POST with a junk Stripe-Signature can
+ * still take the day's one email slot (bounded to one email a day; the 400
+ * and the evidence row are unaffected).
  */
 export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: boolean): Promise<void> {
   console.warn(
@@ -119,16 +129,23 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
   if (!hadSignatureHeader) return;
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    const first = await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
-    if (!first) return;
+    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
     if (!requireSendApproval(env, "webhookSignatureFailureAlert") || !env.RESEND_API_KEY) return;
-    await sendEmail(
-      env.RESEND_API_KEY,
-      INTERNAL_NOTIFY_EMAIL,
-      buildWebhookSignatureFailureAlertEmail({ dayUtc }),
-      env.EMAIL_ALLOWLIST,
-      env.EMAIL_PREVIEW_LOG_BODY
-    );
+    const alertId = `stripe_sig_fail_alert:${dayUtc}`;
+    const claimed = await store.recordDailyWebhookMarkerIfNew(env.DB, alertId, "stripe_sig_fail_alert");
+    if (!claimed) return;
+    let sent = false;
+    try {
+      sent = await sendEmail(
+        env.RESEND_API_KEY,
+        INTERNAL_NOTIFY_EMAIL,
+        buildWebhookSignatureFailureAlertEmail({ dayUtc }),
+        env.EMAIL_ALLOWLIST,
+        env.EMAIL_PREVIEW_LOG_BODY
+      );
+    } finally {
+      if (!sent) await store.releaseDailyWebhookMarker(env.DB, alertId);
+    }
   } catch (err) {
     console.log(`[stripe-webhook] signature-failure record/alert failed: ${String(err)}`);
   }
@@ -183,15 +200,16 @@ export async function noteWebhookDroppedEvent(env: Env, reason: "invalid_payload
 /**
  * SEC-90 remedy 1 (SecurityLab 18:13Z, AuditLab 18:17Z, 2026-11-12, HIGH):
  * the /stripe/webhook dispatcher caught every handler throw with a bare
- * `catch {` and no trace. That matters because the throw is NOT repaired by
- * Stripe's retry: if it lands after the ledger insert (e.g. updateFirmBilling
- * failing), the redelivery hits the ledger PK and returns 200 without
- * re-running anything. This makes the throw visible: console.error with the
- * error text, plus one `stripe_handler_throw:<UTC day>` row. It does NOT
- * repair the lost event (remedy 3, separate). No email. Never throws.
+ * `catch {` and no trace. This makes any throw visible: console.error with
+ * the error text, plus one `stripe_handler_throw:<UTC day>` row. The daily
+ * row means "something in the handler threw today", from ANY point, before
+ * or after the ledger insert (SEC-92): the dispatcher cannot tell which.
+ * The per-event record is `<event id>:throw`, written inside
+ * handleStripeWebhook for throws after the event is parsed. Repair is
+ * remedy 3 (store.reclaimWebhookEvent). No email. Never throws.
  */
 export async function noteWebhookHandlerThrow(env: Env, err: unknown): Promise<void> {
-  console.error(`[stripe-webhook] handler threw, returning 400 (a ledgered event will NOT be re-run on retry; SEC-90): ${String(err)}`);
+  console.error(`[stripe-webhook] handler threw, returning 400 so Stripe retries (SEC-90): ${String(err)}`);
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
     await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_handler_throw:${dayUtc}`, "stripe_handler_throw");

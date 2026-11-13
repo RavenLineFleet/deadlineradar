@@ -3823,12 +3823,17 @@ export async function getFoundingFirmGrant(db: D1Database, firmId: string): Prom
 }
 
 /**
- * Stamps the grant as used, exactly once: true only for the call that moved
- * trial_started_at from NULL. Keyed on firm_id ALONE (UNIQUE), never on a slot
- * taken from session metadata: a slot number can go stale (revoke + re-grant
- * between session creation and completion), and a stale-slot miss must not be
- * confused with a live grant (AuditLab FFT-1). `false` therefore means exactly
- * "this firm has no unstarted grant right now".
+ * Stamps the grant as used: true for the call that moved trial_started_at
+ * from NULL, and true again for a re-run with the SAME subscription id (SEC-90
+ * remedy 3 re-enters a webhook whose first run may already have stamped; a
+ * re-run must not read its own earlier stamp as "no grant" and cancel the
+ * subscription it just recorded -- SecurityLab 2026-11-12). COALESCE keeps the
+ * original trial start on that re-run. Keyed on firm_id ALONE (UNIQUE), never
+ * on a slot taken from session metadata: a slot number can go stale (revoke +
+ * re-grant between session creation and completion), and a stale-slot miss
+ * must not be confused with a live grant (AuditLab FFT-1). `false` therefore
+ * means exactly "this firm has no unstarted grant, and its started grant is
+ * not this subscription's".
  */
 export async function claimFoundingFirmTrialStart(
   db: D1Database,
@@ -3837,8 +3842,8 @@ export async function claimFoundingFirmTrialStart(
 ): Promise<boolean> {
   const result = await db
     .prepare(
-      `UPDATE founding_firm_grants SET trial_started_at = ?1, stripe_subscription_id = ?2
-       WHERE firm_id = ?3 AND trial_started_at IS NULL`
+      `UPDATE founding_firm_grants SET trial_started_at = COALESCE(trial_started_at, ?1), stripe_subscription_id = ?2
+       WHERE firm_id = ?3 AND (trial_started_at IS NULL OR stripe_subscription_id = ?2)`
     )
     .bind(nowIso(), stripeSubscriptionId, firmId)
     .run();
@@ -4093,7 +4098,8 @@ export async function countRewardedReferrals(db: D1Database, referrerFirmId: str
  * dispatcher returns 400 and logs it) and Stripe retries, instead of a
  * silently-dropped event. That retry repairs a failure of THIS insert only:
  * a throw later in the handler, after this row exists, is not re-run on
- * redelivery (SEC-90, 2026-11-12).
+ * redelivery (SEC-90, 2026-11-12) -- unless the caller follows a false with
+ * reclaimWebhookEvent() below, which checkout.session.completed does.
  */
 export async function recordWebhookEventIfNew(
   db: D1Database,
@@ -4118,6 +4124,36 @@ export async function recordWebhookEventIfNew(
 }
 
 /**
+ * SEC-90 remedy 3 (AuditLab 2026-11-12): processed_at is the authority, not
+ * the row's existence. Called only after recordWebhookEventIfNew() returned
+ * false (PK hit). A row with processed_at NULL means a run claimed the event
+ * and never finished (a throw after the claim, e.g. updateFirmBilling). The
+ * insert stays FIRST, so the BILL-15 double-delivery guard is unchanged.
+ *   "reclaimed" -- the row was unfinished and older than the lease: this call
+ *                  atomically took it over (received_at is moved to now, so a
+ *                  concurrent redelivery sees a fresh lease): process again.
+ *   "in_flight" -- unfinished but inside the lease (or unreadable): another
+ *                  run may still be working. The caller returns non-2xx so
+ *                  Stripe retries later, instead of a 200 that ends retries.
+ *   "done"      -- processed_at is set: the existing no-op 200.
+ */
+export const WEBHOOK_RECLAIM_AFTER_MS = 5 * 60 * 1000;
+export type WebhookEventReclaim = "reclaimed" | "in_flight" | "done";
+export async function reclaimWebhookEvent(db: D1Database, eventId: string): Promise<WebhookEventReclaim> {
+  const now = Date.now();
+  const reclaim = await db
+    .prepare(`UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2 AND processed_at IS NULL AND received_at < ?3`)
+    .bind(new Date(now).toISOString(), eventId, new Date(now - WEBHOOK_RECLAIM_AFTER_MS).toISOString())
+    .run();
+  if ((reclaim.meta?.changes ?? 0) > 0) return "reclaimed";
+  const row = await db
+    .prepare(`SELECT processed_at FROM stripe_webhook_events WHERE id = ?1`)
+    .bind(eventId)
+    .first<{ processed_at: string | null }>();
+  return row && row.processed_at !== null ? "done" : "in_flight";
+}
+
+/**
  * BILL-69 / RL-11 (AuditLab 2026-11-12, LOW): a once-per-UTC-day marker row
  * in the webhook ledger (`stripe_sig_fail:<day>`, `stripe_mode_reject:<day>`).
  * ON CONFLICT DO NOTHING, so the 2nd..Nth call of a day is one no-op
@@ -4130,6 +4166,13 @@ export async function recordDailyWebhookMarkerIfNew(db: D1Database, markerId: st
     .bind(markerId, eventType, nowIso())
     .run();
   return (res.meta?.changes ?? 0) === 1;
+}
+
+/** SEC-91: claim -> send -> unclaim-on-failure, same pattern as
+ * unclaimReminderThreshold(). Deletes a once-a-day email claim row so a
+ * later attempt that day gets a real retry. Never used on evidence rows. */
+export async function releaseDailyWebhookMarker(db: D1Database, markerId: string): Promise<void> {
+  await db.prepare(`DELETE FROM stripe_webhook_events WHERE id = ?1`).bind(markerId).run();
 }
 
 export async function markWebhookEventProcessed(db: D1Database, eventId: string): Promise<void> {
