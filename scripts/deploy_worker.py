@@ -268,9 +268,11 @@ def main() -> int:
     if args.preview:
         print("\nPreview deploy done. Marker deliberately NOT updated (it tracks production).")
         return 0
+    # DEPLOY-17 (AuditLab 2026-11-13): --allow-dirty is the third marker-skip
+    # setter; an early return here hid --skip-tests from the summary when both
+    # were set. Compose all of them through the one message instead.
     if dirty:
-        print("\nDeploy done, but marker NOT updated because the tree was dirty (--allow-dirty).")
-        return 0
+        skip_reasons.insert(0, "the tree was dirty (--allow-dirty)")
     if skip_reasons:
         print(f"\nDeploy done, but marker NOT updated because {' and '.join(skip_reasons)}.")
         print("If you write the marker by hand, name that flag in the ship-report: an unexplained marker hides an untested deploy.")

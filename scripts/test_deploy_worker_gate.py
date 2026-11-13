@@ -125,6 +125,28 @@ def test_deploy16_both_flags_named(monkeypatch, env, capsys):
     assert not dw.MARKER.exists()
 
 
+def test_deploy17_dirty_and_skip_tests_both_named(monkeypatch, env, capsys):
+    monkeypatch.setattr(dw, "worker_tree_dirty", lambda: True)
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: HEAD)
+    assert _main(monkeypatch, "--allow-dirty", "--skip-tests") == 0
+    out = capsys.readouterr().out
+    lines = [l for l in out.splitlines() if "marker NOT updated because" in l]
+    assert len(lines) == 1
+    assert "--allow-dirty" in lines[0] and "--skip-tests" in lines[0]
+    assert "name that flag in the ship-report" in out
+    assert not dw.MARKER.exists()
+
+
+def test_deploy17_dirty_alone_names_allow_dirty(monkeypatch, env, capsys):
+    monkeypatch.setattr(dw, "worker_tree_dirty", lambda: True)
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: HEAD)
+    assert _main(monkeypatch, "--allow-dirty") == 0
+    lines = _final_line(capsys)
+    assert len(lines) == 1
+    assert "--allow-dirty" in lines[0] and "--skip-tests" not in lines[0]
+    assert not dw.MARKER.exists()
+
+
 def test_test16_preview_does_not_run_worker_tests(monkeypatch, env):
     monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
     monkeypatch.setattr(dw, "worker_tests_status", lambda: 1)
