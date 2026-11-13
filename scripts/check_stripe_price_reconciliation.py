@@ -53,7 +53,11 @@ alerts after the fact) and is still the only thing that checks the
 referral-coupon half at all.
 
 Usage:
-    export STRIPE_SECRET_KEY=sk_test_...   (or source AssetLab's OWN
+    export STRIPE_SECRET_KEY=rk_live_...   (sk_/rk_, test or live; the
+                                             live var is a restricted rk_live_
+                                             key since 2026-11-13 and was
+                                             confirmed to read prices+coupons,
+                                             exit 0 -- or source AssetLab's OWN
                                              .secrets/stripe.env, two directories
                                              above this repo's root -- NEVER copy
                                              it into the repo tree itself; see
