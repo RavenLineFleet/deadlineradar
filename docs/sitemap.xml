@@ -33,7 +33,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/for-firms/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/founding-firms/</loc>
@@ -45,11 +45,11 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/compliance-reports/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/pricing/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/practice-privilege-check/</loc>
@@ -75,12 +75,12 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/deadline-calculator/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/deadline-calculator/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/deadline-calculator/"/>
   </url>  <url>
     <loc>https://deadline-radar.com/es/deadline-calculator/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://deadline-radar.com/deadline-calculator/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://deadline-radar.com/es/deadline-calculator/"/>
   </url>
@@ -433,11 +433,11 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/california-cpa-cpe-requirements/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/colorado-cpa-cpe-requirements/</loc>
-    <lastmod>2026-11-08</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/connecticut-cpa-cpe-requirements/</loc>
@@ -517,7 +517,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/missouri-cpa-cpe-requirements/</loc>
-    <lastmod>2026-11-07</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/montana-cpa-cpe-requirements/</loc>
@@ -549,7 +549,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/north-carolina-cpa-cpe-requirements/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/north-dakota-cpa-cpe-requirements/</loc>
@@ -589,7 +589,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/texas-cpa-cpe-requirements/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/utah-cpa-cpe-requirements/</loc>
@@ -625,7 +625,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/california-cpa-license-reinstatement/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/florida-cpa-license-reinstatement/</loc>
@@ -685,7 +685,7 @@
   </url>
   <url>
     <loc>https://deadline-radar.com/texas-cpa-license-reinstatement/</loc>
-    <lastmod>2026-11-12</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/vermont-cpa-license-reinstatement/</loc>
@@ -694,6 +694,46 @@
   <url>
     <loc>https://deadline-radar.com/virginia-cpa-license-reinstatement/</loc>
     <lastmod>2026-11-12</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/colorado-cpa-cpe-carryover/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/north-carolina-cpa-cpe-carryover/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/texas-cpa-cpe-carryover/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/california-cpa-cpe-carryover/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/missouri-cpa-cpe-carryover/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/colorado-cpa-license-late-renewal/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/north-carolina-cpa-license-late-renewal/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/texas-cpa-license-late-renewal/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/california-cpa-license-late-renewal/</loc>
+    <lastmod>2026-11-13</lastmod>
+  </url>
+  <url>
+    <loc>https://deadline-radar.com/missouri-cpa-license-late-renewal/</loc>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://deadline-radar.com/alabama/</loc>

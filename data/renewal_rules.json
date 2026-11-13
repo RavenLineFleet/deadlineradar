@@ -1,0 +1,237 @@
+{
+  "_meta": {
+    "description": "COUNCIL #2: CPE carryover and late-renewal/grace rules for individual CPA licenses, week-1 states. One record per state. Served prose fields: carryover_summary, late_fee_summary, grace_summary, practice_during_summary, after_window_summary, carryover_data_gap_note, late_data_gap_note. Provenance: *_citation, *_citation_url, *_quotes (source, url, verbatim text), verification_history.",
+    "draft_status": "DRAFT 2026-11-13, awaiting AuditLab per-claim PASS. Not built, not shipped."
+  },
+  "records": [
+    {
+      "id": "colorado-renewal-rules",
+      "state": "Colorado",
+      "state_slug": "colorado",
+      "carryover_status": "not_addressed",
+      "carryover_summary": "Colorado's accountancy rules don't provide for carrying extra CPE hours into the next reporting period. CPE is counted in fixed two-year periods, January 1 of an even-numbered year through December 31 of the odd-numbered year. It accrues at 10 hours for each full quarter you hold an active certificate and is due by December 31 at the end of the period. The rules don't expressly prohibit carryover either, so confirm with the Board before counting excess hours toward a later period.",
+      "carryover_citation": "3 CCR 705-1, Rule 1.4(B)(13) (CPE reporting period); Rule 1.9(A)(4)",
+      "carryover_citation_url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+      "grace_summary": "60 days. A certificate not renewed by its expiration date expires, but it can still be renewed within a 60-day grace period by paying the renewal fee plus a late fee.",
+      "late_fee_summary": "A late fee is added to the renewal fee. Neither the rule nor the statute states the amount: the statute calls it a delinquency fee set by the Division (C.R.S. 12-20-202(1)(e), 12-20-105), and we found no published schedule. Confirm the amount when you renew.",
+      "practice_during_summary": "Allowed. The rule says a certificate holder will not be disciplined for holding out or practicing public accounting with an expired certificate during the grace period.",
+      "after_window_summary": "After the 60 days the certificate stays expired, and the holder cannot hold out or perform any service that requires an active certificate until it is reinstated. Under the statute, a certificate expired more than two years also requires reinstatement fees and a showing of competency.",
+      "late_citation": "3 CCR 705-1, Rule 1.9(B)(2)(b), 1.9(J)(1)-(2); C.R.S. 12-20-202(1)(e), (2)(a)",
+      "late_citation_url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+      "verified_date": "2026-11-13",
+      "verified_method": "manual_primary_read",
+      "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the current 3 CCR 705-1 PDF (ruleVersionId=11720, entire rule eff. 06/30/2022, amendments through 12/15/2024) and the C.R.S. 2024 title 12 printout. Full-text search of the rule for carry/forward/excess found no carryover provision. dpo.colorado.gov Accountancy/Fees returned 404; no fee amount for the late fee found.",
+      "carryover_quotes": [
+        {
+          "source": "3 CCR 705-1, Rule 1.4(B)(13)",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+          "text": "CPE Reporting Period A two-year period from January 1 of an even-numbered year through December 31 of an odd-numbered year during which the certificate holder must complete CPE."
+        },
+        {
+          "source": "3 CCR 705-1, Rule 1.9(A)(4)",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+          "text": "CPE accrues at a rate of ten hours for every full quarter during which the certificate holder holds an active status certificate. The CPE must be completed on or before December 31 of the year ending the CPE reporting period in which the CPE obligation is incurred."
+        }
+      ],
+      "late_quotes": [
+        {
+          "source": "3 CCR 705-1, Rule 1.9(J)(1)",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+          "text": "A certificate that is not renewed on or before the expiration date will expire; however, there is a sixty-day \"grace period\" from the expiration date within which the certificate may be renewed, subject to a late fee. A certificate holder will not be disciplined for holding out or practicing public accounting with an expired certificate during the grace period."
+        },
+        {
+          "source": "3 CCR 705-1, Rule 1.9(J)(2)(a)",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+          "text": "After the grace period, a certificate holder whose certificate has expired cannot hold out or perform any service for which an active certificate is required under section 12-100-116(1), C.R.S."
+        },
+        {
+          "source": "3 CCR 705-1, Rule 1.9(B)(2)(b)",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+          "text": "There is a sixty-day grace period from the expiration date of the certificate within which to pay the renewal fee, plus a late fee."
+        }
+      ],
+      "carryover_data_gap_note": null,
+      "late_data_gap_note": "Colorado's late fee amount isn't published in the rule, the statute or the Division's public pages; the Division sets it administratively.",
+      "carryover_citation_links": null
+    },
+    {
+      "id": "north-carolina-renewal-rules",
+      "state": "North Carolina",
+      "state_slug": "north-carolina",
+      "carryover_status": "allowed",
+      "carryover_summary": "Yes, up to 1,000 minutes. North Carolina counts CPE in minutes. If you complete more than the required minutes in a calendar year, up to 1,000 extra minutes carry forward and count as earned in the following year. Ethics minutes can't be carried forward to meet the ethics requirement. The statute lets the Board permit more (G.S. 93-12(8b)), but the Board's rule sets the 1,000-minute, one-year limit.",
+      "carryover_citation": "21 NCAC 08G .0401(g); G.S. 93-12(8b)",
+      "carryover_citation_url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20g/21%20ncac%2008g%20.0401.html",
+      "grace_summary": "No fixed grace period. If you haven't renewed by July 1, the Board mails a demand letter, and your renewal must be postmarked no later than 30 days after the date that letter was mailed.",
+      "late_fee_summary": "None for an individual license. Neither the rule nor the Board's fee schedule lists a late renewal fee for individuals. The individual renewal fee is $60.",
+      "practice_during_summary": "The rule doesn't say whether you may practice during the demand-letter window.",
+      "after_window_summary": "If you don't renew within 30 days after the demand letter is mailed, the certificate is forfeited automatically and you are no longer a CPA. Getting it back means applying for reissuance; the Board's fee schedule lists $100 for that, plus applicable penalties.",
+      "late_citation": "21 NCAC 08J .0101(b)-(d); G.S. 93-12(15); NC State Board of CPA Examiners fee schedule",
+      "late_citation_url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html",
+      "verified_date": "2026-11-13",
+      "verified_method": "manual_primary_read",
+      "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read 21 NCAC 08G .0401 and 08J .0101 on OAH (both readopted eff. June 1, 2026), G.S. 93-12 on ncleg.gov, and the Board fee schedule page. The only late fee on the schedule is $10 for professional-corporation firm registrations, not individuals.",
+      "carryover_quotes": [
+        {
+          "source": "21 NCAC 08G .0401(g)",
+          "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20g/21%20ncac%2008g%20.0401.html",
+          "text": "(g) When a CPA has completed more than the required number of minutes of CPE in any one calendar year, up to 1,000 minutes shall be carried forward and treated as minutes earned in the following year. Ethics CPE minutes may not be included in any carry forward minutes to meet the requirement of Paragraph (e) of this Rule."
+        }
+      ],
+      "late_quotes": [
+        {
+          "source": "21 NCAC 08J .0101(c)-(d)",
+          "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html",
+          "text": "(c) Upon failure of a CPA to comply with any applicable part of Paragraph (b) of this Rule by July 1, the Board shall send notice of such failure in the form of a demand letter to the CPA at the most recent mailing address the Board has on file. Completed renewal application packages shall be postmarked with proper postage not later than 30 days after the mailing date of the demand letter ... Subsequent failure of the CPA to comply with any applicable part of Paragraph (b) of this Rule within 30 days after such notice is mailed by the Board automatically results in forfeiture of the CPA's certificate, as required by G.S. 93-12(15). (d) Upon forfeiture of a certificate, the certificate holder is no longer a CPA"
+        },
+        {
+          "source": "NC State Board of CPA Examiners fee schedule",
+          "url": "https://nccpaboard.gov/resources/fee-schedule/",
+          "text": "Individual NC CPA License Renewal $60.00 ... Application for Reissuance of Forfeited or Revoked NC CPA License $100.00 (plus applicable penalties)"
+        }
+      ],
+      "carryover_data_gap_note": null,
+      "late_data_gap_note": null,
+      "carryover_citation_links": null
+    },
+    {
+      "id": "texas-renewal-rules",
+      "state": "Texas",
+      "state_slug": "texas",
+      "carryover_status": "not_allowed",
+      "carryover_summary": "No. The Board's renewal page says you need 120 hours of CPE every three years \"with no carryover of unused credits.\" The CPE rule itself (22 TAC 523.112) doesn't use the word carryover.",
+      "carryover_citation": "TSBPA license renewal page; 22 TAC 523.112",
+      "carryover_citation_url": "https://www.tsbpa.texas.gov/cpas/renewal/",
+      "grace_summary": "Less than two years. An expired individual license can still be renewed, at a higher fee, while it has been expired for less than two years.",
+      "late_fee_summary": "A multiple of the normal renewal fee, by how long the license has been expired: 1.5 times for 90 days or less, 2 times for more than 90 days but less than one year, and 3 times for one year to less than two years. On the current $112 annual fee that works out to $168, $224 and $336 (our arithmetic; the rule states only the multiples).",
+      "practice_during_summary": "Not allowed. The statute says a person whose license has expired may not engage in activities that require a license until it has been renewed.",
+      "after_window_summary": "The sources differ. The statute (Tex. Occ. Code 901.405(e)) says a license expired two years or more can't be renewed, and the person must meet the requirements for an original license, including the exam. The Board's rule (22 TAC 515.5(d)) says such a person may obtain a license by paying all renewal fees, including late fees. Ask the Board which path applies to you.",
+      "late_citation": "22 TAC 515.5(a)-(d); Tex. Occ. Code 901.405(a)-(e)",
+      "late_citation_url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=216515",
+      "verified_date": "2026-11-13",
+      "verified_method": "manual_primary_read",
+      "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the TSBPA renewal page, 22 TAC 523.112 (amended eff. 10/9/2025), 22 TAC 515.5 on the SOS Appian portal (rendered view) and Occ. Code 901.405 in the Board's Act PDF. Statute (e) vs rule (d) conflict on 2+ years expired is unresolved and stated on the page as such.",
+      "carryover_quotes": [
+        {
+          "source": "TSBPA license renewal page",
+          "url": "https://www.tsbpa.texas.gov/cpas/renewal/",
+          "text": "You need 120 hours of CPE every three years, including at least 4 hours of Texas-specific Ethics every two years, with no carryover of unused credits."
+        }
+      ],
+      "late_quotes": [
+        {
+          "source": "22 TAC 515.5(a)-(c)",
+          "url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=216515",
+          "text": "(a) An individual whose license has been expired for 90 days or less may renew the license by paying to the board a renewal fee that is equal to 1 1/2 times the normally required renewal fee. (b) An individual whose license has been expired for more than 90 days but less than one year may renew the license by paying to the board a renewal fee that is equal to two times the normally required renewal fee. (c) An individual whose license has been expired for at least one year but less than two years may renew the license by paying to the board a renewal fee that is equal to three times the normally required renewal fee."
+        },
+        {
+          "source": "Tex. Occ. Code 901.405(a), (e)",
+          "url": "https://www.tsbpa.texas.gov/act",
+          "text": "A person whose license has expired may not engage in activities that require a license until the license has been renewed. ... (e) A person whose license has been expired for two years or more may not renew the license. The person may obtain a new license by complying with the requirements and procedures, including the examination requirements, for obtaining an original license."
+        }
+      ],
+      "carryover_data_gap_note": null,
+      "late_data_gap_note": "The $112 base fee comes from the Board's 2024 fee announcement, not a codified fee schedule. The 22 TAC 515.5 text was read from the Secretary of State portal's on-screen rendering, which has no copyable text.",
+      "carryover_citation_links": [
+        {
+          "label": "TSBPA license renewal page",
+          "url": "https://www.tsbpa.texas.gov/cpas/renewal/"
+        },
+        {
+          "label": "22 TAC 523.112",
+          "url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=226322"
+        }
+      ]
+    },
+    {
+      "id": "california-renewal-rules",
+      "state": "California",
+      "state_slug": "california",
+      "carryover_status": "not_allowed",
+      "carryover_summary": "No. California's regulations say it outright: \"No carryover of continuing education is permitted from one license renewal period to another.\" The same sentence appears in the rule for renewing an expired license.",
+      "carryover_citation": "16 CCR 87(a); 16 CCR 81(a)",
+      "carryover_citation_url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
+      "grace_summary": "Up to five years. An expired license can be renewed at any time within five years after it expired, by filing the renewal application, paying all accrued renewal fees plus the delinquency fee, and showing CE compliance.",
+      "late_fee_summary": "The delinquency fee is 50 percent of the accrued renewal fee: $200 for licenses expiring after June 30, 2026 ($170 for licenses expiring before July 1, 2026), on top of the renewal fee. The CBA's renewal page says the fee applies when payment isn't received within 30 days of expiration.",
+      "practice_during_summary": "Not allowed. The Accountancy Act bars practicing public accountancy without a valid permit, and the CBA says that while your license is expired you may not hold out using the CPA title.",
+      "after_window_summary": "A license not renewed within five years can't be renewed, restored or reinstated, and the certificate is canceled. To practice again you apply for a new certificate and permit, paying first-time fees and passing the exam unless the Board waives it.",
+      "late_citation": "Cal. Bus. & Prof. Code 5070.6, 5070.7(a),(c), 5050(a), 5134(i); 16 CCR 70(e)(2); CBA renewal information page",
+      "late_citation_url": "https://www.dca.ca.gov/cba/about/acct_act.pdf",
+      "verified_date": "2026-11-13",
+      "verified_method": "manual_primary_read",
+      "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the CBA regulations PDF (current as of July 1, 2026), the CBA Accountancy Act PDF (current as of Jan 1, 2026) for B&P 5050, 5070.6, 5070.7, 5134, and the CBA renewal information page. leginfo blocked automated reads of 5070.6/5070.7, so amendments after Jan 1, 2026 to those two sections are not checked.",
+      "carryover_quotes": [
+        {
+          "source": "16 CCR 87(a)",
+          "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf",
+          "text": "No carryover of continuing education is permitted from one license renewal period to another."
+        }
+      ],
+      "late_quotes": [
+        {
+          "source": "Cal. Bus. & Prof. Code 5134(i)",
+          "url": "https://www.dca.ca.gov/cba/about/acct_act.pdf",
+          "text": "(i) The delinquency fee shall be 50 percent of the accrued renewal fee."
+        },
+        {
+          "source": "Cal. Bus. & Prof. Code 5070.6",
+          "url": "https://www.dca.ca.gov/cba/about/acct_act.pdf",
+          "text": "an expired permit may be renewed at any time within five years after its expiration upon the filing of an application for renewal on a form prescribed by the board, payment of all accrued and unpaid renewal fees and providing evidence satisfactory to the board of compliance as required by Section 5070.5."
+        },
+        {
+          "source": "Cal. Bus. & Prof. Code 5070.7(a)",
+          "url": "https://www.dca.ca.gov/cba/about/acct_act.pdf",
+          "text": "(a) A permit that is not renewed within five years following its expiration may not be renewed, restored, or reinstated thereafter, and the certificate of the holder of the permit shall be canceled immediately upon expiration of the five-year period, except as provided in subdivision (e)."
+        },
+        {
+          "source": "CBA renewal information page",
+          "url": "https://www.dca.ca.gov/cba/licensees/renewal-information.shtml",
+          "text": "The delinquency fee for CPA licenses expiring after June 30, 2026 is $200. The delinquency fee for CPA licenses expiring before July 1, 2026 is $170. ... if your license is expired you may not hold out using the title"
+        }
+      ],
+      "carryover_data_gap_note": null,
+      "late_data_gap_note": null,
+      "carryover_citation_links": null
+    },
+    {
+      "id": "missouri-renewal-rules",
+      "state": "Missouri",
+      "state_slug": "missouri",
+      "carryover_status": "not_addressed",
+      "carryover_summary": "Missouri's CPE rules don't provide for carrying extra hours forward. CPE is counted each calendar year: at least 40 hours, including 2 hours of ethics. The only related mechanism is a grace period to March 1 to make up a shortfall from the prior year, which is not a carryover. The rules don't expressly prohibit carryover either, so confirm with the Board before counting excess hours toward a later year.",
+      "carryover_citation": "20 CSR 2010-4.010(1)(B),(C)",
+      "carryover_citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+      "grace_summary": "Through December 31. Licenses expire September 30; an expired license can be late-renewed through December 31 of the year it expired.",
+      "late_fee_summary": "The fee rule sets a delinquent fee of $50 per month or portion of a month for failing to renew on time. The biennial renewal fee itself is $80. The rule doesn't spell out how the months are counted or how the two combine, so confirm the total with the Board.",
+      "practice_during_summary": "Not allowed. Someone holding an expired or lapsed license may not practice public accounting or use the CPA designation in any form.",
+      "after_window_summary": "After December 31 the license is lapsed, and getting back to active status means applying for reinstatement.",
+      "late_citation": "20 CSR 2010-2.070(1); 20 CSR 2010-2.160(1)(D),(L)2; 20 CSR 2010-4.035(5)-(7)",
+      "late_citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+      "verified_date": "2026-11-13",
+      "verified_method": "manual_primary_read",
+      "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read 20 CSR 2010 chapters 2 and 4 (current PDFs; 4.035 amended eff. May 30, 2023; 2.160 amended eff. May 30, 2023). Full-text search of chapter 4 for carry/forward/excess/surplus found no carryover provision. 4.035(6) also corrected the live reinstatement page's lapse_trigger (commit c1d1f7419).",
+      "carryover_quotes": [
+        {
+          "source": "20 CSR 2010-4.010(1)(B)",
+          "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+          "text": "(B) Beginning January 1, 2020, a licensee shall complete and maintain acceptable documentation of no less than forty (40) hours of qualifying CPE each calendar year a licensee holds a license. A minimum of two (2) hours of the required forty (40) hours of CPE shall be in the area of ethics."
+        }
+      ],
+      "late_quotes": [
+        {
+          "source": "20 CSR 2010-4.035(5)-(7)",
+          "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+          "text": "(5) Licensees may allow their license to expire in lieu of an inactive license status. An individual not applying for renewal continues to hold an expired license and may apply for late renewal through December 31 of the year the license is expired. Individuals who apply for a late license renewal are deemed to hold the license for the entire calendar year and must comply with the continuing professional education requirements. After December 31, the individual is deemed to hold a lapsed license. (6) Individuals who hold an expired or lapsed license shall not practice public accounting nor use the CPA designation in any form, as provided by section 326.292, RSMo. (7) Individuals who hold a lapsed or inactive license may return to active status by applying for reinstatement of license as defined in 20 CSR 2010-2.075."
+        },
+        {
+          "source": "20 CSR 2010-2.160(1)(L)",
+          "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf",
+          "text": "Delinquent fee for failure to obtain a permit or license, or timely renew a permit or license (per month or portion of a month) ... 2. Certified public accountants $ 50.00"
+        }
+      ],
+      "carryover_data_gap_note": null,
+      "late_data_gap_note": null,
+      "carryover_citation_links": null
+    }
+  ]
+}

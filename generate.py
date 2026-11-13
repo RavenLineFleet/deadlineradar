@@ -118,6 +118,7 @@ CPE_HOURS_DATA_PATH = ROOT / "data" / "cpe_hours.json"
 # fee + penalty/catch-up CPE hours. Distinct from both datasets above, same
 # 2-source verification standard. See data/reinstatement.json's own _meta.
 REINSTATEMENT_DATA_PATH = ROOT / "data" / "reinstatement.json"
+RENEWAL_RULES_DATA_PATH = ROOT / "data" / "renewal_rules.json"
 # Separate dataset (2026-08-11, 14:30 item #6): the individual CPA license
 # RENEWAL FEE, distinct from the renewal DATE data above. ValueLab's
 # customer walkthrough found a lower-verification-standard free competitor
@@ -24786,7 +24787,7 @@ def build_cpe_hours_page(
 
 {_cpe_affiliate_html()}
 
-{_reinstatement_reverse_link_html(cpe_record["state_slug"], reinstatement_by_slug) if reinstatement_by_slug else ""}
+{_reinstatement_reverse_link_html(cpe_record["state_slug"], reinstatement_by_slug) if reinstatement_by_slug else ""}{_carryover_link_html(cpe_record["state_slug"], state_name)}
 
 <p class="backlink-cross"><a href="../{esc(cpe_record['state_slug'])}/">{esc(cross_link_text)} &rarr;</a></p>
 
@@ -25317,7 +25318,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
 {_cpe_affiliate_html()}
 
 <p class="backlink-cross"><a href="../{esc(record['state_slug'])}/">See {esc(state_name)}'s CPA license renewal deadline &rarr;</a></p>
-{f'<p class="backlink-cross"><a href="../{esc(record["state_slug"])}-cpa-cpe-requirements/">How many CPE hours does {esc(state_name)} require? &rarr;</a></p>' if cpe_record else ""}
+{f'<p class="backlink-cross"><a href="../{esc(record["state_slug"])}-cpa-cpe-requirements/">How many CPE hours does {esc(state_name)} require? &rarr;</a></p>' if cpe_record else ""}{_late_renewal_link_html(record["state_slug"], state_name)}
 <p class="backlink"><a href="../">&larr; Back to all states</a></p>
 """
     json_ld = [{
@@ -25340,6 +25341,240 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
         if record["state_slug"] in SEO_NOINDEX_REINSTATEMENT_SLUGS else "",
     )
     return slug, title, html
+
+
+CPE_CARRYOVER_PAGES: list[dict] = []
+LATE_RENEWAL_PAGES: list[dict] = []
+# Filled by main() before any page builds, so the CPE-hours and reinstatement
+# builders can add a forward link only for states that have a renewal_rules record.
+RENEWAL_RULES_BY_SLUG: dict[str, dict] = {}
+
+_CARRYOVER_HEADLINE = {
+    "allowed": "Carryover allowed",
+    "not_allowed": "No carryover",
+    "not_addressed": "Not addressed in the rules",
+}
+
+
+def load_renewal_rules_by_slug() -> dict[str, dict]:
+    """COUNCIL #2 (2026-11-13): CPE carryover and late-renewal/grace rules,
+    keyed by state_slug like load_reinstatement_by_slug(). Every record must
+    carry both topics; a missing citation or a carryover_status outside the
+    three known values is a data bug, so it raises instead of rendering."""
+    if not RENEWAL_RULES_DATA_PATH.exists():
+        return {}
+    data = json.loads(RENEWAL_RULES_DATA_PATH.read_text(encoding="utf-8"))
+    out: dict[str, dict] = {}
+    for r in data["records"]:
+        if r["carryover_status"] not in _CARRYOVER_HEADLINE:
+            raise ValueError(f"{r['id']}: unknown carryover_status {r['carryover_status']!r}")
+        for k in ("carryover_citation", "carryover_citation_url", "late_citation", "late_citation_url"):
+            if not r.get(k):
+                raise ValueError(f"{r['id']}: missing {k}")
+        out[r["state_slug"]] = r
+    return out
+
+
+def _renewal_rules_signup_html(state_slug: str, state_name: str, renewal_records: list[dict],
+                               as_of: date, id_prefix: str, label_html: str) -> str:
+    """Same compact /subscribe form as _reinstatement_signup_html(), with
+    caller-supplied copy and a per-page id prefix so two forms never share an id."""
+    if not renewal_records:
+        return ""
+    extra_fields = _extra_fields_html(state_slug, renewal_records, as_of)
+    return f"""<div class="signup-form signup-form--compact" id="remind">
+  <form method="post" action="{esc(REMINDER_BACKEND_BASE_URL)}/subscribe">
+    <input type="hidden" name="state" value="{esc(state_slug)}">
+    {_BOT_DEFENSE_FIELDS_HTML}
+    {_SRC_HIDDEN_FIELD_HTML}
+    <label for="{id_prefix}-email-{esc(state_slug)}" class="signup-form-compact-label">
+      {label_html}
+    </label>
+    <div class="signup-form-row">
+      <input type="email" id="{id_prefix}-email-{esc(state_slug)}" name="email" required placeholder="you@example.com">
+      <button type="submit">Remind me</button>
+    </div>
+    {extra_fields}
+  </form>
+</div>"""
+
+
+def _rule_quote_html(quotes: list[dict]) -> str:
+    """The rule text itself, one blockquote per provision, each naming and
+    linking its own source so a reader can check every excerpt."""
+    nl = chr(10)
+    out = []
+    for q in quotes:
+        out.append(nl.join([
+            '<blockquote class="rule-quote">',
+            f'  <p>{esc(q["text"])}</p>',
+            f'  <footer><a href="{http_href(q["url"])}" class="cite-link">{esc(q["source"])} &rarr;</a></footer>',
+            '</blockquote>',
+        ]))
+    return nl.join(out)
+
+
+def _renewal_rules_shell(record: dict, slug: str, title: str, seo_title: str, meta_description: str,
+                         crumb_name: str, body: str) -> str:
+    json_ld = [{
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": SITE_NAME, "item": f"{SITE_BASE_URL}/"},
+            {"@type": "ListItem", "position": 2, "name": crumb_name, "item": f"{SITE_BASE_URL}/{slug}/"},
+        ],
+    }]
+    return page_shell(
+        f"{seo_title} — {SITE_NAME}", meta_description, body, home_href="../",
+        canonical_path=f"/{slug}/", json_ld=json_ld, has_remind_anchor=True,
+    )
+
+
+def _renewal_rules_badge_and_note(record: dict, topic: str) -> tuple[str, str]:
+    """Same rule as the reinstatement page: a topic with a data gap note shows
+    the note and its last-checked date instead of the unconditional badge.
+    Notes are per topic so a late-fee caveat never lands on the carryover page."""
+    verified = record.get("verified_date")
+    gap = record.get(f"{topic}_data_gap_note")
+    if gap:
+        return "", (f'<p class="disclosure">Sourcing note: {esc(gap)}'
+                    f'{_last_checked_suffix_html(verified, gap)}</p>')
+    dv = f' data-verified="{esc(verified)}"' if verified else ""
+    label = f"Verified {esc(verified)}" if verified else "Verified"
+    return f'<span class="verified-badge"{dv}>{label}</span>', ""
+
+
+def build_cpe_carryover_page(record: dict, renewal_records: list[dict], cpe_record: dict | None,
+                             as_of: date) -> tuple[str, str, str]:
+    """COUNCIL #2: /<state>-cpa-cpe-carryover/. Answers one question -- can
+    extra CPE hours roll into the next period -- with the rule text quoted."""
+    state_name = record["state"]
+    state_slug = record["state_slug"]
+    slug = f"{state_slug}-cpa-cpe-carryover"
+    title = f"{state_name} CPA CPE Carryover: Can Extra Hours Roll Forward?"
+    seo_title = f"{state_name} CPE Carryover Rules"
+    status = record["carryover_status"]
+    if status == "allowed":
+        lead = f"{state_name} lets some extra CPE count toward the next period."
+    elif status == "not_allowed":
+        lead = f"{state_name} doesn't let extra CPE count toward the next period."
+    else:
+        lead = f"{state_name}'s CPE rules don't address carrying extra hours forward."
+    meta_description = (
+        f"Can a {state_name} CPA carry extra CPE hours into the next period? {lead} "
+        f"The rule text, quoted and cited."
+    )
+    badge_html, note_html = _renewal_rules_badge_and_note(record, "carryover")
+    cite = {"id": record["id"], "citation": record["carryover_citation"], "citation_url": record["carryover_citation_url"],
+            "citation_links": record.get("carryover_citation_links")}
+    cpe_link = (
+        f'<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-cpe-requirements/">'
+        f'How many CPE hours does {esc(state_name)} require? &rarr;</a></p>'
+        if cpe_record else ""
+    )
+    signup = _renewal_rules_signup_html(
+        state_slug, state_name, renewal_records, as_of, "carryover",
+        f"Get reminded before {esc(state_name)}'s CPE and renewal deadlines:",
+    )
+    body = f"""<h1>{esc(title)}</h1>
+<p class="intro">See <a href="/methodology/">how we verify every figure on this site</a>.</p>
+
+<div class="callout">
+  {badge_html}
+  <div class="label">CPE Carryover</div>
+  <div class="date">{esc(_CARRYOVER_HEADLINE[status])}</div>
+  <p>{esc(record['carryover_summary'])}</p>
+  {_source_cite_html(cite)}
+  {note_html}
+</div>
+
+<h2>What the rule says</h2>
+{_rule_quote_html(record['carryover_quotes'])}
+
+{signup}
+
+{cpe_link}
+<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-license-late-renewal/">Missed {esc(state_name)}'s renewal deadline? What happens next &rarr;</a></p>
+<p class="backlink-cross"><a href="../{esc(state_slug)}/">See {esc(state_name)}'s CPA license renewal deadline &rarr;</a></p>
+<p class="backlink"><a href="../">&larr; Back to all states</a></p>
+"""
+    html = _renewal_rules_shell(record, slug, title, seo_title, meta_description,
+                                f"{state_name} CPE Carryover", body)
+    return slug, title, html
+
+
+def build_late_renewal_page(record: dict, renewal_records: list[dict], reinstatement_record: dict | None,
+                            as_of: date) -> tuple[str, str, str]:
+    """COUNCIL #2: /<state>-cpa-license-late-renewal/. The window between a
+    missed renewal deadline and reinstatement: how long, what it costs, and
+    whether you may practice meanwhile."""
+    state_name = record["state"]
+    state_slug = record["state_slug"]
+    slug = f"{state_slug}-cpa-license-late-renewal"
+    title = f"{state_name} CPA License Late Renewal: Late Fee and Grace Period"
+    seo_title = f"{state_name} CPA Late Renewal Rules"
+    meta_description = (
+        f"Missed your {state_name} CPA license renewal? How long you have to renew late, "
+        f"the late fee, and whether you can practice meanwhile, from the state's own rule."
+    )
+    badge_html, note_html = _renewal_rules_badge_and_note(record, "late")
+    cite = {"citation": record["late_citation"], "citation_url": record["late_citation_url"]}
+    rein_link = (
+        f'<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-license-reinstatement/">'
+        f'Past the late window? What reinstating a lapsed {esc(state_name)} license costs &rarr;</a></p>'
+        if reinstatement_record else ""
+    )
+    signup = _renewal_rules_signup_html(
+        state_slug, state_name, renewal_records, as_of, "late",
+        f"Don't miss it next time &mdash; get reminded before {esc(state_name)}'s renewal date:",
+    )
+    body = f"""<h1>{esc(title)}</h1>
+<p class="subhead">If you missed your {esc(state_name)} renewal deadline</p>
+<p class="intro">See <a href="/methodology/">how we verify every figure on this site</a>.</p>
+
+<div class="callout">
+  {badge_html}
+  <div class="label">Late-Renewal Window</div>
+  <p>{esc(record['grace_summary'])}</p>
+  <ul>
+    <li><strong>Late fee:</strong> {esc(record['late_fee_summary'])}</li>
+    <li><strong>Practicing during the window:</strong> {esc(record['practice_during_summary'])}</li>
+    <li><strong>After the window:</strong> {esc(record['after_window_summary'])}</li>
+  </ul>
+  {_source_cite_html(cite)}
+  {note_html}
+</div>
+
+<h2>What the rule says</h2>
+{_rule_quote_html(record['late_quotes'])}
+
+{signup}
+
+{rein_link}
+<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-cpe-carryover/">Can extra CPE hours roll forward in {esc(state_name)}? &rarr;</a></p>
+<p class="backlink-cross"><a href="../{esc(state_slug)}/">See {esc(state_name)}'s CPA license renewal deadline &rarr;</a></p>
+<p class="backlink"><a href="../">&larr; Back to all states</a></p>
+"""
+    html = _renewal_rules_shell(record, slug, title, seo_title, meta_description,
+                                f"{state_name} CPA Late Renewal", body)
+    return slug, title, html
+
+
+def _carryover_link_html(state_slug: str, state_name: str) -> str:
+    """Forward link from the CPE-hours page. Leading newline lives inside the
+    value so pages for states without a record stay byte-identical (CRAWL-9)."""
+    if state_slug not in RENEWAL_RULES_BY_SLUG:
+        return ""
+    return (f'\n<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-cpe-carryover/">'
+            f'Can extra CPE hours roll forward in {esc(state_name)}? &rarr;</a></p>')
+
+
+def _late_renewal_link_html(state_slug: str, state_name: str) -> str:
+    """Forward link from the reinstatement page; same byte-identity rule."""
+    if state_slug not in RENEWAL_RULES_BY_SLUG:
+        return ""
+    return (f'\n<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-license-late-renewal/">'
+            f'Not lapsed yet? {esc(state_name)}\'s late-renewal window and fee &rarr;</a></p>')
 
 
 BLOG_ARTICLES = [
@@ -27984,6 +28219,11 @@ def build_sitemap(
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
     <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
   </url>""")
+    for p in CPE_CARRYOVER_PAGES + LATE_RENEWAL_PAGES:
+        urls.append(f"""  <url>
+    <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
+    <lastmod>{_lm('/' + (p['slug']) + '/')}</lastmod>
+  </url>""")
     for p in COMPETITOR_COMPARE_PAGES:
         urls.append(f"""  <url>
     <loc>{SITE_BASE_URL}/{esc(p['slug'])}/</loc>
@@ -28192,6 +28432,8 @@ def main() -> None:
 
     cpe_hours_by_slug = load_cpe_hours_by_slug()
     reinstatement_by_slug = load_reinstatement_by_slug()
+    RENEWAL_RULES_BY_SLUG.clear()
+    RENEWAL_RULES_BY_SLUG.update(load_renewal_rules_by_slug())
     renewal_fees_by_slug = load_renewal_fees_by_slug()
     guide_slugs_by_state = {
         a["slug"][: -len("-cpa-license-renewal-guide")]: a["slug"]
@@ -28334,6 +28576,21 @@ def main() -> None:
         (page_dir / "index.html").write_text(page_html, encoding="utf-8")
         REINSTATEMENT_PAGES.append({"slug": slug, "state_name": reinstatement_record["state"], "state_slug": state_slug})
         print(f"wrote {SITE_DIR.name}/{slug}/index.html  ({title})")
+
+    CPE_CARRYOVER_PAGES.clear()
+    LATE_RENEWAL_PAGES.clear()
+    for state_slug, rr_record in RENEWAL_RULES_BY_SLUG.items():
+        renewal_records = by_slug.get(state_slug, [])
+        for builder, pages, extra in (
+            (build_cpe_carryover_page, CPE_CARRYOVER_PAGES, cpe_hours_by_slug.get(state_slug)),
+            (build_late_renewal_page, LATE_RENEWAL_PAGES, reinstatement_by_slug.get(state_slug)),
+        ):
+            slug, title, page_html = builder(rr_record, renewal_records, extra, as_of)
+            page_dir = SITE_DIR / slug
+            page_dir.mkdir(parents=True, exist_ok=True)
+            (page_dir / "index.html").write_text(page_html, encoding="utf-8")
+            pages.append({"slug": slug, "state_name": rr_record["state"], "state_slug": state_slug})
+            print(f"wrote {SITE_DIR.name}/{slug}/index.html  ({title})")
 
     # /compare/ (hub + per-competitor pages) removed 2026-08-12, Devin's decision
     # ("for now" -- pending a rethink now that a real, close competitor is
