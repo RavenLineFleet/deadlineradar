@@ -2885,7 +2885,7 @@ def print_runtime_hidden_unbound_advisory(html_files: list[Path]) -> None:
 _FRESHNESS_DENOMINATOR_EXCLUSIONS: dict[str, str] = {
     "reg_change_events.json": "published at /rule-changes/ but outside the sitewide tile's 4-dataset denominator; every claim surface (/, /deadline-calculator/, /es/deadline-calculator/, /compliance-reports/, /for-firms/, /pricing/, /methodology/, /es/methodology/) names the 4 datasets in a parenthetical so the excluded ones (this file, and worker/src/mobility_rules.json which this data/ scan cannot see) sit outside the claim's stated scope -- COPY-53, enforced by check_freshness_claim_names_its_datasets; /rule-changes/ appends its own runtime 'overdue' flag at 30 days -- widening the denominator is an open product call (FRESH-4/5)",
     "ptin_federal.json": "read by NOTHING (0 consumers in generate.py or worker/src imports, SRC-191); the /my/ PTIN date is code-derived (index.ts nextAnnualMonthEnd + generate.py static copy), not from this record -- if any code starts reading it, move it into the denominator",
-    "renewal_rules.json": "COUNCIL #2 (2026-11-13): rendered on the /<state>-cpa-cpe-carryover/ and /<state>-cpa-license-late-renewal/ pages, each carrying its own data-verified badge (runtime stale caveat at 30 days). Outside the sitewide tile for the same reason as reg_change_events.json: every claim surface names the 4 datasets in a parenthetical (COPY-53), and widening it re-words pinned es translations -- fold it in when that copy is next revised",
+    "renewal_rules.json": "COUNCIL #2 (2026-11-13): rendered on the /<state>-cpa-cpe-carryover/ and /<state>-cpa-license-late-renewal/ pages, staleness enforced at build time by check_renewal_rules_currency() (30 days, missing/unparseable = stale; SRC-257 -- the 2 gap-note pages carry only a static 'Last checked' date, so the runtime caveat is not the guard). Outside the sitewide tile for the same reason as reg_change_events.json: every claim surface names the 4 datasets in a parenthetical (COPY-53), and widening it re-words pinned es translations -- fold it in when that copy is next revised",
     "competitor_prices.json": "not rendered anywhere (no consumer; /compare/ is gone) but it IS a re-verified dataset: verified_date + 90-day threshold, enforced by check_competitor_price_currency() only while docs/compare/ exists -- if its facts are rendered on any page, move it into the denominator or re-arm that check",
 }
 
@@ -5165,6 +5165,39 @@ def check_derived_fee_consistency(repo_root: Path) -> list[str]:
                     f"appear. Amounts currently in that copy: {found}. A base-fee edit desyncs derived "
                     f"copy silently; update both together."
                 )
+    return errors
+
+
+def check_renewal_rules_currency(repo_root: Path) -> list[str]:
+    """SRC-257 (AuditLab MEDIUM, 2026-11-13): data/renewal_rules.json (COUNCIL #2
+    carryover + late-renewal pages) sits in _FRESHNESS_DENOMINATOR_EXCLUSIONS
+    and had no staleness gate on any path. Its 2 gap-note pages show only a
+    static "(Last checked <date>.)" with no data-verified attribute, so the
+    runtime caveat can't see them either -- BADGE-2's "the build gate still
+    enforces it" was false for this dataset. Same hard gate as
+    check_cpe_hours_currency(): same field (verified_date), same 30-day bar,
+    reusing cpe_hours_staleness_check.collect_stale()."""
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import cpe_hours_staleness_check as chsc
+    except Exception as e:
+        return [f"[GATE-20] scripts/cpe_hours_staleness_check.py could not be imported ({type(e).__name__}: {e}); check_renewal_rules_currency() is measuring nothing and must be repaired."]
+    data_path = repo_root / "data" / "renewal_rules.json"
+    if not data_path.exists():
+        return [f"[GATE-19] {data_path} not found -- this data file should always exist; check_renewal_rules_currency() is measuring nothing without it"]
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    _fresh, stale, unparseable, missing = chsc.collect_stale(data["records"])
+    errors = []
+    for r, age_days in stale:
+        errors.append(
+            f"[SRC-257][renewal_rules/{r['id']}] {r.get('state')} -- verified_date={r['verified_date']} is {age_days}d old, "
+            f"past the {chsc.STALENESS_THRESHOLD_DAYS}-day bar the carryover/late-renewal pages' 'Verified' badge or "
+            f"'Last checked' date asserts -- re-verify and bump verified_date before shipping"
+        )
+    for r in unparseable:
+        errors.append(f"[SRC-257][renewal_rules/{r['id']}] {r.get('state')} -- verified_date={r.get('verified_date')!r} is unparseable -- treat as stale")
+    for r in missing:
+        errors.append(f"[SRC-257][renewal_rules/{r['id']}] {r.get('state')} -- verified_date is missing entirely -- treat as stale")
     return errors
 
 
@@ -11038,6 +11071,7 @@ def main():
     all_errors += check_mobility_changeover_tense(repo_root)
     all_errors += check_mobility_flux_settled(repo_root)
     all_errors += check_reinstatement_currency(repo_root)
+    all_errors += check_renewal_rules_currency(repo_root)
     all_errors += check_sitewide_freshness_stat_uses_wall_clock(repo_root)
     all_errors += check_clock_kind_consistency(repo_root)
     all_errors += check_stale_thresholds_unified(html_files, repo_root)

@@ -18,6 +18,16 @@
       "after_window_summary": "After the 60 days the certificate stays expired, and the holder cannot hold out or perform any service that requires an active certificate until it is reinstated. Letting it expire doesn't cancel CPE you had already accrued: that CPE must be completed before reinstatement. Under the Board's reinstatement rule, a certificate expired less than two years needs the 80 CPE hours for the preceding reporting period plus 10 hours for each full quarter of the current period it was expired, up to 80. At two years or more (but under six), you must also pass the AICPA Professional Ethics comprehensive course. At six years or more, you also need either one year of experience or a master's degree or higher with a concentration in accounting, obtained within the two years before you apply, or you can qualify as a new applicant or through an active license from a substantially equivalent state. The statute separately requires reinstatement fees for a certificate expired more than two years.",
       "late_citation": "3 CCR 705-1, Rule 1.9(B)(2)(b), 1.9(J)(1)-(2), 1.9(J)(4), 1.9(K); C.R.S. 12-20-202(1)(e), (2)(a), (2)(c)(II)",
       "late_citation_url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1",
+      "late_citation_links": [
+        {
+          "label": "3 CCR 705-1",
+          "url": "https://www.coloradosos.gov/CCR/GenerateRulePdf.do?ruleVersionId=11720&fileName=3+CCR+705-1"
+        },
+        {
+          "label": "C.R.S. 12-20-202",
+          "url": "https://content.leg.colorado.gov/sites/default/files/images/olls/crs2024-title-12.pdf"
+        }
+      ],
       "verified_date": "2026-11-13",
       "verified_method": "manual_primary_read",
       "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the current 3 CCR 705-1 PDF (ruleVersionId=11720, entire rule eff. 06/30/2022, amendments through 12/15/2024) and the C.R.S. 2024 title 12 printout. Full-text search of the rule for carry/forward/excess found no carryover provision. dpo.colorado.gov Accountancy/Fees returned 404; no fee amount for the late fee found. 2026-11-13 r2 (AuditLab SRC-256): after_window_summary repointed from C.R.S. 12-20-202(2)(a) to (2)(c)(II) for the fees rule, and the Board's own reinstatement tiers (3 CCR 705-1 Rule 1.9(K)(1)-(3)) plus 1.9(J)(4) added, quoted from the same rule PDF re-fetched 200/657,635 B; statute text from the C.R.S. 2024 title 12 printout p.122. late_fee_summary now names 24-79.5-102 as the statute does.",
@@ -93,6 +103,20 @@
       "after_window_summary": "If you don't renew within 30 days after the demand letter is mailed, the certificate is forfeited automatically and you are no longer a CPA. Getting it back means applying for reissuance; the Board's fee schedule lists $100 for that, plus applicable penalties.",
       "late_citation": "21 NCAC 08J .0101(b)-(d); G.S. 93-12(15); NC State Board of CPA Examiners fee schedule",
       "late_citation_url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html",
+      "late_citation_links": [
+        {
+          "label": "21 NCAC 08J .0101",
+          "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20j/21%20ncac%2008j%20.0101.html"
+        },
+        {
+          "label": "G.S. 93-12",
+          "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/BySection/Chapter_93/GS_93-12.html"
+        },
+        {
+          "label": "NC Board fee schedule",
+          "url": "https://nccpaboard.gov/resources/fee-schedule/"
+        }
+      ],
       "verified_date": "2026-11-13",
       "verified_method": "manual_primary_read",
       "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read 21 NCAC 08G .0401 and 08J .0101 on OAH (both readopted eff. June 1, 2026), G.S. 93-12 on ncleg.gov, and the Board fee schedule page. The only late fee on the schedule is $10 for professional-corporation firm registrations, not individuals.",
@@ -117,7 +141,16 @@
       ],
       "carryover_data_gap_note": null,
       "late_data_gap_note": null,
-      "carryover_citation_links": null
+      "carryover_citation_links": [
+        {
+          "label": "21 NCAC 08G .0401",
+          "url": "http://reports.oah.state.nc.us/ncac/title%2021%20-%20occupational%20licensing%20boards%20and%20commissions/chapter%2008%20-%20certified%20public%20accountant%20examiners/subchapter%20g/21%20ncac%2008g%20.0401.html"
+        },
+        {
+          "label": "G.S. 93-12",
+          "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/BySection/Chapter_93/GS_93-12.html"
+        }
+      ]
     },
     {
       "id": "texas-renewal-rules",
@@ -133,6 +166,16 @@
       "after_window_summary": "The sources differ. The statute (Tex. Occ. Code 901.405(e)) says a license expired two years or more can't be renewed, and the person must meet the requirements for an original license, including the exam. The Board's rule (22 TAC 515.5(d)) says such a person may obtain a license by paying all renewal fees, including late fees. Ask the Board which path applies to you.",
       "late_citation": "22 TAC 515.5(a)-(d); Tex. Occ. Code 901.405(a)-(e)",
       "late_citation_url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=216515",
+      "late_citation_links": [
+        {
+          "label": "22 TAC 515.5",
+          "url": "https://texas-sos.appianportalsgov.com/rules-and-meetings?interface=VIEW_TAC_SUMMARY&recordId=216515"
+        },
+        {
+          "label": "Tex. Occ. Code 901.405",
+          "url": "https://www.tsbpa.texas.gov/act"
+        }
+      ],
       "verified_date": "2026-11-13",
       "verified_method": "manual_primary_read",
       "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the TSBPA renewal page, 22 TAC 523.112 (amended eff. 10/9/2025), 22 TAC 515.5 on the SOS Appian portal (rendered view) and Occ. Code 901.405 in the Board's Act PDF. Statute (e) vs rule (d) conflict on 2+ years expired is unresolved and stated on the page as such. 2026-11-13 r2 (AuditLab COUNCIL #2): dropped the parenthetical that 22 TAC 523.112 doesn't use the word carryover (an absence AuditLab could not independently test); the claim rests on the Board renewal page.",
@@ -182,6 +225,20 @@
       "after_window_summary": "A license not renewed within five years can't be renewed, restored or reinstated, and the certificate is canceled. To practice again you apply for a new certificate and permit, paying first-time fees and passing the exam unless the Board waives it.",
       "late_citation": "Cal. Bus. & Prof. Code 5070.6, 5070.7(a),(c), 5050(a), 5134(i); 16 CCR 70(e)(2); CBA renewal information page",
       "late_citation_url": "https://www.dca.ca.gov/cba/about/acct_act.pdf",
+      "late_citation_links": [
+        {
+          "label": "Cal. Bus. & Prof. Code",
+          "url": "https://www.dca.ca.gov/cba/about/acct_act.pdf"
+        },
+        {
+          "label": "16 CCR 70",
+          "url": "https://www.dca.ca.gov/cba/about/cba_regs.pdf"
+        },
+        {
+          "label": "CBA renewal page",
+          "url": "https://www.dca.ca.gov/cba/licensees/renewal-information.shtml"
+        }
+      ],
       "verified_date": "2026-11-13",
       "verified_method": "manual_primary_read",
       "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read the CBA regulations PDF (current as of July 1, 2026), the CBA Accountancy Act PDF (current as of Jan 1, 2026) for B&P 5050, 5070.6, 5070.7, 5134, and the CBA renewal information page. leginfo blocked automated reads of 5070.6/5070.7, so amendments after Jan 1, 2026 to those two sections are not checked.",
@@ -232,6 +289,16 @@
       "after_window_summary": "After December 31 the license is lapsed, and getting back to active status means applying for reinstatement.",
       "late_citation": "20 CSR 2010-2.070(1); 20 CSR 2010-2.160(1)(D),(L)2; 20 CSR 2010-4.035(5)-(7)",
       "late_citation_url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf",
+      "late_citation_links": [
+        {
+          "label": "20 CSR 2010-2",
+          "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-2.pdf"
+        },
+        {
+          "label": "20 CSR 2010-4",
+          "url": "https://www.sos.mo.gov/cmsimages/adrules/csr/current/20csr/20c2010-4.pdf"
+        }
+      ],
       "verified_date": "2026-11-13",
       "verified_method": "manual_primary_read",
       "verification_history": "2026-11-13 (AssetLab, COUNCIL #2): read 20 CSR 2010 chapters 2 and 4 (current PDFs; 4.035 amended eff. May 30, 2023; 2.160 amended eff. May 30, 2023). Full-text search of chapter 4 for carry/forward/excess/surplus found no carryover provision. 4.035(6) also corrected the live reinstatement page's lapse_trigger (commit c1d1f7419).",

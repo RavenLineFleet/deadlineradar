@@ -25368,9 +25368,15 @@ def load_renewal_rules_by_slug() -> dict[str, dict]:
     for r in data["records"]:
         if r["carryover_status"] not in _CARRYOVER_HEADLINE:
             raise ValueError(f"{r['id']}: unknown carryover_status {r['carryover_status']!r}")
-        for k in ("carryover_citation", "carryover_citation_url", "late_citation", "late_citation_url"):
+        # SRC-257 (AuditLab, 2026-11-13): verified_date is required too. A
+        # record without one rendered a bare "Verified" with no data-verified
+        # attribute, and preship_gate.check_renewal_rules_currency() treats a
+        # missing date as stale -- refuse here so the two can't disagree.
+        for k in ("carryover_citation", "carryover_citation_url", "late_citation", "late_citation_url",
+                  "verified_date"):
             if not r.get(k):
                 raise ValueError(f"{r['id']}: missing {k}")
+        date.fromisoformat(r["verified_date"])
         out[r["state_slug"]] = r
     return out
 
@@ -25518,7 +25524,10 @@ def build_late_renewal_page(record: dict, renewal_records: list[dict], reinstate
         f"the late fee, and whether you can practice meanwhile, from the state's own rule."
     )
     badge_html, note_html = _renewal_rules_badge_and_note(record, "late")
-    cite = {"citation": record["late_citation"], "citation_url": record["late_citation_url"]}
+    # SRC-256(c): a compound cite (rule + statute + fee schedule) gets one
+    # labeled link per source, same as carryover_citation_links.
+    cite = {"id": record["id"], "citation": record["late_citation"], "citation_url": record["late_citation_url"],
+            "citation_links": record.get("late_citation_links")}
     rein_link = (
         f'<p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-license-reinstatement/">'
         f'Past the late window? What reinstating a lapsed {esc(state_name)} license costs &rarr;</a></p>'
