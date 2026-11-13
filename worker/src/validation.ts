@@ -1074,9 +1074,11 @@ export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3
 // are deliberately not computed from one shared source (no runtime coupling
 // between the static site build and the Worker), so keep them in sync by hand.
 // ga = the Google Ads campaign Final URL suffix (GTM decision B, 2026-10-30): no Google tag on the site.
+// fm-p3 = GrowthLab contact-form outreach (batch18); em-reply = GrowthLab reply-playbook links.
+// ATTR-9 (AuditLab, 2026-11-13): both were in live use but missing here, so their clicks recorded nothing.
 // No comments inside the Set literal: preship_gate ATTR-SYNC parses its body as the tag list.
 export const ATTRIBUTION_SRC_ALLOWLIST: Set<string> = new Set([
-  "em-w1", "em-b2", "li", "bs", "ma", "x", "blog", "rd", "ga",
+  "em-w1", "em-b2", "li", "bs", "ma", "x", "blog", "rd", "ga", "fm-p3", "em-reply",
 ]);
 
 // Self-reported "How did you hear about us?" (Orchestrator directive,

@@ -111,6 +111,18 @@ describe("POST /attr", () => {
     expect(after?.hit_count).toBe(startCount + 1);
   });
 
+  // ATTR-9 (AuditLab, 2026-11-13): GrowthLab's contact-form (fm-p3) and
+  // reply-playbook (em-reply) links were live but unlisted, so they counted 0.
+  it.each(["fm-p3", "em-reply"])("accepts the %s GrowthLab tag and counts it", async (tag) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const before = await attrRow(today, tag);
+    const startCount = before?.hit_count ?? 0;
+    const resp = await postAttr(tag, "203.0.113.46");
+    expect(resp.status).toBe(204);
+    const after = await attrRow(today, tag);
+    expect(after?.hit_count).toBe(startCount + 1);
+  });
+
   it("keeps separate counters per src on the same day", async () => {
     const ip = "203.0.113.43";
     const today = new Date().toISOString().slice(0, 10);
