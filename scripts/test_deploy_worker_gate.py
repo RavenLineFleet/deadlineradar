@@ -94,6 +94,37 @@ def test_test16_skip_tests_deploys_without_running_them_and_skips_marker(monkeyp
     assert not dw.MARKER.exists()
 
 
+# DEPLOY-16: the "marker NOT updated" line names the flag that actually skipped it.
+def _final_line(capsys):
+    out = capsys.readouterr().out
+    return [l for l in out.splitlines() if "marker NOT updated because" in l]
+
+
+def test_deploy16_skip_tests_message_names_skip_tests(monkeypatch, env, capsys):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: HEAD)
+    assert _main(monkeypatch, "--skip-tests") == 0
+    lines = _final_line(capsys)
+    assert len(lines) == 1
+    assert "--skip-tests" in lines[0] and "--allow-non-origin-head" not in lines[0]
+
+
+def test_deploy16_non_origin_head_message_names_that_flag(monkeypatch, env, capsys):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
+    assert _main(monkeypatch, "--allow-non-origin-head") == 0
+    lines = _final_line(capsys)
+    assert len(lines) == 1
+    assert "--allow-non-origin-head" in lines[0] and "--skip-tests" not in lines[0]
+
+
+def test_deploy16_both_flags_named(monkeypatch, env, capsys):
+    monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
+    assert _main(monkeypatch, "--allow-non-origin-head", "--skip-tests") == 0
+    lines = _final_line(capsys)
+    assert len(lines) == 1
+    assert "--allow-non-origin-head" in lines[0] and "--skip-tests" in lines[0]
+    assert not dw.MARKER.exists()
+
+
 def test_test16_preview_does_not_run_worker_tests(monkeypatch, env):
     monkeypatch.setattr(dw, "remote_main_tip", lambda: OTHER)
     monkeypatch.setattr(dw, "worker_tests_status", lambda: 1)

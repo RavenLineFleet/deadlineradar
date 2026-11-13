@@ -208,7 +208,9 @@ def main() -> int:
     # code and delete live files. Equality with origin's tip (not
     # --is-ancestor): deploying an older ancestor is a rollback, which should
     # be an explicit choice, not a silent one.
-    skip_marker = False
+    # DEPLOY-16 (AuditLab 2026-11-12): two flags can skip the marker, so record
+    # WHICH one; the final message used to blame --allow-non-origin-head for both.
+    skip_reasons = []
     if not args.preview:
         tip = remote_main_tip()
         head = head_commit()
@@ -221,13 +223,13 @@ def main() -> int:
                 print("--allow-non-origin-head (deploys, but will NOT update the marker).", file=sys.stderr)
                 return 1
             print(f"WARNING: {where}; deploying anyway (--allow-non-origin-head). Marker will NOT be updated.", file=sys.stderr)
-            skip_marker = True
+            skip_reasons.append("HEAD is not origin/main's tip (--allow-non-origin-head)")
 
     # AuditLab TEST-16 (2026-10-23): production only, last gate before wrangler.
     if not args.preview:
         if args.skip_tests:
             print("WARNING: --skip-tests; deploying without the worker test gate. Marker will NOT be updated.", file=sys.stderr)
-            skip_marker = True
+            skip_reasons.append("the worker test gate was skipped (--skip-tests)")
         else:
             status = worker_tests_status()
             if status != 0:
@@ -269,8 +271,9 @@ def main() -> int:
     if dirty:
         print("\nDeploy done, but marker NOT updated because the tree was dirty (--allow-dirty).")
         return 0
-    if skip_marker:
-        print("\nDeploy done, but marker NOT updated because HEAD is not origin/main's tip (--allow-non-origin-head).")
+    if skip_reasons:
+        print(f"\nDeploy done, but marker NOT updated because {' and '.join(skip_reasons)}.")
+        print("If you write the marker by hand, name that flag in the ship-report: an unexplained marker hides an untested deploy.")
         return 0
 
     commit = head_commit()
