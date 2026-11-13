@@ -4784,7 +4784,12 @@ async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): P
             foundingStampError = `founding trial stamp failed: ${String(err)}`;
             claimed = true; // unknown, not "no grant" -- do not cancel on a D1 error
           }
-          if (!claimed && claim === "reclaimed" &&
+          // FFT-13 (AuditLab 2026-11-13, LOW): a claim that THREW also reads the
+          // rejection row. Otherwise a reclaim whose claim faults (claimed is
+          // forced true above) skips this check and writes the paid tier for a
+          // sub run 1 already cancelled. Widened, not dropped: a run whose claim
+          // returned true (grant legitimately re-created) must not short-circuit.
+          if ((!claimed || foundingStampError) && claim === "reclaimed" &&
               (await store.getWebhookEventType(env.DB, `${event.id}:founding:${subscriptionId}`).catch(() => null)) === "founding_trial:rejected") {
             // Founding-reject re-run (AuditLab 2026-11-13, LOW): run 1 already
             // cancelled (or alerted CANCEL FAILED) and recorded the rejection,

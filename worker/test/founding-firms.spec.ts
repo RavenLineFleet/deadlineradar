@@ -477,6 +477,32 @@ describe("checkout.session.completed for a founding trial", () => {
     expect((await store.getFirmById(env.DB, firmId))?.plan_tier).toBe("free");
   });
 
+  it("AuditLab FFT-13: founding-reject re-run whose claim THROWS still reads the rejection row -- no paid tier for the sub run 1 cancelled", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm(); // no grant: the reject path
+    const { calls } = recordFetch();
+    const eventId = `evt_${crypto.randomUUID()}`;
+    const meta = { target_plan_tier: "firm_growth", founding_firm_slot: "3" };
+    const markSpy = vi.spyOn(store, "markWebhookEventProcessed").mockRejectedValueOnce(new Error("D1_ERROR: reject mark"));
+    expect((await completed(firmId, "sub_rej_f13", meta, eventId)).status).toBe(400);
+    markSpy.mockRestore();
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1); // run 1 cancelled
+    await env.DB.prepare("UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2")
+      .bind(new Date(Date.now() - store.WEBHOOK_RECLAIM_AFTER_MS - 1000).toISOString(), eventId)
+      .run();
+    const claimSpy = vi.spyOn(store, "claimFoundingFirmTrialStart").mockRejectedValueOnce(new Error("D1_ERROR: fft13 claim"));
+    const r = await completed(firmId, "sub_rej_f13", meta, eventId);
+    expect(claimSpy).toHaveBeenCalledTimes(1); // run 2 really took the claim-threw arm
+    claimSpy.mockRestore();
+    expect(r.status).toBe(200);
+    const firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("free");
+    expect(firm?.stripe_subscription_id ?? null).not.toBe("sub_rej_f13");
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
+    const ev = await env.DB.prepare("SELECT processed_at FROM stripe_webhook_events WHERE id = ?1").bind(eventId).first<{ processed_at: string | null }>();
+    expect(ev?.processed_at).not.toBeNull();
+  });
+
   it("AuditLab FFT-1b: revoke + re-grant the SAME firm on a different slot -> the old session still lands on the NEW live grant (keyed on the firm, not the stale slot)", async () => {
     await clearGrants();
     const a = await makeFirm();
