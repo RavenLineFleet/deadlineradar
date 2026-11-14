@@ -268,9 +268,16 @@ export function approvedKnownPasses(env: Env): string[] {
 export function nextDueThreshold(
   daysRemaining: number,
   alreadySent: number[],
-  thresholds: number[] = ESCALATION_THRESHOLDS_DAYS
+  thresholds: number[] = ESCALATION_THRESHOLDS_DAYS,
+  // SEC-100 (SecurityLab, 2026-11-14): the set the ordering guard is
+  // computed from. Defaults to alreadySent, so every caller that doesn't
+  // pass it is unchanged. The two email passes pass the RAW reminders_sent
+  // here while alreadySent is the stale-adjusted view: dropping a stranded
+  // tier from the view must make that tier re-pickable, never weaken the
+  // guard (r3 fed the view to both and a less-urgent tier could go out).
+  orderingSent: number[] = alreadySent
 ): number | null {
-  const mostUrgentSent = alreadySent.length > 0 ? Math.min(...alreadySent) : null;
+  const mostUrgentSent = orderingSent.length > 0 ? Math.min(...orderingSent) : null;
   // Noted alongside SEND-1 (AuditLab, 2026-08-20): reminders_sent/steps_sent
   // is only guarded for JSON parse failure at the call sites, not for
   // parsing to something that isn't an array of numbers -- e.g. a stray
@@ -284,7 +291,11 @@ export function nextDueThreshold(
   if (mostUrgentSent !== null && !Number.isFinite(mostUrgentSent)) return null;
   for (const threshold of [...thresholds].sort((a, b) => a - b)) {
     if (alreadySent.includes(threshold)) continue;
-    if (mostUrgentSent !== null && threshold >= mostUrgentSent) continue;
+    // Strictly greater: threshold === mostUrgentSent is either already in
+    // alreadySent (skipped above -- always the case when orderingSent is
+    // alreadySent, so this is identical to the old `>=` for those callers)
+    // or a stranded copy of the most urgent tier sent, which may be re-sent.
+    if (mostUrgentSent !== null && threshold > mostUrgentSent) continue;
     if (daysRemaining <= threshold) return threshold;
   }
   return null;
@@ -329,6 +340,36 @@ function parseRemindersSentMinusStale(remindersSent: string | null, stale: Set<n
   }
   if (!stale || !Array.isArray(sent)) return sent;
   return sent.filter((t) => !stale.has(t));
+}
+
+/**
+ * SEC-100: the email tier pick shared by runReminderPass() and
+ * runDigestPass(). `rawSent` is the reminders_sent column as stored;
+ * `alreadySent` is the same set minus stranded tiers. Eligibility reads the
+ * view (a stranded tier may be picked again), ordering reads the column (no
+ * tier less urgent than one already sent, stranded or not, ever goes out).
+ * Returns the tier to send, "none" (nothing due today), or "grace" (past
+ * the deadline with nothing to send -- the caller records the silent drop).
+ *
+ * The past-deadline catch-up goes through the same guard. With an empty
+ * column it picks Math.min(thresholds) exactly as before (every threshold
+ * is positive, so it is due). With only stranded tiers in the column, it
+ * picks the most urgent tier that is not less urgent than the most urgent
+ * one sent; if the cadence no longer has one, nothing is
+ * sent and the drop is logged, same as a subscriber with a real sent tier.
+ */
+export function selectEmailReminderTier(
+  daysRemaining: number,
+  alreadySent: number[],
+  rawSent: number[],
+  thresholds: number[]
+): number | "none" | "grace" {
+  if (daysRemaining < -GRACE_PERIOD_PAST_DEADLINE_DAYS) {
+    const neverNotified = alreadySent.length === 0;
+    if (!neverNotified || daysRemaining < -NEVER_NOTIFIED_CATCHUP_WINDOW_DAYS) return "grace";
+    return nextDueThreshold(daysRemaining, alreadySent, thresholds, rawSent) ?? "grace";
+  }
+  return nextDueThreshold(daysRemaining, alreadySent, thresholds, rawSent) ?? "none";
 }
 
 export interface ReminderSummary {
@@ -521,8 +562,9 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
     const daysRemaining = Math.round((deadline.getTime() - asOfDay.getTime()) / MS_PER_DAY);
     // SEC-96: a stranded tier is dropped from this view so nextDueThreshold()
     // can pick it again; claimReminderThreshold() then re-leases it.
+    // SEC-100: the escalation-order guard reads rawSent, never the view.
+    const rawSent = parseRemindersSentMinusStale(sub.reminders_sent, undefined);
     const alreadySent = parseRemindersSentMinusStale(sub.reminders_sent, staleClaims.get(sub.id));
-    const neverNotified = alreadySent.length === 0;
 
     // Roadmap #19/#23: looked up once here (not per-use below) since both
     // the catch-up tier and nextDueThreshold() need the firm's own
@@ -553,41 +595,28 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
       }
     }
 
-    let threshold: number | null;
-    if (daysRemaining < -GRACE_PERIOD_PAST_DEADLINE_DAYS) {
-      if (neverNotified && daysRemaining >= -NEVER_NOTIFIED_CATCHUP_WINDOW_DAYS) {
-        // First-ever evaluation landed past-deadline -- one bounded catch-up at
-        // the most urgent tier this firm actually uses, rather than silent-
-        // forever OR a tier they've deliberately turned off.
-        // SEND-2 (AuditLab, 2026-08-21, orchestrator-approved): thresholds
-        // is guaranteed all-finite by the time it reaches here -- every
-        // adoption site below validates parsed.every(Number.isFinite)
-        // before assigning, so Math.min(...thresholds) can no longer
-        // produce NaN. Superseded the SEND-1-addendum guard that used to
-        // live here (hold-on-NaN); the adoption-site fix is the correct
-        // one, matching this file's own established "malformed value ->
-        // fall back to the default set" convention (see the parse catch
-        // blocks below) rather than silently sending nothing.
-        threshold = Math.min(...thresholds);
-      } else {
-        summary.skipped_grace_period += 1;
-        // SILENT-2 (AuditLab, 2026-08-22): unlike the two branches above
-        // (no_computable_deadline / unknown_state), this one never called
-        // logSilentDrop -- for a state-derived subscriber whose deadline
-        // never rolls forward (DATE-2's unprotected records), this branch
-        // is entered every day forever with nothing recorded and no
-        // operator signal. Best-effort, same reasoning as the calls above.
-        try {
-          await store.logSilentDrop(env.DB, sub.id, sub.email, sub.state_slug, "past_deadline_no_reminder");
-        } catch {
-          // See comment above -- never let this fail the pass.
-        }
-        continue;
+    // SEC-100: one shared pick for both email passes (selectEmailReminderTier).
+    // Past-deadline catch-up (first-ever evaluation landed past-deadline):
+    // one bounded catch-up at the most urgent tier this firm actually uses,
+    // rather than silent-forever OR a tier they've deliberately turned off --
+    // now through the same ordering guard as the main branch. SEND-2
+    // (AuditLab, 2026-08-21): thresholds is all-finite by adoption time.
+    const picked = selectEmailReminderTier(daysRemaining, alreadySent, rawSent, thresholds);
+    if (picked === "none") continue;
+    if (picked === "grace") {
+      summary.skipped_grace_period += 1;
+      // SILENT-2 (AuditLab, 2026-08-22): this branch used to record nothing --
+      // for a state-derived subscriber whose deadline never rolls forward
+      // (DATE-2's unprotected records) it was entered every day forever with
+      // no operator signal. Best-effort, same reasoning as the calls above.
+      try {
+        await store.logSilentDrop(env.DB, sub.id, sub.email, sub.state_slug, "past_deadline_no_reminder");
+      } catch {
+        // See comment above -- never let this fail the pass.
       }
-    } else {
-      threshold = nextDueThreshold(daysRemaining, alreadySent, thresholds);
-      if (threshold === null) continue;
+      continue;
     }
+    const threshold: number = picked;
 
     // SCHED-B: every D1/network call below can throw (client hiccup, D1
     // blip). One bad subscriber must not abort the whole pass -- the module
@@ -1276,9 +1305,10 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
         if (stateName === null) continue;
 
         const daysRemaining = Math.round((deadline.getTime() - asOfDay.getTime()) / MS_PER_DAY);
-        // SEC-96: same stranded-tier view as runReminderPass().
+        // SEC-96: same stranded-tier view as runReminderPass(); SEC-100: same
+        // raw column for the ordering guard.
+        const rawSent = parseRemindersSentMinusStale(sub.reminders_sent, undefined);
         const alreadySent = parseRemindersSentMinusStale(sub.reminders_sent, staleClaims.get(sub.id));
-        const neverNotified = alreadySent.length === 0;
 
         // AuditLab DEMO-5's own reasoning, same as runReminderPass()'s
         // identical check -- checked before claiming, without claiming.
@@ -1306,32 +1336,24 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
           }
         }
 
-        let threshold: number | null;
-        if (daysRemaining < -GRACE_PERIOD_PAST_DEADLINE_DAYS) {
-          if (neverNotified && daysRemaining >= -NEVER_NOTIFIED_CATCHUP_WINDOW_DAYS) {
-            // SEND-2: thresholds is guaranteed all-finite by adoption time
-            // now -- see runReminderPass()'s identical comment.
-            threshold = Math.min(...thresholds);
-          } else {
-            // AuditLab SILENT-4 (MEDIUM, 2026-09-20): mirrors
-            // runReminderPass()'s SILENT-2 treatment of this identical
-            // branch -- runReminderPass() explicitly skips digest-mode
-            // subscribers (notification_mode filter above), so this pass is
-            // the ONLY path that would ever record a digest-mode drop here.
-            // Same best-effort posture, same reason string, so the two
-            // delivery paths report into one place.
-            summary.skipped_grace_period += 1;
-            try {
-              await store.logSilentDrop(env.DB, sub.id, sub.email, sub.state_slug, "past_deadline_no_reminder");
-            } catch {
-              // See runReminderPass()'s identical comment -- never let this fail the pass.
-            }
-            continue;
+        // SEC-100: same shared pick as runReminderPass().
+        const picked = selectEmailReminderTier(daysRemaining, alreadySent, rawSent, thresholds);
+        if (picked === "none") continue;
+        if (picked === "grace") {
+          // AuditLab SILENT-4 (MEDIUM, 2026-09-20): mirrors runReminderPass()'s
+          // SILENT-2 treatment -- runReminderPass() skips digest-mode
+          // subscribers, so this pass is the ONLY path that records a
+          // digest-mode drop here. Same reason string, so both delivery paths
+          // report into one place.
+          summary.skipped_grace_period += 1;
+          try {
+            await store.logSilentDrop(env.DB, sub.id, sub.email, sub.state_slug, "past_deadline_no_reminder");
+          } catch {
+            // See runReminderPass()'s identical comment -- never let this fail the pass.
           }
-        } else {
-          threshold = nextDueThreshold(daysRemaining, alreadySent, thresholds);
-          if (threshold === null) continue;
+          continue;
         }
+        const threshold: number = picked;
 
         // Same defense-in-depth re-check as runReminderPass() above.
         if (await store.isPermanentlySuppressed(env.DB, sub.email)) continue;
@@ -1417,11 +1439,18 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
       const ok = await send(emailNormalized, built);
       if (ok) {
         summary.digestsSent += 1;
-        // SEC-96: every claim in this digest is now sent. Completed before
-        // advanceDigestWindow() so a throw there can't strand an open lease,
-        // and each completion is best-effort (a failure means a re-send
-        // after the lease ages out, never a lost reminder).
-        for (const { sub, threshold } of claimedRows) {
+        // SEC-96 / SecurityLab r3 item 2: the digest really went out, so
+        // nothing after this point may revert these claims. Emptying
+        // claimedRows makes the catch below unclaim nothing -- the twin of
+        // runReminderPass()'s `claimedThreshold = false`. Before this, an
+        // advanceDigestWindow() throw stripped every sent tier from
+        // reminders_sent and the next pass sent the digest again.
+        const sentRows = claimedRows.splice(0, claimedRows.length);
+        // Completed before advanceDigestWindow() so a throw there can't
+        // strand an open lease, and each completion is best-effort (a
+        // failure means a re-send after the lease ages out, never a lost
+        // reminder).
+        for (const { sub, threshold } of sentRows) {
           await store.completeReminderClaim(env.DB, sub.id, threshold).catch((err) =>
             console.log(`[reminder-claim-lease] pass=digest subscriber_id=${sub.id} threshold=${threshold} complete failed: ${String(err)}`)
           );

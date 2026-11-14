@@ -188,9 +188,39 @@ describe("SEC-96 -- runReminderPass recovers a claim stranded by a swallowed unc
     // Failed send -> unclaim clears the bit and retires the lease.
     await runReminderPass(env, { asOf, send: async (to) => store.normalizeEmail(to) !== sub.email });
     expect(await remindersSent(sub.id)).toEqual([]);
-    // restoreFirmLicenseAfterLostEdit() writes prior.reminders_sent back
-    // verbatim (store.ts SET reminders_sent = ?13); emulate that write.
-    await env.DB.prepare("UPDATE subscribers SET reminders_sent = '[7]' WHERE id = ?1").bind(sub.id).run();
+    // Drive the REAL lost-edit path (AuditLab r3 LOW 2): an email-changing
+    // edit (resetConfirmation) whose prior snapshot still held [7], then
+    // restoreFirmLicenseAfterLostEdit() putting that prior back. The lease
+    // join is s.cycle = rc.cycle, so this only recovers while neither SET
+    // list writes `cycle` -- asserted below, not assumed.
+    const firm = await store.createFirm(env.DB, { name: "sec96 undo firm", adminEmail: `sec96-undo-admin-${Date.now()}@example.com` });
+    await env.DB.prepare("UPDATE subscribers SET firm_id = ?1 WHERE id = ?2").bind(firm.id, sub.id).run();
+    const current = await env.DB.prepare("SELECT * FROM subscribers WHERE id = ?1").bind(sub.id).first<store.SubscriberRow>();
+    if (!current) throw new Error("seeded subscriber vanished");
+    const prior: store.SubscriberRow = { ...current, reminders_sent: "[7]" };
+    const updated = await store.updateFirmLicense(env.DB, firm.id, sub.id, {
+      email: `sec96-undo-new-${Date.now()}@example.com`,
+      staffLabel: current.staff_label,
+      stateSlug: current.state_slug,
+      deadlineFields: JSON.parse(current.deadline_fields || "{}"),
+      deadlineSource: current.deadline_source,
+      userDeadline: current.user_deadline,
+      resetConfirmation: true,
+      renewalFeeCents: current.renewal_fee_cents,
+      carryoverHours: current.carryover_hours,
+      officeTag: current.office_tag,
+      internalNotes: current.internal_notes,
+      licenseIssueDate: current.license_issue_date,
+    });
+    if (!updated) throw new Error("updateFirmLicense returned null");
+    expect(updated.cycle).toBe(current.cycle);
+    expect(await store.restoreFirmLicenseAfterLostEdit(env.DB, firm.id, prior, updated)).toBe(true);
+    const restored = await env.DB.prepare("SELECT cycle, status FROM subscribers WHERE id = ?1").bind(sub.id).first<{ cycle: number; status: string }>();
+    expect(restored?.cycle).toBe(current.cycle);
+    expect(await remindersSent(sub.id)).toEqual([7]);
+    // Back to the consumer pass this suite exercises (the firm pass has its
+    // own seat/plan gates that are out of scope here).
+    await env.DB.prepare("UPDATE subscribers SET firm_id = NULL WHERE id = ?1").bind(sub.id).run();
     // Mutation control: with the lease row gone (the r2 DELETE), the tier
     // would read as completed and this pass would send nothing.
     const rec = recordingSend();
@@ -360,5 +390,167 @@ describe("SEC-96 -- runDigestPass shares the lease", () => {
     expect(late.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
     const rows = await leaseRows(sub.id);
     expect(rows.find((r) => r.threshold_days === 3)?.completed_at).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SEC-100 (SecurityLab 2026-11-14, AuditLab 23:09Z): r3 fed the stale-adjusted
+// view to nextDueThreshold()'s ordering guard, so dropping a stranded tier
+// raised or nulled Math.min(alreadySent) and a LESS urgent tier could go out.
+// Necessary and sufficient condition (AuditLab): min(reminders_sent) is itself
+// stranded. These tests anchor on that orientation, including stock settings.
+// ---------------------------------------------------------------------------
+
+const ALL_TIERS = [1, 3, 7, 14, 30, 60];
+
+function subsets<T>(xs: T[]): T[][] {
+  const out: T[][] = [];
+  for (let m = 0; m < 1 << xs.length; m++) out.push(xs.filter((_, i) => m & (1 << i)));
+  return out;
+}
+
+// Pre-r3 behaviour, same shape as a19115e72: the raw column fed both
+// neverNotified and the guard; catch-up was Math.min(thresholds), no order check.
+function preR3Pick(d: number, raw: number[], thresholds: number[]): number | "none" | "grace" {
+  if (d < -3) {
+    if (raw.length === 0 && d >= -14) return Math.min(...thresholds);
+    return "grace";
+  }
+  const mostUrgent = raw.length > 0 ? Math.min(...raw) : null;
+  for (const t of [...thresholds].sort((a, b) => a - b)) {
+    if (raw.includes(t)) continue;
+    if (mostUrgent !== null && t >= mostUrgent) continue;
+    if (d <= t) return t;
+  }
+  return "none";
+}
+
+describe("SEC-100 -- selectEmailReminderTier: ordering guard reads the raw column", () => {
+  it("exhaustive: no out-of-order send in any (cadence x reminders_sent x stranded subset x day) state; stranded tiers still recover; no-strand states are identical to pre-r3", async () => {
+    const { selectEmailReminderTier } = await import("../src/scheduler");
+    const cadences = subsets(ALL_TIERS).filter((c) => c.length > 0);
+    let states = 0;
+    let recoveries = 0;
+    let r3OutOfOrder = 0;
+    let defaultCadenceR3OutOfOrder = 0;
+    const violations: string[] = [];
+    for (const cadence of cadences) {
+      for (const raw of subsets(ALL_TIERS)) {
+        for (const stale of subsets(raw)) {
+          const view = raw.filter((t) => !stale.includes(t));
+          const minRaw = raw.length > 0 ? Math.min(...raw) : Infinity;
+          for (let d = -25; d <= 61; d++) {
+            states += 1;
+            const got = selectEmailReminderTier(d, view, raw, cadence);
+            if (typeof got === "number") {
+              if (got > minRaw || view.includes(got) || !cadence.includes(got)) {
+                if (violations.length < 5) violations.push(`d=${d} raw=${raw} stale=${stale} cadence=${cadence} -> ${got}`);
+              }
+              if (stale.includes(got)) recoveries += 1;
+            }
+            if (stale.length === 0) {
+              const old = preR3Pick(d, raw, cadence);
+              if (old !== got && violations.length < 5) violations.push(`drift d=${d} raw=${raw} cadence=${cadence}: ${old} -> ${got}`);
+            }
+            // Positive control: r3 as built = the view fed to both.
+            const bad = preR3Pick(d, view, cadence);
+            if (typeof bad === "number" && bad > minRaw) {
+              r3OutOfOrder += 1;
+              if (cadence.length === 6) defaultCadenceR3OutOfOrder += 1;
+            }
+          }
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+    expect(states).toBe(63 * 729 * 87);
+    // Includes the stranded-most-urgent-tier re-sends a `>=` raw guard would
+    // block (that guard would also kill the base SEC-96 recovery).
+    expect(recoveries).toBe(77_194);
+    // The r3 shape really is out of order on this sweep. Both counts match
+    // AuditLab's independent Python model of the same space (23:09Z).
+    expect(r3OutOfOrder).toBe(251_948);
+    expect(defaultCadenceR3OutOfOrder).toBe(5_154);
+  }, 120_000);
+
+  it("stock-settings minimal case (AuditLab): d=2, reminders_sent=[1], stale={1}, default cadence sends nothing, not tier 3; d=1 re-sends tier 1", async () => {
+    const { selectEmailReminderTier } = await import("../src/scheduler");
+    expect(selectEmailReminderTier(2, [], [1], ALL_TIERS)).toBe("none");
+    expect(selectEmailReminderTier(1, [], [1], ALL_TIERS)).toBe(1);
+    // Route 2: narrowed cadence past the deadline -> no send (logged as a drop).
+    expect(selectEmailReminderTier(-8, [], [1], [3, 7])).toBe("grace");
+    // Route 2, in-order recovery: stranded 7, cadence still has 1 -> tier 1.
+    expect(selectEmailReminderTier(-8, [], [7], [1, 3, 7])).toBe(1);
+    // Never notified at all: unchanged catch-up at the cadence's most urgent tier.
+    expect(selectEmailReminderTier(-8, [], [], [3, 7])).toBe(3);
+  });
+});
+
+async function strand(id: string, tier: number): Promise<void> {
+  expect(await store.claimReminderThreshold(env.DB, id, "[]", tier)).toBe(true);
+  await ageLeases(id);
+}
+
+for (const pass of ["reminder", "digest"] as const) {
+  describe(`SEC-100 -- ${pass} pass: the most urgent sent tier is the stranded one`, () => {
+    const mode = pass === "digest" ? store.NOTIFICATION_MODE_DIGEST : null;
+    async function run(asOf: Date, send: (to: string, built: BuiltEmail) => Promise<boolean>) {
+      const sch = await import("../src/scheduler");
+      return pass === "digest" ? sch.runDigestPass(env, { asOf, send }) : sch.runReminderPass(env, { asOf, send });
+    }
+
+    it("route 1, default cadence: stranded tier 1 at 2 days out sends nothing (not tier 3); at 1 day out tier 1 is re-sent", async () => {
+      const asOf = freshAsOf();
+      const sub = await seedSubscriber(`s100r1${pass}`, asOf, 2, mode);
+      await strand(sub.id, 1);
+      const d2 = recordingSend();
+      await run(asOf, d2.send);
+      expect(d2.sentTo.filter((e) => e === sub.email)).toHaveLength(0);
+      expect(await remindersSent(sub.id)).toEqual([1]);
+      await ageLeases(sub.id);
+      const d1 = recordingSend();
+      await run(new Date(asOf.getTime() + MS_PER_DAY), d1.send);
+      expect(d1.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
+      expect(await remindersSent(sub.id)).toEqual([1]);
+      expect((await leaseRows(sub.id)).find((r) => r.threshold_days === 1)?.completed_at).not.toBeNull();
+    });
+
+    it("route 2 (past-deadline catch-up), narrowed cadence: stranded tier 1 sends nothing and logs the drop; an empty column still gets the catch-up", async () => {
+      const asOf = freshAsOf();
+      const sub = await seedSubscriber(`s100r2${pass}`, asOf, -8, mode);
+      const ctl = await seedSubscriber(`s100r2ctl${pass}`, asOf, -8, mode);
+      for (const id of [sub.id, ctl.id]) {
+        await env.DB.prepare("UPDATE subscribers SET reminder_thresholds = '[3,7]' WHERE id = ?1").bind(id).run();
+      }
+      await strand(sub.id, 1);
+      const rec = recordingSend();
+      const summary = await run(asOf, rec.send);
+      expect(rec.sentTo.filter((e) => e === sub.email)).toHaveLength(0);
+      expect(await remindersSent(sub.id)).toEqual([1]);
+      expect(summary.skipped_grace_period).toBeGreaterThan(0);
+      // Control: never notified -> catch-up at the cadence's most urgent tier.
+      expect(rec.sentTo.filter((e) => e === ctl.email)).toHaveLength(1);
+      expect(await remindersSent(ctl.id)).toEqual([3]);
+    });
+  });
+}
+
+describe("SecurityLab r3 item 2 -- digest undo asymmetry", () => {
+  it("an advanceDigestWindow throw after a real send does not strip the sent tier, and the next pass does not re-send", async () => {
+    const { runDigestPass } = await import("../src/scheduler");
+    const asOf = freshAsOf();
+    const sub = await seedSubscriber("digestundo", asOf, 2, store.NOTIFICATION_MODE_DIGEST);
+    const advSpy = vi.spyOn(store, "advanceDigestWindow").mockRejectedValueOnce(new Error("D1_ERROR: sec100 advance"));
+    const first = recordingSend();
+    await runDigestPass(env, { asOf, send: first.send });
+    expect(advSpy.mock.calls.length).toBeGreaterThan(0);
+    expect(first.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
+    expect(await remindersSent(sub.id)).toEqual([3]);
+    expect((await leaseRows(sub.id)).find((r) => r.threshold_days === 3)?.completed_at).not.toBeNull();
+    advSpy.mockRestore();
+    await ageLeases(sub.id);
+    const second = recordingSend();
+    await runDigestPass(env, { asOf, send: second.send });
+    expect(second.sentTo.filter((e) => e === sub.email)).toHaveLength(0);
   });
 });
