@@ -5850,7 +5850,7 @@ describe("AuditLab NEWS-1 (MEDIUM, 2026-08-13): scheduled() actually invokes run
     } finally {
       logSpy.mockRestore();
     }
-  });
+  }, 20000); // awaits a full scheduled() (all nine passes); 8s default timed out under full-suite load 2/4 runs 11-14. Pin flaky only if it still flakes at 20s (run_worker_tests.py admission bar).
 });
 
 describe("emails.ts buildStopConfirmationEmail", () => {
