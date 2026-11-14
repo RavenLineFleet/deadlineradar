@@ -2727,6 +2727,10 @@ export const SUBSCRIBER_SCOPED_NO_FIRM_ID_TABLES = [
   "firm_teams_notified_thresholds",
   "sms_notified_thresholds",
   "firm_admin_digest_notified_thresholds",
+  // SEC-96 (migration 0093): the email reminder claim lease. Declared with
+  // no foreign key, so leaving it would orphan rows rather than abort the
+  // purge, but it's still per-subscriber data the erasure promise covers.
+  "reminder_claims",
 ] as const;
 
 /**

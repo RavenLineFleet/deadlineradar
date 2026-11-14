@@ -514,6 +514,8 @@ describe("store.hardDeleteExpiredFirms", () => {
     await store.claimTeamsThresholdNotification(env.DB, staffId, 30);
     await store.claimSmsThresholdNotification(env.DB, staffId, 30);
     await store.claimAdminDigestThresholdNotification(env.DB, staffId, 30);
+    // SEC-96 (migration 0093): the email reminder claim lease.
+    expect(await store.claimReminderThreshold(env.DB, staffId, "[]", 30)).toBe(true);
 
     // A live firm_members row (not the doomed one) to seed backup codes on,
     // proving the refactored FIRM_MEMBER_SCOPED_NO_FIRM_ID_TABLES loop
@@ -530,6 +532,7 @@ describe("store.hardDeleteExpiredFirms", () => {
       "firm_teams_notified_thresholds",
       "sms_notified_thresholds",
       "firm_admin_digest_notified_thresholds",
+      "reminder_claims",
     ] as const) {
       const row = await env.DB.prepare(`SELECT 1 FROM ${table} WHERE subscriber_id = ?1`).bind(staffId).first();
       expect(row, `expected a ${table} row to exist before deletion`).not.toBeNull();
@@ -546,6 +549,7 @@ describe("store.hardDeleteExpiredFirms", () => {
       "firm_teams_notified_thresholds",
       "sms_notified_thresholds",
       "firm_admin_digest_notified_thresholds",
+      "reminder_claims",
     ] as const) {
       const row = await env.DB.prepare(`SELECT 1 FROM ${table} WHERE subscriber_id = ?1`).bind(staffId).first();
       expect(row, `expected ${table} to be empty after deletion`).toBeNull();
