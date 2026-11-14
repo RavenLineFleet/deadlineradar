@@ -290,6 +290,47 @@ export function nextDueThreshold(
   return null;
 }
 
+/**
+ * SEC-96: an attributable line for a last-resort unclaim that itself failed.
+ * These used to be `.catch(() => {})` with nothing recorded, so a stranded
+ * claim left no trace. For the email reminder tiers the reminder_claims lease
+ * recovers the claim on the next pass; for every other claim table this line
+ * is the only record that a retry was lost.
+ */
+export function logUnclaimFailure(pass: string, ids: Record<string, string | number>, err: unknown): void {
+  const idPart = Object.entries(ids)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(" ");
+  console.log(`[unclaim-failed] pass=${pass} ${idPart} error=${String(err)}`);
+}
+
+/**
+ * SEC-96: tiers whose reminder claim is stranded (lease open past
+ * REMINDER_CLAIM_LEASE_MS), per subscriber. Best-effort: if the lookup
+ * fails, the pass runs exactly as it did before the lease existed and the
+ * recovery waits for the next pass.
+ */
+async function loadStaleReminderClaims(env: Env, pass: string): Promise<Map<string, Set<number>>> {
+  try {
+    return await store.listStaleReminderClaims(env.DB);
+  } catch (err) {
+    console.log(`[reminder-claim-lease] pass=${pass} stale-lease lookup failed: ${String(err)}`);
+    return new Map();
+  }
+}
+
+/** SEC-96: reminders_sent as the pass should see it, i.e. minus stranded tiers. */
+function parseRemindersSentMinusStale(remindersSent: string | null, stale: Set<number> | undefined): number[] {
+  let sent: number[];
+  try {
+    sent = JSON.parse(remindersSent || "[]");
+  } catch {
+    sent = [];
+  }
+  if (!stale || !Array.isArray(sent)) return sent;
+  return sent.filter((t) => !stale.has(t));
+}
+
 export interface ReminderSummary {
   checked: number;
   sent: number;
@@ -373,6 +414,7 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
   const todayIso = asOfDay.toISOString().slice(0, 10);
 
   const subscribers = await store.allConfirmedActive(env.DB);
+  const staleClaims = await loadStaleReminderClaims(env, "reminder");
 
   // AuditLab SEND-3 (2026-08-27): allConfirmedActive() has no ORDER BY, so
   // SQLite returns rows in whatever order the plan yields (in practice
@@ -477,12 +519,9 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
     }
 
     const daysRemaining = Math.round((deadline.getTime() - asOfDay.getTime()) / MS_PER_DAY);
-    let alreadySent: number[];
-    try {
-      alreadySent = JSON.parse(sub.reminders_sent || "[]");
-    } catch {
-      alreadySent = [];
-    }
+    // SEC-96: a stranded tier is dropped from this view so nextDueThreshold()
+    // can pick it again; claimReminderThreshold() then re-leases it.
+    const alreadySent = parseRemindersSentMinusStale(sub.reminders_sent, staleClaims.get(sub.id));
     const neverNotified = alreadySent.length === 0;
 
     // Roadmap #19/#23: looked up once here (not per-use below) since both
@@ -647,13 +686,20 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
       const ok = await send(sub.email, built, firmInfo?.reply_to_email ?? undefined);
       if (ok) {
         summary.sent += 1;
+        // SEC-96: the send is done; nothing below may revert this claim.
+        claimedThreshold = false;
+        await store.completeReminderClaim(env.DB, sub.id, threshold).catch((err) =>
+          console.log(`[reminder-claim-lease] pass=reminder subscriber_id=${sub.id} threshold=${threshold} complete failed: ${String(err)}`)
+        );
         // Roadmap #8: the "dates reminded" half of the audit-trail export --
         // only for firm-tracked subscribers (a free-tier individual has no
         // dashboard to show this in), and only after send() genuinely
         // reports success. Best-effort: a logging failure must never affect
         // whether this reminder counts as sent.
         if (sub.firm_id) {
-          await store.logReminderSent(env.DB, sub.firm_id, sub.id, threshold).catch(() => {});
+          await store.logReminderSent(env.DB, sub.firm_id, sub.id, threshold).catch((err) =>
+            console.log(`[reminder-log] subscriber_id=${sub.id} threshold=${threshold} log write failed: ${String(err)}`)
+          );
         }
       } else {
         await store.unclaimReminderThreshold(env.DB, sub.id, threshold);
@@ -661,7 +707,9 @@ export async function runReminderPass(env: Env, opts: RunReminderOptions = {}): 
       }
     } catch (err) {
       if (claimedThreshold) {
-        await store.unclaimReminderThreshold(env.DB, sub.id, threshold).catch(() => {});
+        await store
+          .unclaimReminderThreshold(env.DB, sub.id, threshold)
+          .catch((e) => logUnclaimFailure("reminder", { subscriber_id: sub.id, threshold }, e));
       }
       summary.errors.push({ subscriber_id: sub.id, error: `unexpected error: ${String(err)}` });
     }
@@ -880,7 +928,9 @@ export async function runDripCoursePass(env: Env, opts: RunReminderOptions = {})
       }
     } catch (err) {
       if (claimedStep) {
-        await store.unclaimDripCourseStep(env.DB, enr.id, step).catch(() => {});
+        await store
+          .unclaimDripCourseStep(env.DB, enr.id, step)
+          .catch((e) => logUnclaimFailure("drip-course", { enrollment_id: enr.id, step }, e));
       }
       summary.errors.push({ enrollment_id: enr.id, error: `unexpected error: ${String(err)}` });
     }
@@ -1092,7 +1142,9 @@ export async function runRuleChangeAlertPass(env: Env, opts: RunReminderOptions 
         }
       } catch (err) {
         if (claimed) {
-          await store.unclaimRuleChangeNotification(env.DB, firm.id, event.event_id).catch(() => {});
+          await store
+            .unclaimRuleChangeNotification(env.DB, firm.id, event.event_id)
+            .catch((e) => logUnclaimFailure("rule-change", { firm_id: firm.id, event_id: event.event_id }, e));
         }
         summary.errors.push({ firm_id: firm.id, event_id: event.event_id, error: `unexpected error: ${String(err)}` });
       }
@@ -1166,6 +1218,7 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
   };
 
   const emails = await store.listDigestEligibleEmails(env.DB, DIGEST_ELIGIBLE_EMAIL_BATCH_SIZE);
+  const staleClaims = await loadStaleReminderClaims(env, "digest");
 
   let capReached = false;
   for (const emailNormalized of emails) {
@@ -1223,12 +1276,8 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
         if (stateName === null) continue;
 
         const daysRemaining = Math.round((deadline.getTime() - asOfDay.getTime()) / MS_PER_DAY);
-        let alreadySent: number[];
-        try {
-          alreadySent = JSON.parse(sub.reminders_sent || "[]");
-        } catch {
-          alreadySent = [];
-        }
+        // SEC-96: same stranded-tier view as runReminderPass().
+        const alreadySent = parseRemindersSentMinusStale(sub.reminders_sent, staleClaims.get(sub.id));
         const neverNotified = alreadySent.length === 0;
 
         // AuditLab DEMO-5's own reasoning, same as runReminderPass()'s
@@ -1368,6 +1417,15 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
       const ok = await send(emailNormalized, built);
       if (ok) {
         summary.digestsSent += 1;
+        // SEC-96: every claim in this digest is now sent. Completed before
+        // advanceDigestWindow() so a throw there can't strand an open lease,
+        // and each completion is best-effort (a failure means a re-send
+        // after the lease ages out, never a lost reminder).
+        for (const { sub, threshold } of claimedRows) {
+          await store.completeReminderClaim(env.DB, sub.id, threshold).catch((err) =>
+            console.log(`[reminder-claim-lease] pass=digest subscriber_id=${sub.id} threshold=${threshold} complete failed: ${String(err)}`)
+          );
+        }
         const nextSendAt = new Date(asOfDay.getTime() + DIGEST_WINDOW_DAYS * MS_PER_DAY).toISOString().slice(0, 10);
         await store.advanceDigestWindow(env.DB, emailNormalized, nextSendAt);
       } else {
@@ -1378,7 +1436,9 @@ export async function runDigestPass(env: Env, opts: RunReminderOptions = {}): Pr
       }
     } catch (err) {
       for (const { sub, threshold } of claimedRows) {
-        await store.unclaimReminderThreshold(env.DB, sub.id, threshold).catch(() => {});
+        await store
+          .unclaimReminderThreshold(env.DB, sub.id, threshold)
+          .catch((e) => logUnclaimFailure("digest", { subscriber_id: sub.id, threshold }, e));
       }
       summary.errors.push({ email: emailNormalized, error: `unexpected error: ${String(err)}` });
     }
@@ -1632,7 +1692,9 @@ export async function runSlackAlertPass(env: Env, opts: RunSlackAlertOptions = {
       }
     } catch (err) {
       for (const { subscriberId, threshold } of claimed) {
-        await store.unclaimSlackThresholdNotification(env.DB, subscriberId, threshold).catch(() => {});
+        await store
+          .unclaimSlackThresholdNotification(env.DB, subscriberId, threshold)
+          .catch((e) => logUnclaimFailure("slack", { firm_id: firm.id, subscriber_id: subscriberId, threshold }, e));
       }
       summary.errors.push({ firm_id: firm.id, error: `unexpected error: ${String(err)}` });
     }
@@ -1849,7 +1911,9 @@ export async function runTeamsAlertPass(env: Env, opts: RunTeamsAlertOptions = {
       }
     } catch (err) {
       for (const { subscriberId, threshold } of claimed) {
-        await store.unclaimTeamsThresholdNotification(env.DB, subscriberId, threshold).catch(() => {});
+        await store
+          .unclaimTeamsThresholdNotification(env.DB, subscriberId, threshold)
+          .catch((e) => logUnclaimFailure("teams", { firm_id: firm.id, subscriber_id: subscriberId, threshold }, e));
       }
       summary.errors.push({ firm_id: firm.id, error: `unexpected error: ${String(err)}` });
     }
@@ -2056,7 +2120,9 @@ export async function runSmsAlertPass(env: Env, opts: RunSmsAlertOptions = {}): 
       }
     } catch (err) {
       if (claimedThreshold) {
-        await store.unclaimSmsThresholdNotification(env.DB, sub.id, threshold).catch(() => {});
+        await store
+          .unclaimSmsThresholdNotification(env.DB, sub.id, threshold)
+          .catch((e) => logUnclaimFailure("sms", { subscriber_id: sub.id, threshold }, e));
       }
       summary.errors.push({ subscriber_id: sub.id, error: `unexpected error: ${String(err)}` });
     }
@@ -2286,7 +2352,9 @@ export async function runAdminDigestAlertPass(env: Env, opts: RunAdminDigestAler
       }
     } catch (err) {
       for (const { subscriberId, threshold } of claimed) {
-        await store.unclaimAdminDigestThresholdNotification(env.DB, subscriberId, threshold).catch(() => {});
+        await store
+          .unclaimAdminDigestThresholdNotification(env.DB, subscriberId, threshold)
+          .catch((e) => logUnclaimFailure("admin-digest", { firm_id: firm.id, subscriber_id: subscriberId, threshold }, e));
       }
       summary.errors.push({ firm_id: firm.id, error: `unexpected error: ${String(err)}` });
     }
@@ -2565,7 +2633,10 @@ export async function runMobilityStalenessAlertPass(env: Env): Promise<void> {
       await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
     }
   } catch (err) {
-    await store.unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc);
+    // SEC-96: guarded so a failed unclaim can't skip the log line below.
+    await store
+      .unclaimMobilityStalenessAlertForMonth(env.DB, monthUtc)
+      .catch((e) => logUnclaimFailure("mobility-staleness-alert", { month: monthUtc }, e));
     console.log(`[mobility-staleness-alert-cron] error: ${String(err)}`);
   }
 }
@@ -2694,7 +2765,10 @@ export async function runGatedDatasetStalenessAlertPass(env: Env): Promise<void>
       await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
     }
   } catch (err) {
-    await store.unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc);
+    // SEC-96: guarded so a failed unclaim can't skip the log line below.
+    await store
+      .unclaimGatedDatasetStalenessAlertForDay(env.DB, dayUtc)
+      .catch((e) => logUnclaimFailure("gated-dataset-staleness-alert", { day: dayUtc }, e));
     console.log(`[gated-dataset-staleness-alert-cron] error: ${String(err)}`);
   }
 }
@@ -2912,7 +2986,11 @@ export async function runStripePriceParityAlertPass(env: Env): Promise<void> {
     }
     await retain(`outcome=${ok ? "alert_sent" : "alert_send_failed"},${counts}`);
   } catch (err) {
-    await store.unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature);
+    // SEC-96: guarded so a failed unclaim can't skip the log line or the
+    // retain() below.
+    await store
+      .unclaimStripePriceParityAlertForMonth(env.DB, monthUtc, mismatchSignature)
+      .catch((e) => logUnclaimFailure("stripe-price-parity-alert", { month: monthUtc }, e));
     console.log(`[stripe-price-parity-cron] error: ${String(err)}`);
     await retain(`outcome=alert_error,${counts}`);
   }

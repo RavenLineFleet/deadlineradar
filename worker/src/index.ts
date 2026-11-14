@@ -240,6 +240,7 @@ import {
   KNOWN_SEND_PASSES,
   approvedKnownPasses,
   runTrialEndingNoticePass,
+  logUnclaimFailure,
 } from "./scheduler";
 import { isUsFederalHoliday } from "./holidays";
 import {
@@ -972,7 +973,9 @@ async function notifyOperatorOfStaleData(env: Env, guardMessage: string): Promis
     // this IS that log now. The day is unclaimed too, same as the two
     // failure branches above, so a later pass gets a real retry instead
     // of losing the alert until tomorrow regardless of the cause.
-    await store.unclaimStaleDataAlertForToday(env.DB, day).catch(() => {});
+    await store
+      .unclaimStaleDataAlertForToday(env.DB, day)
+      .catch((e) => logUnclaimFailure("stale-data-alert", { day }, e));
     console.log(`[stale-data-alert] error: ${String(err)}`);
   }
 }

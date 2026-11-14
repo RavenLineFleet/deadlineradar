@@ -935,16 +935,103 @@ export async function claimReminderThreshold(
   db: D1Database,
   subscriberId: string,
   previousRemindersSentJson: string,
-  thresholdDays: number
+  thresholdDays: number,
+  nowMs: number = Date.now()
 ): Promise<boolean> {
   const sent: number[] = JSON.parse(previousRemindersSentJson || "[]");
-  if (sent.includes(thresholdDays)) return false;
+  if (sent.includes(thresholdDays)) {
+    // SEC-96: the tier is already in reminders_sent. That used to be a
+    // plain `return false`, which made a stranded claim permanent. Now it
+    // can still be won if its lease is open and stale (claimed long ago,
+    // never completed). A single conditional UPDATE is both the check and
+    // the re-lease: it moves claimed_at to now, so a second overlapping
+    // pass reading the same snapshot no longer sees a stale lease and
+    // matches zero rows. A tier with no lease row (sent before 0093, or a
+    // completed claim) never matches, so this can't resend a real send.
+    const result = await db
+      .prepare(
+        `UPDATE reminder_claims SET claimed_at = ?1
+         WHERE subscriber_id = ?2 AND threshold_days = ?3 AND completed_at IS NULL AND claimed_at < ?4
+           AND cycle = (SELECT cycle FROM subscribers WHERE id = ?2 AND reminders_sent = ?5)`
+      )
+      .bind(nowMs, subscriberId, thresholdDays, nowMs - REMINDER_CLAIM_LEASE_MS, previousRemindersSentJson)
+      .run();
+    return (result.meta.changes ?? 0) > 0;
+  }
   const next = JSON.stringify([...sent, thresholdDays]);
-  const result = await db
-    .prepare("UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2 AND reminders_sent = ?3")
-    .bind(next, subscriberId, previousRemindersSentJson)
+  // SEC-96: the lease row and the reminders_sent claim go in one batch
+  // (one transaction), both conditional on the same snapshot predicate, so
+  // either both land or neither does. The INSERT runs first because its
+  // predicate would be false after the UPDATE. OR REPLACE resets a row left
+  // by an earlier claim of this tier in the same cycle (e.g. after a
+  // resetConfirmation edit put the tier back up for grabs).
+  const [, update] = await db.batch([
+    db
+      .prepare(
+        `INSERT OR REPLACE INTO reminder_claims (subscriber_id, cycle, threshold_days, claimed_at, completed_at)
+         SELECT id, cycle, ?2, ?3, NULL FROM subscribers WHERE id = ?1 AND reminders_sent = ?4`
+      )
+      .bind(subscriberId, thresholdDays, nowMs, previousRemindersSentJson),
+    db
+      .prepare("UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2 AND reminders_sent = ?3")
+      .bind(next, subscriberId, previousRemindersSentJson),
+  ]);
+  return (update?.meta.changes ?? 0) > 0;
+}
+
+/**
+ * SEC-96: how long an uncompleted reminder claim is treated as still in
+ * flight. The reminder cron runs once a day, so a claim stranded by a
+ * swallowed unclaim is re-leased on the next day's pass; an overlapping pass
+ * (cron retry, redeploy mid-run) inside this window leaves it alone.
+ */
+export const REMINDER_CLAIM_LEASE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * SEC-96: every open reminder claim older than the lease, for the
+ * subscriber's CURRENT cycle only (a rearm bumps cycle, so a stale lease
+ * from a finished cycle never counts). One query per pass, not one per
+ * subscriber. Returns subscriber_id -> stranded tiers. The caller drops
+ * these tiers from its reminders_sent view so nextDueThreshold() can pick
+ * them again; claimReminderThreshold() then re-leases them.
+ */
+export async function listStaleReminderClaims(db: D1Database, nowMs: number = Date.now()): Promise<Map<string, Set<number>>> {
+  const { results } = await db
+    .prepare(
+      `SELECT rc.subscriber_id AS subscriber_id, rc.threshold_days AS threshold_days
+       FROM reminder_claims rc JOIN subscribers s ON s.id = rc.subscriber_id AND s.cycle = rc.cycle
+       WHERE rc.completed_at IS NULL AND rc.claimed_at < ?1`
+    )
+    .bind(nowMs - REMINDER_CLAIM_LEASE_MS)
+    .all<{ subscriber_id: string; threshold_days: number }>();
+  const out = new Map<string, Set<number>>();
+  for (const r of results) {
+    let set = out.get(r.subscriber_id);
+    if (!set) {
+      set = new Set<number>();
+      out.set(r.subscriber_id, set);
+    }
+    set.add(r.threshold_days);
+  }
+  return out;
+}
+
+/**
+ * SEC-96: marks a claim's send as done, so the claim is never re-leased.
+ * Called right after send() reports success. If this write fails, the lease
+ * stays open and the reminder goes out again once it ages past
+ * REMINDER_CLAIM_LEASE_MS -- deliberate at-least-once, same doctrine as the
+ * unclaim-on-failure path below (a duplicate beats a missed reminder).
+ */
+export async function completeReminderClaim(db: D1Database, subscriberId: string, thresholdDays: number, nowMs: number = Date.now()): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE reminder_claims SET completed_at = ?1
+       WHERE subscriber_id = ?2 AND threshold_days = ?3 AND completed_at IS NULL
+         AND cycle = (SELECT cycle FROM subscribers WHERE id = ?2)`
+    )
+    .bind(nowMs, subscriberId, thresholdDays)
     .run();
-  return (result.meta.changes ?? 0) > 0;
 }
 
 /**
@@ -956,6 +1043,10 @@ export async function claimReminderThreshold(
  * on success. Best-effort against whatever reminders_sent holds NOW rather
  * than the claim-time snapshot, since another tier may have been claimed for
  * the same subscriber in the interim.
+ *
+ * SEC-96: the open lease row goes in the same batch. If this whole call
+ * throws (and the caller's last-resort retry is swallowed), the lease stays
+ * open and the next day's pass re-leases the tier instead of losing it.
  */
 export async function unclaimReminderThreshold(db: D1Database, subscriberId: string, thresholdDays: number): Promise<void> {
   const row = await db
@@ -966,10 +1057,12 @@ export async function unclaimReminderThreshold(db: D1Database, subscriberId: str
   const sent: number[] = JSON.parse(row.reminders_sent);
   const next = sent.filter((t) => t !== thresholdDays);
   if (next.length !== sent.length) {
-    await db
-      .prepare("UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2")
-      .bind(JSON.stringify(next), subscriberId)
-      .run();
+    await db.batch([
+      db.prepare("UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2").bind(JSON.stringify(next), subscriberId),
+      db
+        .prepare("DELETE FROM reminder_claims WHERE subscriber_id = ?1 AND threshold_days = ?2 AND completed_at IS NULL")
+        .bind(subscriberId, thresholdDays),
+    ]);
   }
 }
 
