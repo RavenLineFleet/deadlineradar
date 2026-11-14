@@ -4789,8 +4789,23 @@ async function processStripeWebhookEvent(env: Env, event: StripeWebhookEvent): P
           // forced true above) skips this check and writes the paid tier for a
           // sub run 1 already cancelled. Widened, not dropped: a run whose claim
           // returned true (grant legitimately re-created) must not short-circuit.
-          if ((!claimed || foundingStampError) && claim === "reclaimed" &&
-              (await store.getWebhookEventType(env.DB, `${event.id}:founding:${subscriptionId}`).catch(() => null)) === "founding_trial:rejected") {
+          // FFT-14 (SecurityLab 2026-11-14, LOW): getWebhookEventType returns null
+          // for "no row" but THROWS on a D1 fault. A .catch(() => null) here
+          // conflated the two and fell through to the paid-tier write for a sub
+          // run 1 may already have cancelled. Both guesses are billing errors
+          // (proceed = paid tier on a cancelled sub; treat as rejected = maybe skip
+          // a needed cancel), so decline to guess: 409, processed_at stays NULL,
+          // and Stripe's redelivery re-runs this after the reclaim lease.
+          let rejectionRow: string | null = null;
+          if ((!claimed || foundingStampError) && claim === "reclaimed") {
+            try {
+              rejectionRow = await store.getWebhookEventType(env.DB, `${event.id}:founding:${subscriptionId}`);
+            } catch (err) {
+              console.error(`[founding-firm] ${event.id}: rejection-row read failed (${String(err)}); returning 409 so Stripe retries`);
+              return jsonResponse(409, { error: "Event is still being processed." });
+            }
+          }
+          if ((!claimed || foundingStampError) && claim === "reclaimed" && rejectionRow === "founding_trial:rejected") {
             // Founding-reject re-run (AuditLab 2026-11-13, LOW): run 1 already
             // cancelled (or alerted CANCEL FAILED) and recorded the rejection,
             // then threw at the mark below. Re-cancelling an already-cancelled

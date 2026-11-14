@@ -503,6 +503,44 @@ describe("checkout.session.completed for a founding trial", () => {
     expect(ev?.processed_at).not.toBeNull();
   });
 
+  it("SecurityLab FFT-14: founding-reject re-run whose claim AND rejection-row read both THROW returns 409 (no guess) -- no paid tier, no re-cancel, processed_at stays NULL; the next redelivery finishes clean", async () => {
+    await clearGrants();
+    const { firmId } = await makeFirm(); // no grant: the reject path
+    const { calls } = recordFetch();
+    const eventId = `evt_${crypto.randomUUID()}`;
+    const meta = { target_plan_tier: "firm_growth", founding_firm_slot: "3" };
+    const ageOut = () => env.DB.prepare("UPDATE stripe_webhook_events SET received_at = ?1 WHERE id = ?2")
+      .bind(new Date(Date.now() - store.WEBHOOK_RECLAIM_AFTER_MS - 1000).toISOString(), eventId)
+      .run();
+    const markSpy = vi.spyOn(store, "markWebhookEventProcessed").mockRejectedValueOnce(new Error("D1_ERROR: reject mark"));
+    expect((await completed(firmId, "sub_rej_f14", meta, eventId)).status).toBe(400);
+    markSpy.mockRestore();
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1); // run 1 cancelled
+    await ageOut();
+    const claimSpy = vi.spyOn(store, "claimFoundingFirmTrialStart").mockRejectedValueOnce(new Error("D1_ERROR: fft14 claim"));
+    const readSpy = vi.spyOn(store, "getWebhookEventType").mockRejectedValueOnce(new Error("D1_ERROR: fft14 read"));
+    const r = await completed(firmId, "sub_rej_f14", meta, eventId);
+    expect(claimSpy).toHaveBeenCalledTimes(1);
+    expect(readSpy).toHaveBeenCalledTimes(1); // the arm really fired
+    claimSpy.mockRestore();
+    readSpy.mockRestore();
+    expect(r.status).toBe(409);
+    let firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("free");
+    expect(firm?.stripe_subscription_id ?? null).not.toBe("sub_rej_f14");
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
+    let ev = await env.DB.prepare("SELECT processed_at FROM stripe_webhook_events WHERE id = ?1").bind(eventId).first<{ processed_at: string | null }>();
+    expect(ev?.processed_at).toBeNull();
+    // Redelivery after the lease, D1 healthy: the rejection row is read, no re-cancel, marked.
+    await ageOut();
+    expect((await completed(firmId, "sub_rej_f14", meta, eventId)).status).toBe(200);
+    firm = await store.getFirmById(env.DB, firmId);
+    expect(firm?.plan_tier).toBe("free");
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
+    ev = await env.DB.prepare("SELECT processed_at FROM stripe_webhook_events WHERE id = ?1").bind(eventId).first<{ processed_at: string | null }>();
+    expect(ev?.processed_at).not.toBeNull();
+  });
+
   it("AuditLab FFT-1b: revoke + re-grant the SAME firm on a different slot -> the old session still lands on the NEW live grant (keyed on the firm, not the stale slot)", async () => {
     await clearGrants();
     const a = await makeFirm();
