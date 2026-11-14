@@ -157,7 +157,7 @@ describe("SEC-96 -- runReminderPass recovers a claim stranded by a swallowed unc
     expect(lease[0]?.completed_at).not.toBeNull();
   });
 
-  it("send() returning false unclaims the tier AND deletes its open lease in the same batch", async () => {
+  it("send() returning false unclaims the tier AND retires (not deletes) its open lease in the same batch", async () => {
     const { runReminderPass } = await import("../src/scheduler");
     const asOf = freshAsOf();
     const sub = await seedSubscriber("sendfalse", asOf);
@@ -166,7 +166,74 @@ describe("SEC-96 -- runReminderPass recovers a claim stranded by a swallowed unc
       send: async (to) => store.normalizeEmail(to) !== sub.email,
     });
     expect(await remindersSent(sub.id)).toEqual([]);
-    expect(await leaseRows(sub.id)).toHaveLength(0);
+    const rows = await leaseRows(sub.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.claimed_at).toBe(0);
+    expect(rows[0]?.completed_at).toBeNull();
+    // The next pass re-claims the tier over the retired row (ON CONFLICT,
+    // not a PK failure that rolls back the reminders_sent UPDATE).
+    const rec = recordingSend();
+    await runReminderPass(env, { asOf, send: rec.send });
+    expect(rec.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
+    expect(await remindersSent(sub.id)).toEqual([7]);
+    const after = await leaseRows(sub.id);
+    expect(after).toHaveLength(1);
+    expect(after[0]?.completed_at).not.toBeNull();
+  });
+
+  it("undo symmetry (AuditLab #1): a lost-edit restore that puts an unclaimed tier back into reminders_sent is recovered, not read as completed", async () => {
+    const { runReminderPass } = await import("../src/scheduler");
+    const asOf = freshAsOf();
+    const sub = await seedSubscriber("undo", asOf);
+    // Failed send -> unclaim clears the bit and retires the lease.
+    await runReminderPass(env, { asOf, send: async (to) => store.normalizeEmail(to) !== sub.email });
+    expect(await remindersSent(sub.id)).toEqual([]);
+    // restoreFirmLicenseAfterLostEdit() writes prior.reminders_sent back
+    // verbatim (store.ts SET reminders_sent = ?13); emulate that write.
+    await env.DB.prepare("UPDATE subscribers SET reminders_sent = '[7]' WHERE id = ?1").bind(sub.id).run();
+    // Mutation control: with the lease row gone (the r2 DELETE), the tier
+    // would read as completed and this pass would send nothing.
+    const rec = recordingSend();
+    await runReminderPass(env, { asOf, send: rec.send });
+    expect(rec.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
+    expect(await remindersSent(sub.id)).toEqual([7]);
+    expect((await leaseRows(sub.id))[0]?.completed_at).not.toBeNull();
+  });
+
+  it("escalation order (AuditLab #5 / SecurityLab 21:14Z): a stranded tier is skipped for good once a more urgent tier has been sent, and the recovery goes through nextDueThreshold", async () => {
+    const { runReminderPass } = await import("../src/scheduler");
+    const asOf = freshAsOf();
+    const sub = await seedSubscriber("order", asOf);
+    // Day 7 out: tier 7 is claimed, send throws, the unclaim is swallowed.
+    vi.spyOn(store, "unclaimReminderThreshold").mockRejectedValueOnce(new Error("D1_ERROR: sec96 order strand"));
+    await runReminderPass(env, {
+      asOf,
+      send: async (to) => {
+        if (store.normalizeEmail(to) === sub.email) throw new Error("transport blew up");
+        return true;
+      },
+    });
+    vi.restoreAllMocks();
+    expect(await remindersSent(sub.id)).toEqual([7]);
+    // Customer snoozes past the tier-7 window (sch :412 skips before any
+    // threshold work, so the lease is untouched while days tick down).
+    const day1 = new Date(asOf.getTime() + 6 * MS_PER_DAY);
+    await env.DB.prepare("UPDATE subscribers SET snoozed_until = ?1 WHERE id = ?2").bind(isoDaysAfter(asOf, 5), sub.id).run();
+    await ageLeases(sub.id);
+    // 1 day left: the stranded 7 is offered to nextDueThreshold() as unsent,
+    // and it picks the tier that matches the real days remaining -- 1, not 7.
+    const d1 = recordingSend();
+    await runReminderPass(env, { asOf: day1, send: d1.send });
+    expect(d1.sentTo.filter((e) => e === sub.email)).toHaveLength(1);
+    expect(await remindersSent(sub.id)).toEqual([7, 1]);
+    // Deadline day: 7 is still an open, stale lease, but tier 1 is more
+    // urgent and sent, so :287 skips it. Nothing goes out, in either order.
+    const day0 = new Date(asOf.getTime() + 7 * MS_PER_DAY);
+    await ageLeases(sub.id);
+    const d0 = recordingSend();
+    await runReminderPass(env, { asOf: day0, send: d0.send });
+    expect(d0.sentTo.filter((e) => e === sub.email)).toHaveLength(0);
+    expect(await remindersSent(sub.id)).toEqual([7, 1]);
   });
 
   it("accepted trade-off: if the completion write fails after a real send, the reminder goes out again after the lease ages (at-least-once, never lost)", async () => {

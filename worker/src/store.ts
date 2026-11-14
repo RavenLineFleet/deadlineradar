@@ -962,14 +962,18 @@ export async function claimReminderThreshold(
   // SEC-96: the lease row and the reminders_sent claim go in one batch
   // (one transaction), both conditional on the same snapshot predicate, so
   // either both land or neither does. The INSERT runs first because its
-  // predicate would be false after the UPDATE. OR REPLACE resets a row left
-  // by an earlier claim of this tier in the same cycle (e.g. after a
-  // resetConfirmation edit put the tier back up for grabs).
+  // predicate would be false after the UPDATE. ON CONFLICT re-opens a row
+  // left by an earlier claim of this tier in the same cycle (a retired
+  // unclaim, or a resetConfirmation edit that put the tier back up for
+  // grabs) instead of failing the PK and rolling the whole batch back. The
+  // cycle comes from the same SELECT, so there is no extra round trip.
   const [, update] = await db.batch([
     db
       .prepare(
-        `INSERT OR REPLACE INTO reminder_claims (subscriber_id, cycle, threshold_days, claimed_at, completed_at)
-         SELECT id, cycle, ?2, ?3, NULL FROM subscribers WHERE id = ?1 AND reminders_sent = ?4`
+        `INSERT INTO reminder_claims (subscriber_id, cycle, threshold_days, claimed_at, completed_at)
+         SELECT id, cycle, ?2, ?3, NULL FROM subscribers WHERE id = ?1 AND reminders_sent = ?4
+         ON CONFLICT (subscriber_id, cycle, threshold_days)
+         DO UPDATE SET claimed_at = excluded.claimed_at, completed_at = NULL`
       )
       .bind(subscriberId, thresholdDays, nowMs, previousRemindersSentJson),
     db
@@ -1044,9 +1048,16 @@ export async function completeReminderClaim(db: D1Database, subscriberId: string
  * than the claim-time snapshot, since another tier may have been claimed for
  * the same subscriber in the interim.
  *
- * SEC-96: the open lease row goes in the same batch. If this whole call
- * throws (and the caller's last-resort retry is swallowed), the lease stays
- * open and the next day's pass re-leases the tier instead of losing it.
+ * SEC-96: the open lease row is retired in the same batch, not deleted:
+ * claimed_at goes to 0 and completed_at stays NULL, so the row reads as a
+ * stale open claim. While the tier is out of reminders_sent that is inert
+ * (nothing to drop from the pass's view, and the next claim re-opens the row
+ * via ON CONFLICT). If something later puts the tier back without a send --
+ * restoreFirmLicenseAfterLostEdit() restoring prior.reminders_sent is the
+ * known case -- the retired row makes it recoverable on the next pass instead
+ * of reading as completed. If this whole call throws (and the caller's
+ * last-resort retry is swallowed), the lease stays open and ages out the same
+ * way.
  */
 export async function unclaimReminderThreshold(db: D1Database, subscriberId: string, thresholdDays: number): Promise<void> {
   const row = await db
@@ -1060,7 +1071,11 @@ export async function unclaimReminderThreshold(db: D1Database, subscriberId: str
     await db.batch([
       db.prepare("UPDATE subscribers SET reminders_sent = ?1 WHERE id = ?2").bind(JSON.stringify(next), subscriberId),
       db
-        .prepare("DELETE FROM reminder_claims WHERE subscriber_id = ?1 AND threshold_days = ?2 AND completed_at IS NULL")
+        .prepare(
+          `UPDATE reminder_claims SET claimed_at = 0
+           WHERE subscriber_id = ?1 AND threshold_days = ?2 AND completed_at IS NULL
+             AND cycle = (SELECT cycle FROM subscribers WHERE id = ?1)`
+        )
         .bind(subscriberId, thresholdDays),
     ]);
   }
