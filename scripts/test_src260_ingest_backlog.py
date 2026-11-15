@@ -99,6 +99,18 @@ def test_page_discloses_backlog_and_is_silent_without_one(monkeypatch):
     assert "our monitoring detected over" not in g.build_rule_changes_page()
 
 
+def test_unmeasured_backlog_warns_at_build_time(monkeypatch, capsys):
+    # SRC-262: None (store not found) must not be silent like [] (nothing waiting).
+    g = _generate()
+    monkeypatch.setattr(g, "_rule_change_ingest_backlog", lambda now=None: None)
+    html = g.build_rule_changes_page()
+    assert "our monitoring detected over" not in html
+    assert "[SRC-262]" in capsys.readouterr().err
+    monkeypatch.setattr(g, "_rule_change_ingest_backlog", lambda now=None: [])
+    g.build_rule_changes_page()
+    assert "[SRC-262]" not in capsys.readouterr().err
+
+
 def test_producer_dir_found_from_a_shallower_worktree(tmp_path, monkeypatch):
     prod = tmp_path / "Orchestrator" / "reg_change_events"
     prod.mkdir(parents=True)

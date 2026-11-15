@@ -11066,6 +11066,15 @@ def build_rule_changes_page() -> str:
     # gates above only see the crawler; this is the one signal that the list is
     # behind what monitoring has already found.
     _ingest_backlog = _rule_change_ingest_backlog()
+    # SRC-262: None means the producer store was not found, so the backlog was
+    # never measured. Say so at build time instead of reading as "clear".
+    if _ingest_backlog is None:
+        print(
+            "WARNING [SRC-262]: rule-change producer store not found; /rule-changes/ "
+            "ingest backlog NOT measured (set DR_DIFFLAB_EVENTS_DIR or build from a "
+            "checkout under the fleet tree).",
+            file=__import__("sys").stderr,
+        )
     if _ingest_backlog:
         _n = len(_ingest_backlog)
         monitoring_note += (
