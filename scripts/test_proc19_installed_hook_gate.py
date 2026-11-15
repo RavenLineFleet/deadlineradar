@@ -172,3 +172,82 @@ def test_proc22_repo_root_pytest_ini_anchors_root_conftest(tmp_path):
     unanchored = _subdir_launch(tmp_path, with_ini=False)  # negative control: the guard is skipped
     assert unanchored.returncode == 1, unanchored.stdout[-2000:]
     assert "GIT_DIR" in unanchored.stdout
+
+
+HOOK_V3 = HOOK_V2 + b"# v3\n"
+COMMIT = ("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m")
+
+
+def _commit_hook(r, body, msg):
+    (r / "scripts" / "git-hooks" / "pre-push").write_bytes(body)
+    _git(r, "add", ".")
+    _git(r, *COMMIT, msg)
+
+
+def test_proc29_behind_head_matching_stale_install_fails(repo):
+    """SEC-102 ARM C (48/97): HEAD is behind origin/main, installed == HEAD's older hook. The
+    HEAD-only compare read this clean; the origin/main compare must not."""
+    r, installed = repo
+    _commit_hook(r, HOOK_V1, "old")                                # HEAD~0 = V1 (the behind tree)
+    _commit_hook(r, HOOK_V2, "new")
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main ships V2
+    _git(r, "checkout", "-q", "HEAD~1")                            # behind: HEAD has V1
+    (installed / "pre-push").write_bytes(HOOK_V1)                  # installed == HEAD (reverted)
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-29]") and "behind origin/main" in errs[0], errs
+
+
+def test_proc29_branch_ahead_with_new_hook_passes(repo):
+    """SecurityLab CASE 2: the ancestry clause is load-bearing -- a branch ahead of origin/main
+    with a new hook, installed correctly, must not be flagged."""
+    r, installed = repo
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main ships V2
+    _commit_hook(r, HOOK_V3, "ahead")                              # HEAD ahead with V3
+    (installed / "pre-push").write_bytes(HOOK_V3)
+    assert gate.check_installed_git_hooks_match_head(r) == []
+
+
+def test_proc29_hook_untracked_by_head_is_still_examined(repo):
+    """SEC-102 widening (10/97): HEAD tracks only commit-msg, origin/main tracks pre-push. The
+    HEAD-derived name set never looked at pre-push; the union must."""
+    r, installed = repo
+    hooks = r / "scripts" / "git-hooks"
+    (hooks / "pre-push").unlink()
+    (hooks / "commit-msg").write_bytes(b"#!/bin/sh\nexit 0\n")
+    _git(r, "add", "-A")
+    _git(r, *COMMIT, "old tree: commit-msg only")
+    (installed / "commit-msg").write_bytes(b"#!/bin/sh\nexit 0\n")
+    _commit_hook(r, HOOK_V2, "pre-push added")
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main: commit-msg + pre-push V2
+    _git(r, "checkout", "-q", "HEAD~1")                            # HEAD: commit-msg only
+    (installed / "pre-push").write_bytes(HOOK_V1)                  # substituted/reverted
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-29]") and "does not track" in errs[0], errs
+    (installed / "pre-push").unlink()                              # deleted entirely
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and "missing" in errs[0] and "origin/main tracks" in errs[0], errs
+
+
+def test_proc19_behind_head_never_advises_copying_the_older_hook(repo):
+    r, installed = repo
+    _commit_hook(r, HOOK_V3, "new")
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")      # origin/main ships V3
+    _git(r, "checkout", "-q", "HEAD~1")                            # behind: HEAD has V2
+    (installed / "pre-push").write_bytes(HOOK_V1)                  # installed matches neither
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-19]") and "copy origin/main:" in errs[0], errs
+
+
+def test_reverify_skip_is_disclosed_not_silent(repo, monkeypatch):
+    """SEC-102 limb 2: the skip must leave a trace main() prints, so PASS never covers it."""
+    r, _ = repo
+    monkeypatch.setattr(gate, "_SKIPPED_CHECKS", [])
+    monkeypatch.setenv("DR_REVERIFY_JOB", "1")
+    assert gate.check_installed_git_hooks_match_head(r) == []
+    assert len(gate._SKIPPED_CHECKS) == 1 and "DR_REVERIFY_JOB" in gate._SKIPPED_CHECKS[0]
+    monkeypatch.delenv("DR_REVERIFY_JOB")
+    gate.check_installed_git_hooks_match_head(r)
+    assert len(gate._SKIPPED_CHECKS) == 1                          # no trace when it actually ran
+    body = Path(HERE, "preship_gate.py").read_text(encoding="utf-8")
+    body = body[body.index("\ndef main():"):]
+    assert body.index('print(f"SKIPPED (not evaluated): {why}")') < body.index(r'print("\nPASS -- no violations found.")')

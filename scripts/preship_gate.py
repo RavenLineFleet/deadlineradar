@@ -1782,19 +1782,31 @@ def check_no_claude_attribution_in_commit_history(repo_root: Path) -> list[str]:
     return errors
 
 
+_SKIPPED_CHECKS: list[str] = []
+
+
 def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
     """PROC-19 (AuditLab, 2026-11-03): core.hooksPath points every worktree at ONE checkout's
     scripts/git-hooks/, and that checkout sits far behind origin/main, so the PROC-18 pre-push
-    (pytest before preship) exists there only as a dirty working-tree file. A checkout/reset/
-    stash/pull in that tree silently restores the PROC-4-only hook; pushes still pass (preship
+    (pytest before preship) exists there only as a dirty working-tree file. A checkout -- ./
+    reset --hard/stash in that tree silently restores the PROC-4-only hook (a pull fails safe:
+    origin/main modifies the same path, so it aborts on the dirty file); pushes still pass (preship
     still runs) and the 476-test suite never reads the installed copy. This check runs on that
     surviving PROC-4 limb, so a reverted or stale installed hook fails the very next push.
     Compares every tracked file under HEAD:scripts/git-hooks/ against the installed copy by blob
     id (`hash-object --path` applies the same autocrlf/attr filters as `git add`, so a CRLF
     checkout of identical text still matches). Skipped inside the nightly reverify job
     (DR_REVERIFY_JOB=1): that job runs pytest itself, so a stale hook opens no gap there, and
-    failing it would burn a data-staleness day over a hook only human pushes depend on."""
+    failing it would burn a data-staleness day over a hook only human pushes depend on.
+
+    PROC-29 / SEC-102 (SecurityLab+AuditLab, 2026-11-15): a HEAD-only comparison is blind when
+    HEAD itself is behind -- installed == HEAD:{rel} reads clean while both are older than
+    origin/main (48 of 97 worktrees), and a hook HEAD doesn't track is never examined (10 more).
+    So the name set is HEAD union origin/main, and installed == HEAD is accepted only if it also
+    equals origin/main:{rel} or HEAD contains origin/main (a branch legitimately ahead with a new
+    hook). The skip is disclosed in the gate's output, never printed as a PASS (limb 2)."""
     if os.environ.get("DR_REVERIFY_JOB") == "1":
+        _SKIPPED_CHECKS.append("installed-git-hook check (PROC-19/20/29) -- DR_REVERIFY_JOB=1")
         return []
     git = shutil.which("git")
     if not git:
@@ -1811,25 +1823,51 @@ def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
     if not hooks_dir.is_absolute():
         hooks_dir = repo_root / hooks_dir
     tracked = run("ls-tree", "--name-only", "HEAD", "scripts/git-hooks/")
-    names = [Path(n).name for n in tracked.stdout.split() if n]
-    if tracked.returncode != 0 or not names:
+    head_names = {Path(n).name for n in tracked.stdout.split() if n}
+    if tracked.returncode != 0 or not head_names:
         return [f"[ERR] `git ls-tree HEAD scripts/git-hooks/` returned nothing -- cannot verify "
                 f"the installed git hooks (PROC-19): {tracked.stderr.strip()[:200]}"]
+    has_upstream = run("rev-parse", "--verify", "-q", "origin/main^{commit}").returncode == 0
+    up_names: set[str] = set()
+    if has_upstream:
+        up_names = {Path(n).name for n in
+                    run("ls-tree", "--name-only", "origin/main", "scripts/git-hooks/").stdout.split() if n}
+    # HEAD contains origin/main => this tree is current or ahead, so its own hook is authoritative.
+    head_current = (not has_upstream or
+                    run("merge-base", "--is-ancestor", "origin/main", "HEAD").returncode == 0)
     errors: list[str] = []
-    for name in names:
+    for name in sorted(head_names | up_names):
         rel = f"scripts/git-hooks/{name}"
         installed = hooks_dir / name
         if not installed.is_file():
-            errors.append(f"[PROC-19] installed hook missing: core.hooksPath has no '{name}', but HEAD "
+            who = "HEAD" if name in head_names else "origin/main"
+            errors.append(f"[PROC-19] installed hook missing: core.hooksPath has no '{name}', but {who} "
                           f"tracks {rel} -- that gate does not run.")
             continue
-        want = run("rev-parse", f"HEAD:{rel}").stdout.strip()
+        want = run("rev-parse", "--verify", "-q", f"HEAD:{rel}").stdout.strip() if name in head_names else ""
         got = run("hash-object", "--path", rel, str(installed)).stdout.strip()
+        upstream_blob = (run("rev-parse", "--verify", "-q", f"origin/main:{rel}").stdout.strip()
+                         if name in up_names else "")
+        if want and got == want and upstream_blob and got != upstream_blob and not head_current:
+            errors.append(
+                f"[PROC-29] installed hook '{name}' (blob {got[:9]}) matches this checkout's HEAD, but "
+                f"HEAD is behind origin/main and origin/main:{rel} is blob {upstream_blob[:9]} -- the hook "
+                f"git runs on push is stale. Refresh core.hooksPath from origin/main:{rel} and rebase "
+                f"this branch onto origin/main."
+            )
+            continue
+        if not want and upstream_blob and got != upstream_blob:
+            errors.append(
+                f"[PROC-29] installed hook '{name}' (blob {got[:9] or '?'}) != origin/main:{rel} (blob "
+                f"{upstream_blob[:9]}), and this HEAD does not track {rel} at all -- the hook git runs on "
+                f"push is not origin/main's. Refresh core.hooksPath from origin/main:{rel}."
+            )
+            continue
         if not want or not got or want != got:
             # PROC-20: hooksPath is ONE dir shared by every worktree. If the installed copy already
             # equals origin/main's, this branch is the stale side -- copying its older hook in would
             # reopen the PROC-18/19 gap for every other worktree. Say rebase, not copy.
-            upstream = run("rev-parse", "--verify", "-q", f"origin/main:{rel}").stdout.strip()
+            upstream = upstream_blob
             if got and upstream and got == upstream:
                 errors.append(
                     f"[PROC-20] this branch's {rel} (blob {want[:9] or '?'}) predates the installed "
@@ -1840,8 +1878,11 @@ def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
             errors.append(
                 f"[PROC-19] installed hook '{name}' (blob {got[:9] or '?'}) != HEAD:{rel} (blob "
                 f"{want[:9] or '?'}) -- the hook git actually runs on push is not the one this tree "
-                f"ships (reverted by a checkout/reset/stash/pull in the core.hooksPath checkout, or "
-                f"edited without copying). Fix: copy {rel} from this tree into the core.hooksPath dir."
+                f"ships (reverted by a checkout/reset/stash in the core.hooksPath checkout, or "
+                f"edited without copying). Fix: "
+                + (f"copy {rel} from this tree into the core.hooksPath dir." if head_current else
+                   f"this HEAD is behind origin/main, so copy origin/main:{rel} (not this tree's) into "
+                   f"the core.hooksPath dir and rebase this branch.")
             )
     return errors
 
@@ -9280,8 +9321,14 @@ def check_date_bound_parity(repo_root: Path) -> list[str]:
         want.append(f"el.min=addDays(utc,-{floor_days})")
     banned = ["getTimezoneOffset", ".getFullYear(", ".getMonth(", ".getDate(", "latest"]
     script_re = re.compile(r"<script[^>]*>(.*?)</script>", re.S | re.I)
+    # PROC-30 (AuditLab, 2026-11-15): the emitted data-dr-bound kinds and the kinds the runtime
+    # JS branches on are also duplicated, and the JS has no else -- an emitted kind it doesn't
+    # name gets no bounds at all, silently. Both sets are read from the built page itself.
+    kind_attr_re = re.compile(r'data-dr-bound="([^"]*)"')
+    kind_js_re = re.compile(r"""kind===?["']([^"']+)["']""")
     pages = 0
     bad: dict[str, list[str]] = {}
+    unhandled: dict[str, list[str]] = {}
     for page in sorted(docs_dir.rglob("*.html")) if docs_dir.exists() else []:
         html = page.read_text(encoding="utf-8", errors="replace")
         if "data-dr-bound" not in html:
@@ -9292,6 +9339,14 @@ def check_date_bound_parity(repo_root: Path) -> list[str]:
             bad.setdefault(f"{len(bound)} bound scripts (expected 1)", []).append(page.relative_to(docs_dir).as_posix())
             continue
         js = _strip_ws(bound[0])
+        handled = set(kind_js_re.findall(js))
+        emitted = set(kind_attr_re.findall(script_re.sub("", html)))
+        if not handled:
+            unhandled.setdefault("no `kind === '...'` branch found in the bound script (this check "
+                                 "must be re-anchored)", []).append(page.relative_to(docs_dir).as_posix())
+        for k in sorted(emitted - handled):
+            unhandled.setdefault(f'data-dr-bound="{k}" is emitted but the bound script only handles '
+                                 f'{sorted(handled)}', []).append(page.relative_to(docs_dir).as_posix())
         for w in want:
             if w not in js:
                 bad.setdefault(f"missing `{w}`", []).append(page.relative_to(docs_dir).as_posix())
@@ -9305,6 +9360,10 @@ def check_date_bound_parity(repo_root: Path) -> list[str]:
         errs.append(f"{tag} date-bound script {why} on {len(ps)} page(s), e.g. {', '.join(ps[:3])} -- "
                     "client bounds no longer match the worker's (UTC, +1..+USER_DEADLINE_MAX_DAYS, "
                     "<= today, >= today-366*10).")
+    for why, ps in unhandled.items():
+        errs.append(f"[PROC-30] {why} on {len(ps)} page(s), e.g. {', '.join(ps[:3])} -- an unhandled "
+                    "kind keeps its stale build-time min/max with no runtime re-key. Add the branch to "
+                    "generate.py _DATE_BOUND_RUNTIME_JS (and its worker bound) or fix the emitted kind.")
     return errs
 
 
@@ -11137,6 +11196,8 @@ def main():
     all_errors += check_security_header_layers()
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")
+    for why in _SKIPPED_CHECKS:  # SEC-102 limb 2: a skipped check is never reported as a pass
+        print(f"SKIPPED (not evaluated): {why}")
     if all_errors:
         print(f"\nFAIL -- {len(all_errors)} violation(s):\n")
         for e in all_errors:

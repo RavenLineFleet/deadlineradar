@@ -75,3 +75,23 @@ def test_mutant_caught(repo, rel, old, new):
 def test_no_bound_pages_fails_closed(repo):
     (repo / "docs" / PAGE).unlink()
     assert any("NO built page" in e for e in preship_gate.check_date_bound_parity(repo))
+
+
+@pytest.mark.parametrize("old,new", [
+    # PROC-30: page emits a kind the runtime JS has no branch for
+    ('data-dr-bound="past"', 'data-dr-bound="pastx"'),
+    # PROC-30: JS branch for an emitted kind dropped (no else, so the input keeps build-time bounds)
+    ('kind==="past"||', ''),
+    # PROC-30: every branch renamed away -> fails closed, not vacuously clean
+    ('kind===', 'mode==='),
+])
+def test_proc30_unhandled_kind_caught(repo, old, new):
+    _mutate(repo / "docs" / PAGE, old, new)
+    errs = preship_gate.check_date_bound_parity(repo)
+    assert any(e.startswith("[PROC-30]") for e in errs), errs
+
+
+def test_proc30_kind_inside_script_text_is_not_an_emitted_kind(repo):
+    # The bound script's own selector/getAttribute text must not be counted as an emitted input.
+    _mutate(repo / "docs" / PAGE, "var utc=iso(now)", 'var utc=iso(now);var q=\'data-dr-bound="zzz"\'')
+    assert preship_gate.check_date_bound_parity(repo) == []
