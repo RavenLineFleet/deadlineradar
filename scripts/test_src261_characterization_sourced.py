@@ -97,3 +97,16 @@ def test_src265_ok_card_names_the_approval_condition():
     assert "45 days to approve or disapprove" in e["summary_public"]
     assert "September%202026%20Bulletin.pdf" in e["status_evidence"]
     assert "If the rules are approved, they will become effective on November 1, 2026." in e["status_evidence"]
+
+
+def test_src266_ok_card_quotes_approved_the_submission_not_submitted():
+    # AuditLab SRC-266: the Bulletin says the Board "approved the submission of" the emergency rules on 08-21;
+    # it never says they were submitted. The card must quote that, and must not leave the 45-day window in
+    # an unqualified future tense (SRC-265 limb 2): the conditional date is past, outcome unconfirmed.
+    e = _real("oklahoma-regwatch-ff8bf9c424be")
+    s = e["summary_public"]
+    assert "approved the submission of these emergency rules to the Governor and the Legislature" in s
+    assert "approved the submission of these emergency rules to the Governor and the Legislature" in e["status_evidence"]
+    for bad in ("submitted them", "were submitted", "Board submitted", "submitted to the Governor"):
+        assert bad not in s, bad
+    assert "The Bulletin said the Governor and Legislature" in s and "That date has passed" in s
