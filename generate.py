@@ -679,6 +679,11 @@ PAGE_CSS = """
        pairing -- dark mode's --gold got the equivalent fix already, light
        mode's never moved. 3% darker, same hue, gives 4.535:1. */
     --gold: #866731; --gold-line: #d8c9a6; --gold-bg: #f4eede;
+    /* A11Y-39 (MEDIUM, 2026-11-15): signup CTA (.remind-panel button) painted
+       #22190a on --gold = 3.30:1 here, hover #9c7a3c = 4.34:1 in both themes;
+       14.72px bold needs 4.5. --gold itself stays (it passes as a foreground
+       at all 17 sites). Own per-theme tokens: light white on 6.00 / hover 7.20. */
+    --cta-bg: #7a5f2a; --cta-bg-hover: #6b5423; --cta-fg: #ffffff;
     --verified-green: #256a4b; --verified-green-bg: #e8f1ec;
     /* rgb triplet for the hero card's gradient/footer tints (rgba() needs
        channels, and a hex token can't be alpha-composited inline). */
@@ -710,6 +715,8 @@ PAGE_CSS = """
       --on-accent: #0d1824;
       --panel-dark: #0d1824; --panel-dark-fg: #dbe6ef;
       --gold: #d6b45a; --gold-line: #8a6d1f; --gold-bg: #26210f;
+      /* A11Y-39: dark CTA = 8.70 base / 10.32 hover. */
+      --cta-bg: #d6b45a; --cta-bg-hover: #e3c574; --cta-fg: #22190a;
       --verified-green: #4fd685; --verified-green-bg: rgba(52,199,120,0.12);
       --verified-green-rgb: 79,214,133;
       /* Seal stale-red, brightened for dark ground -- same pattern as
@@ -1649,11 +1656,11 @@ PAGE_CSS = """
     outline: none; border-color: #7fb0d6; box-shadow: 0 0 0 3px rgba(127,176,214,.2);
   }
   .remind-panel button, .remind-panel .cta-button {
-    margin-top: 0.3rem; background: var(--gold); color: #22190a; border: 0; font-weight: 700;
+    margin-top: 0.3rem; background: var(--cta-bg); color: var(--cta-fg); border: 0; font-weight: 700;
     font-size: 0.92rem; padding: 0.7rem 1rem; border-radius: 7px; cursor: pointer; font-family: inherit;
     display: inline-block; text-decoration: none;
   }
-  .remind-panel button:hover, .remind-panel .cta-button:hover { background: #9c7a3c; }
+  .remind-panel button:hover, .remind-panel .cta-button:hover { background: var(--cta-bg-hover); }
   .remind-panel .field-hint { color: #8fa7bb; }
   .dr-how-heard-detail { display: none; }
   form:has(.dr-how-heard option[value="referral"]:checked) .dr-how-heard-detail,
