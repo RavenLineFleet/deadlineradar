@@ -1141,7 +1141,7 @@
     },
     "peer_review_conditions_permit": {
       "exists": true,
-      "citation": "Neb. Rev. Stat. section 1-153; 288 Neb. Admin. Code ch. 13, section 004.01/.03(B)",
+      "citation": "Neb. Rev. Stat. section 1-153; 288 Neb. Admin. Code ch. 13, section 004.01/.03(B)/.07",
       "citation_url": "https://www.law.cornell.edu/regulations/nebraska/288-Neb-Admin-Code-ch-13-SS-004",
       "notes": "Board may restrict permits based on peer review results; attest/compilation firms must furnish peer review evidence with renewal application; preparation-only firms exempt. Dual-sourced."
     },
@@ -1150,7 +1150,7 @@
     "source_disagreement_scope": "attest_exemption",
     "state_slug": "nebraska",
     "state": "Nebraska",
-    "verified_date": "2026-08-17"
+    "verified_date": "2026-11-14"
   },
   "nevada": {
     "attest_exemption": {
