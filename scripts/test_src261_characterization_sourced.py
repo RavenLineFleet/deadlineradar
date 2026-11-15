@@ -87,3 +87,13 @@ def test_src264_ok_card_names_the_emergency_track():
     e = _real("oklahoma-regwatch-ff8bf9c424be")
     assert "emergency" in e["summary_public"] and "EMERGENCY RULES" in e["status_evidence"]
     assert "implementing rules are proposed" not in e["summary_public"]
+
+
+def test_src265_ok_card_names_the_approval_condition():
+    # AuditLab SRC-265: the emergency rules took effect 11-01 only IF the Governor + Legislature approved
+    # them within 45 days; the card must state that condition, sourced to the Sept 2026 Bulletin.
+    e = _real("oklahoma-regwatch-ff8bf9c424be")
+    assert "If the rules are approved, they will become effective on November 1, 2026." in e["summary_public"]
+    assert "45 days to approve or disapprove" in e["summary_public"]
+    assert "September%202026%20Bulletin.pdf" in e["status_evidence"]
+    assert "If the rules are approved, they will become effective on November 1, 2026." in e["status_evidence"]
