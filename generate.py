@@ -9136,6 +9136,59 @@ def _rule_change_monitoring_fresh() -> bool:
         return False
 
 
+# SRC-260 (AuditLab, 2026-11-15): _rule_change_monitoring_fresh() reads the
+# PRODUCER's crawl heartbeat, so it can only see a crawler-side stall. The step
+# that actually stalled was ingest: PA and VA events sat in DiffLab's store for
+# 31 and 34 days, never published, while the page read as current. This measures
+# that side directly: producer-validated, non-retired rule changes that are not
+# on the feed and were detected more than RULE_CHANGE_INGEST_BACKLOG_DAYS ago.
+# None = producer dir not found from this checkout, so it can't be measured.
+# A missing or unparseable detected_at counts as aged (fail toward disclosure).
+RULE_CHANGE_INGEST_BACKLOG_DAYS = 14
+
+
+def _rule_change_ingest_backlog(now: "datetime | None" = None) -> "list[str] | None":
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "scripts"))
+    import build_change_events as _bce
+
+    if not _bce.DIFFLAB_EVENTS_DIR.is_dir():
+        return None
+    now = now or datetime.now(timezone.utc)
+    ingestable, _rejected = _bce.load_difflab_events(now.date())
+    published = {
+        e.get("event_id")
+        for e in json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8")).get("events", [])
+    }
+    waiting = {
+        e["event_id"] for e in ingestable
+        if e.get("kind") == "rule_change"
+        and e["event_id"] not in published
+        and e["event_id"] not in _bce.RETIRED_EVENT_IDS
+    }
+    detected: dict[str, str] = {}
+    for path in _bce.DIFFLAB_EVENTS_DIR.glob("event_*.json"):
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(raw, dict) and raw.get("event_id"):
+            detected[raw["event_id"]] = raw.get("detected_at") or ""
+    cutoff = now - timedelta(days=RULE_CHANGE_INGEST_BACKLOG_DAYS)
+    aged = []
+    for event_id in sorted(waiting):
+        try:
+            seen = datetime.fromisoformat(detected.get(event_id, ""))
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=timezone.utc)
+        except ValueError:
+            aged.append(event_id)
+            continue
+        if seen <= cutoff:
+            aged.append(event_id)
+    return aged
+
+
 def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[dict]], real_today: date) -> str:
     # Roadmap #326 (2026-08-11, ValueLab design-pattern-mining #1): pulled
     # live at build time from the SAME data /rule-changes/ itself renders
@@ -11007,6 +11060,19 @@ def build_rule_changes_page() -> str:
             f"since {monitoring_started}, and has run {cov['diffs_reviewed_total']} detected changes "
             f"through review so far &mdash; none of them a real CPA-relevant rule change yet. Last "
             f"checked {last_checked}. Every item below instead comes from our batch legal research."
+        )
+
+    # SRC-260: disclose an ingest-side stall on the page itself. The cadence
+    # gates above only see the crawler; this is the one signal that the list is
+    # behind what monitoring has already found.
+    _ingest_backlog = _rule_change_ingest_backlog()
+    if _ingest_backlog:
+        _n = len(_ingest_backlog)
+        monitoring_note += (
+            f" {_n} more change{'s' if _n != 1 else ''} our monitoring detected over "
+            f"{RULE_CHANGE_INGEST_BACKLOG_DAYS} days ago {'are' if _n != 1 else 'is'} still waiting "
+            f"for review before {'they appear' if _n != 1 else 'it appears'} here, so this list is "
+            f"behind."
         )
 
     body = f"""<h1>CPA Mobility &amp; Practice-Privilege Rule Changes</h1>

@@ -55,7 +55,9 @@ def collect_lag(repo_root: Path) -> dict:
 
     today = date.today()
     difflab_events, rejected = bce.load_difflab_events(today)
-    ingestable_by_id = {e["event_id"]: e for e in difflab_events}
+    # SRC-260: a retired id is never going to publish, so it is not lag. Before this it counted
+    # toward the 3-event buffer forever (missouri 4b9dc4971d5a since 10-26).
+    ingestable_by_id = {e["event_id"]: e for e in difflab_events if e["event_id"] not in bce.RETIRED_EVENT_IDS}
     ingestable_ids = set(ingestable_by_id)
 
     data_path = repo_root / "data" / "reg_change_events.json"

@@ -84,16 +84,43 @@ DEADLINES = ROOT / "data" / "cpa_deadlines.json"
 # yet) the directory is simply absent, which degrades to zero events, not an
 # error. That degrade-to-empty is deliberate: see the module docstring on the
 # honest-empty-state requirement.
+#
+# SRC-260 (AuditLab, 2026-11-15): the default used to be the fixed
+# ROOT.parent.parent.parent, which is right only for a checkout exactly two
+# levels below the home dir (b3_saas/<repo>). A worktree one level shallower
+# (AssetLab/_wt_*) resolved to a path that doesn't exist, so the ingest and
+# its lag advisory silently degraded to "no producer dir" there. Now walks up
+# from ROOT and takes the first ancestor that actually holds the directory.
+def _default_difflab_events_dir() -> pathlib.Path:
+    for ancestor in ROOT.parents:
+        candidate = ancestor / "Orchestrator" / "reg_change_events"
+        if candidate.is_dir():
+            return candidate
+    return ROOT.parent.parent.parent / "Orchestrator" / "reg_change_events"
+
+
 DIFFLAB_EVENTS_DIR = pathlib.Path(
-    os.environ.get("DR_DIFFLAB_EVENTS_DIR", ROOT.parent.parent.parent / "Orchestrator" / "reg_change_events")
+    os.environ.get("DR_DIFFLAB_EVENTS_DIR") or _default_difflab_events_dir()
 )
 
 # SRC-97 (AuditLab 2026-10-26; DiffLab ruling 19:55Z): DiffLab retired these
 # event ids as duplicates of a surviving record of the same change. Keyed on
 # the explicit id, never on citation_url -- two distinct changes can share a
 # section URL (the 326.289 pair is one such case).
+#
+# SRC-260 (AuditLab, 2026-11-15; DiffLab ruling requested the same day) adds
+# two retirements that are not duplicates, so the reason is per id:
+#   * idaho a006847c8874 is SUPERSEDED: it records docket 24-3001-2601 at its
+#     earlier "pending vote" stage, and the same docket is already published at
+#     the later adopted-pending-rule stage (3189d3f2b9ba, 4712ef063e63).
+#   * virginia 2598e165accc is NOT A RULE CHANGE: its whole evidence is the LIS
+#     page's own date stamp moving 10/11/2026 -> 10/12/2026, and its own summary
+#     says the excerpt "does not state what this date represents". Publishing it
+#     as ENACTED_DATE_PENDING would assert a statutory change nobody made.
 RETIRED_EVENT_IDS = frozenset({
     "missouri-regwatch-4b9dc4971d5a",  # same SB1233 326.283 change as d4c826d1ac09
+    "idaho-regwatch-a006847c8874",     # superseded by the adopted-pending-rule stage of the same docket
+    "virginia-regwatch-2598e165accc",  # page date-stamp churn, not a change to 54.1-4411
 })
 
 KIND_CHANGE = "rule_change"
@@ -884,7 +911,7 @@ def main() -> int:
     deduped = []
     for e in events:
         if e["event_id"] in RETIRED_EVENT_IDS:
-            rejected.append(f"{e['event_id']}: retired by DiffLab as a duplicate, dropped")
+            rejected.append(f"{e['event_id']}: retired (see RETIRED_EVENT_IDS), dropped")
             continue
         if e["event_id"] in seen_ids:
             rejected.append(f"{e['event_id']}: duplicate event_id, second occurrence dropped")

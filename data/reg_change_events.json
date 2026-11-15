@@ -1,16 +1,16 @@
 {
   "_meta": {
     "purpose": "Publishable rule-change events for the public changes feed.",
-    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (18 currently promoted).",
+    "generated_from": "worker/src/mobility_rules.json (batch research) + automated day-to-day source monitoring (19 currently promoted).",
     "separable": "Deliberately independent of the mobility determination engine (AuditLab MON-2, 2026-08-06: the engine shipped to production 2026-07-30 -- /firm/mobility/check, /firm/mobility/check-batch, /firm/mobility/coverage, and the /firm-mobility/ Practice Privilege Check UI are all live; this note previously said HELD, which stopped being true and would have misled a future maintainer about what's deployed). This feed publishes change facts + citations only and stays architecturally independent of that engine either way -- a change fact does not require or imply a mobility determination for the same state.",
     "status_derivation": "Structured fields ONLY (rule_changes_on presence + direction, or the monitoring pipeline's own classified status). Status is NOT inferred from prose: 27 of 55 mobility records match enacted/proposed/rule signals simultaneously, so a regex label would be a guess. Records whose status cannot be established from structure are not emitted.",
     "reverification_rule": "needs_reverification=true means the effective date has passed and we have NOT re-checked. The page must say 'effective [date]; we re-verify on/after that date' -- never 'is now in effect'. For a record with no effective date (proposed, pending, source conflict) it means verified_date is more than 30 days old (SRC-230).",
     "as_of": "2026-11-07",
-    "changes_published": 18,
-    "changes_upcoming": 3,
-    "changes_recent": 15,
+    "changes_published": 19,
+    "changes_upcoming": 2,
+    "changes_recent": 17,
     "source_conflicts_published": 4,
-    "live_monitoring_count": 18
+    "live_monitoring_count": 19
   },
   "events": [
     {
@@ -454,6 +454,26 @@
       "status": "SOURCE_CONFLICT",
       "needs_reverification": false,
       "conflict_summary": "Oregon's compiled rule (OAR 801-010-0345(3)) requires out-of-state firm registration for a broader set of attest engagements (including SSARS reviews) than the statute (ORS 673.160) actually triggers, and the Board's own peer-review guidance page follows the narrower statutory reading rather than its own compiled rule."
+    },
+    {
+      "event_id": "pennsylvania-regwatch-53f514f989a5",
+      "jurisdiction_slug": "pennsylvania",
+      "jurisdiction": "Pennsylvania",
+      "topic": "CPA regulatory/statutory change",
+      "citation": "Act 140 of 1947, as amended by P.L.563, No.57 (amended Oct. 8, 2026)",
+      "citation_url": "https://www.palegis.us/statutes/unconsolidated/law-information/view-statute?txtType=HTM&SessYr=1947&ActNum=0140.&SessInd=0&iFrame=true",
+      "secondary_url": null,
+      "verified_date": "2026-11-15",
+      "confidence": "single_source",
+      "summary_public": "Amends the education qualification in clause (ii) (P.L.563, No.57, Oct. 8, 2026) to require, in addition to the twenty-four semester credits in accounting and auditing, business law, economics, technology, finance or tax subjects, an additional twelve semester credits in accounting and auditing subjects or tax subjects of a content satisfactory to the board. Clause (iii) was amended by the same act and now carries the same additional-twelve-credit requirement. The additional credits need not be part of undergraduate or graduate work.",
+      "kind": "rule_change",
+      "effective_date": null,
+      "status": "ENACTED_DATE_PENDING",
+      "status_evidence": "\"and an additional twelve semester credits in accounting and auditing subjects or tax subjects of a content satisfactory to the board\" and \"((ii) amended Oct. 8, 2026, P.L.563, No.57)\"",
+      "status_source_url": "https://www.palegis.us/statutes/unconsolidated/law-information/view-statute?txtType=HTM&SessYr=1947&ActNum=0140.&SessInd=0&iFrame=true",
+      "upcoming": false,
+      "needs_reverification": false,
+      "source": "difflab_reg_change_engine"
     }
   ]
 }
