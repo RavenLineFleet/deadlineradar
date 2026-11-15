@@ -3296,6 +3296,55 @@ def check_penalty_ethics_referent_matches_basis(repo_root: Path) -> list[str]:
     return errors
 
 
+# SRC-261: words that characterize a change instead of stating it. On a
+# /rule-changes/ card each one must sit inside a double-quoted span that is
+# also quoted verbatim in the same record's status_evidence, i.e. it is the
+# source's own word, attributed. Deliberately NOT in the list: now / remain /
+# still / no longer -- 6 of the 13 cards AuditLab passed use them correctly
+# ("effective now", "page now states", "remains the in-force law"), so a
+# lexical check on them would need a per-card allowlist. Those, and the
+# "Amends X to require Y" construction, stay a review item, not a gate.
+_RULE_CHANGE_CHARACTERIZATION_RE = re.compile(
+    r"\b(overhaul\w*|simplif\w*|streamlin\w*|moderniz\w*|minor|outdated|obsolete|sweeping)\b",
+    re.IGNORECASE,
+)
+
+
+def check_rule_change_characterization_sourced(repo_root: Path) -> list[str]:
+    """SRC-261 (AuditLab MEDIUM, 2026-11-15): three published cards called a
+    change an "overhaul", "minor", "outdated" or a simplification in our own
+    voice. Two of those words turned out to be the agency's own (Idaho's
+    descriptive summary, Oklahoma's Rule Impact Statement) but nothing on the
+    record showed it. Fails any rule_change card whose summary_public uses a
+    characterization word outside a quoted span that status_evidence carries."""
+    errors: list[str] = []
+    path = repo_root / "data" / "reg_change_events.json"
+    try:
+        events = json.loads(path.read_text(encoding="utf-8")).get("events") or []
+    except (OSError, ValueError) as e:
+        return [f"[SRC-261] {path.name} unreadable ({type(e).__name__}: {e}); characterization check measured nothing"]
+
+    def _norm(t: str) -> str:
+        return re.sub(r"\s+", " ", t).strip().rstrip(".,;").lower()
+
+    for e in events:
+        if e.get("kind") != "rule_change":
+            continue
+        summary = e.get("summary_public") or ""
+        evidence = _norm(e.get("status_evidence") or "")
+        quoted = [(m.start(), m.end(), _norm(m.group(1))) for m in re.finditer(r'"([^"]+)"', summary)]
+        for m in _RULE_CHANGE_CHARACTERIZATION_RE.finditer(summary):
+            span = next((q for q in quoted if q[0] < m.start() and m.end() < q[1]), None)
+            if span is not None and span[2] in evidence:
+                continue
+            why = "outside any quoted span" if span is None else "inside a quote that status_evidence does not carry"
+            errors.append(
+                f"[SRC-261][reg_change_events/{e.get('event_id')}] summary_public says {m.group(0)!r} {why} -- "
+                f"quote the source's own words and copy that quote into status_evidence, or state the change without the adjective"
+            )
+    return errors
+
+
 def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     """MON-3 (AuditLab, 2026-08-20, orchestrator's refined ruling): 17 days
     of real staleness on /rule-changes/'s "watching ... daily" claim turned
@@ -11115,6 +11164,7 @@ def main():
     all_errors += check_worker_error_strings_no_api_internals(repo_root)
     all_errors += check_no_secret_paths_resolve_inside_repo(repo_root)
     all_errors += check_no_claude_attribution_in_commit_history(repo_root)
+    all_errors += check_rule_change_characterization_sourced(repo_root)
     all_errors += check_installed_git_hooks_match_head(repo_root)
     all_errors += check_no_untracked_secret_looking_files(repo_root)
     all_errors += check_stylesheet_integrity(html_files, docs_dir)
