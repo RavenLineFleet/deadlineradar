@@ -3328,7 +3328,8 @@ def check_rule_change_characterization_sourced(repo_root: Path) -> list[str]:
         return re.sub(r"\s+", " ", t).strip().rstrip(".,;").lower()
 
     for e in events:
-        if e.get("kind") != "rule_change":
+        # source_conflict cards render on the same page in the same voice (AuditLab LOW, 11-15).
+        if e.get("kind") not in ("rule_change", "source_conflict"):
             continue
         summary = e.get("summary_public") or ""
         evidence = _norm(e.get("status_evidence") or "")

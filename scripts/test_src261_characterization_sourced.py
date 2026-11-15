@@ -54,11 +54,36 @@ def test_word_outside_quote_fails_even_when_another_quote_is_sourced(tmp_path):
     assert len(errs) == 1 and "'simplifies'" in errs[0]
 
 
-def test_source_conflict_cards_out_of_scope(tmp_path):
+def test_source_conflict_cards_in_scope(tmp_path):
+    errs = pg.check_rule_change_characterization_sourced(
+        _repo(tmp_path, [_ev("A minor wording conflict.", kind="source_conflict")]))
+    assert len(errs) == 1 and "'minor'" in errs[0]
+
+
+def test_other_kinds_out_of_scope(tmp_path):
     assert pg.check_rule_change_characterization_sourced(
-        _repo(tmp_path, [_ev("A minor wording conflict.", kind="source_conflict")])) == []
+        _repo(tmp_path, [_ev("A minor wording conflict.", kind="other")])) == []
 
 
 def test_unreadable_file_is_an_error_not_a_pass(tmp_path):
     errs = pg.check_rule_change_characterization_sourced(tmp_path)
     assert len(errs) == 1 and "measured nothing" in errs[0]
+
+
+def _real(event_id: str) -> dict:
+    events = json.loads((REPO_ROOT / "data" / "reg_change_events.json").read_text(encoding="utf-8"))["events"]
+    return next(e for e in events if e["event_id"] == event_id)
+
+
+def test_src263_pa_card_names_the_b1_exam_exception():
+    # AuditLab SRC-263: 4.2(b) is "Except as provided under subsection (b.1)"; (b)(3) is not the exam gate.
+    e = _real("pennsylvania-regwatch-53f514f989a5")
+    assert "(b.1)" in e["summary_public"] and "before taking the CPA examination" not in e["summary_public"]
+    assert "Except as provided under subsection (b.1)" in e["status_evidence"]
+
+
+def test_src264_ok_card_names_the_emergency_track():
+    # AuditLab SRC-264: the cited RIS is for EMERGENCY rules; "proposed" may only describe the permanent track.
+    e = _real("oklahoma-regwatch-ff8bf9c424be")
+    assert "emergency" in e["summary_public"] and "EMERGENCY RULES" in e["status_evidence"]
+    assert "implementing rules are proposed" not in e["summary_public"]
