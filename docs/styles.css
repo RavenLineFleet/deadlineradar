@@ -15,7 +15,7 @@
     
     --gold: #866731; --gold-line: #d8c9a6; --gold-bg: #f4eede;
     
-    --cta-bg: #7a5f2a; --cta-bg-hover: #6b5423; --cta-fg: #ffffff;
+    --cta-bg: #7a5f2a; --cta-bg-hover: #6b5423; --cta-fg: #ffffff; --cta-ring: #d6b45a;
     --verified-green: #256a4b; --verified-green-bg: #e8f1ec;
     
     --verified-green-rgb: 37,106,75;
@@ -41,7 +41,7 @@
       --panel-dark: #0d1824; --panel-dark-fg: #dbe6ef;
       --gold: #d6b45a; --gold-line: #8a6d1f; --gold-bg: #26210f;
       
-      --cta-bg: #d6b45a; --cta-bg-hover: #e3c574; --cta-fg: #22190a;
+      --cta-bg: #d6b45a; --cta-bg-hover: #e3c574; --cta-fg: #22190a; --cta-ring: #d6b45a;
       --verified-green: #4fd685; --verified-green-bg: rgba(52,199,120,0.12);
       --verified-green-rgb: 79,214,133;
       
@@ -669,12 +669,13 @@
   .remind-panel input:focus, .remind-panel select:focus {
     outline: none; border-color: #7fb0d6; box-shadow: 0 0 0 3px rgba(127,176,214,.2);
   }
-  .remind-panel button, .remind-panel .cta-button {
+  .cta-button, .remind-panel button {
     margin-top: 0.3rem; background: var(--cta-bg); color: var(--cta-fg); border: 0; font-weight: 700;
     font-size: 0.92rem; padding: 0.7rem 1rem; border-radius: 7px; cursor: pointer; font-family: inherit;
     display: inline-block; text-decoration: none;
   }
-  .remind-panel button:hover, .remind-panel .cta-button:hover { background: var(--cta-bg-hover); }
+  .cta-button:hover, .remind-panel button:hover { background: var(--cta-bg-hover); }
+  .remind-panel button, .remind-panel .cta-button { border: 2px solid var(--cta-ring); }
   .remind-panel .field-hint { color: #8fa7bb; }
   .dr-how-heard-detail { display: none; }
   form:has(.dr-how-heard option[value="referral"]:checked) .dr-how-heard-detail,

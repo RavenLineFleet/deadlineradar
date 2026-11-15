@@ -682,8 +682,10 @@ PAGE_CSS = """
     /* A11Y-39 (MEDIUM, 2026-11-15): signup CTA (.remind-panel button) painted
        #22190a on --gold = 3.30:1 here, hover #9c7a3c = 4.34:1 in both themes;
        14.72px bold needs 4.5. --gold itself stays (it passes as a foreground
-       at all 17 sites). Own per-theme tokens: light white on 6.00 / hover 7.20. */
-    --cta-bg: #7a5f2a; --cta-bg-hover: #6b5423; --cta-fg: #ffffff;
+       at all 17 sites). Own per-theme tokens: light white on 6.00 / hover 7.20.
+       A11Y-40: --cta-ring borders the button inside .remind-panel (6.18 light /
+       7.89 dark vs the composited form bg) since the fill alone is 2.05 there. */
+    --cta-bg: #7a5f2a; --cta-bg-hover: #6b5423; --cta-fg: #ffffff; --cta-ring: #d6b45a;
     --verified-green: #256a4b; --verified-green-bg: #e8f1ec;
     /* rgb triplet for the hero card's gradient/footer tints (rgba() needs
        channels, and a hex token can't be alpha-composited inline). */
@@ -716,7 +718,7 @@ PAGE_CSS = """
       --panel-dark: #0d1824; --panel-dark-fg: #dbe6ef;
       --gold: #d6b45a; --gold-line: #8a6d1f; --gold-bg: #26210f;
       /* A11Y-39: dark CTA = 8.70 base / 10.32 hover. */
-      --cta-bg: #d6b45a; --cta-bg-hover: #e3c574; --cta-fg: #22190a;
+      --cta-bg: #d6b45a; --cta-bg-hover: #e3c574; --cta-fg: #22190a; --cta-ring: #d6b45a;
       --verified-green: #4fd685; --verified-green-bg: rgba(52,199,120,0.12);
       --verified-green-rgb: 79,214,133;
       /* Seal stale-red, brightened for dark ground -- same pattern as
@@ -1655,12 +1657,13 @@ PAGE_CSS = """
   .remind-panel input:focus, .remind-panel select:focus {
     outline: none; border-color: #7fb0d6; box-shadow: 0 0 0 3px rgba(127,176,214,.2);
   }
-  .remind-panel button, .remind-panel .cta-button {
+  .cta-button, .remind-panel button {
     margin-top: 0.3rem; background: var(--cta-bg); color: var(--cta-fg); border: 0; font-weight: 700;
     font-size: 0.92rem; padding: 0.7rem 1rem; border-radius: 7px; cursor: pointer; font-family: inherit;
     display: inline-block; text-decoration: none;
   }
-  .remind-panel button:hover, .remind-panel .cta-button:hover { background: var(--cta-bg-hover); }
+  .cta-button:hover, .remind-panel button:hover { background: var(--cta-bg-hover); }
+  .remind-panel button, .remind-panel .cta-button { border: 2px solid var(--cta-ring); }
   .remind-panel .field-hint { color: #8fa7bb; }
   .dr-how-heard-detail { display: none; }
   form:has(.dr-how-heard option[value="referral"]:checked) .dr-how-heard-detail,
@@ -2796,15 +2799,10 @@ PAGE_CSS = """
   }
   .dr-interval-btn.dr-interval-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   /* Task #8 (2026-08-06) -- reuses .dr-paywall-tier-btn's own button styling
-     (var(--accent), already global) rather than the unscoped .cta-button
-     class, which turns out to only actually be styled inside .remind-panel
-     (checked -- every OTHER standalone `<a class="cta-button">` on this site
-     is unintentionally plain-text; not this page's bug to fix, but not one
-     to copy either). */
+     (var(--accent), already global). A bare .cta-button was unstyled outside
+     .remind-panel until A11Y-41 (2026-11-15) gave it a global rule. */
   /* ValueLab labelled-demo-doors (2026-09-22): a properly-scoped button
-     class, not the unscoped .cta-button the comment above already flags as
-     rendering as plain text everywhere it's used on this site -- same
-     "don't copy the mistake" posture .dr-paywall-tier-btn took. Six doors
+     class for the demo doors. Six doors
      into the demo dashboard (one per view), one optionally promoted to a
      larger primary treatment matching real CTA weight. */
   .dr-demo-doors { margin: 1.1rem 0; }
