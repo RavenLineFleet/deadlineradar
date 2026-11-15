@@ -24072,13 +24072,25 @@ def load_reinstatement_by_slug() -> dict[str, dict]:
 REINSTATEMENT_PAGES: list[dict] = []
 
 # SEO fix (Orchestrator-approved, 2026-10-02, GrowthLab diagnosis of the 07-25 ranking
-# cliff): these 34 reinstatement pages are structurally thin (unique-token ratio under
-# 9% even counting digits) AND had 0 GSC impressions in the trailing 90 days, so
-# noindexing them costs no real traffic while stopping them diluting site quality.
+# cliff). Membership: reinstatement pages with 0 GSC impressions in the trailing 90 days
+# AS OF the 2026-10-02 GrowthLab measure (seo_noindex_candidates_20261002_v2.md). The
+# date is load-bearing: a noindexed page cannot accrue impressions, so an undated
+# "0 impressions" rule re-confirms itself forever. Any impressions-based exit therefore
+# needs noindex lifted FIRST and a measure taken after (as Devin did for ND/VA on
+# 11-11). Thinness (all 51 reinstatement pages under a 9% unique-token ratio) was the
+# corpus-wide diagnosis, not a filter, so there is no thinness-bar exit. Standing
+# decision (GrowthLab, CRAWL-16): no scheduled re-measure; revisit only on Devin's request.
 # Pages stay live, built, and internally linked -- noindex,follow only (not noindex,
-# nofollow) and dropped from sitemap.xml. One constant to revert: empty this set (or
-# remove individual slugs once GrowthLab's next re-measure, post-boilerplate-cut,
-# shows a page has cleared the thinness bar) and both effects disappear automatically.
+# nofollow) and dropped from sitemap.xml.
+# To revert (empty the set) or remove individual slugs, make all 4 edits in 3 files
+# together (CRAWL-17):
+#   1. this set literal (and the count in this comment);
+#   2. scripts/preship_gate.py NOINDEX_REINSTATEMENT_SLUG_COUNT;
+#   3. scripts/preship_gate.py NOINDEX_REINSTATEMENT_SLUG_SHA256 (sha256 of the
+#      sorted slugs, one per line with a trailing newline; same formula as the gate);
+#   4. scripts/test_noindex_gate.py REAL_SLUGS, plus the counts in its docstrings.
+# Then run scripts/preship_gate.py, not just the tests: every test injects its own slug
+# set, so they still pass on a generate.py-only edit; the gate does not.
 # 2026-11-11: north-dakota and virginia removed (now 32) on Devin's direct request
 # relayed by Orchestrator, after GSC reported both as excluded by noindex.
 SEO_NOINDEX_REINSTATEMENT_SLUGS: frozenset[str] = frozenset({

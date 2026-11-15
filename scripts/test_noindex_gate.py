@@ -13,7 +13,7 @@ check_noindex_set_matches_intent exists (or is skipped), and pass once the
 assertion runs, because /nevada/ -- unlike nevada-cpa-license-reinstatement
 -- is not in the intended noindex set.
 
-    1. happy path: the real 32+5 intended set, nothing else noindexed -> PASS
+    1. happy path: the real 32+7 intended set, nothing else noindexed -> PASS
     2. AuditLab's /nevada/ simulation: a core page silently noindexed +
        dropped from sitemap                                           -> ERROR
     3. a reinstatement page loses its noindex tag (exemption silently
@@ -37,6 +37,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import preship_gate as gate  # noqa: E402
 
+# CRAWL-17: a 3rd hardcoded copy of generate.py's SEO_NOINDEX_REINSTATEMENT_SLUGS.
+# Every test injects it, so these tests stay green on a generate.py-only set
+# edit -- only preship_gate.py's COUNT/SHA256 pins catch that. Change all 4
+# sites together (list above the set in generate.py).
 REAL_SLUGS = frozenset({
     "alaska", "arizona", "arkansas", "colorado", "connecticut", "dc", "delaware",
     "georgia", "idaho", "indiana", "kentucky", "louisiana", "maine", "maryland",
@@ -71,7 +75,7 @@ def _write_sitemap(docs_dir, paths):
 
 
 def _build_intended_set(docs_dir, slugs=REAL_SLUGS):
-    """The 32 reinstatement pages + 5 app/auth pages, correctly noindexed,
+    """The 32 reinstatement pages + the 7 NOINDEX_APP_AUTH_ALLOWLIST pages, correctly noindexed,
     plus a couple of ordinary indexable pages for realism."""
     for slug in slugs:
         _write_page(docs_dir, f"/{slug}-cpa-license-reinstatement/", noindex=True)

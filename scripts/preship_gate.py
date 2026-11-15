@@ -7265,7 +7265,9 @@ def _noindex_paths(html_files: list[Path], docs_dir: Path) -> set[str]:
 # same idiom as BLOG-1's GRANDFATHERED.txt assertion below: the INTENDED
 # noindex set must equal the ACTUAL one, both directions. The slug set's
 # length+hash are pinned too, so adding or removing a slug is a deliberate
-# two-constant edit here, not a silent one in generate.py alone.
+# edit to both constants here AND to scripts/test_noindex_gate.py REAL_SLUGS,
+# not a silent one in generate.py alone (CRAWL-17: the full 4-edit change set
+# is listed above SEO_NOINDEX_REINSTATEMENT_SLUGS in generate.py).
 NOINDEX_REINSTATEMENT_SLUG_COUNT = 32  # was 34; ND+VA removed 2026-11-11 (Devin)
 NOINDEX_REINSTATEMENT_SLUG_SHA256 = "d7974eb6a27826bd368ebe1fe746991cea471bf8beeea6b057d77df2da6b0964"
 
@@ -7332,7 +7334,7 @@ def check_noindex_set_matches_intent(
             f"[NOINDEX-GATE] SEO_NOINDEX_REINSTATEMENT_SLUGS has {len(reinstatement_slugs)} slug(s), "
             f"expected {NOINDEX_REINSTATEMENT_SLUG_COUNT} -- changing this set requires deliberately "
             f"updating NOINDEX_REINSTATEMENT_SLUG_COUNT and NOINDEX_REINSTATEMENT_SLUG_SHA256 in "
-            f"preship_gate.py too, not just generate.py"
+            f"preship_gate.py and REAL_SLUGS in scripts/test_noindex_gate.py too, not just generate.py"
         )
     digest = hashlib.sha256(("\n".join(sorted(reinstatement_slugs)) + "\n").encode("utf-8")).hexdigest()
     if digest != NOINDEX_REINSTATEMENT_SLUG_SHA256:
