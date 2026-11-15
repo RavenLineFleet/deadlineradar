@@ -1884,6 +1884,16 @@ def check_installed_git_hooks_match_head(repo_root: Path) -> list[str]:
                    f"this HEAD is behind origin/main, so copy origin/main:{rel} (not this tree's) into "
                    f"the core.hooksPath dir and rebase this branch.")
             )
+    # SEC-103 (SecurityLab+AuditLab, 2026-11-15): git executes EVERY file in core.hooksPath, not just
+    # the tracked names above, so an added hook neither tree tracks was invisible from all 100
+    # worktrees (the untracked-secret check saw it only from the hooksPath checkout, and one
+    # uncommitted .gitignore line hid it there too). Enumerate the dir itself, independent of repo_root.
+    if hooks_dir.is_dir():
+        for p in sorted(hooks_dir.iterdir()):
+            if p.is_file() and p.name not in (head_names | up_names):
+                errors.append(f"[PROC-29] core.hooksPath contains '{p.name}', which neither HEAD nor "
+                              f"origin/main tracks under scripts/git-hooks/ -- git executes every file "
+                              f"in that dir. Remove it, or commit it to origin/main.")
     return errors
 
 

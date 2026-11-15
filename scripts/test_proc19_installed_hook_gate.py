@@ -251,3 +251,18 @@ def test_reverify_skip_is_disclosed_not_silent(repo, monkeypatch):
     body = Path(HERE, "preship_gate.py").read_text(encoding="utf-8")
     body = body[body.index("\ndef main():"):]
     assert body.index('print(f"SKIPPED (not evaluated): {why}")') < body.index(r'print("\nPASS -- no violations found.")')
+
+
+def test_sec103_hook_neither_tree_tracks_is_flagged(repo):
+    """SEC-103: a file in core.hooksPath that neither HEAD nor origin/main tracks still runs on a git
+    event; the gate must enumerate the dir, not just the tracked names. Installed dir is outside the
+    repo here, so this also proves independence from repo_root (the 99/100 uncovered worktrees)."""
+    r, installed = repo
+    _git(r, "update-ref", "refs/remotes/origin/main", "HEAD")
+    assert gate.check_installed_git_hooks_match_head(r) == []      # negative control
+    (installed / "pre-commit").write_bytes(HOOK_V1)
+    errs = gate.check_installed_git_hooks_match_head(r)
+    assert len(errs) == 1 and errs[0].startswith("[PROC-29]") and "'pre-commit'" in errs[0], errs
+    (installed / "pre-commit").unlink()
+    (installed / "sub").mkdir()                                     # a subdirectory is not a hook
+    assert gate.check_installed_git_hooks_match_head(r) == []
