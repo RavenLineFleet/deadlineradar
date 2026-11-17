@@ -236,7 +236,9 @@ describe("GET /assistant/rule-changes", () => {
 
 describe("rate limiting -- shared 'assistant_api' bucket across all six routes", () => {
   it("429s once the shared bucket is exhausted, for ANY of the six routes", async () => {
-    const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    // TEST-FLAKE (2026-11-17): fixed IP, never random. A random 203.0.113.x pick could hit
+    // a fixed IP another test in this file uses; its seeded bucket then 429s that test.
+    const ip = "203.0.113.231";
     // Pre-seed the bucket to its ceiling directly (RATE_LIMIT_ASSISTANT_API.max
     // = 600 -- hammering that many real HTTP round trips per test run isn't
     // worth it; checkRateLimit() itself is already proven correct by every

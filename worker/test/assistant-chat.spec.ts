@@ -331,7 +331,9 @@ describe("POST /assistant/chat -- cross-site origin rejected", () => {
 
 describe("POST /assistant/chat -- rate limiting ('assistant_chat' bucket, 100/hour)", () => {
   it("429s once this IP's bucket is exhausted", async () => {
-    const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    // TEST-FLAKE (2026-11-17): fixed IP, never random. A random 203.0.113.x pick could hit
+    // a fixed IP another test in this file uses; its seeded bucket then 429s that test.
+    const ip = "203.0.113.232";
     const now = Math.floor(Date.now() / 1000);
     const inserts = Array.from({ length: 100 }, (_, i) =>
       env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_chat", now - i)
@@ -362,7 +364,9 @@ describe("POST /assistant/chat -- rate limiting ('assistant_chat' bucket, 100/ho
     // Proves this is genuinely a SEPARATE, tighter bucket from
     // RATE_LIMIT_ASSISTANT_API (600/hour, shared by the 6 lookup routes),
     // not accidentally reusing that name.
-    const ip = `203.0.113.${Math.floor(Math.random() * 55) + 1}`;
+    // TEST-FLAKE (2026-11-17): fixed IP, never random. A random 203.0.113.x pick could hit
+    // a fixed IP another test in this file uses; its seeded bucket then 429s that test.
+    const ip = "203.0.113.233";
     const now = Math.floor(Date.now() / 1000);
     const inserts = Array.from({ length: 600 }, (_, i) =>
       env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_api", now - i)
@@ -788,7 +792,9 @@ describe("POST /assistant/chat -- `escalate` flag drives the widget's talk-to-a-
   });
 
   it("this proxy's OWN exhausted rate-limit bucket carries escalate: true too", async () => {
-    const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    // TEST-FLAKE (2026-11-17): fixed IP, never random. A random 203.0.113.x pick could hit
+    // a fixed IP another test in this file uses; its seeded bucket then 429s that test.
+    const ip = "203.0.113.234";
     const now = Math.floor(Date.now() / 1000);
     const inserts = Array.from({ length: 100 }, (_, i) =>
       env.DB.prepare("INSERT INTO rate_limit_hits (ip, bucket, ts) VALUES (?1, ?2, ?3)").bind(ip, "assistant_chat", now - i)
