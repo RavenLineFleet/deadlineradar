@@ -5283,7 +5283,7 @@ _BILL_DATE_RE = re.compile(
     r"\b(\d{4})-(\d{2})-(\d{2})\b|\b(" + "|".join(_BILL_MONTHS) + r")\s+(\d{1,2}),\s+(\d{4})\b")
 _BILL_ARROW_RE = re.compile(r"\s*(?:->|\u2192|=>)\s*")
 _BILL_MARK_WINDOW = 80   # chars from the bill id to its effective-marker
-_BILL_DATE_WINDOW = 40   # chars from the marker to the date
+_BILL_DATE_WINDOW = 200  # chars from the marker to the date (SRC-269 follow-up (a): 40->200, AuditLab measured 0 new FPs at 3 refs, +14 recall; do NOT widen _BILL_MARK_WINDOW, 80->160 costs 1 FP)
 # (state, bill, frozenset of conflicting dates) -> one-line reason. An entry
 # that no longer matches anything fails too, so this list can't rot.
 _BILL_DATE_ALLOWLIST: dict[tuple[str, str, frozenset], str] = {}
@@ -6570,6 +6570,10 @@ def check_json_copies_identical(repo_root: Path) -> list[str]:
         (repo_root / "data" / "cpe_hours.json", repo_root / "worker" / "src" / "cpe_hours.json"),
         (repo_root / "data" / "reinstatement.json", repo_root / "worker" / "src" / "reinstatement.json"),
         (repo_root / "data" / "renewal_fees.json", repo_root / "worker" / "src" / "renewal_fees.json"),
+        # SRC-269 LOW-1 (AuditLab, 2026-11-18): the bill-effective-date check
+        # collapses copies by basename on the premise this guard keeps them
+        # equal; ptin_federal.json was the 6th same-basename pair, unguarded.
+        (repo_root / "data" / "ptin_federal.json", repo_root / "worker" / "src" / "ptin_federal.json"),
     ]
     errors = []
     for a, b in pairs:

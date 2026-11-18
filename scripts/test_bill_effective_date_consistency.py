@@ -133,3 +133,23 @@ def test_allowlist_suppresses_and_stale_entry_fails(tmp_path, monkeypatch):
 def test_no_data_files_fails_closed(tmp_path):
     errs = preship_gate.check_bill_effective_date_consistency(tmp_path)
     assert len(errs) == 1 and "measuring nothing" in errs[0]
+
+
+def test_date_window_200_catches_date_at_plus_63(tmp_path):
+    # SRC-269 follow-up (a): AuditLab's own re-introduction probe, date at +63
+    # from the marker, was a silent miss at _BILL_DATE_WINDOW = 40.
+    t = _tree(tmp_path, {
+        "data/a.json": _rec("kansas", "HB 2573 eff. 2026-04-23."),
+        "data/b.json": _rec("kansas", "HB 2573, effective (per the Revisor's published slip law as of the 2026 session) 2026-07-01")})
+    errs = preship_gate.check_bill_effective_date_consistency(t)
+    assert len(errs) == 1 and "2026-07-01" in errs[0], errs
+
+
+def test_ptin_federal_pair_guarded_byte_identical(tmp_path):
+    # SRC-269 LOW-1: ptin_federal.json is a same-basename data/ <-> worker/src/ pair.
+    for rel in ("data", "worker/src"):
+        (tmp_path / rel).mkdir(parents=True, exist_ok=True)
+    (tmp_path / "data" / "ptin_federal.json").write_text('{"a": 1}', encoding="utf-8")
+    (tmp_path / "worker" / "src" / "ptin_federal.json").write_text('{"a": 2}', encoding="utf-8")
+    errs = preship_gate.check_json_copies_identical(tmp_path)
+    assert any("ptin_federal.json" in e for e in errs), errs
