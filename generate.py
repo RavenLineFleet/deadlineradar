@@ -3795,7 +3795,29 @@ def site_header(
 </header>"""
 
 
-def site_footer(lang: str = "en") -> str:
+# UX-37 (AuditLab, 2026-11-18): the 5 published /es/ pages had 0 inbound
+# anchors anywhere on the site (hreflang <link> tags only, which no reader
+# can click). page_shell() derives the sibling from the page's own
+# hreflang="es"/"en" tags, so the anchor exists exactly when the ES-2
+# publish_es gate emits the reciprocal pair, and never otherwise.
+def _alt_lang_link_html(lang: str, alt_lang_href: str) -> str:
+    if not alt_lang_href:
+        return ""
+    if lang == "es":
+        return (f'<a class="foot-lang-switch" href="{esc(alt_lang_href)}" hreflang="en" '
+                f'lang="en">English</a>')
+    return (f'<a class="foot-lang-switch" href="{esc(alt_lang_href)}" hreflang="es" '
+            f'lang="es">Español</a>')
+
+
+def _alt_lang_href_from_head(extra_head: str, lang: str) -> str:
+    want = "en" if lang == "es" else "es"
+    m = re.search(r'<link rel="alternate" hreflang="' + want + r'" href="https://deadline-radar\.com(/[^"]*)">',
+                  extra_head)
+    return m.group(1) if m else ""
+
+
+def site_footer(lang: str = "en", alt_lang_href: str = "") -> str:
     disclaimer_bold = _t("footer.disclaimer_bold", lang, site_name=SITE_NAME, brand_name=BRAND_NAME)
     disclaimer_rest = _t("footer.disclaimer_rest", lang)
     about_label = esc(_t("footer.link_about", lang))
@@ -3817,7 +3839,7 @@ def site_footer(lang: str = "en") -> str:
     <div style="display:flex; align-items:center; gap:0.5rem;">
       {_BRAND_GLYPH_SVG}
       <span class="wordmark">{esc(SITE_NAME)}</span>
-    </div>
+    </div>{_alt_lang_link_html(lang, alt_lang_href)}
   </div>
   <!-- Roadmap #332 (2026-08-11, ValueLab report section 10): same 17 links
        as before, grouped under 3 real category headings instead of one flat
@@ -6112,7 +6134,7 @@ def page_shell(
 <main id="main" tabindex="-1">
 {body}
 </main>
-{site_footer(lang=lang)}
+{site_footer(lang=lang, alt_lang_href=_alt_lang_href_from_head(extra_head, lang))}
 {_SHOW_PASSWORD_TOGGLE_HTML}
 {_COOKIE_NOTICE_HTML}
 {_CHAT_WIDGET_HTML if CHAT_WIDGET_ENABLED else ''}
