@@ -9224,8 +9224,19 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # fabricated.
     _reg_change_raw = json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8"))
     _live_conflicts = [e for e in _reg_change_raw.get("events", []) if e.get("kind") == "source_conflict"]
+    # AuditLab COPY-59 (LOW, 2026-11-18): this used to count kind=="rule_change" AND
+    # _is_still_upcoming -- i.e. DATED future changes -- under the label "pending". That
+    # counted Arizona's signed SB 1181 (ENACTED) as pending and dropped every undated
+    # proposal, the most pending items on the site. Now the label and the filter are the
+    # feed's own: build_rule_changes_page()'s two "Not yet final" buckets
+    # (upcoming_proposed + undated_proposed), same predicates, so the tile and the page
+    # it summarizes cannot disagree. A proposal whose target date has passed sits in the
+    # feed's "Recently changed" bucket and is excluded here too.
     _live_pending_changes = [
-        e for e in _reg_change_raw.get("events", []) if e.get("kind") == "rule_change" and _is_still_upcoming(e)
+        e for e in _reg_change_raw.get("events", [])
+        if e.get("kind") == "rule_change"
+        and not _rc_is_enacted(e)
+        and (_is_still_upcoming(e) or not e.get("effective_date"))
     ]
     # Roadmap #327 (2026-08-11, ValueLab design-pattern-mining #2): "these
     # numbers need an actual refresh mechanism... a stale number is worse
@@ -9491,7 +9502,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     if _monitoring_fresh:
         _extra_stat_items_html = (
             f'<div class="item"><span class="n">{len(_live_pending_changes)}</span>'
-            f'<span class="lbl">pending rule changes tracked</span></div>'
+            f'<span class="lbl">tracked rule changes not yet final</span></div>'
             f'<div class="item"><span class="n">{len(_live_conflicts)}</span>'
             # AuditLab COPY-15 (LOW, 2026-08-28): "withhold a determination" was
             # retired from /rule-changes/ per Devin's "be positive" direction
