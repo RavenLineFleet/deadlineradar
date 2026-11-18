@@ -8891,9 +8891,11 @@ function drRenderDropdown() {
     input.setAttribute('aria-expanded', 'true');
     return;
   }
+  // A11Y-42 (AuditLab, 2026-11-18): tabindex=-1 keeps focus on the input,
+  // which aria-activedescendant requires; bare <button> options were tab stops.
   dropdown.innerHTML = matches.map(function(s, i) {
     return '<button type="button" class="state-search-option" id="dr-search-opt-' + i +
-      '" data-slug="' + s.slug + '" data-index="' + i + '" role="option" aria-selected="false">' +
+      '" data-slug="' + s.slug + '" data-index="' + i + '" tabindex="-1" role="option" aria-selected="false">' +
       s.name + '</button>';
   }).join('');
   dropdown.classList.add('is-open');
