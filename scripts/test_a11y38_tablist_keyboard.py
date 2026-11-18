@@ -33,6 +33,7 @@ def _harness(body):
         src = f.read()
     return (
         "var focused=null;var switched=[];var drMarkOnboardingVisit=function(){};\n"
+        "var hintRefreshes=0;var window={drRefreshTableScrollHints:function(){hintRefreshes++}};\n"
         "function el(view,tab){var a={attrs:{},hidden:false,id:'',listeners:{},classList:{toggle:function(){}},"
         "setAttribute:function(k,v){this.attrs[k]=v},getAttribute:function(k){return k==='data-view'?view:this.attrs[k]},"
         "addEventListener:function(t,f){this.listeners[t]=f},focus:function(){focused=this}};a.view=view;return a}\n"
@@ -112,3 +113,15 @@ def test_rendered_sidebar_has_exactly_one_tab_stop_on_the_active_tab():
 def test_non_tab_sidebar_links_stay_in_the_tab_order():
     html = generate._dashboard_sidebar_html("mobility", tabs_live_here=False)
     assert "tabindex" not in html
+
+
+def test_view_switch_refreshes_table_scroll_hints():
+    # UX-39: a resize while a view is hidden clears its scroll cue; the switch
+    # back must recompute it, after the target panel is unhidden.
+    got = _run(
+        "var seen=null;window.drRefreshTableScrollHints=function(){hintRefreshes++;"
+        "seen=panels.filter(function(p){return !p.hidden}).map(function(p){return p.view})};"
+        "drSwitchView('reports');"
+        "console.log(JSON.stringify({n:hintRefreshes,visibleAtRefresh:seen}))"
+    )
+    assert got == {"n": 1, "visibleAtRefresh": ["reports"]}
