@@ -178,10 +178,25 @@ def test_src270_date_forms_parse(text, iso):
     assert preship_gate._bill_effective_pairs(f"HB 1 eff. {text}") == [("HB 1", iso)]
 
 
-def test_src270_window_is_40_and_real_tree_pairs_all_sit_inside_it():
-    # 40 and 200 yield identical pairs on the real tree once the regex parses
-    # abbreviations; the widening only bought room to misattribute.
-    assert preship_gate._BILL_DATE_WINDOW == 40
+def test_src271_window_is_200():
+    # SRC-271: the parse guard, not the window, stops misattribution; 200 keeps
+    # recall for a date pushed out by a parenthetical.
+    assert preship_gate._BILL_DATE_WINDOW == 200
+
+
+def test_src271_exhibits_correct_at_window_200():
+    assert preship_gate._bill_effective_pairs(SB522_CITATION) == [("SB 522", "2025-09-01")]
+    assert preship_gate._bill_effective_pairs(HB548_EVIDENCE) == [("HB 548", "2026-08-01")]
+
+
+def test_date_window_200_catches_date_at_plus_63(tmp_path):
+    # SRC-269 follow-up (a): AuditLab's own re-introduction probe, date at +63
+    # from the marker, was a silent miss at _BILL_DATE_WINDOW = 40.
+    t = _tree(tmp_path, {
+        "data/a.json": _rec("kansas", "HB 2573 eff. 2026-04-23."),
+        "data/b.json": _rec("kansas", "HB 2573, effective (per the Revisor's published slip law as of the 2026 session) 2026-07-01")})
+    errs = preship_gate.check_bill_effective_date_consistency(t)
+    assert len(errs) == 1 and "2026-07-01" in errs[0], errs
 
 
 def test_ptin_federal_pair_guarded_byte_identical(tmp_path):

@@ -5298,7 +5298,7 @@ _BILL_DATEISH_RE = re.compile(
     r"|\b\d{1,2}\s+(?:" + _BILL_MON_ALT + r")\.?\s+\d{4}\b")
 _BILL_ARROW_RE = re.compile(r"\s*(?:->|\u2192|=>)\s*")
 _BILL_MARK_WINDOW = 80   # chars from the bill id to its effective-marker
-_BILL_DATE_WINDOW = 40   # chars from the marker to the date. SRC-270 reverted 200 -> 40: with the regex fixed, 40 and 200 yield identical pairs on the real tree (every date sits at +1..+7); a wide window only adds room to misattribute. Do NOT widen _BILL_MARK_WINDOW either (80->160 costs 1 FP).
+_BILL_DATE_WINDOW = 200  # chars from the marker to the date. SRC-271 restored 200 (SRC-270 had cut to 40): the first-date-like-token-must-parse guard is what prevents misattribution, not the window; at 200 SB 522/HB 548 still take their own dates, and 40 silently misses a date pushed out by a parenthetical (+63 probe). Do NOT widen _BILL_MARK_WINDOW (80->160 costs 1 FP).
 # (state, bill, frozenset of conflicting dates) -> one-line reason. An entry
 # that no longer matches anything fails too, so this list can't rot.
 _BILL_DATE_ALLOWLIST: dict[tuple[str, str, frozenset], str] = {}
