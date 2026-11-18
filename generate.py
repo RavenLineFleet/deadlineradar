@@ -16296,6 +16296,9 @@ function drSwitchView(view) {
     a.setAttribute('aria-selected', isActive ? 'true' : 'false');
     a.setAttribute('tabindex', isActive ? '0' : '-1');
   });
+  // A resize while a view was hidden measured its table at 0px and cleared
+  // the scroll cue; recompute now that the target view is visible.
+  if (window.drRefreshTableScrollHints) window.drRefreshTableScrollHints();
 }
 
 // One tab stop for the tab group; arrows, Home and End move focus between
