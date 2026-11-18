@@ -5269,6 +5269,123 @@ def check_derived_fee_consistency(repo_root: Path) -> list[str]:
     return errors
 
 
+# SRC-269 (AuditLab LOW, 2026-11-17, remedy amended 15:21Z). One bill's
+# effective date is copied as free text across many records and files; the
+# copies were never compared. Kansas HB 2573 carried 2026-04-23 (correct,
+# mobility files) and 2026-07-01 (wrong, 4 sibling files) for ~3 months.
+# Same class as check_derived_fee_consistency, for legislative dates.
+_BILL_RE = re.compile(
+    r"\b(H\.?\s?B\.?|S\.?\s?B\.?|House Bill|Senate Bill|A\.?B\.?|L\.?B\.?|H\.?F\.?|S\.?F\.?)\s?(\d{1,5})\b")
+_BILL_EFF_MARK_RE = re.compile(r"\b(eff\.|effective|in force since|takes effect(?: on)?)", re.I)
+_BILL_MONTHS = ("January", "February", "March", "April", "May", "June", "July",
+                "August", "September", "October", "November", "December")
+_BILL_DATE_RE = re.compile(
+    r"\b(\d{4})-(\d{2})-(\d{2})\b|\b(" + "|".join(_BILL_MONTHS) + r")\s+(\d{1,2}),\s+(\d{4})\b")
+_BILL_ARROW_RE = re.compile(r"\s*(?:->|\u2192|=>)\s*")
+_BILL_MARK_WINDOW = 80   # chars from the bill id to its effective-marker
+_BILL_DATE_WINDOW = 40   # chars from the marker to the date
+# (state, bill, frozenset of conflicting dates) -> one-line reason. An entry
+# that no longer matches anything fails too, so this list can't rot.
+_BILL_DATE_ALLOWLIST: dict[tuple[str, str, frozenset], str] = {}
+
+
+def _bill_effective_pairs(s: str) -> list[tuple[str, str]]:
+    """(normalized bill, ISO effective date) pairs asserted in one string.
+    Tight windows on purpose: a bill id, then an effective-marker within
+    _BILL_MARK_WINDOW chars (before the next bill id), then a date within
+    _BILL_DATE_WINDOW chars of the marker. Two phrasings are resolved, not
+    skipped: "X -> Y" (a correction note) asserts Y, and "effective from and
+    after D" means D + 1 day."""
+    import datetime as _dt
+    out = []
+    bills = list(_BILL_RE.finditer(s))
+    for i, b in enumerate(bills):
+        lim = min(bills[i + 1].start() if i + 1 < len(bills) else len(s), b.end() + _BILL_MARK_WINDOW)
+        mk = _BILL_EFF_MARK_RE.search(s, b.end(), lim)
+        if not mk:
+            continue
+        d = _BILL_DATE_RE.search(s, mk.end(), min(len(s), mk.end() + _BILL_DATE_WINDOW))
+        if not d:
+            continue
+        between = s[mk.end():d.start()]
+        a = _BILL_ARROW_RE.match(s, d.end())
+        if a:
+            d2 = _BILL_DATE_RE.match(s, a.end())
+            if d2:
+                d = d2
+        if d.group(1):
+            iso = _dt.date(int(d.group(1)), int(d.group(2)), int(d.group(3)))
+        else:
+            iso = _dt.date(int(d.group(6)), _BILL_MONTHS.index(d.group(4)) + 1, int(d.group(5)))
+        if "from and after" in between.lower():
+            iso += _dt.timedelta(days=1)
+        kind = re.sub(r"[\s.]", "", b.group(1)).upper()
+        kind = {"HOUSEBILL": "HB", "SENATEBILL": "SB"}.get(kind, kind)
+        out.append((f"{kind} {int(b.group(2))}", iso.isoformat()))
+    return out
+
+
+def check_bill_effective_date_consistency(repo_root: Path) -> list[str]:
+    """SRC-269: fail when one (state, bill) is asserted effective on two
+    different dates in two different data files. Scans every string leaf of
+    every data/*.json and worker/src/*.json; the state comes from the nearest
+    enclosing state_slug / jurisdiction_slug / state. data/ and worker/src/
+    copies of a file count as one file (check_json_copies_identical keeps
+    them equal). Conflicts inside a single file are not flagged: mobility
+    narratives legitimately walk through several dates for one bill
+    (AuditLab's census: HB 121, HB 246, HB 2736, HB 643, SB 166, SB 432).
+    Does NOT catch a copy that states no date at all (same hole DERIV-1
+    recorded for fees). Fails closed when no data file is found."""
+    tag = "[SRC-269]"
+    paths = sorted((repo_root / "data").glob("*.json")) + sorted((repo_root / "worker" / "src").glob("*.json"))
+    if not paths:
+        return [f"{tag} no data/*.json or worker/src/*.json found -- this check is measuring nothing and must be repaired."]
+    seen: dict[tuple[str, str], dict[str, set[str]]] = {}
+
+    def walk(o, state):
+        if isinstance(o, dict):
+            st = o.get("state_slug") or o.get("jurisdiction_slug") or o.get("state") or state
+            st = st if isinstance(st, str) else state
+            for v in o.values():
+                yield from walk(v, st)
+        elif isinstance(o, list):
+            for v in o:
+                yield from walk(v, state)
+        elif isinstance(o, str):
+            yield state, o
+
+    for p in paths:
+        try:
+            obj = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as e:
+            return [f"{tag} {p.relative_to(repo_root).as_posix()} did not parse ({type(e).__name__}: {e}) -- fix it before shipping."]
+        for state, s in walk(obj, None):
+            for bill, iso in _bill_effective_pairs(s):
+                seen.setdefault((state or "?", bill), {}).setdefault(iso, set()).add(p.name)
+
+    errs: list[str] = []
+    used: set = set()
+    for (state, bill), by_date in sorted(seen.items()):
+        if len(by_date) < 2:
+            continue
+        files = {f for fs in by_date.values() for f in fs}
+        cross = any(fa != fb for da in by_date for db in by_date if da != db
+                    for fa in by_date[da] for fb in by_date[db])
+        if not cross or len(files) < 2:
+            continue
+        key = (state, bill, frozenset(by_date))
+        if key in _BILL_DATE_ALLOWLIST:
+            used.add(key)
+            continue
+        detail = "; ".join(f"{d} in {', '.join(sorted(fs))}" for d, fs in sorted(by_date.items()))
+        errs.append(f"{tag}[{state}] {bill} is stated effective on {len(by_date)} different dates across files: "
+                    f"{detail}. One legislative fact, copied as text, has diverged -- find the primary source "
+                    f"and correct every copy (or add a reasoned _BILL_DATE_ALLOWLIST entry if both are right).")
+    for key in sorted(set(_BILL_DATE_ALLOWLIST) - used, key=str):
+        errs.append(f"{tag} allowlist entry {key[0]}/{key[1]} {sorted(key[2])} no longer matches any conflict -- remove it.")
+    return errs
+
+
 def check_renewal_rules_currency(repo_root: Path) -> list[str]:
     """SRC-257 (AuditLab MEDIUM, 2026-11-13): data/renewal_rules.json (COUNCIL #2
     carryover + late-renewal pages) sits in _FRESHNESS_DENOMINATOR_EXCLUSIONS
@@ -11201,6 +11318,7 @@ def main():
     all_errors += check_stale_thresholds_unified(html_files, repo_root)
     all_errors += check_stale_boundary_parity(repo_root)
     all_errors += check_derived_fee_consistency(repo_root)
+    all_errors += check_bill_effective_date_consistency(repo_root)
     all_errors += check_block_claims_corroborated(repo_root)
     all_errors += check_hedge_language_enforced(repo_root)
     all_errors += check_partial_citation_flag_set(repo_root)
