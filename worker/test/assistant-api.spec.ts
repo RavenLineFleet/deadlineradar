@@ -637,6 +637,16 @@ describe("SRC-80 regression -- in_force_status/needs_reverification mirror the H
     expect(result[0]!.in_force_status).toBe("not_adopted");
   });
 
+  it("COPY-60 -- ENACTED_DATE_PENDING is enacted: undated -> null (no in-force line), dated -> upcoming, never not_adopted", async () => {
+    mockEvents([
+      { ...base, event_id: "c60a", status: "ENACTED_DATE_PENDING", effective_date: null, verified_date: "2026-11-15", upcoming: false, needs_reverification: false },
+      { ...base, event_id: "c60b", status: "ENACTED_DATE_PENDING", effective_date: "2028-01-01", verified_date: "2026-11-15", upcoming: true, needs_reverification: false },
+    ]);
+    const { lookupAssistantRuleChanges } = await import("../src/assistant");
+    const result = lookupAssistantRuleChanges("xx-test-state", ASOF);
+    expect(result.map((r) => r.in_force_status)).toEqual([null, "upcoming"]);
+  });
+
   it("STATUS-4 -- ADOPTED_RULE counts as adopted, same predicate as generate.py _rc_is_enacted", async () => {
     mockEvents([
       { ...base, event_id: "j", status: "ADOPTED_RULE", effective_date: "2026-11-01", verified_date: "2026-10-17", upcoming: true, needs_reverification: false },

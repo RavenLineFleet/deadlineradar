@@ -364,7 +364,9 @@ function ruleChangeInForceStatus(
   // proposal with no effective date reads null instead of not_adopted.
   // SRC-217: agency-adopted but awaiting the legislature is neither "not_adopted" nor in force.
   if (e.status === "ADOPTED_PENDING_LEGISLATURE") return "pending_legislative_approval";
-  if (e.status !== "ENACTED" && e.status !== "ADOPTED_RULE") return "not_adopted";
+  // AuditLab COPY-60 (2026-11-18): ENACTED_DATE_PENDING is enacted (PA's Oct 8 2026 amendment); it
+  // read "not_adopted" here. Same status set as generate.py's _RC_ENACTED_STATUSES.
+  if (e.status !== "ENACTED" && e.status !== "ENACTED_DATE_PENDING" && e.status !== "ADOPTED_RULE") return "not_adopted";
   if (!eff) return null;
   // AuditLab STATUS-4 (2026-10-25): every arm below is timing-only, so a
   // PROPOSED record with a future date came back "upcoming" -- the same value

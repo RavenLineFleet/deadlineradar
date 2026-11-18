@@ -1297,7 +1297,8 @@ export function buildRuleChangeNotificationEmail(
   const confirmLine = isMobilityTopic
     ? `check Practice Privilege Check or confirm directly with the ${stateName} board of accountancy`
     : `confirm directly with the ${stateName} board of accountancy`;
-  const isEnacted = status === "ENACTED" || status === "ADOPTED_RULE";
+  // COPY-60: same enacted set as generate.py's _RC_ENACTED_STATUSES.
+  const isEnacted = status === "ENACTED" || status === "ENACTED_DATE_PENDING" || status === "ADOPTED_RULE";
   const isProposed = status === "PROPOSED";
   // SRC-217: adopted by the agency, but goes into effect only if the legislature approves it.
   const isPendingLegislature = status === "ADOPTED_PENDING_LEGISLATURE";

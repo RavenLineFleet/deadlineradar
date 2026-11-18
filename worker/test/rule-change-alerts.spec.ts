@@ -532,6 +532,12 @@ describe("buildRuleChangeNotificationEmail() -- AuditLab STATUS-3 (a PROPOSED ru
     }
   });
 
+  it("COPY-60: ENACTED_DATE_PENDING keeps the enacted framing, never 'adoption not confirmed'", async () => {
+    const built = await idaho("ENACTED_DATE_PENDING");
+    expect(built.subject).toBe("Idaho CPA regulatory/statutory change -- Acme CPA");
+    expect(built.textBody).not.toContain("We have not confirmed it has been adopted");
+  });
+
   it("ADOPTED_RULE keeps the enacted framing, same as ENACTED", async () => {
     const built = await idaho("ADOPTED_RULE");
     expect(built.subject).toBe("Idaho CPA regulatory/statutory change -- Acme CPA");

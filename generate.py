@@ -9235,9 +9235,15 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     _live_pending_changes = [
         e for e in _reg_change_raw.get("events", [])
         if e.get("kind") == "rule_change"
-        and not _rc_is_enacted(e)
+        and _rc_is_not_yet_final(e)
         and (_is_still_upcoming(e) or not e.get("effective_date"))
     ]
+    _rc_assert_bucketable(_reg_change_raw.get("events", []))
+    # AuditLab COPY-61 (LOW, 2026-11-18): the tile counted EVENTS, and one Idaho docket
+    # (24-3001-2601) is published as two provision-level events, one dated and one not, so
+    # it was 2 of the 5. Count jurisdictions instead: a unit the data states directly, with
+    # no docket-identity parsing to get wrong.
+    _live_pending_states = sorted({e.get("jurisdiction_slug") for e in _live_pending_changes})
     # Roadmap #327 (2026-08-11, ValueLab design-pattern-mining #2): "these
     # numbers need an actual refresh mechanism... a stale number is worse
     # than no number." Both counts above are always an accurate reflection
@@ -9501,8 +9507,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     _extra_stat_items_html = ""
     if _monitoring_fresh:
         _extra_stat_items_html = (
-            f'<div class="item"><span class="n">{len(_live_pending_changes)}</span>'
-            f'<span class="lbl">tracked rule changes not yet final</span></div>'
+            f'<div class="item"><span class="n">{len(_live_pending_states)}</span>'
+            f'<span class="lbl">states with a rule change not yet final</span></div>'
             f'<div class="item"><span class="n">{len(_live_conflicts)}</span>'
             # AuditLab COPY-15 (LOW, 2026-08-28): "withhold a determination" was
             # retired from /rule-changes/ per Devin's "be positive" direction
@@ -10834,8 +10840,34 @@ def _rc_pending_reverification(e: dict) -> bool:
 # /rule-changes/'s splits AND the three other consumers of the upcoming union (state-page callout,
 # firm-dashboard Calendar modal/chip, staff notify email) -- STATUS-2 landed on /rule-changes/ alone, so
 # /idaho/ still said a PROPOSED rule "is coming ... effective 2028-01-01".
+# AuditLab COPY-60 (MEDIUM, 2026-11-18): ENACTED_DATE_PENDING (added by SRC-260, 11-15) was missing
+# here, so Pennsylvania's Oct 8 2026 statute amendment rendered under "not yet signed into law" and
+# the homepage counted it as not yet final -- STATUS-1 again on a new status string. Both status
+# sets are explicit now; a rule_change in neither (DIED_WITHDRAWN, or anything new) fails the build
+# in _rc_assert_bucketable() instead of falling into whichever bucket "not enacted" lands it in.
+_RC_ENACTED_STATUSES = ("ENACTED", "ENACTED_DATE_PENDING", "ADOPTED_RULE")
+_RC_NOT_YET_FINAL_STATUSES = ("ADOPTED_PENDING_LEGISLATURE", "PROPOSED")
+
+
 def _rc_is_enacted(e: dict) -> bool:
-    return e.get("status") in ("ENACTED", "ADOPTED_RULE")
+    return e.get("status") in _RC_ENACTED_STATUSES
+
+
+def _rc_is_not_yet_final(e: dict) -> bool:
+    return e.get("status") in _RC_NOT_YET_FINAL_STATUSES
+
+
+def _rc_assert_bucketable(events: list) -> None:
+    bad = [
+        (e.get("event_id"), e.get("status"))
+        for e in events
+        if e.get("kind") == "rule_change" and not (_rc_is_enacted(e) or _rc_is_not_yet_final(e))
+    ]
+    if bad:
+        raise ValueError(
+            f"rule_change status with no honest /rule-changes/ bucket or homepage-tile meaning: {bad}. "
+            f"Add a section for it (and to _RC_*_STATUSES) before publishing."
+        )
 
 
 def _rule_change_card_html(e: dict) -> str:
@@ -10982,6 +11014,7 @@ def build_rule_changes_page() -> str:
     meta = raw.get("_meta", {})
     events = raw.get("events", [])
     changes = [e for e in events if e.get("kind") == "rule_change"]
+    _rc_assert_bucketable(changes)
     conflicts = [e for e in events if e.get("kind") == "source_conflict"]
     upcoming = [e for e in changes if _is_still_upcoming(e)]
     # AuditLab RC-16 (MEDIUM, filed ~t314, re-verified 2026-08-29 with
@@ -11008,7 +11041,7 @@ def build_rule_changes_page() -> str:
     # proposal that hasn't been adopted at all -- split on status rather than
     # asserting one heading covers both.
     undated_enacted = [e for e in undated if _rc_is_enacted(e)]
-    undated_proposed = [e for e in undated if e not in undated_enacted]
+    undated_proposed = [e for e in undated if _rc_is_not_yet_final(e)]
     recent = [e for e in changes if not _is_still_upcoming(e) and e.get("effective_date")]
     # AuditLab FAIL-3-followup (2026-10-16): this bucket's own section note makes a first-person
     # claim -- "we do not assume a law took effect just because its start date arrived" -- that used
@@ -11024,7 +11057,7 @@ def build_rule_changes_page() -> str:
     # AuditLab STATUS-2 (2026-10-24): same split as undated_enacted/undated_proposed above. The
     # upcoming bucket's note said "A dated, signed change" over a PROPOSED member (Idaho).
     upcoming_enacted = [e for e in upcoming if _rc_is_enacted(e)]
-    upcoming_proposed = [e for e in upcoming if e not in upcoming_enacted]
+    upcoming_proposed = [e for e in upcoming if _rc_is_not_yet_final(e)]
     monitoring_count = meta.get("live_monitoring_count", 0)
 
     upcoming_html = (
@@ -16378,7 +16411,7 @@ function drRuleChangeEventsForFirm() {
 // AuditLab STATUS-3 (2026-10-24): mirrors generate.py's _rc_is_enacted(). DR_RULE_CHANGE_EVENTS holds
 // proposed rules too, and a missing/unknown status must not read as the settled claim.
 function drRuleChangeIsEnacted(e) {
-  return e.status === 'ENACTED' || e.status === 'ADOPTED_RULE';
+  return e.status === 'ENACTED' || e.status === 'ENACTED_DATE_PENDING' || e.status === 'ADOPTED_RULE';
 }
 
 function drRuleChangeEventsByDate() {
