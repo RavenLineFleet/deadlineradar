@@ -135,14 +135,53 @@ def test_no_data_files_fails_closed(tmp_path):
     assert len(errs) == 1 and "measuring nothing" in errs[0]
 
 
-def test_date_window_200_catches_date_at_plus_63(tmp_path):
-    # SRC-269 follow-up (a): AuditLab's own re-introduction probe, date at +63
-    # from the marker, was a silent miss at _BILL_DATE_WINDOW = 40.
-    t = _tree(tmp_path, {
-        "data/a.json": _rec("kansas", "HB 2573 eff. 2026-04-23."),
-        "data/b.json": _rec("kansas", "HB 2573, effective (per the Revisor's published slip law as of the 2026 session) 2026-07-01")})
-    errs = preship_gate.check_bill_effective_date_consistency(t)
-    assert len(errs) == 1 and "2026-07-01" in errs[0], errs
+# SRC-270 (AuditLab MEDIUM, 2026-11-18): the 40->200 widening recovered 0
+# correct pairs and misattributed 2, because the regex could not parse the
+# bill's own abbreviated/numeric date and walked past it. These are AuditLab's
+# two exact strings plus the latent trap they named.
+SB522_CITATION = ("Tex. Occ. Code §§ 901.461, 901.462 (practice privileges); as amended by Acts 2025, "
+                  "89th Leg., R.S., Ch. 40 (S.B. 522), § 2, eff. Sept. 1, 2025; "
+                  "22 TAC § 517.2 (as amended eff. 2025-10-09)")
+HB548_EVIDENCE = ("Bill-status action history (BillInfo.aspx?s=26rs&b=HB548): 'Effective date: 08/01/2026.' "
+                  "Louisiana Board of CPAs public pamphlet: signed June 2, 2026, effective August 1, 2026.")
+
+
+def test_src270_sb522_takes_its_own_abbreviated_date_not_the_tac_rules():
+    assert preship_gate._bill_effective_pairs(SB522_CITATION) == [("SB 522", "2025-09-01")]
+
+
+def test_src270_hb548_takes_mmddyyyy_not_the_signing_date():
+    assert preship_gate._bill_effective_pairs(HB548_EVIDENCE) == [("HB 548", "2026-08-01")]
+
+
+def test_src270_latent_trap_correct_copies_do_not_conflict(tmp_path):
+    t = _tree(tmp_path, {"worker/src/mobility_rules.json": _rec("texas", SB522_CITATION),
+                         "data/research.json": _rec("texas", "S.B. 522 (eff. September 1, 2025)")})
+    assert preship_gate.check_bill_effective_date_consistency(t) == []
+
+
+def test_src270_unparseable_first_date_yields_nothing_never_walks_past():
+    for first in ("1 July 2026", "July 2026", "7/1/26", "13/01/2026"):
+        s = f"HB 9 effective {first}; rule amended 2026-10-09"
+        assert preship_gate._bill_effective_pairs(s) == [], (first, preship_gate._bill_effective_pairs(s))
+
+
+def test_src270_date_window_stops_at_next_bill():
+    s = "HB 9 effective on signature; SB 4 eff. 2026-03-01"
+    assert preship_gate._bill_effective_pairs(s) == [("SB 4", "2026-03-01")]
+
+
+@pytest.mark.parametrize("text,iso", [("Apr. 22, 2026", "2026-04-22"), ("Jan 1, 2026", "2026-01-01"),
+                                      ("Sept. 1, 2025", "2025-09-01"), ("Sep 1 2025", "2025-09-01"),
+                                      ("May 5, 2026", "2026-05-05"), ("08/01/2026", "2026-08-01")])
+def test_src270_date_forms_parse(text, iso):
+    assert preship_gate._bill_effective_pairs(f"HB 1 eff. {text}") == [("HB 1", iso)]
+
+
+def test_src270_window_is_40_and_real_tree_pairs_all_sit_inside_it():
+    # 40 and 200 yield identical pairs on the real tree once the regex parses
+    # abbreviations; the widening only bought room to misattribute.
+    assert preship_gate._BILL_DATE_WINDOW == 40
 
 
 def test_ptin_federal_pair_guarded_byte_identical(tmp_path):

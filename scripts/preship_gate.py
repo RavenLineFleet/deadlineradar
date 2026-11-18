@@ -5279,11 +5279,26 @@ _BILL_RE = re.compile(
 _BILL_EFF_MARK_RE = re.compile(r"\b(eff\.|effective|in force since|takes effect(?: on)?)", re.I)
 _BILL_MONTHS = ("January", "February", "March", "April", "May", "June", "July",
                 "August", "September", "October", "November", "December")
+# SRC-270 (AuditLab MEDIUM, 2026-11-18): the old regex parsed only ISO and
+# full month names, so "eff. Sept. 1, 2025" / "08/01/2026" were invisible and
+# a wider window walked PAST them to the next parseable date -- some other
+# instrument's (SB 522 <- a TAC rule's date; HB 548 <- its signing date).
+# Now abbreviations and US MM/DD/YYYY parse, and the FIRST date-like token
+# after the marker decides: if it doesn't parse, the bill yields nothing
+# (never walk past it). The date window also stops at the next bill id.
+_BILL_MON_ABBR = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "Jun": 6, "Jul": 7, "Aug": 8,
+                  "Sept": 9, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12}
+_BILL_MON_ALT = "|".join(_BILL_MONTHS + tuple(_BILL_MON_ABBR))
 _BILL_DATE_RE = re.compile(
-    r"\b(\d{4})-(\d{2})-(\d{2})\b|\b(" + "|".join(_BILL_MONTHS) + r")\s+(\d{1,2}),\s+(\d{4})\b")
+    r"\b(\d{4})-(\d{2})-(\d{2})\b|\b(" + _BILL_MON_ALT + r")\.?\s+(\d{1,2}),?\s+(\d{4})\b"
+    r"|\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
+_BILL_DATEISH_RE = re.compile(
+    r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b"
+    r"|\b(?:" + _BILL_MON_ALT + r")\b\.?(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}\b"
+    r"|\b\d{1,2}\s+(?:" + _BILL_MON_ALT + r")\.?\s+\d{4}\b")
 _BILL_ARROW_RE = re.compile(r"\s*(?:->|\u2192|=>)\s*")
 _BILL_MARK_WINDOW = 80   # chars from the bill id to its effective-marker
-_BILL_DATE_WINDOW = 200  # chars from the marker to the date (SRC-269 follow-up (a): 40->200, AuditLab measured 0 new FPs at 3 refs, +14 recall; do NOT widen _BILL_MARK_WINDOW, 80->160 costs 1 FP)
+_BILL_DATE_WINDOW = 40   # chars from the marker to the date. SRC-270 reverted 200 -> 40: with the regex fixed, 40 and 200 yield identical pairs on the real tree (every date sits at +1..+7); a wide window only adds room to misattribute. Do NOT widen _BILL_MARK_WINDOW either (80->160 costs 1 FP).
 # (state, bill, frozenset of conflicting dates) -> one-line reason. An entry
 # that no longer matches anything fails too, so this list can't rot.
 _BILL_DATE_ALLOWLIST: dict[tuple[str, str, frozenset], str] = {}
@@ -5292,8 +5307,9 @@ _BILL_DATE_ALLOWLIST: dict[tuple[str, str, frozenset], str] = {}
 def _bill_effective_pairs(s: str) -> list[tuple[str, str]]:
     """(normalized bill, ISO effective date) pairs asserted in one string.
     Tight windows on purpose: a bill id, then an effective-marker within
-    _BILL_MARK_WINDOW chars (before the next bill id), then a date within
-    _BILL_DATE_WINDOW chars of the marker. Two phrasings are resolved, not
+    _BILL_MARK_WINDOW chars (before the next bill id), then the first
+    date-like token within _BILL_DATE_WINDOW chars of the marker (and before
+    the next bill id), which must parse or the bill yields nothing. Two phrasings are resolved, not
     skipped: "X -> Y" (a correction note) asserts Y, and "effective from and
     after D" means D + 1 day."""
     import datetime as _dt
@@ -5304,19 +5320,30 @@ def _bill_effective_pairs(s: str) -> list[tuple[str, str]]:
         mk = _BILL_EFF_MARK_RE.search(s, b.end(), lim)
         if not mk:
             continue
-        d = _BILL_DATE_RE.search(s, mk.end(), min(len(s), mk.end() + _BILL_DATE_WINDOW))
-        if not d:
+        nxt = bills[i + 1].start() if i + 1 < len(bills) else len(s)
+        di = _BILL_DATEISH_RE.search(s, mk.end(), min(nxt, mk.end() + _BILL_DATE_WINDOW))
+        if not di:
             continue
+        d = _BILL_DATE_RE.match(s, di.start())
+        if not d or d.end() != di.end():
+            continue  # first date-like token doesn't parse: yield nothing, never walk past it
         between = s[mk.end():d.start()]
         a = _BILL_ARROW_RE.match(s, d.end())
         if a:
             d2 = _BILL_DATE_RE.match(s, a.end())
             if d2:
                 d = d2
-        if d.group(1):
-            iso = _dt.date(int(d.group(1)), int(d.group(2)), int(d.group(3)))
-        else:
-            iso = _dt.date(int(d.group(6)), _BILL_MONTHS.index(d.group(4)) + 1, int(d.group(5)))
+        try:
+            if d.group(1):
+                iso = _dt.date(int(d.group(1)), int(d.group(2)), int(d.group(3)))
+            elif d.group(4):
+                mon = d.group(4)
+                n = _BILL_MONTHS.index(mon) + 1 if mon in _BILL_MONTHS else _BILL_MON_ABBR[mon]
+                iso = _dt.date(int(d.group(6)), n, int(d.group(5)))
+            else:
+                iso = _dt.date(int(d.group(9)), int(d.group(7)), int(d.group(8)))
+        except ValueError:
+            continue  # e.g. 13/01/2026 is not a US date we can attribute
         if "from and after" in between.lower():
             iso += _dt.timedelta(days=1)
         kind = re.sub(r"[\s.]", "", b.group(1)).upper()
