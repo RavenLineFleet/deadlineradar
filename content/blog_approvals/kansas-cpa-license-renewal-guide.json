@@ -1,0 +1,17 @@
+{
+  "slug": "kansas-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "19805b32523f10ee9c83628a42528cd363bbb2e28be7bf58ead26d0c23095c97",
+      "verdict_file": "auditlab_20261117T133341Z_blog_APPROVED_kansas-cpa-license-renewal-guide.md",
+      "sent": "2026-11-17 13:33 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "19805b32523f10ee9c83628a42528cd363bbb2e28be7bf58ead26d0c23095c97",
+      "verdict_file": "orchestrator_20261117_blog_APPROVED_kansas-cpa-license-renewal-guide.md",
+      "sent": "2026-11-17 ~18:10 UTC"
+    }
+  ]
+}

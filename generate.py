@@ -28109,6 +28109,81 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><em>Sources: Texas State Board of Public Accountancy rules, 22 Tex. Admin. Code &sect;&sect; 515.3, 515.5, 521.1, 523.111, 523.112, 523.130; the Board's License Renewal and Reinstatement pages and its August 12, 2024 individual license fee announcement. Checked November 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Board.</em></p>
 ''',
     },
+    {
+        "slug": "kansas-cpa-license-renewal-guide",
+        "published": "2026-11-20",
+        "title": "Kansas CPA License Renewal: Your Certificate Number Sets the Year, 80 CPE Hours Every Two Years, and Firms Renew by December 31",
+        "seo_title": "Kansas CPA Renewal: Odd/Even July 1, $165, 80 CPE",
+        "meta_description": (
+            "Kansas CPA permits expire July 1 in odd or even years depending on your certificate number. The $165 fee, 80 CPE hours with 2 of ethics, late rules, and the December 31 firm deadline."
+        ),
+        "body_html": '''
+<p class="intro">A Kansas CPA permit to practice runs for two years and expires on <strong>July 1</strong>. Your <strong>certificate number</strong> sets the year: odd-numbered certificates expire in odd-numbered years, even-numbered in even years. Renewal costs <strong>$165</strong> if the Board receives it by July 1, and needs <strong>80 CPE hours</strong> for the two-year period, including <strong>2 hours of ethics</strong>. Firms are on a separate clock. Every registered Kansas CPA firm renews <strong>every year by December 31</strong>.</p>
+
+<h2>Your certificate number sets the year</h2>
+<p>Kansas doesn't use birth months or one statewide date. Under K.S.A. 1-310(b) and (c), a permit for an odd-numbered certificate "shall expire on the next July 1 that occurs after the date that the permit was issued or renewed in an odd-numbered year." Even-numbered certificates work the same way in even-numbered years.</p>
+<p>In practice:</p>
+<ul>
+<li><strong>Odd-numbered certificate:</strong> your next expiration is July 1, 2027.</li>
+<li><strong>Even-numbered certificate:</strong> your permit last expired July 1, 2026. If you renewed, your next expiration is July 1, 2028.</li>
+</ul>
+<p>Note the date: it's July 1, not June 30. The Board's fee rule uses July 1 too. A renewal received "on or before July 1 of the renewal year" costs the regular fee.</p>
+<p>What renews is your <strong>permit to practice</strong>, not your certificate. The Board's FAQ says only "persons holding active permits to practice are required to obtain CE." It also says that using the CPA title for non-attest services, including financial planning, consulting and business valuation, still requires a valid Kansas permit.</p>
+<p><a href="../../kansas/">Enter your certificate number to get your exact Kansas date</a>.</p>
+
+<h2>What it costs</h2>
+<p>The fees are set by Board regulation, K.A.R. 74-12-1:</p>
+<ul>
+<li><strong>Renewal received on or before July 1:</strong> $165.00 for the two-year permit.</li>
+<li><strong>Renewal received after July 1:</strong> $247.50.</li>
+</ul>
+<p>The statute lets the Board raise the renewal fee to as much as $350 by regulation (K.S.A. 1-301). The Board has to notify permit holders when it changes a renewal fee, so check the amount when you renew.</p>
+
+<h2>CPE: 80 hours every two years, 2 of them ethics</h2>
+<p>K.A.R. 74-4-7(a) requires "80 hours of acceptable continuing education (CE) during each biennial period for renewal." According to the Board's FAQ, the reporting period runs July 1 to June 30 across the two years. Two of the 80 hours must be "in professional ethics relating to the practice of certified public accountancy."</p>
+<p>There's <strong>no per-year minimum</strong>. Some CPE vendors say Kansas CPAs need a set number of hours each year. The regulation has no such floor. It sets only the 80-hour two-year total and the 2-hour ethics minimum.</p>
+<p>Kansas also doesn't require a state-specific ethics course. The regulation defines ethics by topic, including professional standards, independence, integrity and objectivity, confidential client information, contingent fees, commissions and conflicts of interest. A course on those topics can count toward the 2 hours if it relates to the practice of certified public accountancy.</p>
+<p>The rules that trip people up:</p>
+<ul>
+<li><strong>Carryover:</strong> up to 20 hours beyond the requirement can carry into the next period. Extra ethics hours can be part of that 20, but they "shall not be used to meet the professional ethics requirement" next time (74-4-7(d)). You need fresh ethics hours every period.</li>
+<li><strong>Teaching:</strong> instructor and preparation hours together count for no more than 50% of the requirement (74-4-7(b)(4)).</li>
+<li><strong>Personal development:</strong> capped at 30% (74-4-8(c)).</li>
+<li><strong>Self-study:</strong> the Board's FAQ says "there is no limit."</li>
+<li><strong>Credit math:</strong> one hour of credit per 50 minutes (74-4-7(b)(1)).</li>
+</ul>
+<p>You need proof of completion before you file the renewal, not after (74-4-7(a)(1)). Keep certificates for five years from the end of the year you took the course. If you're audited, the Board wants "certificates of attendance/completion." Registration receipts, payment proof, agendas or affidavits aren't accepted.</p>
+<p>A new permit holder doesn't need CPE for the first permit. Per the FAQ, you'll be "assigned a number of pro-rated CE hours to obtain before the next renewal."</p>
+<p><a href="../../kansas-cpa-cpe-requirements/">The full Kansas CPE breakdown is here</a>.</p>
+
+<h2>If you practice outside Kansas</h2>
+<p>K.S.A. 1-310(f) lets the Board exempt a permit holder from Kansas CPE if all three of these are true:</p>
+<ul>
+<li>your principal place of business is outside Kansas;</li>
+<li>you show the Board you've met that state's CPE requirement;</li>
+<li>the Board considers that state's requirements similar to Kansas's.</li>
+</ul>
+<p>The statute says the Board "may" exempt you, so it isn't automatic. Separately, 74-4-7(c) allows CPE waivers "for reasons of health, military service, foreign residence, or retirement, or for other good cause."</p>
+
+<h2>If you miss July 1</h2>
+<p>Kansas has two tiers, split at 12 months:</p>
+<ul>
+<li><strong>Within 12 months of expiration:</strong> it's still a renewal (K.S.A. 1-310(d)). The Board's FAQ says you need the 80 hours, plus 8 penalty hours if they weren't finished during the permit period, and the $247.50 late fee. The regulation also says an applicant short on CPE must complete "an additional eight hours" before the permit is renewed (74-4-7(e)).</li>
+<li><strong>More than 12 months after expiration:</strong> it's a reinstatement (K.S.A. 1-310(g)). You file a reinstatement application, pay the reinstatement fee, and show "40 hours of qualifying continuing education within the preceding 12 months." Under 74-12-1(e), the fee is $247.50 for more than one year of a two-year period, or $123.75 for one year or less.</li>
+</ul>
+<p>If you don't plan to renew, tell the Board. The FAQ, citing K.A.R. 74-16-2, says a CPA must notify the Board in writing within 30 days of the renewal deadline if they don't wish to renew.</p>
+<p><a href="../../kansas-cpa-license-reinstatement/">Full Kansas reinstatement details here</a>.</p>
+
+<h2>Firms: every year, by December 31</h2>
+<p>Firm registration doesn't follow anyone's certificate number. K.S.A. 1-308(g) says each registered firm "shall renew the firm's registration by December 31 of each year," and the Board's FAQ answers "Annually by December 31." Under 74-12-1(h), renewal is $100.00, or $150.00 if late.</p>
+<p>Registration applies to any firm with a Kansas office that practices certified public accountancy. It also applies to a firm with no Kansas office that performs or offers attest services for a Kansas client (1-308(b)). If your firm is subject to peer review, the FAQ says proof of completion "every three years" goes in with the firm registration.</p>
+<p>The next firm deadline is <strong>December 31, 2026</strong>.</p>
+<p><a href="../../kansas-cpa-firm-renewal/">Kansas firm renewal details here</a>.</p>
+
+<p><strong>Bottom line</strong>: Your Kansas permit expires July 1 of an odd year if your certificate number is odd, or an even year if it's even. Renew by July 1 for $165; after that it's $247.50. Have 80 CPE hours for the two-year period with 2 in ethics, and don't count carried-over ethics hours toward the new ethics minimum. Past 12 months, you'll need reinstatement and 40 recent hours. Firms renew separately, every year by December 31, for $100.</p>
+
+<p><em>Sources: K.S.A. 1-301, 1-308 and 1-310 (the Board's current published text of 1-310); Kansas Board of Accountancy regulations K.A.R. 74-4-7, 74-4-8 and 74-12-1; the Board's FAQ page. Checked November 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Kansas Board of Accountancy.</em></p>
+''',
+    },
 ]
 
 

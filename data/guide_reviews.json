@@ -223,6 +223,12 @@
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
       "body_sha256": "c60a2bd7671743b4941fe663ce9eff191c7ddc5418e09a18985fc2dbc535330f",
       "body_modified": "2026-11-13"
+    },
+    "kansas-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-11-17",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "8cd9613eb4c18b1469c10e5f6a1188d4c8840f716c628417796dbbb54274d06e",
+      "body_modified": "2026-11-20"
     }
   }
 }
