@@ -4614,6 +4614,24 @@ def _turnstile_head_html() -> str:
     return _TURNSTILE_DEFERRED_LOADER_JS
 
 
+# AuditLab STATUS-3 (2026-10-24): one status test for "adopted, so a dated change will happen". Used by
+# /rule-changes/'s splits AND the three other consumers of the upcoming union (state-page callout,
+# firm-dashboard Calendar modal/chip, staff notify email) -- STATUS-2 landed on /rule-changes/ alone, so
+# /idaho/ still said a PROPOSED rule "is coming ... effective 2028-01-01".
+# AuditLab COPY-60 (MEDIUM, 2026-11-18): ENACTED_DATE_PENDING (added by SRC-260, 11-15) was missing
+# here, so Pennsylvania's Oct 8 2026 statute amendment rendered under "not yet signed into law" and
+# the homepage counted it as not yet final -- STATUS-1 again on a new status string. Both status
+# sets are explicit now; a rule_change in none of them (anything new) fails the build
+# in _rc_assert_bucketable() instead of falling into whichever bucket "not enacted" lands it in.
+# AuditLab GATE-131 (MEDIUM, 2026-11-18): DIED_WITHDRAWN was in no set, so a proposal dying -- a
+# normal outcome build_change_events.py accepts -- stopped every publish. It is its own disposition:
+# never "not yet final" (it is final: it will not happen), never upcoming, never in the homepage
+# tile, and its own /rule-changes/ section.
+_RC_ENACTED_STATUSES = ("ENACTED", "ENACTED_DATE_PENDING", "ADOPTED_RULE")
+_RC_NOT_YET_FINAL_STATUSES = ("ADOPTED_PENDING_LEGISLATURE", "PROPOSED")
+_RC_CLOSED_STATUSES = ("DIED_WITHDRAWN",)
+
+
 def _is_still_upcoming(e: dict, today: date | None = None) -> bool:
     """Whether a rule-change event is STILL in the future as of this build.
 
@@ -4644,8 +4662,12 @@ def _is_still_upcoming(e: dict, today: date | None = None) -> bool:
     the ~6h each evening when UTC is already tomorrow on an MDT build host,
     and the API called a rule in force a day early while this page said
     "not yet in force". Same UTC basis as main()'s real_today (DATE-6).
+    GATE-131 (AuditLab, 2026-11-18): a died/withdrawn rule is never upcoming,
+    whatever its stored flag says -- it will not take effect. This keeps it
+    out of the state-page callout, the firm-dashboard calendar/modal and the
+    staff notify email, which all read the upcoming union.
     """
-    if not e.get("upcoming"):
+    if not e.get("upcoming") or e.get("status") in _RC_CLOSED_STATUSES:
         return False
     eff = e.get("effective_date")
     if not eff:
@@ -10836,17 +10858,7 @@ def _rc_pending_reverification(e: dict) -> bool:
     return bool(e.get("needs_reverification")) or bool(eff and ver and ver < eff)
 
 
-# AuditLab STATUS-3 (2026-10-24): one status test for "adopted, so a dated change will happen". Used by
-# /rule-changes/'s splits AND the three other consumers of the upcoming union (state-page callout,
-# firm-dashboard Calendar modal/chip, staff notify email) -- STATUS-2 landed on /rule-changes/ alone, so
-# /idaho/ still said a PROPOSED rule "is coming ... effective 2028-01-01".
-# AuditLab COPY-60 (MEDIUM, 2026-11-18): ENACTED_DATE_PENDING (added by SRC-260, 11-15) was missing
-# here, so Pennsylvania's Oct 8 2026 statute amendment rendered under "not yet signed into law" and
-# the homepage counted it as not yet final -- STATUS-1 again on a new status string. Both status
-# sets are explicit now; a rule_change in neither (DIED_WITHDRAWN, or anything new) fails the build
-# in _rc_assert_bucketable() instead of falling into whichever bucket "not enacted" lands it in.
-_RC_ENACTED_STATUSES = ("ENACTED", "ENACTED_DATE_PENDING", "ADOPTED_RULE")
-_RC_NOT_YET_FINAL_STATUSES = ("ADOPTED_PENDING_LEGISLATURE", "PROPOSED")
+# Status sets (_RC_*_STATUSES): defined above _is_still_upcoming(), which module load calls first.
 
 
 def _rc_is_enacted(e: dict) -> bool:
@@ -10857,11 +10869,16 @@ def _rc_is_not_yet_final(e: dict) -> bool:
     return e.get("status") in _RC_NOT_YET_FINAL_STATUSES
 
 
+def _rc_is_closed(e: dict) -> bool:
+    return e.get("status") in _RC_CLOSED_STATUSES
+
+
 def _rc_assert_bucketable(events: list) -> None:
     bad = [
         (e.get("event_id"), e.get("status"))
         for e in events
-        if e.get("kind") == "rule_change" and not (_rc_is_enacted(e) or _rc_is_not_yet_final(e))
+        if e.get("kind") == "rule_change"
+        and not (_rc_is_enacted(e) or _rc_is_not_yet_final(e) or _rc_is_closed(e))
     ]
     if bad:
         raise ValueError(
@@ -10875,7 +10892,13 @@ def _rule_change_card_html(e: dict) -> str:
     eff_html = ""
     if eff:
         eff_date = fmt_date(date.fromisoformat(eff))
-        if _is_still_upcoming(e):
+        if _rc_is_closed(e):
+            # GATE-131: a withdrawn rule's date was only ever a target; it never took effect.
+            eff_html = (
+                f'<p class="rc-date"><strong>Target effective date was {esc(eff_date)}</strong> &mdash; '
+                f"withdrawn, so it will not take effect.</p>"
+            )
+        elif _is_still_upcoming(e):
             _eff_word = "Effective" if _rc_is_enacted(e) else "Target effective date"
             eff_html = f'<p class="rc-date"><strong>{_eff_word} {esc(eff_date)}</strong> &mdash; not yet in force.</p>'
         elif _rc_pending_reverification(e):
@@ -11015,6 +11038,10 @@ def build_rule_changes_page() -> str:
     events = raw.get("events", [])
     changes = [e for e in events if e.get("kind") == "rule_change"]
     _rc_assert_bucketable(changes)
+    # GATE-131: died/withdrawn rules get their own section and are kept out of every bucket below
+    # (dated ones would otherwise land in "Recently changed", undated ones in no section at all).
+    closed = [e for e in changes if _rc_is_closed(e)]
+    changes = [e for e in changes if not _rc_is_closed(e)]
     conflicts = [e for e in events if e.get("kind") == "source_conflict"]
     upcoming = [e for e in changes if _is_still_upcoming(e)]
     # AuditLab RC-16 (MEDIUM, filed ~t314, re-verified 2026-08-29 with
@@ -11074,6 +11101,7 @@ def build_rule_changes_page() -> str:
         else '<p class="rc-empty">No recent changes pending re-verification right now.</p>'
     )
     recent_verified_html = "\n".join(_rule_change_card_html(e) for e in recent_verified)
+    closed_html = "\n".join(_rule_change_card_html(e) for e in closed)
     conflict_html = "\n".join(_rule_conflict_card_html(e) for e in conflicts) if conflicts else ""
 
     if monitoring_count:
@@ -11205,6 +11233,12 @@ because its start date arrived.</p>
 primary source on the date shown on each card &mdash; settled as of that check, not assumed.</p>
 {recent_verified_html}
 ''' if recent_verified else ""}
+{f'''
+<h2>Died or withdrawn ({len(closed)})</h2>
+<p class="rc-section-note">Proposals that were withdrawn or died before becoming law or a final
+rule. Nothing changed because of them; they stay listed so you know they will not take effect.</p>
+{closed_html}
+''' if closed else ""}
 """
     if conflicts:
         # Devin, live, 2026-08-28: "We need to be positive in what we tell people and a IDK
@@ -28642,6 +28676,11 @@ def main() -> None:
             # last_verified dates, the page should show the most recent one.
             "last_verified": max(prior["last_verified"], r["last_verified"]) if prior else r["last_verified"],
         }
+
+    # AuditLab GATE-131 (2026-11-18): the bucket guard used to fire inside build_index_page(),
+    # after the state-page loop had already overwritten docs/<slug>/index.html, leaving docs/
+    # half-regenerated. Check before anything is written.
+    _rc_assert_bucketable(json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8")).get("events", []))
 
     SITE_DIR.mkdir(parents=True, exist_ok=True)
 
