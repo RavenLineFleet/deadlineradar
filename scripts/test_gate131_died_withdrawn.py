@@ -81,10 +81,72 @@ def test_died_card_never_reads_in_force(tmp_path, monkeypatch):
     assert "re-verify on or after" not in body
 
 
+_MUTATORS = {"write_text", "write_bytes", "mkdir", "makedirs", "touch", "unlink", "remove",
+             "rmdir", "rmtree", "rename", "copy", "copy2", "copyfile", "copytree", "move",
+             "symlink_to", "hardlink_to"}
+
+
+def _is_mutation(call):
+    f = call.func
+    if isinstance(f, ast.Attribute) and f.attr in _MUTATORS:
+        return True
+    if isinstance(f, ast.Name) and f.id == "open":
+        mode = call.args[1] if len(call.args) > 1 else next(
+            (k.value for k in call.keywords if k.arg == "mode"), None)
+        if mode is None:
+            return False
+        if not isinstance(mode, ast.Constant):
+            return True  # non-literal mode: assume it writes
+        return any(c in str(mode.value) for c in "wax+")
+    return False
+
+
+def _writes(node, funcs, depth, seen):
+    """True if node, or a module function it calls (to `depth`), mutates the filesystem."""
+    for n in ast.walk(node):
+        if not isinstance(n, ast.Call):
+            continue
+        if _is_mutation(n):
+            return True
+        f = n.func
+        if depth and isinstance(f, ast.Name) and f.id in funcs and f.id not in seen:
+            seen.add(f.id)
+            if _writes(funcs[f.id], funcs, depth - 1, seen):
+                return True
+    return False
+
+
+def _first_write_vs_guard(src):
+    """(guard_line, first_mutating_line) over main(), transitive through module functions."""
+    mod = ast.parse(src)
+    funcs = {n.name: n for n in mod.body if isinstance(n, ast.FunctionDef)}
+    guard = first = None
+    for n in ast.walk(funcs["main"]):
+        if not isinstance(n, ast.Call):
+            continue
+        if isinstance(n.func, ast.Name) and n.func.id == "_rc_assert_bucketable":
+            guard = n.lineno if guard is None else min(guard, n.lineno)
+        if _writes(n, funcs, 4, set()):
+            first = n.lineno if first is None else min(first, n.lineno)
+    return guard, first
+
+
 def test_main_checks_buckets_before_first_write():
+    # AuditLab 2026-11-18 (GATE-131 close): the earlier textual find() on .write_text(/
+    # SITE_DIR.mkdir( missed write_bytes and any writing callee. AST, transitive to depth 4.
     src = open(os.path.join(ROOT, "generate.py"), encoding="utf-8").read()
-    fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "main")
-    seg = ast.get_source_segment(src, fn)
-    guard, first_write = seg.find("_rc_assert_bucketable("), seg.find(".write_text(")
-    assert guard != -1 and first_write != -1 and guard < first_write
-    assert guard < seg.find("SITE_DIR.mkdir(")
+    guard, first = _first_write_vs_guard(src)
+    assert guard is not None and first is not None and guard < first
+
+
+def test_guard_order_detector_catches_a_write_above_the_guard():
+    # Positive controls: the detector must fail a direct write_bytes and a writing callee
+    # (two calls deep) placed above the guard -- the shapes the textual check let through.
+    src = open(os.path.join(ROOT, "generate.py"), encoding="utf-8").read()
+    anchor = "    _rc_assert_bucketable(json.loads(REG_CHANGE_EVENTS_PATH"
+    assert src.count(anchor) == 1
+    helpers = "\n\ndef _g131_probe_writer():\n    _g131_h()\n\n\ndef _g131_h():\n    open('x', 'wb').close()\n"
+    for inject in ('    (SITE_DIR / "x").write_bytes(b"")\n', "    _g131_probe_writer()\n"):
+        mutant = src.replace(anchor, inject + anchor) + helpers
+        guard, first = _first_write_vs_guard(mutant)
+        assert first < guard, inject
