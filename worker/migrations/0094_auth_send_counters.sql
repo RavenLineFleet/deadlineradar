@@ -7,7 +7,7 @@
 -- account. Same circuit-breaker shape as action_send_counters.
 CREATE TABLE IF NOT EXISTS auth_send_counters (
     day TEXT NOT NULL,   -- UTC date, ISO 'YYYY-MM-DD'
-    class TEXT NOT NULL, -- firm_session | firm_link | subscriber
+    class TEXT NOT NULL, -- firm_session | firm_link | subscriber | operator (free text, no CHECK)
     count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, class)
 );

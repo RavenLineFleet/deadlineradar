@@ -956,7 +956,11 @@ async function notifyOperatorOfStaleData(env: Env, guardMessage: string): Promis
   }
   if (!claimed) return;
   try {
-    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+    // SEC-109 (AuditLab 11:51Z, Orch 12:31Z): the operator class. Classed,
+    // this send's shared-row ceiling is cap (300), not cap - reserve (200),
+    // and its own 10-unit share is keyed day+operator, so no outsider-
+    // triggered send can exhaust it.
+    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "operator" });
     if (!underCap) {
       await store.unclaimStaleDataAlertForToday(env.DB, day);
       console.log(`[stale-data-alert] daily send cap reached, not sent for ${day}`);

@@ -5046,6 +5046,47 @@ describe("Staleness guard -- real HTTP + cron code paths, not just checkDataFres
     }
   });
 
+  it("SEC-109 (AuditLab 11:51Z): the STALE-3 alert still goes out when the general action pool is parked -- it spends the operator class", async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 202 }));
+    const { actionSendLimit, DEFAULT_DAILY_ACTION_SEND_CAP } = await import("../src/sender");
+    const day = STALE_MOCK_DATE.toISOString().slice(0, 10);
+    try {
+      vi.setSystemTime(STALE_MOCK_DATE);
+      await env.DB.prepare(`DELETE FROM stale_data_alert_log WHERE day = ?1`).bind(day).run();
+      await env.DB.prepare(`DELETE FROM auth_send_counters WHERE day = ?1`).bind(day).run();
+      await env.DB
+        .prepare(
+          `INSERT INTO action_send_counters (day, count) VALUES (?1, ?2)
+           ON CONFLICT(day) DO UPDATE SET count = ?2`
+        )
+        .bind(day, actionSendLimit(DEFAULT_DAILY_ACTION_SEND_CAP, false))
+        .run();
+
+      const worker = (await import("../src/index")).default;
+      const waited: Promise<unknown>[] = [];
+      const ctx = { waitUntil: (p: Promise<unknown>) => waited.push(p) } as unknown as ExecutionContext;
+      await worker.scheduled({} as ScheduledController, { ...env, RESEND_API_KEY: "test-key-not-real" }, ctx);
+      await Promise.all(waited);
+
+      const logged = await env.DB.prepare(`SELECT COUNT(*) AS n FROM stale_data_alert_log WHERE day = ?1`)
+        .bind(day)
+        .first<{ n: number }>();
+      expect(logged?.n).toBe(1);
+      const operator = await env.DB
+        .prepare(`SELECT count FROM auth_send_counters WHERE day = ?1 AND class = 'operator'`)
+        .bind(day)
+        .first<{ count: number }>();
+      expect(operator?.count).toBe(1);
+    } finally {
+      vi.useRealTimers();
+      fetchSpy.mockRestore();
+      await env.DB.prepare(`DELETE FROM stale_data_alert_log WHERE day = ?1`).bind(day).run();
+      await env.DB.prepare(`DELETE FROM auth_send_counters WHERE day = ?1`).bind(day).run();
+      await env.DB.prepare(`DELETE FROM action_send_counters WHERE day = ?1`).bind(day).run();
+    }
+  });
+
   it("AuditLab DROP-3: a FAILED send releases the claim, so a later pass gets a real retry instead of losing the alert until tomorrow", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 500 }));

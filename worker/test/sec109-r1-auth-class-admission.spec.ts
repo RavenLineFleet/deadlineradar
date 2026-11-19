@@ -6,9 +6,9 @@
  * it, so the "your sessions were ended" style notices stopped at 200.
  *
  * Fix: each authCritical send names a class (firm_session / firm_link /
- * subscriber) and first takes a unit of that class's own daily admission
- * share (auth_send_counters, migration 0094). The shares split the reserve
- * and never sum past it. These arms seed the counters directly and drive
+ * subscriber / operator) with its own daily admission share
+ * (auth_send_counters, migration 0094). The shares split the reserve and
+ * never sum past it. These arms seed the counters directly and drive
  * the real routes.
  */
 import { env } from "cloudflare:test";
@@ -135,10 +135,19 @@ afterEach(() => {
 });
 
 describe("SEC-109-R1: class shares", () => {
-  it("split the default reserve 40 / 30 / 30", () => {
-    expect(authSendClassLimit(CAP, "firm_session")).toBe(40);
+  it("split the default reserve 30 / 30 / 30 / 10", () => {
+    expect(authSendClassLimit(CAP, "firm_session")).toBe(30);
     expect(authSendClassLimit(CAP, "firm_link")).toBe(30);
     expect(authSendClassLimit(CAP, "subscriber")).toBe(30);
+    expect(authSendClassLimit(CAP, "operator")).toBe(10);
+  });
+
+  it("tenths sum to exactly 10, and the limits sum to at most the reserve for every cap from 12 to 5000", () => {
+    expect(CLASSES.reduce((n, c) => n + AUTH_SEND_CLASS_TENTHS[c], 0)).toBe(10);
+    for (let cap = 12; cap <= 5000; cap++) {
+      const sum = CLASSES.reduce((n, c) => n + authSendClassLimit(cap, c), 0);
+      expect(sum, `cap ${cap}`).toBeLessThanOrEqual(Math.floor(cap / ACTION_SEND_AUTH_RESERVE_DIVISOR));
+    }
   });
 
   it("never sum past the reserve for any cap from 3 to 5000", () => {
@@ -174,22 +183,40 @@ describe("SEC-109-R1: admission at the helper", () => {
     expect(await classCount("subscriber")).toBe(authSendClassLimit(CAP, "subscriber"));
   });
 
+  it("operator: non-auth parked at its line, the operator unit lands above it", async () => {
+    await setActionCount(NON_AUTH_LIMIT);
+    expect(await checkAndCountActionSend(env.DB, CAP)).toBe(false);
+    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: "operator" })).toBe(true);
+    expect(await actionCount()).toBe(NON_AUTH_LIMIT + 1);
+    expect(await classCount("operator")).toBe(1);
+  });
+
+  it("a non-auth send stops at the general pool line and never touches auth_send_counters", async () => {
+    await setActionCount(NON_AUTH_LIMIT - 1);
+    expect(await checkAndCountActionSend(env.DB, CAP)).toBe(true);
+    expect(await checkAndCountActionSend(env.DB, CAP)).toBe(false);
+    expect(await actionCount()).toBe(NON_AUTH_LIMIT);
+    for (const c of CLASSES) expect(await classCount(c)).toBe(0);
+  });
+
   it("a non-auth send never touches auth_send_counters", async () => {
     await setActionCount(10);
     expect(await checkAndCountActionSend(env.DB, CAP)).toBe(true);
     for (const c of CLASSES) expect(await classCount(c)).toBe(0);
   });
 
-  it("worst case: non-auth at its limit plus two classes full, the third class's last unit still lands", async () => {
+  it("worst case: non-auth at its limit plus three classes full, the fourth class's last unit still lands", async () => {
     const fs = authSendClassLimit(CAP, "firm_session");
     const fl = authSendClassLimit(CAP, "firm_link");
     const sub = authSendClassLimit(CAP, "subscriber");
-    await setActionCount(NON_AUTH_LIMIT + fl + sub + fs - 1);
+    const op = authSendClassLimit(CAP, "operator");
+    await setActionCount(NON_AUTH_LIMIT + fl + sub + fs + op - 1);
     await setClassCount("firm_link", fl);
     await setClassCount("subscriber", sub);
-    await setClassCount("firm_session", fs - 1);
-    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: "firm_session" })).toBe(true);
-    expect(await actionCount()).toBe(NON_AUTH_LIMIT + fl + sub + fs);
+    await setClassCount("firm_session", fs);
+    await setClassCount("operator", op - 1);
+    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: "operator" })).toBe(true);
+    expect(await actionCount()).toBe(NON_AUTH_LIMIT + fl + sub + fs + op);
     expect(await actionCount()).toBeLessThanOrEqual(CAP);
   });
 });

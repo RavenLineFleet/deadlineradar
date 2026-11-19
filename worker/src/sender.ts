@@ -135,6 +135,12 @@ export const ACTION_SEND_AUTH_RESERVE_DIVISOR = 3;
  *                   change-email pair. The cheapest class to drain
  *                   (self-confirmed mailboxes, no Turnstile), so it is
  *                   fenced off from both firm classes.
+ *   operator    -- notifyOperatorOfStaleData (AuditLab STALE-3), the only
+ *                   operator alarm. It sends at most once per UTC day
+ *                   (claimStaleDataAlertForToday), so it needs 1 unit of
+ *                   its 1/10 share. Nothing an outsider triggers can spend
+ *                   it, which is why sendSignupNotification (every signup)
+ *                   is NOT in this class. (AuditLab 11:51Z, Orch 12:31Z.)
  * What this does NOT buy: every class can still be drained by whoever can
  * trigger its members, including with accounts they made themselves (a
  * self-signed-up firm drains firm_session through its own 2FA/password/
@@ -143,13 +149,17 @@ export const ACTION_SEND_AUTH_RESERVE_DIVISOR = 3;
  * Deliberately NOT authCritical: issueAndSendFirmMemberInviteEmail. A
  * stalled invite delays onboarding; nobody is locked out or left unwarned.
  * The membership of each class is the set of call sites in index.ts that
- * pass it; AUTH_SEND_CLASS_TENTHS is the only place the shares live. */
-export type AuthSendClass = "firm_session" | "firm_link" | "subscriber";
+ * pass it; AUTH_SEND_CLASS_TENTHS is the only place the shares live. Keep
+ * the tenths summing to 10: that is what keeps the class limits within the
+ * reserve (exact at cap >= 12; caps 1-11 oversubscribe through the max(1)
+ * floor, which only wastes a class unit when the shared row refuses). */
+export type AuthSendClass = "firm_session" | "firm_link" | "subscriber" | "operator";
 
 export const AUTH_SEND_CLASS_TENTHS: Readonly<Record<AuthSendClass, number>> = {
-  firm_session: 4,
+  firm_session: 3,
   firm_link: 3,
   subscriber: 3,
+  operator: 1,
 };
 
 /** Daily admission limit for one class: its share of floor(cap / divisor),
