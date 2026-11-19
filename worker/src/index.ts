@@ -87,7 +87,7 @@ import {
   RATE_LIMIT_LOGOUT,
   RATE_LIMIT_FIRM_CHANGE_EMAIL,
   RATE_LIMIT_FIRM_PASSWORD_SET,
-  RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER,
+  RATE_LIMIT_FIRM_PASSWORD_SET_SESSION,
   RATE_LIMIT_OAUTH_START,
   RATE_LIMIT_CPE_ENTRY_CREATE,
   RATE_LIMIT_FIRM_DOCUMENT_UPLOAD,
@@ -12680,10 +12680,17 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
   // SEC-107 (SecurityLab LOW, AuditLab CONFIRMED, 2026-11-19): two buckets.
   // The IP bucket alone did not bound current-password guesses against one
   // member, because rotating source addresses resets it. The member bucket
-  // does, the same way handleFirm2faVerify() pairs ip with account. The key is
-  // session.memberId, chosen over the session.firmId used by the account-delete
-  // and change-email siblings: a firmId key would let one member spend a
-  // multi-member firm's whole budget. Both slots are spent here, after every
+  // does, the same way handleFirm2faVerify() pairs ip with account.
+  // SEC-108 (SecurityLab LOW, AuditLab CONFIRMED, 2026-11-19): the second key
+  // is session.sessionId, not session.memberId. This handler is an eviction
+  // control (deleteOtherSessionsForMember below), and SEC-71's comment on
+  // handleFirmSessionRevoke() already says why: a per-member key lets a stolen
+  // session drain the budget for the owner it is meant to help. A stolen cookie
+  // is one session and cannot mint another without a credential it does not
+  // carry, so this still bounds SEC-107's guesses; and a reset-link redemption
+  // always arrives on a freshly minted session, so it gets an untouched budget.
+  // A firmId key is worse still: one member could spend the whole firm's
+  // budget. Both slots are spent here, after every
   // refusal a caller can trigger for free (including the demo_locked 403, which
   // would otherwise let any holder of the shared demo session drain the demo
   // member's budget), and before the credential check and the hash.
@@ -12693,8 +12700,8 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
   if (!allowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
-  const memberAllowed = await checkRateLimit(env.DB, session.memberId, "firm_password_set_member", RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER);
-  if (!memberAllowed) {
+  const sessionAllowed = await checkRateLimit(env.DB, session.sessionId, "firm_password_set_session", RATE_LIMIT_FIRM_PASSWORD_SET_SESSION);
+  if (!sessionAllowed) {
     return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
