@@ -854,8 +854,11 @@ export const RATE_LIMIT_FIRM_2FA_DISABLE: RateLimit = { max: 8, windowSeconds: 6
 
 /** Setting/changing a password is authenticated already. This IP-keyed
  * bucket stops one address burning CPU on password hashing. It does NOT bound
- * current-password guesses against one member, because rotating source
- * addresses resets it (SEC-107); RATE_LIMIT_FIRM_PASSWORD_SET_SESSION does. */
+ * current-password guesses from one session, because rotating source
+ * addresses resets it (SEC-107); RATE_LIMIT_FIRM_PASSWORD_SET_SESSION does.
+ * Neither bucket bounds guesses against one member: N stolen sessions for
+ * the same member get N session budgets. That trade is deliberate (SEC-108):
+ * a member key would let a stolen session drain the owner's budget. */
 export const RATE_LIMIT_FIRM_PASSWORD_SET: RateLimit = { max: 10, windowSeconds: 3600 };
 
 /** SEC-107 (2026-11-19): POST /firm/password's second bucket, keyed on
