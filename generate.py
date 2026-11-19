@@ -9239,6 +9239,32 @@ def _rule_change_ingest_backlog(now: "datetime | None" = None) -> "list[str] | N
     return aged
 
 
+def _render_monitor_stat_items(pending_states: list, conflicts: list[dict]) -> str:
+    """The two monitor-fed homepage tiles. Both count JURISDICTIONS, matching their labels."""
+    # AuditLab COPY-65 (LOW, 2026-11-19): COPY-61 moved the pending tile from events to
+    # deduped jurisdictions, but the conflict tile beside it still counted EVENTS under a
+    # "jurisdiction(s)" label. Never wrong yet (67/67 data revisions had one conflict event
+    # per jurisdiction), but nothing enforced it. Same dedupe as _live_pending_states.
+    # The proof line's "See all N" stays an event count: it points at the feed's cards.
+    conflict_jurisdictions = sorted({e.get("jurisdiction_slug") for e in conflicts})
+    n_conf = len(conflict_jurisdictions)
+    return (
+        f'<div class="item"><span class="n">{len(pending_states)}</span>'
+        f'<span class="lbl">states with a rule change not yet final</span></div>'
+        f'<div class="item"><span class="n">{n_conf}</span>'
+        # AuditLab COPY-15 (LOW, 2026-08-28): "withhold a determination" was
+        # retired from /rule-changes/ per Devin's "be positive" direction
+        # (0f189964c), but survived here unchanged -- orphaned against a
+        # DIFFERENT six (the source-conflict jurisdictions, not the
+        # non-computable ones the footnote below actually explains), so a
+        # reader moving between this stat and the footnote could conflate
+        # two unrelated sixes. Reworded to match the same "found a
+        # conflict" framing used everywhere else now.
+        f'<span class="lbl">jurisdiction{"s" if n_conf != 1 else ""} with a live '
+        f'source conflict</span></div>'
+    )
+
+
 def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[dict]], real_today: date) -> str:
     # Roadmap #326 (2026-08-11, ValueLab design-pattern-mining #1): pulled
     # live at build time from the SAME data /rule-changes/ itself renders
@@ -9530,23 +9556,9 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # a customer count or logo wall (ValueLab's report flags that as the
     # fastest way this page would read as fabricated; we have no real
     # nameable customers).
-    _extra_stat_items_html = ""
-    if _monitoring_fresh:
-        _extra_stat_items_html = (
-            f'<div class="item"><span class="n">{len(_live_pending_states)}</span>'
-            f'<span class="lbl">states with a rule change not yet final</span></div>'
-            f'<div class="item"><span class="n">{len(_live_conflicts)}</span>'
-            # AuditLab COPY-15 (LOW, 2026-08-28): "withhold a determination" was
-            # retired from /rule-changes/ per Devin's "be positive" direction
-            # (0f189964c), but survived here unchanged -- orphaned against a
-            # DIFFERENT six (the source-conflict jurisdictions, not the
-            # non-computable ones the footnote below actually explains), so a
-            # reader moving between this stat and the footnote could conflate
-            # two unrelated sixes. Reworded to match the same "found a
-            # conflict" framing used everywhere else now.
-            f'<span class="lbl">jurisdiction{"s" if len(_live_conflicts) != 1 else ""} with a live '
-            f'source conflict</span></div>'
-        )
+    _extra_stat_items_html = (
+        _render_monitor_stat_items(_live_pending_states, _live_conflicts) if _monitoring_fresh else ""
+    )
 
     # AuditLab COPY-16 (LOW, 2026-08-28): the trust-footnote below used to say
     # "In the remaining N" -- correct only because it happened to render
