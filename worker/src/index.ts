@@ -13,10 +13,12 @@
  * unset, /subscribe degrades safely to capture-only (store the row, send
  * nothing) rather than erroring.
  *
- * Sending is gated on env.RESEND_API_KEY AND, at the network edge, on
- * Turnstile (env.TURNSTILE_SECRET_KEY): with the secret set, a bot that can't
- * solve the challenge never reaches the send path, so the public form can't be
- * used to blast confirmation emails at arbitrary addresses. A per-day circuit
+ * Sending is gated on env.RESEND_API_KEY and on Turnstile
+ * (env.TURNSTILE_SECRET_KEY), but /subscribe passes allowMissingToken, so a
+ * client that omits the token is NOT stopped by it (SEC-109): only the
+ * subscribe IP bucket and the per-email cooldown bound a script, and the
+ * action cap minus its auth reserve bounds the day's confirmations to
+ * addresses of the caller's choosing. A per-day circuit
  * breaker (sender.checkAndCountActionSend) is the last-resort cap on total
  * sends -- its own counter (migration 0019, AuditLab TS-1), separate from
  * the reminder scheduler's, so a burst against any of these routes can never
@@ -2073,7 +2075,10 @@ async function issueAndSendFirmLoginLink(
   const { rawToken } = await store.createLoginToken(env.DB, firmId, purpose, undefined, memberId);
   if (!env.RESEND_API_KEY) return;
   try {
-    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), {
+      // SEC-109: sign-in link -- may spend the reserved top third of the cap.
+      authCritical: true,
+    });
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
     // COPY HONESTY (2026-07-31): a link issued from "Forgot password" must
@@ -5143,7 +5148,10 @@ async function issueAndSendSubscriberLoginLink(env: Env, email: string): Promise
   const { rawToken, id: tokenId } = await store.createSubscriberLoginToken(env.DB, email);
   if (!env.RESEND_API_KEY) return;
   try {
-    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), {
+      // SEC-109: sign-in link -- may spend the reserved top third of the cap.
+      authCritical: true,
+    });
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
     const built = buildSubscriberLoginEmail(loginUrl);

@@ -1073,8 +1073,11 @@ export const RATE_LIMIT_ASSISTANT_CHAT: RateLimit = { max: 100, windowSeconds: 3
  * widget (this one sends a real email to a human, not a droplet lookup),
  * and much tighter: a real support request is a rare, deliberate action,
  * not a per-message ceiling. 5/hour/IP is generous for a genuinely
- * frustrated visitor retrying, tight enough that this can never become a
- * way to spam a human inbox at raven@. */
+ * frustrated visitor retrying. It does NOT bound a script that rotates IPs
+ * (SEC-109): the route has no Turnstile and originAllowed() passes a
+ * missing Origin header. What keeps that from silencing sign-in links is
+ * the auth reserve in sender.ts checkAndCountActionSend(); the support
+ * inbox itself is bounded only by the action cap minus that reserve. */
 export const RATE_LIMIT_ASSISTANT_TICKET: RateLimit = { max: 5, windowSeconds: 3600 };
 
 // Privacy-safe source attribution (Orchestrator directive, 2026-10-02): the

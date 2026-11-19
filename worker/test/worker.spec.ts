@@ -4354,7 +4354,8 @@ describe("sender.ts checkAndCountActionSend -- separate budget from reminders (A
     const cap = alreadyUsed + 3;
     const results: boolean[] = [];
     for (let i = 0; i < 5; i++) {
-      results.push(await checkAndCountActionSend(env.DB, cap));
+      // SEC-109: authCritical so this pins the cap itself, not the auth reserve.
+      results.push(await checkAndCountActionSend(env.DB, cap, { authCritical: true }));
     }
     expect(results).toEqual([true, true, true, false, false]);
   });

@@ -7,11 +7,15 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "../src/store";
+import { actionSendLimit } from "../src/sender";
 
 const BASE = "https://deadline-radar.com";
 const CPE = "firm_staff_cpe_reminder";
 const NOTIFY = "firm_rule_change_notify";
 const CAP = 50;
+// SEC-109: these sends are not authCritical, so the cap refuses them at
+// the auth reserve, not at CAP itself.
+const LIMIT = actionSendLimit(CAP, false);
 const NOTIFY_MAX = 20;
 const RULE = { state_slug: "georgia", jurisdiction: "Georgia", summary: "A change.", effective_date_label: "Jan 1, 2027" };
 
@@ -152,7 +156,7 @@ describe("rule-change notify refused by the global cap (SEC-78)", () => {
     await staff(f.cookie);
     await staff(f.cookie);
     const api = mailApi(200);
-    await setActionCount(CAP - 1);
+    await setActionCount(LIMIT - 1);
 
     const resp = await post("/firm/rule-change/notify", f.cookie, RULE);
     expect(await resp.json<NotifyBody>()).toMatchObject({ sent: 1, skipped: 1, total: 2 });
@@ -165,7 +169,7 @@ describe("rule-change notify refused by the global cap (SEC-78)", () => {
     await staff(f.cookie);
     await staff(f.cookie);
     const api = mailApi(500);
-    await setActionCount(CAP - 1);
+    await setActionCount(LIMIT - 1);
 
     const resp = await post("/firm/rule-change/notify", f.cookie, RULE);
     expect(await resp.json<NotifyBody>()).toMatchObject({ sent: 0, skipped: 2, total: 2 });

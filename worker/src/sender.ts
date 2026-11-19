@@ -94,15 +94,37 @@ export async function checkAndCountSend(db: D1Database, cap: number): Promise<bo
  * email (never a reminder) must use this instead of checkAndCountSend(). */
 export const DEFAULT_DAILY_ACTION_SEND_CAP = 300;
 
-export async function checkAndCountActionSend(db: D1Database, cap: number): Promise<boolean> {
-  if (cap <= 0) return false; // AuditLab CAP-1 -- see checkAndCountSend()'s own comment
+/** SEC-109 (SecurityLab MEDIUM + AuditLab widening, 2026-11-19): the
+ * action counter is shared by the two sign-in link senders AND by routes
+ * any script can reach with no CAPTCHA and no account (/assistant/ticket,
+ * /subscribe with its token omitted). Draining the cap through those
+ * routes silently dropped every magic link for the rest of the UTC day.
+ * So the top third of the cap is reserved: a send that is not flagged
+ * authCritical stops at cap - floor(cap / ACTION_SEND_AUTH_RESERVE_DIVISOR),
+ * and only an authCritical send may spend the reserved units. The default
+ * is NOT authCritical, so a route added later is held below the reserve
+ * without anyone having to remember to enumerate it. */
+export const ACTION_SEND_AUTH_RESERVE_DIVISOR = 3;
+
+export function actionSendLimit(cap: number, authCritical: boolean): number {
+  if (authCritical) return cap;
+  return cap - Math.floor(cap / ACTION_SEND_AUTH_RESERVE_DIVISOR);
+}
+
+export async function checkAndCountActionSend(
+  db: D1Database,
+  cap: number,
+  opts: { authCritical?: boolean } = {}
+): Promise<boolean> {
+  const limit = actionSendLimit(cap, opts.authCritical === true);
+  if (limit <= 0) return false; // AuditLab CAP-1 -- see checkAndCountSend()'s own comment
   const day = todayUtc();
   const result = await db
     .prepare(
       `INSERT INTO action_send_counters (day, count) VALUES (?1, 1)
        ON CONFLICT(day) DO UPDATE SET count = count + 1 WHERE count < ?2`
     )
-    .bind(day, cap)
+    .bind(day, limit)
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
