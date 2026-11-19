@@ -24947,7 +24947,7 @@ def build_cpe_hours_page(
     # 1-year cycle whose annual minimum equals its own total isn't a second
     # requirement -- it's the same fact stated twice, the exact "40-hour
     # minimum ... 40 hours every year" the go-live review flagged on NC).
-    elif annual_minimum and not (annual_minimum == cpe_record["total_hours"] and cpe_record["period_years"] == 1):
+    elif _cpe_binding_annual_floor(cpe_record):
         annual_line = (
             f"<li><strong>{annual_minimum}-hour minimum</strong> in each 1-year "
             f"period (you can't front-load the whole requirement into a single year).</li>"
@@ -25679,6 +25679,48 @@ def _renewal_rules_badge_and_note(record: dict, topic: str) -> tuple[str, str]:
     return f'<span class="verified-badge"{dv}>{label}</span>', ""
 
 
+def _cpe_binding_annual_floor(cpe_record: dict | None) -> int | None:
+    """The per-year CPE floor, when it is a separate requirement on top of the
+    total. None when there is no floor, when annual_minimum_hours is one leg of
+    an alternative track (CITE-52, Arkansas), or when it just restates the
+    total of a 1-year cycle (MO/NC). Shared by the CPE-requirements bullet and
+    the carryover page (SRC-278), so the two can't disagree on which states
+    have a floor."""
+    if not cpe_record:
+        return None
+    annual_minimum = cpe_record.get("annual_minimum_hours")
+    if not annual_minimum:
+        return None
+    if (cpe_record.get("annual_minimum_basis") or "floor") == "alternative_track":
+        return None
+    if annual_minimum == cpe_record["total_hours"] and cpe_record["period_years"] == 1:
+        return None
+    return annual_minimum
+
+
+def _carryover_annual_floor_html(state_slug: str, state_name: str, cpe_record: dict | None) -> str:
+    """SRC-278: carryover answers "can hours move BETWEEN periods"; a reader
+    also needs the floor WITHIN the period, or "no carryover" reads as "do
+    them whenever". Sourced on the requirements page it links to, so the
+    sentence carries no cite of its own. Empty for states with no binding
+    floor."""
+    floor = _cpe_binding_annual_floor(cpe_record)
+    if not floor:
+        return ""
+    total = cpe_record["total_hours"]
+    years = cpe_record["period_years"]
+    return (
+        "<h2>A separate rule: a minimum every year</h2>"
+        + chr(10)
+        + f"<p>Carryover is about moving hours from one period to the next. {esc(state_name)} also "
+        f"requires a <strong>{floor}-hour minimum in each 1-year period</strong> of its "
+        f"{years}-year cycle, so you can't front-load the whole {total}-hour requirement into a "
+        f'single year either. <a href="../{esc(state_slug)}-cpa-cpe-requirements/">The full CPE '
+        f"requirement and its source &rarr;</a></p>"
+        + chr(10)
+    )
+
+
 def build_cpe_carryover_page(record: dict, renewal_records: list[dict], cpe_record: dict | None,
                              as_of: date) -> tuple[str, str, str]:
     """COUNCIL #2: /<state>-cpa-cpe-carryover/. Answers one question -- can
@@ -25726,7 +25768,7 @@ def build_cpe_carryover_page(record: dict, renewal_records: list[dict], cpe_reco
 <h2>What the rule says</h2>
 {_rule_quote_html(record['carryover_quotes'])}
 
-{signup}
+{_carryover_annual_floor_html(state_slug, state_name, cpe_record)}{signup}
 
 {cpe_link}
 <p class="backlink-cross"><a href="../{esc(state_slug)}-cpa-license-late-renewal/">Missed {esc(state_name)}'s renewal deadline? What happens next &rarr;</a></p>
