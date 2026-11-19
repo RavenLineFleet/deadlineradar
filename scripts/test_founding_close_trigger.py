@@ -135,3 +135,15 @@ def test_grant_of_slot_5_fires_the_notice(env, monkeypatch):
         ffg.cmd_grant(args)
     assert ei.value.code == ffg.FULL_STATUS_EXIT
     assert len(_files(inboxes)) == 2
+
+
+def test_copy62_closed_page_description_flips_with_body(monkeypatch):
+    # AuditLab COPY-62: meta/og description sat outside the open/closed branch and kept advertising the offer.
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import generate as g
+    monkeypatch.setattr(g, "FOUNDING_FIRMS_OPEN", False)
+    closed = g.build_founding_firms_page()
+    assert "Five Founding Firm spots" not in closed and "no card" not in closed
+    assert 'content="All 5 Founding Firm spots have been taken. See plans and pricing for Deadline-Radar."' in closed
+    monkeypatch.setattr(g, "FOUNDING_FIRMS_OPEN", True)
+    assert "Five Founding Firm spots: a 365-day trial" in g.build_founding_firms_page()

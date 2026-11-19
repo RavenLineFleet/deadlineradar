@@ -6094,14 +6094,18 @@ def build_founding_firms_page() -> str:
 
 <p class="field-hint">Once the 5 spots are taken, they are gone.</p>
 """
+        meta_description = "Five Founding Firm spots: a 365-day trial of the Growth plan with no card, for CPA firms with more than 3 staff and up to 10."
     else:
         body = """<h1>Founding Firms</h1>
 <p class="intro">All 5 Founding Firm spots have been taken. Thank you to everyone who asked.</p>
 <p><a href="/pricing/">See plans and pricing</a></p>
 """
+        # AuditLab COPY-62 (2026-11-19): the description is the SERP snippet and link unfurl, so it
+        # flips with the body; the open-offer line must never describe a closed offer.
+        meta_description = "All 5 Founding Firm spots have been taken. See plans and pricing for Deadline-Radar."
     return page_shell(
         f"Founding Firms — {SITE_NAME}",
-        "Five Founding Firm spots: a 365-day trial of the Growth plan with no card, for CPA firms with more than 3 staff and up to 10.",
+        meta_description,
         body,
         home_href="../",
         canonical_path="/founding-firms/",
