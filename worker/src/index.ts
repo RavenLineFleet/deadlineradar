@@ -3078,9 +3078,14 @@ async function handleFirmLogout(request: Request, env: Env, ip: string): Promise
   // against, so there is nothing worth trading away this response's
   // documented "always succeeds" contract for.
   //
-  // AuditLab cookie/CSRF posture re-verify (2026-08-21): the only
-  // authenticated state-changing handler in this file without an
-  // originAllowed() call, where every sibling firm route has one -- not
+  // AuditLab cookie/CSRF posture re-verify (2026-08-21): flagged this as
+  // the only authenticated state-changing handler in this file without an
+  // originAllowed() call. That census excluded the 4 mobility check POSTs
+  // as read-only, and that basis was wrong: each calls checkRateLimit()
+  // keyed on the victim firm, which writes rate_limit_hits (SEC-105, fixed
+  // 2026-11-19). handleFirmPacketExport (GET) writes the same kind of row
+  // but needs a 43-char random license id first. When re-censusing, follow
+  // callees, not only the handler body. Original note: not
   // filed as a finding (impact is forced logout, a nuisance, and
   // SameSite=Lax likely makes it unreachable in the deployed same-origin
   // configuration) but flagged as worth a deliberate decision. Added for
@@ -14008,6 +14013,10 @@ async function handleMobilityCheck(request: Request, env: Env, ip: string): Prom
   const session = await requireFirmSessionWithFirm(request, env);
   if (session instanceof Response) return session;
 
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
   let raw: string;
   try {
     raw = await request.text();
@@ -14130,6 +14139,10 @@ async function handleFirmMobilityFirmCheck(request: Request, env: Env): Promise<
   const session = await requireFirmSessionAndPaidTier(request, env);
   if (session instanceof Response) return session;
 
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
+
   let raw: string;
   try {
     raw = await request.text();
@@ -14222,6 +14235,10 @@ async function handleFirmMobilityFirmCheck(request: Request, env: Env): Promise<
 async function handleMobilityCheckBatch(request: Request, env: Env): Promise<Response> {
   const session = await requireFirmSessionAndPaidTier(request, env, { allowMultiPersonFreeTrial: true });
   if (session instanceof Response) return session;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
 
   let raw: string;
   try {
@@ -14336,6 +14353,10 @@ async function handleMobilityCheckBatch(request: Request, env: Env): Promise<Res
 async function handleMobilityCheckRoster(request: Request, env: Env): Promise<Response> {
   const session = await requireFirmSessionAndPaidTier(request, env);
   if (session instanceof Response) return session;
+
+  if (!originAllowed(request, env)) {
+    return jsonResponse(400, { error: "That request couldn't be completed. Please try again from the Deadline-Radar site." });
+  }
 
   let raw: string;
   try {
