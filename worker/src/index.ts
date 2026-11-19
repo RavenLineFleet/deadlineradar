@@ -10655,7 +10655,7 @@ async function handleFirmPacketExport(request: Request, env: Env, subscriberId: 
   );
 
   const manifest = [
-    "DeadlineRadar Renewal Packet Export",
+    "Deadline-Radar Renewal Packet Export",
     `Firm: ${session.firm.name}`,
     `Staff member: ${license.staff_label || license.email}`,
     `State: ${stateNameForSlug(license.state_slug) || license.state_slug}`,

@@ -11177,6 +11177,71 @@ def _fetch_with_identity(url: str, timeout: float = 10.0):
         return None, b"", {}, str(e)
 
 
+# COPY-64 (AuditLab LOW, 2026-11-19): the customer-facing brand is "Deadline-Radar",
+# hyphenated. Before this arm the spelling was convention only, and an unhyphenated
+# string nearly reached a meta description via copy supplied inside an audit finding.
+# Lowercase "deadlineradar-" is allowed: it only appears in CSV download filenames.
+_BRAND_MISSPELLING_RE = re.compile(r"DeadlineRadar|Deadline Radar")
+_BRAND_TEXT_SUFFIXES = (".html", ".xml", ".txt", ".json", ".js", ".css", ".webmanifest", ".md")
+
+
+def _ts_code_lines(text: str):
+    """Yield (lineno, line) for worker TS lines that are not comments. Block-comment
+    bodies (lines starting `*`, `/*`, `/**`) and `//` lines are skipped, so internal
+    names in docstrings don't trip the arm; only code (string literals) is checked."""
+    in_block = False
+    for i, line in enumerate(text.splitlines(), 1):
+        s = line.strip()
+        if in_block:
+            if "*/" in s:
+                in_block = False
+            continue
+        if s.startswith("/*"):
+            if "*/" not in s[2:]:
+                in_block = True
+            continue
+        if s.startswith("//") or s.startswith("*"):
+            continue
+        yield i, line
+
+
+def check_brand_spelling(repo_root: Path) -> list[str]:
+    """COPY-64: no unhyphenated brand in shipped static files (docs/**) or in
+    customer-reachable Worker code (worker/src/*.ts, comments excluded)."""
+    errors = []
+    docs_dir = repo_root / "docs"
+    scanned = 0
+    for p in sorted(docs_dir.rglob("*")):
+        if not p.is_file() or p.suffix.lower() not in _BRAND_TEXT_SUFFIXES:
+            continue
+        scanned += 1
+        text = p.read_text(encoding="utf-8", errors="replace")
+        m = _BRAND_MISSPELLING_RE.search(text)
+        if m:
+            ctx = text[max(0, m.start() - 40): m.end() + 40].replace("\n", " ")
+            errors.append(
+                f"[COPY-64] {p.relative_to(repo_root).as_posix()}: unhyphenated brand "
+                f"{m.group(0)!r} in shipped file -- the brand is 'Deadline-Radar'. ...{ctx}..."
+            )
+    if scanned == 0:
+        return ["[COPY-64] scanned ZERO files under docs/ -- this check is measuring nothing "
+                "and must be repaired."]
+    ts_files = sorted((repo_root / "worker" / "src").glob("*.ts"))
+    if not ts_files:
+        return errors + ["[COPY-64] found ZERO worker/src/*.ts files -- the Worker half of this "
+                         "check is measuring nothing and must be repaired."]
+    for p in ts_files:
+        for lineno, line in _ts_code_lines(p.read_text(encoding="utf-8", errors="replace")):
+            m = _BRAND_MISSPELLING_RE.search(line)
+            if m:
+                errors.append(
+                    f"[COPY-64] {p.relative_to(repo_root).as_posix()}:{lineno}: unhyphenated brand "
+                    f"{m.group(0)!r} in Worker code (customer-reachable string) -- use "
+                    f"'Deadline-Radar'. {line.strip()[:120]}"
+                )
+    return errors
+
+
 def check_security_header_layers(fetch=None) -> list[str]:
     """SEC-HDR-2 -- see the block comment above `_SECURITY_HEADER_LAYERS`
     for the full derivation. Fetches each real layer, verifies IDENTITY
@@ -11403,6 +11468,7 @@ def main():
     all_errors += check_date_bound_parity(repo_root)
     all_errors += check_json_ld_script_breakout(repo_root)
     all_errors += check_inline_script_json_breakout(repo_root)
+    all_errors += check_brand_spelling(repo_root)
     all_errors += check_security_header_layers()
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")
