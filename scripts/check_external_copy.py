@@ -4,9 +4,11 @@
 Standing rule: the brand name is always "Deadline-Radar" (hyphenated) in
 copy that leaves this repo -- outreach emails, directory-listing
 submissions, social posts, support replies. The site's own generated HTML
-already enforces this correctly at build time; this script exists because
-that build-time enforcement does NOT cover ad-hoc external copy drafted by
-hand outside the docs/ build (e.g. `outreach_drafts/*.md`).
+and the Worker's customer-facing strings are enforced at build time by
+`preship_gate.py`'s `check_brand_spelling` arm (COPY-64, 2026-11-19 --
+before that arm, this sentence claimed a build-time check that did not
+exist). This script exists because that arm does NOT cover ad-hoc external
+copy drafted by hand outside the docs/ build (e.g. `outreach_drafts/*.md`).
 
 2026-09-08 incident: Orchestrator reviewed 6 board-outreach email drafts
 for accuracy/tone/citations and approved them, but missed that every one

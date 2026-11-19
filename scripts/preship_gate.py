@@ -11182,32 +11182,133 @@ def _fetch_with_identity(url: str, timeout: float = 10.0):
 # string nearly reached a meta description via copy supplied inside an audit finding.
 # Lowercase "deadlineradar-" is allowed: it only appears in CSV download filenames.
 _BRAND_MISSPELLING_RE = re.compile(r"DeadlineRadar|Deadline Radar")
-_BRAND_TEXT_SUFFIXES = (".html", ".xml", ".txt", ".json", ".js", ".css", ".webmanifest", ".md")
+_BRAND_TEXT_SUFFIXES = (".html", ".xml", ".txt", ".json", ".js", ".css", ".webmanifest", ".md",
+                        ".svg")  # G1: an SVG wordmark/OG image carries text too
+
+
+_TS_REGEX_PREV_CHARS = set("(,=:[!&|?{};+-*%<>~^")
+_TS_REGEX_PREV_WORDS = {"return", "typeof", "case", "in", "of", "void", "delete",
+                        "throw", "else", "yield", "await", "instanceof", "new"}
+
+
+def _ts_strip_comments(text: str):
+    """COPY-64 G3 (AuditLab t857): a real tokenizer, not a line-prefix heuristic.
+    Returns (lines, ok): `lines` is the file split on newlines with comment text
+    removed and string/template/regex text kept; `ok` is False when the tokenizer
+    ends inside a string, template, block comment or `${}` -- i.e. it lost sync, and
+    the caller must fail loud rather than trust the result. Template literals are
+    tracked with a `${}` depth stack, so a line inside a template that starts with
+    `*` or `//` (CSS `*{box-sizing...}`, a URL) is checked, not skipped."""
+    out = [[]]
+    state = "code"          # code | line | block | ' | " | tpl | re | reclass
+    stack = []              # brace depth per open `${`
+    prev = ""               # last significant code char
+    word = ""               # last identifier in code
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        nx = text[i + 1] if i + 1 < n else ""
+        if c == "\n":
+            if state == "line":
+                state = "code"
+            elif state in ("re", "reclass"):
+                return [''.join(x) for x in out], False
+            out.append([])
+            i += 1
+            continue
+        if state == "line":
+            i += 1
+            continue
+        if state == "block":
+            if c == "*" and nx == "/":
+                state = "code"
+                i += 2
+            else:
+                i += 1
+            continue
+        if state == "code":
+            if c == "/" and nx == "/":
+                state = "line"
+                i += 2
+                continue
+            if c == "/" and nx == "*":
+                state = "block"
+                i += 2
+                continue
+            if c == "/" and (prev == "" or prev in _TS_REGEX_PREV_CHARS
+                             or (prev.isalnum() and word in _TS_REGEX_PREV_WORDS)):
+                state = "re"
+            elif c in "'\"":
+                state = c
+            elif c == "`":
+                state = "tpl"
+            elif c == "{" and stack:
+                stack[-1] += 1
+            elif c == "}" and stack:
+                if stack[-1] == 0:
+                    stack.pop()
+                    state = "tpl"
+                else:
+                    stack[-1] -= 1
+            if c.isalnum() or c in "_$":
+                word = word + c if (prev.isalnum() or prev in "_$") else c
+            if not c.isspace():
+                prev = c
+            out[-1].append(c)
+            i += 1
+            continue
+        # inside a string / template / regex
+        if c == "\\":
+            out[-1].append(c)
+            if nx and nx != "\n":
+                out[-1].append(nx)
+                i += 2
+            else:
+                i += 1
+            continue
+        out[-1].append(c)
+        i += 1
+        if state in ("'", '"'):
+            if c == state:
+                state, prev = "code", "a"
+                word = ""
+        elif state == "tpl":
+            if c == "`":
+                state, prev = "code", "a"
+                word = ""
+            elif c == "$" and nx == "{":
+                out[-1].append(nx)
+                i += 1
+                stack.append(0)
+                state, prev = "code", "{"
+        elif state == "re":
+            if c == "[":
+                state = "reclass"
+            elif c == "/":
+                state, prev = "code", "a"
+                word = ""
+        elif state == "reclass":
+            if c == "]":
+                state = "re"
+    ok = state in ("code", "line") and not stack
+    return ["".join(x) for x in out], ok
 
 
 def _ts_code_lines(text: str):
-    """Yield (lineno, line) for worker TS lines that are not comments. Block-comment
-    bodies (lines starting `*`, `/*`, `/**`) and `//` lines are skipped, so internal
-    names in docstrings don't trip the arm; only code (string literals) is checked."""
-    in_block = False
-    for i, line in enumerate(text.splitlines(), 1):
-        s = line.strip()
-        if in_block:
-            if "*/" in s:
-                in_block = False
-            continue
-        if s.startswith("/*"):
-            if "*/" not in s[2:]:
-                in_block = True
-            continue
-        if s.startswith("//") or s.startswith("*"):
-            continue
-        yield i, line
+    """Yield (lineno, code_text) for worker TS: each line with its comment text
+    removed (so internal names in docstrings/`//` notes don't trip the arm) and its
+    string/template text kept. Raises ValueError if the tokenizer lost sync."""
+    lines, ok = _ts_strip_comments(text)
+    if not ok:
+        raise ValueError("TS tokenizer ended out of sync (unterminated string/template/comment)")
+    for i, line in enumerate(lines, 1):
+        if line.strip():
+            yield i, line
 
 
 def check_brand_spelling(repo_root: Path) -> list[str]:
     """COPY-64: no unhyphenated brand in shipped static files (docs/**) or in
-    customer-reachable Worker code (worker/src/*.ts, comments excluded)."""
+    customer-reachable Worker code (worker/src/**/*.ts, comments excluded)."""
     errors = []
     docs_dir = repo_root / "docs"
     scanned = 0
@@ -11226,12 +11327,18 @@ def check_brand_spelling(repo_root: Path) -> list[str]:
     if scanned == 0:
         return ["[COPY-64] scanned ZERO files under docs/ -- this check is measuring nothing "
                 "and must be repaired."]
-    ts_files = sorted((repo_root / "worker" / "src").glob("*.ts"))
+    ts_files = sorted((repo_root / "worker" / "src").rglob("*.ts"))  # G2: recursive
     if not ts_files:
         return errors + ["[COPY-64] found ZERO worker/src/*.ts files -- the Worker half of this "
                          "check is measuring nothing and must be repaired."]
     for p in ts_files:
-        for lineno, line in _ts_code_lines(p.read_text(encoding="utf-8", errors="replace")):
+        try:
+            code_lines = list(_ts_code_lines(p.read_text(encoding="utf-8", errors="replace")))
+        except ValueError as e:
+            errors.append(f"[COPY-64] {p.relative_to(repo_root).as_posix()}: {e} -- the Worker "
+                          "half of this check cannot trust its comment stripping and must be repaired.")
+            continue
+        for lineno, line in code_lines:
             m = _BRAND_MISSPELLING_RE.search(line)
             if m:
                 errors.append(
