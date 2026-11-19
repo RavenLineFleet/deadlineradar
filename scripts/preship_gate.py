@@ -11191,7 +11191,7 @@ _TS_REGEX_PREV_WORDS = {"return", "typeof", "case", "in", "of", "void", "delete"
                         "throw", "else", "yield", "await", "instanceof", "new"}
 
 
-def _ts_strip_comments(text: str):
+def _ts_lex_lines(text: str):
     """COPY-64 G3 (AuditLab t857): a real tokenizer, not a line-prefix heuristic.
     Returns (lines, ok): `lines` is the file split on newlines with comment text
     removed and string/template/regex text kept; `ok` is False when the tokenizer
@@ -11204,6 +11204,8 @@ def _ts_strip_comments(text: str):
     stack = []              # brace depth per open `${`
     prev = ""               # last significant code char
     word = ""               # last identifier in code
+    postfix = False         # G4: prev is a postfix `!` (non-null) or postfix `++`/`--`
+    prev_postfix_base = False  # whether the char before a first `+`/`-` ends an operand
     i, n = 0, len(text)
     while i < n:
         c = text[i]
@@ -11235,8 +11237,9 @@ def _ts_strip_comments(text: str):
                 state = "block"
                 i += 2
                 continue
-            if c == "/" and (prev == "" or prev in _TS_REGEX_PREV_CHARS
-                             or (prev.isalnum() and word in _TS_REGEX_PREV_WORDS)):
+            if c == "/" and not postfix and (
+                    prev == "" or prev in _TS_REGEX_PREV_CHARS
+                    or (prev.isalnum() and word in _TS_REGEX_PREV_WORDS)):
                 state = "re"
             elif c in "'\"":
                 state = c
@@ -11250,6 +11253,21 @@ def _ts_strip_comments(text: str):
                     state = "tpl"
                 else:
                     stack[-1] -= 1
+            if not c.isspace():
+                # COPY-64 G4 (AuditLab 2026-11-19): `a! / b`, `i++ / 2` -- a `!`,
+                # `++` or `--` right after an operand (identifier, `)`, `]`) is
+                # postfix, so a following `/` divides. A `!` after a keyword
+                # (`return !/re/.test(x)`) or after an operator stays prefix.
+                operand = ((prev.isalnum() or prev in "_$)]")
+                           and not (prev.isalnum() and word in _TS_REGEX_PREV_WORDS))
+                if c == "!":
+                    postfix = operand
+                elif c in "+-" and text[i - 1] == c and prev == c:
+                    postfix = prev_postfix_base
+                else:
+                    postfix = False
+                if c in "+-":
+                    prev_postfix_base = operand
             if c.isalnum() or c in "_$":
                 word = word + c if (prev.isalnum() or prev in "_$") else c
             if not c.isspace():
@@ -11298,7 +11316,7 @@ def _ts_code_lines(text: str):
     """Yield (lineno, code_text) for worker TS: each line with its comment text
     removed (so internal names in docstrings/`//` notes don't trip the arm) and its
     string/template text kept. Raises ValueError if the tokenizer lost sync."""
-    lines, ok = _ts_strip_comments(text)
+    lines, ok = _ts_lex_lines(text)
     if not ok:
         raise ValueError("TS tokenizer ended out of sync (unterminated string/template/comment)")
     for i, line in enumerate(lines, 1):

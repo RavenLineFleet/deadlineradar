@@ -15,6 +15,8 @@ sys.path.insert(0, HERE)
 import preship_gate as gate  # noqa: E402
 from pathlib import Path  # noqa: E402
 
+NL = chr(10)
+
 
 @pytest.fixture()
 def tree(tmp_path):
@@ -132,7 +134,7 @@ def test_url_in_string_is_not_a_comment(tree):
 
 
 def test_tokenizer_desync_fails_loud(tree):
-    (tree / "worker" / "src" / "broken.ts").write_text('const a = `never closed\n', encoding="utf-8")
+    (tree / "worker" / "src" / "broken.ts").write_text("const a = `never closed" + NL, encoding="utf-8")
     errs = gate.check_brand_spelling(tree)
     assert any("broken.ts" in e and "out of sync" in e for e in errs)
 
@@ -141,5 +143,50 @@ def test_every_real_worker_file_tokenizes_in_sync():
     files = sorted((Path(ROOT) / "worker" / "src").rglob("*.ts"))
     assert files
     for f in files:
-        _, ok = gate._ts_strip_comments(f.read_text(encoding="utf-8"))
+        text = f.read_text(encoding="utf-8")
+        lines, ok = gate._ts_lex_lines(text)
         assert ok, f
+        assert len(lines) == text.count(NL) + 1, f
+
+
+# COPY-64 G4 (AuditLab 2026-11-19): a postfix `!`/`++`/`--` before a division is not a
+# regex start. The G3 tokenizer opened a phantom regex here and blocked every push.
+@pytest.mark.parametrize("code", [
+    "const r = a! / b;",
+    "const r = o.c! / t;",
+    "const s = `${a! / b}`;",
+    "const r = i++ / 2;",
+    "const r = i-- / 2;",
+    "const r = f(x)! / 2;",
+    "const r = xs[0]! / 2;",
+])
+def test_postfix_operator_division_is_not_a_regex(tree, code):
+    p = tree / "worker" / "src" / "index.ts"
+    p.write_text(p.read_text(encoding="utf-8") + NL + code + NL, encoding="utf-8")
+    assert gate.check_brand_spelling(tree) == []
+    # ...and the brand on the next line is still seen (nothing swallowed).
+    p.write_text(p.read_text(encoding="utf-8") + 'const z = "DeadlineRadar";' + NL,
+                 encoding="utf-8")
+    errs = gate.check_brand_spelling(tree)
+    assert len(errs) == 1 and "DeadlineRadar" in errs[0]
+
+
+@pytest.mark.parametrize("code", [
+    r'if (!/^\d{4}-\d{2}$/.test(x)) { y = 1; } // DeadlineRadar note',
+    r'function f(x) { return !/^\d+$/.test(x); } // DeadlineRadar note',
+    r'const ok = a && !/^\/x/.test(b); // DeadlineRadar note',
+])
+def test_prefix_bang_regex_still_lexed_as_regex(tree, code):
+    # The live `!/^\d{4}-...$/.test(...)` idiom (deadline.ts, index.ts, totp.ts): the
+    # `!` is prefix, so the regex (here holding `/`) must not desync or eat the comment.
+    p = tree / "worker" / "src" / "index.ts"
+    p.write_text(p.read_text(encoding="utf-8") + NL + code + NL, encoding="utf-8")
+    assert gate.check_brand_spelling(tree) == []
+
+
+def test_one_ts_tokenizer_name_only():
+    # G5 naming hazard: GATE-69 was a twice-defined `_strip_ts_comments`. The brand
+    # arm's lexer must not sit beside it under a word-order near-homonym.
+    src = Path(HERE, "preship_gate.py").read_text(encoding="utf-8")
+    assert src.count(NL + "def _strip_ts_comments(") == 1
+    assert ("_ts_strip" + "_comments") not in src
