@@ -87,6 +87,7 @@ import {
   RATE_LIMIT_LOGOUT,
   RATE_LIMIT_FIRM_CHANGE_EMAIL,
   RATE_LIMIT_FIRM_PASSWORD_SET,
+  RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER,
   RATE_LIMIT_OAUTH_START,
   RATE_LIMIT_CPE_ENTRY_CREATE,
   RATE_LIMIT_FIRM_DOCUMENT_UPLOAD,
@@ -12611,11 +12612,6 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
   const staleRefusal = await passwordlessStaleRefusal(env, session);
   if (staleRefusal) return staleRefusal;
 
-  const allowed = await checkRateLimit(env.DB, ip, "firm_password_set", RATE_LIMIT_FIRM_PASSWORD_SET);
-  if (!allowed) {
-    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
-  }
-
   // Size-capped like every other JSON route in this file (the others go
   // through readFirmLicenseJsonBody). Flagged in review as the one
   // deviation from that convention.
@@ -12679,6 +12675,27 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
     return jsonResponse(403, {
       error: "This is a shared demo account. Password changes aren't available for this account.",
     });
+  }
+
+  // SEC-107 (SecurityLab LOW, AuditLab CONFIRMED, 2026-11-19): two buckets.
+  // The IP bucket alone did not bound current-password guesses against one
+  // member, because rotating source addresses resets it. The member bucket
+  // does, the same way handleFirm2faVerify() pairs ip with account. The key is
+  // session.memberId, chosen over the session.firmId used by the account-delete
+  // and change-email siblings: a firmId key would let one member spend a
+  // multi-member firm's whole budget. Both slots are spent here, after every
+  // refusal a caller can trigger for free (including the demo_locked 403, which
+  // would otherwise let any holder of the shared demo session drain the demo
+  // member's budget), and before the credential check and the hash.
+  // SEC-70/71: the slot is spent only after every refusal a caller can trigger
+  // for free, and before the first credential check, write or expensive step.
+  const allowed = await checkRateLimit(env.DB, ip, "firm_password_set", RATE_LIMIT_FIRM_PASSWORD_SET);
+  if (!allowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
+  }
+  const memberAllowed = await checkRateLimit(env.DB, session.memberId, "firm_password_set_member", RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER);
+  if (!memberAllowed) {
+    return jsonResponse(429, { error: "Too many attempts. Please try again later." });
   }
 
   // A session minted by redeeming a password-RESET link is exempt from

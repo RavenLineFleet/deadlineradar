@@ -852,9 +852,16 @@ export const RATE_LIMIT_FIRM_2FA_ENROLL: RateLimit = { max: 8, windowSeconds: 36
  * per-member keying and count as RATE_LIMIT_FIRM_2FA_VERIFY_ACCOUNT. */
 export const RATE_LIMIT_FIRM_2FA_DISABLE: RateLimit = { max: 8, windowSeconds: 600 };
 
-/** Setting/changing a password is authenticated already; this only stops a
- * compromised session being used to burn CPU. */
+/** Setting/changing a password is authenticated already. This IP-keyed
+ * bucket stops one address burning CPU on password hashing. It does NOT bound
+ * current-password guesses against one member, because rotating source
+ * addresses resets it (SEC-107); RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER does. */
 export const RATE_LIMIT_FIRM_PASSWORD_SET: RateLimit = { max: 10, windowSeconds: 3600 };
+
+/** SEC-107 (2026-11-19): POST /firm/password's second bucket, keyed on
+ * session.memberId rather than IP. It bounds total current-password guesses
+ * against one member no matter how many addresses send them. */
+export const RATE_LIMIT_FIRM_PASSWORD_SET_MEMBER: RateLimit = { max: 10, windowSeconds: 3600 };
 
 /** Cancel/resume are authenticated + rate-limited the same as password set
  * -- no legitimate admin needs more than a handful of toggles a day. */
