@@ -110,3 +110,16 @@ def test_src266_ok_card_quotes_approved_the_submission_not_submitted():
     for bad in ("submitted them", "were submitted", "Board submitted", "submitted to the Governor"):
         assert bad not in s, bad
     assert "The Bulletin said the Governor and Legislature" in s and "That date has passed" in s
+
+
+def test_copy63_pa_act57_is_enacted_effective_oct8():
+    # AuditLab 2026-11-19 (COPY-60 residual): Act 57 s.2 "This act shall take effect immediately",
+    # approved Oct. 8, 2026. The record read ENACTED_DATE_PENDING/None and /rule-changes/ showed "date pending".
+    e = _real("pennsylvania-regwatch-53f514f989a5")
+    assert e["status"] == "ENACTED" and e["effective_date"] == "2026-10-08"
+    assert "take effect immediately" in e["status_evidence"]
+    import json, pathlib
+    w = json.loads(pathlib.Path(__file__).resolve().parents[1].joinpath("worker", "src", "reg_change_events.json").read_text(encoding="utf-8"))
+    ws = w if isinstance(w, list) else (w.get("events") or [])
+    we = [x for x in ws if x.get("event_id") == "pennsylvania-regwatch-53f514f989a5"]
+    assert we and we[0]["status"] == "ENACTED" and we[0]["effective_date"] == "2026-10-08"
