@@ -88,3 +88,61 @@ def test_consent_gate_ignores_the_name_inside_a_string(tmp_path):
 
     errs = _consent_fixture(tmp_path, mutate)
     assert len(errs) == 1 and "runStripePriceParityAlertPass" in errs[0]
+
+
+# GATE-132 (AuditLab 2026-11-19): no regex-literal branch. M1 = a quote in a
+# regex flipped string state; M2 = a `//` in a regex read as a line comment
+# (both modes). Ablate with `git show 8cd4f4613:scripts/preship_gate.py`.
+
+def test_gate132_m1_quote_in_regex_keeps_following_code_blank_mode():
+    out = gate._blank_strings_and_comments('s.replace(/"/g, "&quot;"); await sendEmail(x);')
+    assert "sendEmail(" in out
+
+
+def test_gate132_m1_comment_after_quote_regex_removed_keep_mode():
+    out = gate._strip_ts_comments('const r = s.replace(/"/g, "&quot;"); // DeadlineRadar brand')
+    assert "DeadlineRadar" not in out and '"&quot;"' in out
+
+
+def test_gate132_m2_slashes_in_regex_not_a_comment_both_modes():
+    src = 'const u = /^https:\/\//.test(raw) ? store.write(x) : null;'
+    assert "store.write(" in gate._blank_strings_and_comments(src)
+    assert "store.write(" in gate._strip_ts_comments(src)
+    b64 = 'btoa(b).replace(/\+/g,"-").replace(/\//g,"_"); store.save(x);'
+    assert "store.save(" in gate._blank_strings_and_comments(b64)
+    assert "store.save(" in gate._strip_ts_comments(b64)
+
+
+def test_gate132_division_and_postfix_are_not_regex():
+    for src in ('const q = a / b; // c()', 'const q = a! / 2; // c()', 'i++ / 2; // c()'):
+        out = gate._strip_ts_comments(src)
+        assert "c()" not in out and "/" in out, src
+
+
+def test_gate132_negative_controls_unchanged():
+    assert gate._blank_strings_and_comments('f(); // sendEmail(x)').strip() == "f();"
+    assert "sendEmail" not in gate._blank_strings_and_comments('const s = "sendEmail(x)";')
+
+
+def test_gate132_regex_body_is_a_literal_in_blank_mode():
+    assert "demo_locked" not in gate._blank_strings_and_comments("const r = /demo_locked/;")
+
+
+def test_gate132_nested_template_in_interpolation():
+    src = 'const h = `<ul>${rows.map((r) => `<li>${r}</li>`).join("")}</ul>`; store.write(x);'
+    assert "store.write(" in gate._blank_strings_and_comments(src)
+    assert gate._strip_ts_comments(src) == src
+
+
+def test_gate132_keep_mode_matches_ts_lex_lines_on_worker_src():
+    files = sorted((REPO / "worker" / "src").rglob("*.ts"))
+    assert len(files) >= 20
+    for p in files:
+        text = p.read_text(encoding="utf-8")
+        lines, ok = gate._ts_lex_lines(text)
+        assert ok, p
+        keep = gate._blank_strings_and_comments(text, keep_strings=True)
+        assert keep.split("\n") == lines, p
+        blank = gate._blank_strings_and_comments(text)
+        assert len(blank) == len(keep), p
+        assert all(x == y or x == " " for x, y in zip(blank, keep)), p

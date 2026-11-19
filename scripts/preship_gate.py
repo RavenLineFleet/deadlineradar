@@ -7765,42 +7765,135 @@ def _blank_strings_and_comments(text: str, keep_strings: bool = False) -> str:
     missed, never fabricated).
 
     `keep_strings=True` copies string/template contents through verbatim
-    and only removes comments -- what `_strip_ts_comments()` needs (GATE-69)."""
+    and only removes comments -- what `_strip_ts_comments()` needs (GATE-69).
+
+    GATE-132 (AuditLab 2026-11-19): regex literals are a third construct. With
+    no regex branch, a quote inside one (`/"/g`) flipped string state and a
+    `//` inside one (`/^https:\\/\\//`) deleted the rest of the line as a
+    comment -- the second in BOTH modes. A `/` now opens a regex where
+    `_ts_lex_lines` would (same prev-char/keyword/postfix rule, COPY-64 G4);
+    its body is blanked like a string unless `keep_strings`. A regex that
+    hits a newline before its closing `/` was a division after all: the `/`
+    is emitted as code and the walk resumes after it. Templates now track
+    `${}` depth like `_ts_lex_lines` (a nested template inside an
+    interpolation used to close the outer one, which only went unnoticed
+    because nothing in the "code" between could open a regex). With
+    `keep_strings=True` the output is byte-identical to `_ts_lex_lines` joined
+    on newlines (pinned by test); without it, every char equals that output or
+    is a space."""
+    def lit(s):
+        return s if keep_strings else "".join("\n" if ch == "\n" else " " for ch in s)
+
     out = []
-    i = 0
-    n = len(text)
+    i, n = 0, len(text)
+    state = "code"          # code | tpl
+    stack = []              # brace depth per open `${` (as in _ts_lex_lines)
+    prev = ""               # last significant code char ("a" after a literal)
+    word = ""               # last identifier in code
+    postfix = False         # prev is a postfix `!`/`++`/`--`, so `/` divides
+    prev_postfix_base = False
     while i < n:
         c = text[i]
-        if c in ("'", '"', "`"):
-            quote = c
-            out.append(c if keep_strings else " ")
-            i += 1
-            while i < n:
-                c2 = text[i]
-                if c2 == "\\" and i + 1 < n:
-                    out.append(text[i : i + 2] if keep_strings else "  ")
-                    i += 2
-                    continue
-                if c2 == quote:
-                    out.append(c2 if keep_strings else " ")
-                    i += 1
-                    break
-                out.append(c2 if keep_strings or c2 == "\n" else " ")
+        nx = text[i + 1] if i + 1 < n else ""
+        if state == "tpl":
+            if c == "\\" and nx:
+                out.append(lit(text[i : i + 2]))
+                i += 2
+            elif c == "`":
+                out.append(lit(c))
+                i += 1
+                state, prev, word, postfix = "code", "a", "", False
+            elif c == "$" and nx == "{":
+                out.append(lit("${"))
+                i += 2
+                stack.append(0)
+                state, prev, word, postfix = "code", "{", "", False
+            else:
+                out.append(lit(c))
                 i += 1
             continue
-        if c == "/" and i + 1 < n and text[i + 1] == "/":
+        # code: top level, or inside a `${}` interpolation (blanked with its
+        # template unless keep_strings -- the documented conservatism above)
+        hide = bool(stack) and not keep_strings
+        if c == "/" and nx == "/":
             i += 2
             while i < n and text[i] != "\n":
                 i += 1
             continue
-        if c == "/" and i + 1 < n and text[i + 1] == "*":
+        if c == "/" and nx == "*":
             i += 2
             while i < n and not (text[i] == "*" and i + 1 < n and text[i + 1] == "/"):
                 out.append("\n" if text[i] == "\n" else "")
                 i += 1
             i += 2
             continue
-        out.append(c)
+        if c == "/" and not postfix and (
+                prev == "" or prev in _TS_REGEX_PREV_CHARS
+                or (prev.isalnum() and word in _TS_REGEX_PREV_WORDS)):
+            j, in_class = i + 1, False
+            while j < n and text[j] != "\n":
+                cj = text[j]
+                if cj == "\\" and j + 1 < n and text[j + 1] != "\n":
+                    j += 2
+                    continue
+                if cj == "/" and not in_class:
+                    break
+                if cj == "[":
+                    in_class = True
+                elif cj == "]":
+                    in_class = False
+                j += 1
+            if j < n and text[j] == "/":
+                body = lit(text[i + 1 : j])
+                out.append(lit(text[i : j + 1]) if hide else "/" + body + "/")
+                i = j + 1
+                prev, word, postfix = "a", "", False
+                continue
+            # no closing `/` on this line: a division after all, emitted as code
+        if c in ("'", '"'):
+            j = i + 1
+            while j < n:
+                if text[j] == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if text[j] == c:
+                    j += 1
+                    break
+                j += 1
+            out.append(lit(text[i:j]))
+            i = j
+            prev, word, postfix = "a", "", False
+            continue
+        if c == "`":
+            out.append(lit(c))
+            i += 1
+            state = "tpl"
+            continue
+        if c == "{" and stack:
+            stack[-1] += 1
+        elif c == "}" and stack:
+            if stack[-1] == 0:
+                stack.pop()
+                out.append(lit(c))
+                i += 1
+                state = "tpl"
+                continue
+            stack[-1] -= 1
+        if not c.isspace():
+            operand = ((prev.isalnum() or prev in "_$)]")
+                       and not (prev.isalnum() and word in _TS_REGEX_PREV_WORDS))
+            if c == "!":
+                postfix = operand
+            elif c in "+-" and i > 0 and text[i - 1] == c and prev == c:
+                postfix = prev_postfix_base
+            else:
+                postfix = False
+            if c in "+-":
+                prev_postfix_base = operand
+            if c.isalnum() or c in "_$":
+                word = word + c if (prev.isalnum() or prev in "_$") else c
+            prev = c
+        out.append(lit(c) if hide else c)
         i += 1
     return "".join(out)
 
