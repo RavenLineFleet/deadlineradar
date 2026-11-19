@@ -2076,8 +2076,8 @@ async function issueAndSendFirmLoginLink(
   if (!env.RESEND_API_KEY) return;
   try {
     const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), {
-      // SEC-109: sign-in link -- may spend the reserved top third of the cap.
-      authCritical: true,
+      // SEC-109: firm sign-in link (class firm_link) -- may spend the reserved top third of the cap.
+      authCritical: "firm_link",
     });
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
@@ -2138,6 +2138,9 @@ async function issueAndSendFirmMemberInviteEmail(
   const { rawToken } = await store.createLoginToken(env.DB, firmId, "login", undefined, memberId);
   if (!env.RESEND_API_KEY) return;
   try {
+    // SEC-109: deliberately NOT authCritical (see sender.ts
+    // AUTH_SEND_CLASS_TENTHS) -- a stalled invite delays onboarding but
+    // locks nobody out and hides no account change.
     const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
@@ -2916,7 +2919,7 @@ const BACKUP_CODE_REDEEMED_EMAIL_ENABLED = false;
 export async function sendBackupCodeRedeemedNotice(env: Env, firm: store.FirmRow, member: store.FirmMemberRow): Promise<void> {
   if (!env.RESEND_API_KEY) return;
   try {
-    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+    const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
     if (underCap) {
       const remaining = await store.countUnusedFirmMemberBackupCodes(env.DB, member.id);
       const built = buildFirmBackupCodeRedeemedEmail(firm.name, new Date().toISOString(), remaining, member.name);
@@ -5149,8 +5152,8 @@ async function issueAndSendSubscriberLoginLink(env: Env, email: string): Promise
   if (!env.RESEND_API_KEY) return;
   try {
     const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), {
-      // SEC-109: sign-in link -- may spend the reserved top third of the cap.
-      authCritical: true,
+      // SEC-109: subscriber sign-in link (class subscriber) -- may spend the reserved top third of the cap.
+      authCritical: "subscriber",
     });
     if (!underCap) return;
     const loginUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
@@ -5478,7 +5481,7 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
       // reasoning) as handleFirmChangeEmailRequest()'s own comment: a
       // starved daily-send budget should drop the (harmless, reversible)
       // confirm email, never the time-sensitive warning.
-      const noticeUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const noticeUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "subscriber" });
       let noticeSent = false;
       if (noticeUnderCap) {
         const noticeEmail = buildSubscriberEmailChangeRequestedNoticeEmail(newEmailRaw, new Date().toISOString());
@@ -5496,7 +5499,7 @@ async function handleSubscriberChangeEmailRequest(request: Request, env: Env): P
       // attempted. Fail-safe: the token is unusable without this confirm
       // link, so skipping it just means the user retries.
       if (noticeSent) {
-        const confirmUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+        const confirmUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "subscriber" });
         if (confirmUnderCap) {
           const confirmUrl = `${actionBaseUrl(env)}/subscriber/login/verify?token=${encodeURIComponent(rawToken)}`;
           const confirmEmail = buildSubscriberEmailChangeConfirmEmail(confirmUrl);
@@ -12791,12 +12794,16 @@ async function handleFirmPasswordSet(request: Request, env: Env, ip: string): Pr
   //
   // Guarded and capped exactly like issueAndSendFirmLoginLink(): no API key
   // means no send (unconfigured degrades to silence, not an error), and it
-  // counts against the same daily circuit breaker. Letting a security
-  // notice bypass the cap would hand an attacker a way to burn the send
-  // quota, so consistency wins over always-notify here.
+  // counts against the same daily circuit breaker. It does NOT bypass the
+  // cap: SEC-109 moved it above the non-auth line as an authCritical
+  // "firm_session" send, which is still bounded by that class's own daily
+  // admission share (sender.ts AUTH_SEND_CLASS_TENTHS). The old reason for
+  // keeping notices below the line -- an uncapped notice would let an
+  // attacker burn the quota -- assumed the only options were "capped" and
+  // "unbounded"; a bounded class answers it.
   if (env.RESEND_API_KEY) {
     try {
-      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
       if (underCap) {
         // migration 0045: notifies the MEMBER whose password actually
         // changed, not the firm's primary contact -- a teammate's password
@@ -13073,7 +13080,7 @@ async function handleFirm2faEnrollConfirm(request: Request, env: Env): Promise<R
   // pattern as handleFirmPasswordSet's own send above.
   if (env.RESEND_API_KEY) {
     try {
-      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
       if (underCap) {
         const built = buildFirmTwoFactorChangedEmail(firm.name, true, new Date().toISOString(), member.name);
         await sendEmail(env.RESEND_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
@@ -13209,7 +13216,7 @@ async function handleFirm2faDisable(request: Request, env: Env): Promise<Respons
 
   if (env.RESEND_API_KEY) {
     try {
-      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
       if (underCap) {
         const built = buildFirmTwoFactorChangedEmail(firm.name, false, new Date().toISOString(), member.name);
         await sendEmail(env.RESEND_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
@@ -13305,7 +13312,7 @@ async function handleFirmSignOutOtherDevices(request: Request, env: Env): Promis
     // ended, not the firm's primary contact.
     if (signoutFirm && member && env.RESEND_API_KEY) {
       try {
-        const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+        const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
         if (underCap) {
           const built = buildFirmSessionsEndedEmail(signoutFirm.name, new Date().toISOString(), endedSessions, member.name);
           await sendEmail(env.RESEND_API_KEY, member.email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);
@@ -13507,7 +13514,7 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
       // the notice first means a starved budget instead drops the confirm
       // email, which just delays the (harmless, reversible) change rather
       // than suppressing the (time-sensitive) warning.
-      const noticeUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const noticeUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
       let noticeSent = false;
       if (noticeUnderCap) {
         // migration 0045: notice goes to the MEMBER's own current (OLD)
@@ -13535,7 +13542,7 @@ async function handleFirmChangeEmailRequest(request: Request, env: Env): Promise
         // Independent send, independent cap check -- this is a SECOND real
         // email (to a different address, for a different purpose), not a
         // retry of the first.
-        const confirmUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+        const confirmUnderCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
         if (confirmUnderCap) {
           const confirmUrl = `${actionBaseUrl(env)}/firm/login/verify?token=${encodeURIComponent(rawToken)}`;
           const confirmEmail = buildFirmEmailChangeConfirmEmail(confirmUrl, member.name);
@@ -13829,7 +13836,7 @@ async function handleOauthCallback(request: Request, env: Env, ip: string, provi
   // must not block a legitimate sign-in.
   if (env.RESEND_API_KEY) {
     try {
-      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env));
+      const underCap = await checkAndCountActionSend(env.DB, actionDailySendCap(env), { authCritical: "firm_session" });
       if (underCap) {
         const built = buildFirmOauthLinkedEmail(firm.name, provider.displayName, claims.email, new Date().toISOString(), firm.admin_name);
         await sendEmail(env.RESEND_API_KEY, firm.admin_email, built, env.EMAIL_ALLOWLIST, env.EMAIL_PREVIEW_LOG_BODY);

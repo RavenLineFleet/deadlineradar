@@ -106,6 +106,61 @@ export const DEFAULT_DAILY_ACTION_SEND_CAP = 300;
  * without anyone having to remember to enumerate it. */
 export const ACTION_SEND_AUTH_RESERVE_DIVISOR = 3;
 
+/** SEC-109-R1/R2 (SecurityLab) + AuditLab's detection-notice class
+ * (2026-11-19): the reserve alone was drainable through its own members.
+ * Both sign-in link routes are reachable with no session (60/h/IP across
+ * the two IP buckets), and subscriber addresses are self-suppliable, so
+ * one IP emptied the shared reserve in ~3h and took firm sign-in AND every
+ * security notice down with it.
+ *
+ * So each authCritical send names a CLASS, and each class has its own
+ * daily admission counter (auth_send_counters, migration 0094), keyed on
+ * day + class only -- never IP or account, so no number of IPs or
+ * addresses buys more than the class's share. The class shares split the
+ * reserve and never sum past it, so an authCritical send that passed its
+ * admission can always spend the shared row: draining one class can't
+ * reach another class, and can't reach the non-auth 200.
+ *
+ * The classes split by what it costs to trigger a send:
+ *   firm_session -- needs a signed-in firm member (or a Google sign-in
+ *                   that matches one). The detection notices live here:
+ *                   backup code redeemed, password changed, 2FA on/off,
+ *                   other sessions ended, SSO linked, and both halves of
+ *                   the change-email flow. An attacker holding a stolen
+ *                   session gains by suppressing exactly these.
+ *   firm_link    -- firm sign-in links (login and signup). No session
+ *                   needed, but each address must be a firm member's,
+ *                   and minting one costs a strict-Turnstile signup.
+ *   subscriber   -- subscriber sign-in links and the subscriber
+ *                   change-email pair. The cheapest class to drain
+ *                   (self-confirmed mailboxes, no Turnstile), so it is
+ *                   fenced off from both firm classes.
+ * What this does NOT buy: every class can still be drained by whoever can
+ * trigger its members, including with accounts they made themselves (a
+ * self-signed-up firm drains firm_session through its own 2FA/password/
+ * sign-out notices). The split confines a drain to one class for the rest
+ * of the UTC day; it does not make any class undrainable.
+ * Deliberately NOT authCritical: issueAndSendFirmMemberInviteEmail. A
+ * stalled invite delays onboarding; nobody is locked out or left unwarned.
+ * The membership of each class is the set of call sites in index.ts that
+ * pass it; AUTH_SEND_CLASS_TENTHS is the only place the shares live. */
+export type AuthSendClass = "firm_session" | "firm_link" | "subscriber";
+
+export const AUTH_SEND_CLASS_TENTHS: Readonly<Record<AuthSendClass, number>> = {
+  firm_session: 4,
+  firm_link: 3,
+  subscriber: 3,
+};
+
+/** Daily admission limit for one class: its share of floor(cap / divisor),
+ * at least 1 for any positive cap so a tiny operator override can't shut
+ * sign-in off while non-auth sends still go. cap 0 stays a kill switch. */
+export function authSendClassLimit(cap: number, cls: AuthSendClass): number {
+  if (cap <= 0) return 0;
+  const reserve = Math.floor(cap / ACTION_SEND_AUTH_RESERVE_DIVISOR);
+  return Math.max(1, Math.floor((reserve * AUTH_SEND_CLASS_TENTHS[cls]) / 10));
+}
+
 export function actionSendLimit(cap: number, authCritical: boolean): number {
   if (authCritical) return cap;
   return cap - Math.floor(cap / ACTION_SEND_AUTH_RESERVE_DIVISOR);
@@ -114,11 +169,22 @@ export function actionSendLimit(cap: number, authCritical: boolean): number {
 export async function checkAndCountActionSend(
   db: D1Database,
   cap: number,
-  opts: { authCritical?: boolean } = {}
+  opts: { authCritical?: AuthSendClass } = {}
 ): Promise<boolean> {
-  const limit = actionSendLimit(cap, opts.authCritical === true);
+  const cls = opts.authCritical;
+  const limit = actionSendLimit(cap, cls !== undefined);
   if (limit <= 0) return false; // AuditLab CAP-1 -- see checkAndCountSend()'s own comment
   const day = todayUtc();
+  if (cls !== undefined) {
+    const admitted = await db
+      .prepare(
+        `INSERT INTO auth_send_counters (day, class, count) VALUES (?1, ?2, 1)
+         ON CONFLICT(day, class) DO UPDATE SET count = count + 1 WHERE count < ?3`
+      )
+      .bind(day, cls, authSendClassLimit(cap, cls))
+      .run();
+    if ((admitted.meta.changes ?? 0) === 0) return false;
+  }
   const result = await db
     .prepare(
       `INSERT INTO action_send_counters (day, count) VALUES (?1, 1)

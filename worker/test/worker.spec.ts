@@ -4347,15 +4347,39 @@ describe("sender.ts checkAndCountSend -- daily circuit breaker", () => {
 describe("sender.ts checkAndCountActionSend -- separate budget from reminders (AuditLab TS-1, 2026-08-05)", () => {
   it("allows sends up to its own cap, then refuses further sends that UTC day", async () => {
     const { checkAndCountActionSend } = await import("../src/sender");
+    // SEC-109-R1: an authCritical send also takes a unit of its class's own
+    // admission share, which is small for a small cap -- so pin the shared
+    // cap itself at the default cap, 3 below the top. Storage is shared
+    // across this file, so both rows are put back afterwards.
+    const cap = 300;
+    const today = "strftime('%Y-%m-%d','now')";
     const before = await env.DB
-      .prepare("SELECT count FROM action_send_counters WHERE day = strftime('%Y-%m-%d','now')")
+      .prepare(`SELECT count FROM action_send_counters WHERE day = ${today}`)
       .first<{ count: number }>();
-    const alreadyUsed = before?.count ?? 0;
-    const cap = alreadyUsed + 3;
+    const classBefore = await env.DB
+      .prepare(`SELECT count FROM auth_send_counters WHERE day = ${today} AND class = 'firm_session'`)
+      .first<{ count: number }>();
+    const setCount = (n: number) =>
+      env.DB
+        .prepare(
+          `INSERT INTO action_send_counters (day, count) VALUES (${today}, ?1)
+           ON CONFLICT(day) DO UPDATE SET count = ?1`
+        )
+        .bind(n)
+        .run();
+    await setCount(cap - 3);
     const results: boolean[] = [];
-    for (let i = 0; i < 5; i++) {
-      // SEC-109: authCritical so this pins the cap itself, not the auth reserve.
-      results.push(await checkAndCountActionSend(env.DB, cap, { authCritical: true }));
+    try {
+      for (let i = 0; i < 5; i++) {
+        // SEC-109: authCritical so this pins the cap itself, not the auth reserve.
+        results.push(await checkAndCountActionSend(env.DB, cap, { authCritical: "firm_session" }));
+      }
+    } finally {
+      await setCount(before?.count ?? 0);
+      await env.DB
+        .prepare(`UPDATE auth_send_counters SET count = ?1 WHERE day = ${today} AND class = 'firm_session'`)
+        .bind(classBefore?.count ?? 0)
+        .run();
     }
     expect(results).toEqual([true, true, true, false, false]);
   });

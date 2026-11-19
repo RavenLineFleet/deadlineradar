@@ -105,7 +105,7 @@ describe("SEC-109: actionSendLimit", () => {
   it("cap 0 stays a kill switch for both kinds (CAP-1/CAP-2)", async () => {
     expect(actionSendLimit(0, false)).toBe(0);
     expect(actionSendLimit(0, true)).toBe(0);
-    expect(await checkAndCountActionSend(env.DB, 0, { authCritical: true })).toBe(false);
+    expect(await checkAndCountActionSend(env.DB, 0, { authCritical: "firm_link" })).toBe(false);
   });
 });
 
@@ -114,13 +114,13 @@ describe("SEC-109: checkAndCountActionSend at the reserve boundary", () => {
     await setActionCount(NON_AUTH_LIMIT);
     expect(await checkAndCountActionSend(env.DB, CAP)).toBe(false);
     expect(await actionCount()).toBe(NON_AUTH_LIMIT);
-    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: true })).toBe(true);
+    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: "firm_link" })).toBe(true);
     expect(await actionCount()).toBe(NON_AUTH_LIMIT + 1);
   });
 
   it("an authCritical send is still refused at the full cap", async () => {
     await setActionCount(CAP);
-    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: true })).toBe(false);
+    expect(await checkAndCountActionSend(env.DB, CAP, { authCritical: "firm_link" })).toBe(false);
     expect(await actionCount()).toBe(CAP);
   });
 });
