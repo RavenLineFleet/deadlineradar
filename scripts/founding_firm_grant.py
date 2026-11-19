@@ -66,6 +66,71 @@ LAST_SLOT_WARNING = (
     "one-liners, /founding-firms/ page). Do that now or the offer stays live for spots that do not exist."
 )
 GROWTH_SEAT_CAP = 10  # worker/src/tiers.ts firm_growth; the trial is Growth-only
+# FOUNDING-CLOSE (Orchestrator 2026-11-18): the warning above is a human checkpoint. On top of it, the
+# moment this script sees 5 of 5 taken while generate.py still has FOUNDING_FIRMS_OPEN = True, it drops a
+# directive into the AssetLab and Orchestrator inboxes (the wake poller relaunches AssetLab on new mail),
+# and `status` exits non-zero. Production only (--local never writes). One file per inbox per closure,
+# keyed on slot 5's granted_at, so re-running status never spams.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+FULL_NOTICE_INBOXES = (Path.home() / "AssetLab" / "inbox", Path.home() / "Orchestrator" / "inbox")
+FULL_STATUS_EXIT = 3
+FLAG_RE = re.compile(r"^FOUNDING_FIRMS_OPEN = (True|False)\s*$", re.M)
+
+
+def site_flag_open(repo_root: Path = REPO_ROOT) -> bool:
+    """generate.py's FOUNDING_FIRMS_OPEN. Unreadable or ambiguous counts as open (fail toward notifying)."""
+    try:
+        found = FLAG_RE.findall((repo_root / "generate.py").read_text(encoding="utf-8"))
+    except OSError:
+        return True
+    return found != ["False"]
+
+
+def full_notice_name(last_granted_at: str) -> str:
+    stamp = re.sub(r"[^0-9T]", "", last_granted_at)[:15] or "unknown"
+    return f"founding_firm_grant_{stamp}Z_FOUNDING_FIRMS_FULL_flip_FOUNDING_FIRMS_OPEN_to_False.md"
+
+
+def full_notice_body(last_granted_at: str) -> str:
+    return f"""---
+from: founding_firm_grant.py
+to: assetlab
+cc: orchestrator
+kind: directive
+reply_required: yes
+needs_devin: no
+summary: All 5 Founding Firms slots are taken (slot 5 granted {last_granted_at}). The site still advertises the offer.
+---
+
+Automatic notice from scripts/founding_firm_grant.py: production D1 shows 5 of 5 founding slots used, and
+generate.py still has FOUNDING_FIRMS_OPEN = True.
+
+AssetLab, same day:
+1. Set FOUNDING_FIRMS_OPEN = False in generate.py (pre-built closed state: the bar and the /pricing/ and
+   /for-firms/ one-liners are removed, /founding-firms/ says all 5 spots have been taken).
+2. The closed wording needs an AuditLab PASS before it goes live. If the closed /founding-firms/ text
+   changed since its last PASS, get a fresh one first.
+3. Build, preship_gate, push; re-read live: /founding-firms/, /, /pricing/, /for-firms/. Report
+   "partly updated: X of 4" until all 4 read closed.
+4. Log the sweep in Orchestrator/state/UPDATE_EVERYWHERE.md CHANGE LOG; tell AuditLab and GrowthLab.
+`python scripts/founding_firm_grant.py status` exits non-zero until the flag is False.
+"""
+
+
+def write_full_notices(last_granted_at: str, inboxes=FULL_NOTICE_INBOXES) -> list[Path]:
+    """Write the closure directive to each inbox that does not already hold it. Returns the paths written."""
+    written = []
+    name = full_notice_name(last_granted_at)
+    for inbox in inboxes:
+        target = Path(inbox) / name
+        if not Path(inbox).is_dir() or target.exists():
+            continue
+        with open(target, "w", encoding="utf-8", newline="") as fh:
+            fh.write(full_notice_body(last_granted_at))
+        written.append(target)
+    return written
+
+
 # Same definition as store.countFirmLicenses(): removed-by-admin staff do not count.
 ROSTER_COUNT_SQL = (
     "(SELECT COUNT(*) FROM subscribers WHERE firm_id = f.id "
@@ -158,8 +223,13 @@ def cmd_status(args) -> None:
         state = "trial started " + g["trial_started_at"] if g["trial_started_at"] else "granted, not started"
         print(f"slot {g['slot']}: firm {g['firm_id']}  {state}  (verified_by {g['verified_by']}, {g['granted_at']})")
     print(f"{MAX_SLOTS - len(grants)} of {MAX_SLOTS} slots left")
-    if len(grants) >= MAX_SLOTS:
+    full_and_open = len(grants) >= MAX_SLOTS and site_flag_open()
+    if full_and_open:
         print(LAST_SLOT_WARNING)
+        if not args.local:
+            last = max(g["granted_at"] for g in grants)
+            for path in write_full_notices(last, FULL_NOTICE_INBOXES):
+                print(f"closure notice written: {path}")
     problems = rows(
         "SELECT id, received_at, event_type, firm_id FROM stripe_webhook_events "
         "WHERE substr(event_type, 1, 15) = 'founding_trial:' ORDER BY received_at",
@@ -170,6 +240,8 @@ def cmd_status(args) -> None:
         print(f"PROBLEM {pr['received_at']}: {pr['event_type']} firm {pr['firm_id']} subscription {sub}  (check it in Stripe: cancelled by the webhook, or cancel by hand if the alert says CANCEL FAILED)")
     if not problems:
         print("no founding-trial webhook problems recorded")
+    if full_and_open:
+        raise SystemExit(FULL_STATUS_EXIT)
 
 
 def explain_refusal(firm_id: str, local: bool) -> str:
