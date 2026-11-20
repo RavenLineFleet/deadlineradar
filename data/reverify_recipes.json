@@ -525,7 +525,7 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "hand 2026-11-12: pins the CBA firm page's renewal-cycle rule (both the 'practice rights' and 'good standing' copies) that ca-firm cites; the record has no single date, so this guards the rule text",
+  "provenance": "hand 2026-11-12: pins the CBA firm page's renewal-cycle rule (both the 'practice rights' and 'good standing' copies) that ca-firm cites; the record has no single date, so this guards the rule text; 2026-11-20 SRC-251: +1 check pinning the odd-numbered-year sentence. The page carries it twice (practice-rights + good-standing copies), so duplicated_source=true: both copies must agree or the check fails closed. The anchor deliberately excludes the even sentence, because judge_check searches expect_text across the anchor too, and an anchor containing the even sentence's 'last day of the month...' would self-match",
   "checks": [
    {
     "url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
@@ -544,6 +544,16 @@
     "window": 64,
     "pattern": null,
     "expect_text": "last day of the month in which it was originally approved"
+   },
+   {
+    "url": "https://www.dca.ca.gov/cba/applicants/firm-applicant.shtml",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "originally approved. If approved in an odd-numbered year, the license will expire each odd-numbered year on the",
+    "window": 64,
+    "pattern": null,
+    "expect_text": "last day of the month in which it was originally approved",
+    "duplicated_source": true
    }
   ]
  },
