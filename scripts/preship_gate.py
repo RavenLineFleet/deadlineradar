@@ -1119,6 +1119,8 @@ _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
         "manual_verified_raw_byte_length": "provenance", "manual_verified_raw_hash": "provenance",
         "secondary_source_url": "provenance", "source_url": "provenance", "terminal_disclosure": "render control",
         "verification_history": "internal", "verified_method": "provenance",
+        # BCC-1: gate inputs for check_fee_basis_supported(); no page renders them.
+        "basis_correspondence_date": "provenance", "basis_valid_through": "provenance",
     },
     "reg_change_events.json": {
         "event_id": "internal key", "confidence": "internal", "status_evidence": "internal",
@@ -3416,7 +3418,7 @@ def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     ]
 
 
-def check_fee_basis_supported(repo_root: Path) -> list[str]:
+def check_fee_basis_supported(repo_root: Path, today: date | None = None) -> list[str]:
     """fee_basis='codified' must carry a citation_url; 'board_schedule' must
     carry a citation_url or source_url. 'unverifiable' is unrestricted -- that
     label IS the honest state of having nothing to point to.
@@ -3449,6 +3451,56 @@ def check_fee_basis_supported(repo_root: Path) -> list[str]:
                 f"nor source_url is set -- nothing backs the claim that a regulator publishes "
                 f"this figure."
             )
+        # BCC-1 (AssetLab proposal 2026-11-20, AuditLab AGREE 20:33:43Z with 2 amendments).
+        # Amendment 2: 'board_confirmed_correspondence' had NO branch here, so the label was
+        # assertable for free -- less evidence than 'board_schedule' for a basis no reader can
+        # check publicly. It must name the correspondence that backs it.
+        # basis_valid_through is the end of the period the Board itself named (CO: 2027-11-30).
+        # Amendment 1: it is OPTIONAL -- northern-mariana-islands carries this basis too, and its
+        # Board named no period (its figure rides NASBA's public page under the 30-day clock), so a
+        # missing value must not wall it. When present it hard-fails once today is past it.
+        # The 30-day verified_date clock (check_renewal_fee_currency) is unchanged by this.
+        has_bcc_fields = "basis_correspondence_date" in r or "basis_valid_through" in r
+        if basis != "board_confirmed_correspondence":
+            if has_bcc_fields:
+                errors.append(
+                    f"[FEEBASIS][BCC-1][{r.get('id')}] basis_correspondence_date/basis_valid_through "
+                    f"are only meaningful on fee_basis='board_confirmed_correspondence' rows, not "
+                    f"{basis!r} -- remove them or correct the basis."
+                )
+            continue
+        today_d = today or date.today()
+        cd_raw = r.get("basis_correspondence_date")
+        try:
+            cd = date.fromisoformat(cd_raw) if isinstance(cd_raw, str) else None
+        except ValueError:
+            cd = None
+        if cd is None:
+            errors.append(
+                f"[FEEBASIS][BCC-1][{r.get('id')}] fee_basis='board_confirmed_correspondence' but "
+                f"basis_correspondence_date is missing or not YYYY-MM-DD ({cd_raw!r}) -- the label "
+                f"must name the date of the Board correspondence that backs the figure."
+            )
+        elif cd > today_d:
+            errors.append(
+                f"[FEEBASIS][BCC-1][{r.get('id')}] basis_correspondence_date {cd_raw} is in the future."
+            )
+        if "basis_valid_through" in r:
+            vt_raw = r.get("basis_valid_through")
+            try:
+                vt = date.fromisoformat(vt_raw) if isinstance(vt_raw, str) else None
+            except ValueError:
+                vt = None
+            if vt is None:
+                errors.append(
+                    f"[FEEBASIS][BCC-1][{r.get('id')}] basis_valid_through is not YYYY-MM-DD ({vt_raw!r})."
+                )
+            elif today_d > vt:
+                errors.append(
+                    f"[FEEBASIS][BCC-1][{r.get('id')}] the Board-named period behind this figure ended "
+                    f"{vt_raw}: the correspondence no longer supports fee_usd. Get the new period's "
+                    f"figure from the Board (raven@ only) or revert fee_usd to null with the disclosure."
+                )
     return errors
 
 
