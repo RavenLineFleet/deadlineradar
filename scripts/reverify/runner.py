@@ -147,6 +147,18 @@ def _scaled(got, check: dict):
     return int(q) if float(q).is_integer() else q
 
 
+def expect_text_inside_anchor(check: dict) -> bool:
+    """GATE-137 (AuditLab, 2026-11-20): judge_check's expect_text branch searches the window that STARTS at
+    the anchor, so an expect_text that occurs inside its own anchor matches whenever the anchor is found and
+    verifies nothing. The matcher is deliberately left alone (an expect_text that straddles the anchor
+    boundary, e.g. bootstrap's anchor = quote[:28] / expect_text = quote, is legitimate); the shape is
+    refused at authoring time (author.py) and at build time (preship_gate.py) instead."""
+    want, anchor = check.get("expect_text"), check.get("anchor")
+    if not want or not anchor:
+        return False
+    return normalise(str(want)).lower() in normalise(str(anchor)).lower()
+
+
 def judge_check(check: dict, text: str | None) -> tuple[str, object]:
     """-> (status, extracted). status in MATCH, DIFFERENT, NO_ANCHOR, AMBIGUOUS_ANCHOR, NO_TEXT."""
     if not text:

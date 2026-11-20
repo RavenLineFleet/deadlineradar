@@ -1130,6 +1130,34 @@ _ASSISTANT_WITHHELD_FIELDS: dict[str, dict[str, str]] = {
 }
 
 
+def check_reverify_expect_text_not_inside_anchor(repo_root: Path) -> list[str]:
+    """GATE-137 (AuditLab LOW, 2026-11-20): a reverify text check whose expect_text occurs inside its own
+    anchor returns MATCH whenever the anchor is found -- it verifies nothing, and author.py's own selftest
+    (which IS judge_check) cannot see it. Checked over the shipped recipe file (author.py's output and the
+    hand-edited rows alike) and over hand_spec.json (author.py's input). The predicate is runner's own, so
+    the gate and the matcher normalise identically."""
+    reverify_dir = repo_root / "scripts" / "reverify"
+    if str(reverify_dir) not in sys.path:
+        sys.path.insert(0, str(reverify_dir))
+    import runner as reverify_runner
+    errors = []
+    sources = [(repo_root / "data" / "reverify_recipes.json", "data/reverify_recipes.json"),
+               (reverify_dir / "hand_spec.json", "scripts/reverify/hand_spec.json")]
+    for path, label in sources:
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        for rid, rec in sorted(doc.items()):
+            if not isinstance(rec, dict):
+                continue
+            for n, chk in enumerate(rec.get("checks") or []):
+                if isinstance(chk, dict) and reverify_runner.expect_text_inside_anchor(chk):
+                    errors.append(f"GATE-137: {label} {rid} check {n}: expect_text {chk['expect_text']!r} occurs "
+                                  f"inside its own anchor -- judge_check returns MATCH whenever the anchor is "
+                                  f"found, so the check verifies nothing. Re-anchor before the expected text.")
+    return errors
+
+
 def check_assistant_projection_classifies_every_field(repo_root: Path) -> list[str]:
     """SRC-200. Reads the field accesses in each lookupAssistant* body, so it fails closed if a lookup
     is renamed or a dataset import moves. Empty values don't count: a field no record populates has
@@ -11688,6 +11716,7 @@ def main():
     all_errors += check_inline_script_json_breakout(repo_root)
     all_errors += check_brand_spelling(repo_root)
     all_errors += check_security_header_layers()
+    all_errors += check_reverify_expect_text_not_inside_anchor(repo_root)
 
     print(f"Pre-ship gate: scanned {len(html_files)} rendered pages, {len(state_dirs)} state dirs.")
     for why in _SKIPPED_CHECKS:  # SEC-102 limb 2: a skipped check is never reported as a pass

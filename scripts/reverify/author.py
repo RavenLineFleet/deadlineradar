@@ -156,6 +156,10 @@ def build(cache_dir, spec_path):
             want = c.get("expect", stored.get(c["field"]) if c.get("field") else None)
             if st != "MATCH" or (want is not None and c.get("pattern") and runner._scaled(got, c) != runner._num(want)):
                 errors[rid] = f"selftest {st} got={got!r} want={want!r} anchor={c['anchor'][:60]!r}"
+            # GATE-137: a vacuous check passes the selftest above by construction, and the leftward widening
+            # can manufacture one by swallowing an earlier copy of the expect_text. Refuse it here too.
+            if runner.expect_text_inside_anchor(c):
+                errors[rid] = f"GATE-137 expect_text {c['expect_text']!r} is inside its own anchor {c['anchor'][:80]!r}: check verifies nothing"
     for w in widened:
         print("  widened", w)
     missing = sorted(set(recs) - set(recipes))
