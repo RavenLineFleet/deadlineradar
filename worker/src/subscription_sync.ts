@@ -121,6 +121,12 @@ export async function alertUnsynced(env: Env, eventId: string, firmId: string, s
  * Not closed, by design: any anonymous POST with a junk Stripe-Signature can
  * still take the day's one email slot (bounded to one email a day; the 400
  * and the evidence row are unaffected).
+ *
+ * BILL-70 (AuditLab 2026-11-20, MEDIUM): the evidence row now COUNTS
+ * (hit_count, last_seen_at; store.bumpDailyWebhookEvidenceRow), so a control
+ * POST or a scanner no longer hides a later real delivery the same day: read
+ * hit_count before and after the event you are testing. Same for the three
+ * other evidence rows below. The email-claim rows are unchanged.
  */
 export const SIG_FAIL_ALERT_ATTEMPTS_PER_DAY = 3;
 export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: boolean): Promise<void> {
@@ -131,7 +137,7 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
   if (!hadSignatureHeader) return;
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
+    await store.bumpDailyWebhookEvidenceRow(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
     if (!requireSendApproval(env, "webhookSignatureFailureAlert") || !env.RESEND_API_KEY) return;
     const alertId = `stripe_sig_fail_alert:${dayUtc}`;
     const claimed = await store.recordDailyWebhookMarkerIfNew(env.DB, alertId, "stripe_sig_fail_alert");
@@ -186,7 +192,7 @@ export async function noteWebhookModeMismatch(
   );
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_mode_reject:${dayUtc}`, "stripe_mode_reject");
+    await store.bumpDailyWebhookEvidenceRow(env.DB, `stripe_mode_reject:${dayUtc}`, "stripe_mode_reject");
   } catch (err) {
     console.log(`[stripe-webhook] mode-mismatch record failed: ${String(err)}`);
   }
@@ -204,7 +210,7 @@ export async function noteWebhookDroppedEvent(env: Env, reason: "invalid_payload
   console.warn(`[stripe-webhook] signed event DROPPED (${reason}); Stripe sent a body this handler cannot use (BILL-69)`);
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_drop:${dayUtc}`, "stripe_drop");
+    await store.bumpDailyWebhookEvidenceRow(env.DB, `stripe_drop:${dayUtc}`, "stripe_drop");
   } catch (err) {
     console.log(`[stripe-webhook] drop record failed: ${String(err)}`);
   }
@@ -225,7 +231,7 @@ export async function noteWebhookHandlerThrow(env: Env, err: unknown): Promise<v
   console.error(`[stripe-webhook] handler threw, returning 400 so Stripe retries (SEC-90): ${String(err)}`);
   try {
     const dayUtc = new Date().toISOString().slice(0, 10);
-    await store.recordDailyWebhookMarkerIfNew(env.DB, `stripe_handler_throw:${dayUtc}`, "stripe_handler_throw");
+    await store.bumpDailyWebhookEvidenceRow(env.DB, `stripe_handler_throw:${dayUtc}`, "stripe_handler_throw");
   } catch (markErr) {
     console.log(`[stripe-webhook] handler-throw record failed: ${String(markErr)}`);
   }

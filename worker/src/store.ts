@@ -4280,6 +4280,26 @@ export async function recordDailyWebhookMarkerIfNew(db: D1Database, markerId: st
   return (res.meta?.changes ?? 0) === 1;
 }
 
+/**
+ * BILL-70 (AuditLab 2026-11-20, MEDIUM): the evidence-row counterpart of
+ * recordDailyWebhookMarkerIfNew. One row per UTC day as before, but every
+ * hit after the first increments hit_count and moves last_seen_at
+ * (migration 0095), so "1 control POST + 1 live delivery" reads as 2, not 1.
+ * COALESCE(hit_count, 1): a row written earlier the same day by pre-0095
+ * code already stood for one hit. Never used for email-claim rows, whose
+ * claim semantics depend on the conflict doing nothing.
+ */
+export async function bumpDailyWebhookEvidenceRow(db: D1Database, markerId: string, eventType: string): Promise<void> {
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO stripe_webhook_events (id, event_type, firm_id, received_at, hit_count, last_seen_at) VALUES (?1,?2,NULL,?3,1,?3)
+       ON CONFLICT(id) DO UPDATE SET hit_count = COALESCE(hit_count, 1) + 1, last_seen_at = ?3`
+    )
+    .bind(markerId, eventType, now)
+    .run();
+}
+
 /** SEC-91: claim -> send -> unclaim-on-failure, same pattern as
  * unclaimReminderThreshold(). Deletes a once-a-day email claim row so a
  * later attempt that day gets a real retry. Never used on evidence rows. */
