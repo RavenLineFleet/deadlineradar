@@ -125,8 +125,11 @@ export async function alertUnsynced(env: Env, eventId: string, firmId: string, s
  * BILL-70 (AuditLab 2026-11-20, MEDIUM): the evidence row now COUNTS
  * (hit_count, last_seen_at; store.bumpDailyWebhookEvidenceRow), so a control
  * POST or a scanner no longer hides a later real delivery the same day: read
- * hit_count before and after the event you are testing. Same for the three
- * other evidence rows below. The email-claim rows are unchanged.
+ * hit_count before and after the event you are testing (the delta; an
+ * absolute on a row first written pre-0095 can understate, BILL-72). Same
+ * for the three other evidence rows below. The email-claim rows are
+ * unchanged. BILL-73 (AuditLab 2026-11-21, LOW): the bump has its own
+ * try/catch, so an evidence-write failure can never suppress the alert.
  */
 export const SIG_FAIL_ALERT_ATTEMPTS_PER_DAY = 3;
 export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: boolean): Promise<void> {
@@ -135,9 +138,13 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
       `if Stripe sent this, STRIPE_WEBHOOK_SECRET does not match the endpoint (BILL-68)`
   );
   if (!hadSignatureHeader) return;
+  const dayUtc = new Date().toISOString().slice(0, 10);
   try {
-    const dayUtc = new Date().toISOString().slice(0, 10);
     await store.bumpDailyWebhookEvidenceRow(env.DB, `stripe_sig_fail:${dayUtc}`, "stripe_sig_fail");
+  } catch (err) {
+    console.log(`[stripe-webhook] signature-failure record failed: ${String(err)}`);
+  }
+  try {
     if (!requireSendApproval(env, "webhookSignatureFailureAlert") || !env.RESEND_API_KEY) return;
     const alertId = `stripe_sig_fail_alert:${dayUtc}`;
     const claimed = await store.recordDailyWebhookMarkerIfNew(env.DB, alertId, "stripe_sig_fail_alert");
@@ -166,7 +173,7 @@ export async function noteWebhookSignatureFailure(env: Env, hadSignatureHeader: 
       if (!sent) await store.releaseDailyWebhookMarker(env.DB, alertId);
     }
   } catch (err) {
-    console.log(`[stripe-webhook] signature-failure record/alert failed: ${String(err)}`);
+    console.log(`[stripe-webhook] signature-failure alert failed: ${String(err)}`);
   }
 }
 

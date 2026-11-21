@@ -94,12 +94,41 @@ describe("BILL-70: webhook evidence rows count every hit, not just the first of 
     }
   });
 
-  it("a row written earlier the same day by pre-0095 code (hit_count NULL) counts as 1, so the next hit reads 2", async () => {
+  // BILL-72 (AuditLab 2026-11-21, LOW): a NULL hit_count means >=1 pre-0095
+  // hit, exact count unknown -- 1 and 3 pre-0095 hits leave identical rows.
+  // So this proves only the DELTA across one new hit is 1, and pins that the
+  // absolute is NOT the true count (3 real pre-0095 hits still read 2).
+  it("a pre-0095 row (hit_count NULL = >=1 hits, count unknown): the delta across one new hit is exactly 1; the absolute can understate", async () => {
     const id = `stripe_sig_fail:bill70-legacy-${Math.random().toString(36).slice(2)}`;
     expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_sig_fail")).toBe(true);
-    expect((await evidence(id)).hit_count).toBeNull();
+    expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_sig_fail")).toBe(false);
+    expect(await store.recordDailyWebhookMarkerIfNew(env.DB, id, "stripe_sig_fail")).toBe(false);
+    const before = (await evidence(id)).hit_count;
+    expect(before).toBeNull();
     await store.bumpDailyWebhookEvidenceRow(env.DB, id, "stripe_sig_fail");
-    expect((await evidence(id)).hit_count).toBe(2);
+    const after = (await evidence(id)).hit_count!;
+    expect(after - (before ?? 1)).toBe(1);
+    expect(after).toBe(2); // true count is 4: the absolute understates by design
+  });
+
+  it("BILL-73: an evidence-write failure does not suppress the sig-fail alert", async () => {
+    const alertId = `stripe_sig_fail_alert:${day()}`;
+    await clear(`stripe_sig_fail:${day()}`, alertId);
+    const bumpSpy = vi.spyOn(store, "bumpDailyWebhookEvidenceRow").mockRejectedValue(new Error("table stripe_webhook_events has no column named hit_count"));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ id: "em_1" }), { status: 200 }));
+    try {
+      const ENV = { ...LIVE_ENV, RESEND_API_KEY: "re_test", SEND_APPROVED_PASSES: "webhookSignatureFailureAlert" };
+      const p = JSON.stringify({ id: "evt_bill73", type: "x", livemode: true, data: { object: {} } });
+      expect((await postWebhook(p, await signPayload("whsec_other", Math.floor(Date.now() / 1000), p), ENV)).status).toBe(400);
+      expect(bumpSpy).toHaveBeenCalled();
+      const sends = fetchSpy.mock.calls.filter((c) => String(c[0] instanceof Request ? c[0].url : c[0]).includes("resend"));
+      expect(sends.length).toBe(1);
+      expect((await evidence(alertId)).n).toBe(1);
+    } finally {
+      bumpSpy.mockRestore();
+      fetchSpy.mockRestore();
+      await clear(alertId);
+    }
   });
 
   it("the other three evidence rows count too: mode reject, drop, handler throw", async () => {

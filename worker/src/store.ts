@@ -4285,8 +4285,10 @@ export async function recordDailyWebhookMarkerIfNew(db: D1Database, markerId: st
  * recordDailyWebhookMarkerIfNew. One row per UTC day as before, but every
  * hit after the first increments hit_count and moves last_seen_at
  * (migration 0095), so "1 control POST + 1 live delivery" reads as 2, not 1.
- * COALESCE(hit_count, 1): a row written earlier the same day by pre-0095
- * code already stood for one hit. Never used for email-claim rows, whose
+ * COALESCE(hit_count, 1): a NULL row was written by pre-0095 code and stands
+ * for >=1 hit, exact count unknown (DO NOTHING recorded nothing on hits
+ * 2..N), so an absolute read of such a row can understate. The DELTA across
+ * one event is still exact (BILL-72). Never used for email-claim rows, whose
  * claim semantics depend on the conflict doing nothing.
  */
 export async function bumpDailyWebhookEvidenceRow(db: D1Database, markerId: string, eventType: string): Promise<void> {

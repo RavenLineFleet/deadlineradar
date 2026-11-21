@@ -6,7 +6,9 @@
 -- columns turn each evidence row into a counter: hit_count is incremented on
 -- every hit, last_seen_at moves to the latest one (received_at stays the
 -- first). Both are NULL on every other row in the table (ledger events,
--- email-claim rows), and a NULL hit_count on an evidence row means it was
--- written by pre-0095 code, i.e. it counts as 1.
+-- email-claim rows). A NULL hit_count on an evidence row means it was
+-- written by pre-0095 code: >=1 hit, exact count unknown (DO NOTHING wrote
+-- nothing on hits 2..N). Read the DELTA across an event, never the absolute
+-- (BILL-72).
 ALTER TABLE stripe_webhook_events ADD COLUMN hit_count INTEGER;
 ALTER TABLE stripe_webhook_events ADD COLUMN last_seen_at TEXT;
