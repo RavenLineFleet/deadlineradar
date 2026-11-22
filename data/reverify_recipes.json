@@ -2112,7 +2112,7 @@
   "combine": "each",
   "field": null,
   "derivation": null,
-  "provenance": "bootstrap 2026-10-02",
+  "provenance": "bootstrap 2026-10-02; 2026-11-22: +1 check pinning the even-numbered-year ethics-course sentence (notes/ethics_hours_note)",
   "checks": [
    {
     "url": "https://cpaboard.state.la.us/cpe/",
@@ -2131,6 +2131,15 @@
     "window": 17,
     "pattern": "\\b((?:(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten)(?:[\\s-]+(?:and\\s+)?(?:seventeen|thirteen|fourteen|eighteen|nineteen|fifteen|sixteen|seventy|hundred|eleven|twelve|twenty|thirty|eighty|ninety|three|seven|eight|forty|fifty|sixty|zero|four|five|nine|one|two|six|ten))*)|\\d{1,3})\\b",
     "field": "annual_minimum_hours"
+   },
+   {
+    "url": "https://cpaboard.state.la.us/cpe/",
+    "alt_urls": [],
+    "method": "http",
+    "anchor": "All CPAs are required to complete a Board-approved Ethics Course in",
+    "window": 30,
+    "pattern": null,
+    "expect_text": "even-numbered years"
    }
   ]
  },
