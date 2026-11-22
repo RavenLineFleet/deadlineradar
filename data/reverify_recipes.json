@@ -1299,7 +1299,7 @@
   "provenance": "hand 2026-10-02",
   "checks": [
    {
-    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/02/HAR_16-53_FeesOct-2016-1.pdf",
+    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/01/HAR_16-53_FeesOct-2016.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "Biennial renewal fees: (A) Individual public accountant or certified public accountant license",
@@ -1308,7 +1308,7 @@
     "expect": 52
    },
    {
-    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/02/HAR_16-53_FeesOct-2016-1.pdf",
+    "url": "https://cca.hawaii.gov/wp-content/uploads/2026/01/HAR_16-53_FeesOct-2016.pdf",
     "alt_urls": [],
     "method": "pdf",
     "anchor": "license (i) Compliance resolution fund fee $ 50 (ii) Annual compliance resolution fund fee $ 50 (iii) Biennial compliance resolution fund fee",
