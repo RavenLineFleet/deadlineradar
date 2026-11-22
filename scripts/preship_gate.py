@@ -4430,6 +4430,13 @@ _RETIRED_CLAIMS: list[tuple[str, str, str]] = [
     # (record id, phrase that must not reappear, why it was retired)
     ("louisiana-reinstatement", "twice the renewal",
      "no multiplier is codified anywhere in the board's rules (SRC-1)"),
+    # SRC-287 (2026-11-22): the 11-22 lapse_trigger retraction disproved two
+    # more phrasings of the same superseded pre-2023 1105(B)(7) text (served by
+    # the Cornell mirror). verification_history quotes them and is skipped.
+    ("louisiana-reinstatement", "equal to the current renewal fee",
+     "the current 1105(B)(7) says a delinquent fee 'may be assessed' and sets no amount; the Board fee table sets it (SRC-287)"),
+    ("louisiana-reinstatement", "reinstatement renewal fee",
+     "superseded pre-2023 1105(B)(7) wording; the current rule has no 'reinstatement renewal fee' multiple (SRC-287)"),
     ("oh-individual", "January 31 grace",
      "no ORC/OAC text establishes a grace period; a late fee accrues monthly (SRC-6)"),
     ("oh-individual", "3-group cohort",
@@ -11301,6 +11308,12 @@ _SECURITY_HEADER_LAYERS = (
             # this value deliberately when that lands; it is not a literal to
             # "fix" when the gate goes red for an unrelated reason.
             "content-security-policy": "frame-ancestors 'self'; base-uri 'none'; form-action 'self'; object-src 'none'",
+            # SEC-112 (AuditLab 2026-11-22): static headers are off-repo zone
+            # config, so they can vanish with no commit/deploy; /security/
+            # promises HSTS on every connection. Values measured 11-22 with
+            # this gate's own URL+UA. No `preload` (see note below the tuple).
+            "strict-transport-security": "max-age=31536000; includeSubDomains",
+            "referrer-policy": "strict-origin-when-cross-origin",
         },
     },
     {
@@ -11321,12 +11334,16 @@ _SECURITY_HEADER_LAYERS = (
                 "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; "
                 "form-action 'self'; frame-ancestors 'none'"
             ),
+            # SEC-112: same two headers, exact (worker.spec.ts only checks them loosely).
+            "strict-transport-security": "max-age=31536000; includeSubDomains",
+            "referrer-policy": "strict-origin-when-cross-origin",
         },
     },
 )
 # Known LOW, not drift (SecurityLab, confirmed by AuditLab): neither
-# layer's Strict-Transport-Security carries `preload`. Deliberately not
-# asserted above, so that known gap never shows up as a false drift.
+# layer's Strict-Transport-Security carries `preload`. The asserted value
+# (SEC-112) is the measured one without `preload`, so that known gap never
+# shows up as a false drift; adding `preload` later means updating it here.
 
 
 def _fetch_with_identity(url: str, timeout: float = 10.0):
