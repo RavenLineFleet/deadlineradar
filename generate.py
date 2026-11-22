@@ -4782,6 +4782,10 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     _raw_citation_text = e.get("citation")
     citation_text = _raw_citation_text if isinstance(_raw_citation_text, str) and _raw_citation_text else "the citation"
     citation_link_html = f' <a href="{esc(safe_citation_url)}">See {esc(citation_text)}</a>.' if safe_citation_url else ""
+    # SRC-284: same second link as the /rule-changes/ card (see _rc_status_source_link_html).
+    _status_link = _rc_status_source_link_html(e)
+    if citation_link_html and _status_link:
+        citation_link_html += _status_link + "."
     topic = e.get("topic") or "regulatory"
     # AuditLab COPY-13 (2026-08-26): DiffLab's topic strings already end in
     # "change" ("CPA regulatory/statutory change"), so unconditionally
@@ -10846,6 +10850,23 @@ def _rc_source_label(e: dict) -> str:
     return "sourcing basis unconfirmed"
 
 
+def _rc_status_source_link_html(e: dict) -> str:
+    """Second link to status_source_url when it is a different page from citation_url.
+
+    AuditLab SRC-284 (MEDIUM, 2026-11-22): Arizona's card asserted the
+    CURRENT (pre-2027) test and linked only azleg's compiled 32-725, which
+    already serves the post-2027 text with no version markup. The enacted
+    act (Laws 2026 Ch. 17, strike/insert form, Sec. 18 effective date) was
+    already in the event as status_source_url but never rendered. Empty
+    when absent, non-http, or the same URL as the citation link."""
+    url = e.get("status_source_url")
+    if not (isinstance(url, str) and url.startswith(("http://", "https://"))):
+        return ""
+    if url == e.get("citation_url"):
+        return ""
+    return f' <a class="rc-status-source" href="{http_href(url)}">Where we confirmed its status</a>'
+
+
 def _rc_verified_html(e: dict) -> str:
     # AuditLab STALE-76 (MEDIUM, 2026-10-23): RC-23 put data-verified on the
     # conflict cards only, so _STALE_BADGE_RUNTIME_JS reached 4 of 21 cards on
@@ -10966,7 +10987,7 @@ def _rule_change_card_html(e: dict) -> str:
   </div>
   {eff_html}
   <p class="rc-detail">{esc(detail)}</p>
-  <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a>
+  <p class="rc-cite"><a href="{http_href(e.get("citation_url"))}">{esc(e.get("citation") or "Primary source")}</a>{_rc_status_source_link_html(e)}
   <span class="rc-conf">&middot; {esc(source_label)}</span></p>
   {_rc_verified_html(e)}
 </div>"""
