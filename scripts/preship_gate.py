@@ -4588,6 +4588,21 @@ def check_published_figures_link_source(html_files: list[Path]) -> list[str]:
     return errors
 
 
+def _iter_retired_scan_strings(node, path: str = ""):
+    """Yield (dotted_path, str) for every str value under a record, skipping
+    any key in _RETIRED_SKIP_FIELDS at any depth."""
+    if isinstance(node, str):
+        yield path, node
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if k in _RETIRED_SKIP_FIELDS:
+                continue
+            yield from _iter_retired_scan_strings(v, f"{path}.{k}" if path else str(k))
+    elif isinstance(node, (list, tuple)):
+        for n, v in enumerate(node):
+            yield from _iter_retired_scan_strings(v, f"{path}[{n}]")
+
+
 def check_retired_claims_absent(repo_root: Path) -> list[str]:
     """Fail the build if a disproved claim reappears in any reader-facing field
     of the record it was retired from. See the registry comment above."""
@@ -4609,9 +4624,12 @@ def check_retired_claims_absent(repo_root: Path) -> list[str]:
                 f"exists -- update _RETIRED_CLAIMS if it was intentionally removed"
             )
             continue
-        for field, value in rec.items():
-            if field in _RETIRED_SKIP_FIELDS or not isinstance(value, str):
-                continue
+        # GATE-144 (AuditLab, 2026-11-22): walk nested lists/dicts, not just
+        # top-level str values -- oh-individual.cohort_groups[].group renders on
+        # /ohio/ and citation_links[].title renders as chip text, so a retired
+        # claim could re-enter through either. _RETIRED_SKIP_FIELDS still
+        # matches by key name at any depth.
+        for field, value in _iter_retired_scan_strings(rec):
             if phrase.lower() in value.lower():
                 errors.append(
                     f"[RETIRED][{rid}] .{field} contains the retired claim {phrase!r} -- {why}. "
