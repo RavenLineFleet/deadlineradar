@@ -1,0 +1,17 @@
+{
+  "slug": "how-a-superseded-rule-hid-on-an-official-site",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "715a71337b4d5600d7f129f7a70fedf65d07e9c47cb774c168f80fdf4f1cf1ff",
+      "verdict_file": "auditlab_20261122_blog_APPROVED_how-a-superseded-rule-hid-on-an-official-site_LA_bullet_ONE_BINDING_EDIT_bound_the_unbounded_universal.md",
+      "sent": "2026-11-22 10:21 UTC"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "715a71337b4d5600d7f129f7a70fedf65d07e9c47cb774c168f80fdf4f1cf1ff",
+      "verdict_file": "_AAA_orchestrator_20261122_063421_blog_APPROVED_how-a-superseded-rule-hid-on-an-official-site.md",
+      "sent": "2026-11-22 13:34 UTC"
+    }
+  ]
+}

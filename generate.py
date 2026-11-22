@@ -25981,6 +25981,7 @@ on any one board's notice arriving on time.</p>
     {
         "slug": "how-a-superseded-rule-hid-on-an-official-site",
         "published": "2026-08-14",  # first-introduction commit date, from git history
+        "content_modified": "2026-11-22",  # GUARD-24 LA bullet: bounded the "No text anywhere" universal
         "title": "The State's Own Website Was Serving a Repealed Rule",
         "seo_title": "A Repealed Rule, Still Live Online",
         "meta_description": (
@@ -26026,7 +26027,8 @@ it says the licensing agency sets the fee for shorter lapses, and pegs longer la
 initial-application fee. We now say exactly that, and tell you to confirm the amount with the agency
 before paying.</li>
 <li><strong>Louisiana:</strong> we described a same-year reinstatement fee as "twice the renewal
-fee." No text anywhere says that. The rule says: the renewal fee plus a penalty the board may
+fee." The current rule doesn't say that; the outdated copy we had been citing, on a third-party
+legal mirror, still does. The current rule says: the renewal fee plus a penalty the board may
 prescribe. Corrected.</li>
 <li><strong>Georgia</strong> again: we called the reinstatement fee "non-refundable." The word
 appears nowhere in the chapter. Removed.</li>

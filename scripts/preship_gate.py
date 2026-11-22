@@ -526,9 +526,11 @@ BLOG_GRANDFATHERED_FILENAME = "GRANDFATHERED.txt"
 # approval record (29 remain); texas-to-oklahoma-cpa-mobility left
 # for its SRC-156 r2 approval record (28 remain); seven mobility posts left
 # for their PROSE-6/SRC-159 approval records (21 remain); tennessee
-# and california left for their SRC-177 and SRC-208 records (19 remain).
-BLOG_GRANDFATHERED_COUNT = 19
-BLOG_GRANDFATHERED_SHA256 = "c4bae391f39239c04a59e2c5df855cbc7c8eae492fe1f60c1182766ab4aacf6e"
+# and california left for their SRC-177 and SRC-208 records (19 remain);
+# how-a-superseded-rule-hid-on-an-official-site left for its 11-22 LA-bullet
+# approval record (18 remain).
+BLOG_GRANDFATHERED_COUNT = 18
+BLOG_GRANDFATHERED_SHA256 = "759cc712817c675d29f3e98d66c0fbe2bb71d54a1420d3b3ac77346cea793f1c"
 _BLOG_APPROVAL_PARTIES = {"auditlab", "orchestrator"}
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
