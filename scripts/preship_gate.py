@@ -9615,6 +9615,64 @@ def check_write_endpoint_rate_limits(repo_root: Path) -> list[str]:
     return errors
 
 
+_SRC289_RETIRED_UNIVERSALS = (
+    # (built page relative to docs/, retired phrase) -- each was a universal the
+    # operational_record class falsified (SRC-289, AuditLab 2026-11-22).
+    ("methodology/index.html", "must trace to two independent things"),
+    ("methodology/index.html", "That's the same standard behind every date on this site"),
+    ("methodology/index.html", "labeled “Source of record.”"),
+    ("index.html", "sourced-to-codified-"),
+    ("index.html", "clearly labeled when only the board page confirms it"),
+)
+
+
+def check_operational_class_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
+    """SRC-289 (AuditLab HIGH, 2026-11-22): /methodology/ and / generalised
+    over the data as if every date were codified-sourced, while 10 records in
+    8 states cite the regulator's own operational records
+    (citation_class: operational_record). Ties the two surfaces to the data:
+    if the class exists, /methodology/ must name its label, every state with
+    an operational record must carry the index "Official records" badge
+    unless it already carries the stronger "Partial citation" one, and the
+    retired universals must stay gone."""
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as _g
+    except Exception as e:
+        return [f"[GATE-20] generate.py could not be imported ({type(e).__name__}: {e}); check_operational_class_disclosed() is measuring nothing and must be repaired."]
+    recs = json.loads((repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))["records"]
+    by_slug: dict[str, list[dict]] = {}
+    for r in recs:
+        by_slug.setdefault(r["state_slug"], []).append(r)
+    op_slugs = {s for s, rs in by_slug.items() if any(_g._is_operational_record(r) for r in rs)}
+    partial_slugs = {s for s, rs in by_slug.items() if any(_g._record_citation_status(r) == "partial" for r in rs)}
+    errors = []
+    meth = docs_dir / "methodology" / "index.html"
+    idx = docs_dir / "index.html"
+    if not meth.exists() or not idx.exists():
+        return [f"[SRC289] {meth} or {idx} missing -- check_operational_class_disclosed() is measuring nothing"]
+    meth_html = meth.read_text(encoding="utf-8")
+    idx_html = idx.read_text(encoding="utf-8")
+    if op_slugs and "Confirmed via official records" not in meth_html:
+        errors.append("[SRC289] data has operational_record citations but /methodology/ never names the "
+                      "\"Confirmed via official records\" label -- the sourcing rule must disclose the class")
+    cards = re.findall(r'<a class="state-card[^"]*" href="([^"/]+)/"[^>]*>(.*?)</a>', idx_html, flags=re.S)
+    if len(cards) != len(by_slug):
+        errors.append(f"[SRC289] parsed {len(cards)} index state cards but the data has {len(by_slug)} states -- "
+                      "the card shape changed and this check is measuring nothing; repair the regex")
+    badged = {slug for slug, body in cards if ">Official records</div>" in body}
+    want = op_slugs - partial_slugs
+    if badged != want:
+        errors.append(f"[SRC289] index \"Official records\" badge set != operational states: "
+                      f"missing {sorted(want - badged)}, unexpected {sorted(badged - want)}")
+    for rel, phrase in _SRC289_RETIRED_UNIVERSALS:
+        page = docs_dir / rel
+        if page.exists() and phrase in page.read_text(encoding="utf-8"):
+            errors.append(f"[SRC289] /{rel} contains the retired universal {phrase!r}, falsified by the "
+                          "operational_record class")
+    return errors
+
+
 def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     """i18n.py's t() already refuses to show an unreviewed or stale Spanish
     string at runtime (falls back to English) -- that's the primary
@@ -11794,6 +11852,7 @@ def main():
     all_errors += check_write_endpoint_rate_limits(repo_root)
     all_errors += check_email_link_helper_usage(repo_root)
     all_errors += check_i18n_reviewed_entries_not_stale(repo_root)
+    all_errors += check_operational_class_disclosed(repo_root, docs_dir)
     all_errors += check_send_pass_consent_gate_coverage(repo_root)
     all_errors += check_origin_check_coverage(repo_root)
     all_errors += check_read_route_auth_coverage(repo_root)

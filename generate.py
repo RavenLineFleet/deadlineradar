@@ -9372,7 +9372,19 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             bool(r.get("citation")) and not r.get("citation_covers_full_claim", True)
             for r in state_records
         )
-        if fully_cited:
+        # SRC-289 (AuditLab, 2026-11-22): an operational_record citation passes
+        # _record_fully_cited(), so the 8 states with one rendered no badge --
+        # absence-of-badge read as "codified", the class the methodology page
+        # says these are not. A fully-cited state with any operational record
+        # now gets its own label.
+        _any_operational = any(_is_operational_record(r) for r in state_records)
+        if fully_cited and _any_operational:
+            confidence_html = (
+                '<div class="state-confidence" title="At least one of this state\'s dates is confirmed '
+                'against the regulator\'s own official records rather than codified statute or rule '
+                'text. See this state\'s own page for which.">Official records</div>'
+            )
+        elif fully_cited:
             confidence_html = ""
         elif _any_partial_citation:
             confidence_html = (
@@ -9505,8 +9517,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
        remaining line since it's this specific page's own core credibility
        claim for a first-time, skeptical SEO visitor. -->
   <p class="hero-subtext">Every date traced to your state board's own statute or rule where we could
-  confirm it, clearly labelled where we could only confirm it against the board's own page, and
-  stamped with the day we last checked it.</p>
+  confirm it, clearly labelled where it rests instead on the regulator's own official records or
+  only on the board's own page, and stamped with the day we last checked it.</p>
 {search_html}
   <p class="field-hint">Run a whole firm's staff instead?
   <!-- ValueLab labelled-demo-doors (2026-09-22): Roster promoted per their
@@ -9604,7 +9616,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # asserting it, so the lead-in sentence is cut rather than reworded.
     method_band_html = f"""<section class="band-section band-section--alt dr-reveal">
   <p class="eyebrow">How we verify</p>
-  <h2>Two independent sources where available, clearly labeled when only the board page confirms it.</h2>
+  <h2>Two independent sources where available, clearly labeled when a date rests on the regulator's own records instead.</h2>
   <div class="method-grid">
     <div class="mcard">
       <div class="step">STANDARD 01</div>
@@ -9616,7 +9628,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
       <div class="step">STANDARD 02</div>
       <h3>The codified law</h3>
       <p>Then we confirm it against the actual statute or administrative rule &mdash; codified law,
-      not a second webpage or a vendor's summary.</p>
+      not a second webpage or a vendor's summary. Where we can't find the date in codified text, the
+      page says so and cites the regulator's own official records instead.</p>
     </div>
     <div class="mcard">
       <div class="step">STANDARD 03</div>
@@ -9653,8 +9666,8 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   <h2>One roster, not twenty separate inboxes.</h2>
   <p style="color:var(--muted); margin:0.7rem 0 1.4rem; font-size:1.02rem;">Free reminders above are
   for tracking your own individual license, always at no cost. If you're the one keeping track of a
-  whole firm's staff across multiple states, the firm dashboard below is the same sourced-to-codified-
-  law data in one roster view &mdash; who's current, who's at risk, and who needs to act.</p>
+  whole firm's staff across multiple states, the firm dashboard below is the same sourced, labelled
+  data in one roster view &mdash; who's current, who's at risk, and who needs to act.</p>
   <div class="dr-showcase-frame">
     <img src="/showcase/roster.jpg" alt="Real screenshot of the Deadline-Radar firm roster: who's current, who's at risk, at a glance." width="1568" height="778" loading="lazy">
   </div>
@@ -10534,7 +10547,7 @@ signal of the four -- we narrowed that to CPA. A follow-up check weeks later ind
 the lane was still nearly empty -- though that's changed since; a funded competitor acquired the
 other independent player in the space not long after. That gap is why this site is built the way it
 is: every date checked against two independent sources where both exist, and clearly labeled when
-only the board page confirms it.</p>
+it rests on the regulator's own records or only the board page.</p>
 
 <p class="how-it-works">See how that sourcing standard works in practice on our
 <a href="/methodology/">methodology page</a>, or <a href="/contact/">get in touch</a> directly.</p>
@@ -11221,7 +11234,8 @@ def build_rule_changes_page() -> str:
 <p class="intro">A running feed of confirmed and pending changes to interstate CPA mobility rules
 &mdash; practice privileges, notice/fee requirements, and firm registration &mdash; sourced the same
 way every date on this site is: a citation to the primary statute or rule where we could confirm it,
-and clearly labelled where we could only confirm it against the board's own page, never a guess.
+and clearly labelled where it rests instead on the regulator's own official records or only on the
+board's own page, never a guess.
 {monitoring_note}</p>
 
 <div class="remind-panel" id="newsletter">
@@ -11512,7 +11526,8 @@ _INDIVIDUAL_FAQ = [
     (
         "How do you actually verify the dates?",
         "Every renewal date is sourced to the codified statute or board rule where we could confirm "
-        "it, and clearly labelled where we could only confirm it against the board's own page, "
+        "it, and clearly labelled where it rests instead on the regulator's own official records or "
+        "only on the board's own page, "
         "cited and rechecked on a regular freshness cadence, never guessed or estimated. "
         "<a href=\"methodology/\">See exactly how, state by state.</a>",
     ),
@@ -11822,8 +11837,9 @@ Check are also <strong>free</strong> for a solo CPA &mdash;
 
 <h2>How it actually works</h2>
 <p>Deadline accuracy comes from the same sourcing standard every free page on this site already uses
-&mdash; the codified statute or rule where we could confirm it, and clearly labelled where we could
-only confirm it against the board's own page &mdash; not a recurring human check-in on each staff
+&mdash; the codified statute or rule where we could confirm it, and clearly labelled where it rests
+instead on the regulator's own official records or only on the board's own page &mdash; not a recurring
+human check-in on each staff
 member's status.</p>
 <p>Card checkout works today across every tier, Essentials through Enterprise &mdash; create your firm
 account above and pick a plan, no invoice or sales call required. More than 35 staff?
@@ -23091,8 +23107,9 @@ happens &mdash; and hands it to you on request, on every tier, with no export li
 deadline &mdash; for every staff CPA and for the firm's own registration. Not a dashboard you're meant
 to watch all day. A summary you can generate, date, and put in front of somebody.</p>
 <p>Each line traces back to the same sourcing standard as every free state page on this site: the
-codified statute or rule where we could confirm it, and clearly labelled where we could only confirm
-it against the board's own page. Never a guess, here or anywhere else.</p>
+codified statute or rule where we could confirm it, and clearly labelled where it rests instead on
+the regulator's own official records or only on the board's own page. Never a guess, here or anywhere
+else.</p>
 <p class="field-hint"><em>Scope note:</em> the coverage overview &mdash; coverage %, status breakdown,
 due-soon count, at-risk ranking &mdash; is part of a paid firm plan. A solo account gets it free.
 <a href="/pricing/">See plans</a>.</p>
@@ -28669,9 +28686,12 @@ def build_llms_txt(by_slug: dict[str, list[dict]]) -> str:
 
 Every published date is checked against two independent sources where both exist: the state board's
 own page, and the actual codified statute or administrative rule the requirement derives from, not
-a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
-own page with no corresponding codified text to confirm it against; those dates are shown but clearly
-labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
+a summary of it, the primary legal text. Where we couldn't confirm a date in codified text, it rests
+instead on the regulator's own official records (a license register, open-data dataset, verification
+portal, renewal form, or current board guidance) and is labeled "Confirmed via official records", not
+presented as codified law; in some of those states that record is the board's own page, so there is
+one source, not two. Where a codified citation covers only part of a claim, the date is labeled
+"Partial citation". Full method:
 {SITE_BASE_URL}/methodology/
 
 ## Datasets tracked, per jurisdiction where applicable

@@ -21,9 +21,12 @@
 
 Every published date is checked against two independent sources where both exist: the state board's
 own page, and the actual codified statute or administrative rule the requirement derives from, not
-a summary of it, the primary legal text. A small number of jurisdictions publish a date on the board's
-own page with no corresponding codified text to confirm it against; those dates are shown but clearly
-labeled "Board-page sourced only" rather than presented as independently confirmed. Full method:
+a summary of it, the primary legal text. Where we couldn't confirm a date in codified text, it rests
+instead on the regulator's own official records (a license register, open-data dataset, verification
+portal, renewal form, or current board guidance) and is labeled "Confirmed via official records", not
+presented as codified law; in some of those states that record is the board's own page, so there is
+one source, not two. Where a codified citation covers only part of a claim, the date is labeled
+"Partial citation". Full method:
 https://deadline-radar.com/methodology/
 
 ## Datasets tracked, per jurisdiction where applicable

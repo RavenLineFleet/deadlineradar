@@ -103,32 +103,57 @@ EN: dict[str, str] = {
         "site's dates are sourced, checked, and kept current. Nothing below is aspirational; it "
         "describes the actual standard already applied to every state page."
     ),
-    "methodology.h2_two_source_rule": "The two-source rule",
-    "methodology.two_source_intro": "Every date on this site must trace to two independent things before it's published:",
+    "methodology.h2_two_source_rule": (
+        "How each date is sourced"
+    ),
+    "methodology.two_source_intro": (
+        "Every date on this site traces to a primary source before it's published, and the page "
+        "tells you which kind it is:"
+    ),
     # Inline <strong> emphasis is part of these two strings deliberately
     # (matches the original hand-written HTML) -- a translation must
     # preserve the tags, not just the words.
     "methodology.two_source_item1": (
-        "<strong>The state board's own page</strong> — the plain-English source most people would "
-        "find first."
+        (
+        (
+        "<strong>Codified law, plus the board's own page</strong> — for most dates, two independent "
+        "things: the state board's own page, and the actual codified statute or administrative rule "
+        "its requirement derives from (the primary legal text itself, not a summary of it). Where "
+        "the page shows the date itself, it is labeled “Confirmed at source.”"
+    )
+    )
     ),
     "methodology.two_source_item2": (
-        "<strong>The actual codified statute or administrative rule</strong> the board's requirement "
-        "derives from — not a summary of it, the primary legal text itself. That citation and a "
-        "direct link to it are shown under every verified date on this site, labeled “Source of "
-        "record.”"
+        (
+        (
+        "<strong>The regulator's own official records</strong> — where we couldn't confirm the date "
+        "in codified text, but the regulator's own operative records state it: a public license "
+        "register or open-data dataset, a license-verification portal, its renewal form, or its "
+        "current published guidance. That is primary evidence from the regulator itself, but it is "
+        "not codified law, and in some states it is the board's own page, so there is one source, "
+        "not two. Where the page shows the date itself, it is labeled “Confirmed via official "
+        "records,” and the state page's “Last verified” line says “checked against the regulator's "
+        "own official records rather than codified statute or administrative rule text.”"
+    )
+    )
     ),
     "methodology.two_source_fallback": (
-        "If we can't find or confirm the second source, the date is not published as a confirmed "
-        "fact. Instead the page says so plainly and points you to the official state board to "
-        "determine your own exact deadline — we do not guess, interpolate, or infer a date we "
-        "can't back up with primary law."
+        (
+        "Where a codified citation covers only part of a claim, or only the board's page backs a "
+        "date, the page says so plainly. If we can't back a date with either kind of source above, "
+        "it is not published as a confirmed fact: the page points you to the official state board to "
+        "determine your own exact deadline. We do not guess, interpolate, or infer a date."
+    )
     ),
     "methodology.h2_verified_badge": "What the “Verified” badge means",
     "methodology.verified_badge_body": (
+        (
         "A callout shows a <strong>Verified</strong> badge only when that specific date has a real "
-        "citation to codified law behind it, checked the way described above. A record without one "
-        "never shows the badge — there is no in-between state where a date looks confirmed but isn't."
+        "citation to codified law behind it, checked the way described above. A date confirmed "
+        "against the regulator's own records never shows the badge; it shows “Confirmed via official "
+        "records” instead. A record with neither never shows the badge — there is no in-between "
+        "state where a date looks confirmed but isn't."
+    )
     ),
     "methodology.h2_last_verified": "What “Last verified” means",
     "methodology.last_verified_intro": (
@@ -145,15 +170,20 @@ EN: dict[str, str] = {
     ),
     "methodology.h2_fall_short": "Where this can still fall short, honestly",
     "methodology.fall_short_body": (
-        "Some sources are genuinely harder to verify by automated means — a handful of citations "
-        "point to PDF documents or JavaScript-rendered pages our tooling can't text-extract "
-        "automatically. Where that's the case, those citations were still individually confirmed by "
-        "hand at the time they were published; we disclose the tooling gap rather than pretend an "
-        "easier check covers it. If a rule changes between our checks, use the contact link below to "
-        "flag it and we'll re-verify and correct it quickly. Articles here are credited to Moose & "
-        "Raven LLC, the company behind Deadline-Radar, rather than to a named individual author — the "
-        "honest construction for a team this size, and every fact stands on its own cited source "
-        "regardless of byline."
+        (
+        "Some states don't put a renewal date in codified text we could confirm. Those dates rest on "
+        "the regulator's own records, which the regulator can change without a rule filing; we label "
+        "them on the state page and on that state's card on the home page, and re-check them on the "
+        "same cadence as everything else. Some sources are also harder to verify by automated means "
+        "— a handful of citations point to PDF documents or JavaScript-rendered pages our tooling "
+        "can't text-extract automatically. Where that's the case, those citations were still "
+        "individually confirmed by hand at the time they were published; we disclose the tooling gap "
+        "rather than pretend an easier check covers it. If a rule changes between our checks, use "
+        "the contact link below to flag it and we'll re-verify and correct it quickly. Articles here "
+        "are credited to Moose & Raven LLC, the company behind Deadline-Radar, rather than to a "
+        "named individual author — the honest construction for a team this size, and every fact "
+        "stands on its own cited source regardless of byline."
+    )
     ),
     "methodology.h2_what_we_dont_verify": "What we don't verify this way",
     "methodology.dont_verify_body": (
@@ -165,15 +195,23 @@ EN: dict[str, str] = {
     ),
     "methodology.h2_see_for_yourself": "See it for yourself",
     "methodology.see_for_yourself_body": (
-        "Pick any state page and look for the “Source of record” line under its date — "
-        "the citation and the “read the rule” link go to the primary legal text, not a "
-        "summary. That's the same standard behind every date on this site."
+        (
+        (
+        "Pick any state page and look beside its date: the citation links straight to the source, "
+        "and the label under it says which kind it is — “Confirmed at source” for codified statute "
+        "or rule, “Confirmed via official records” for the regulator's own records. A date with "
+        "neither label carries its caveat in the text beside it, and the “Last verified” line below "
+        "the dates names the source in words."
+    )
+    )
     ),
     "methodology.backlink_changelog": "See exactly what's changed and when →",
     "methodology.backlink_contact": "Found something that looks wrong? Tell us →",
     "methodology.meta_description": (
-        "Deadline-Radar's sourcing standard: every renewal date traces to the state board's own "
-        "page plus the codified rule behind it — never a guess."
+        (
+        "Deadline-Radar's sourcing standard: every renewal date traces to codified law or the "
+        "regulator's own official records, labeled by which — never a guess."
+    )
     ),
     # /contact/ -- build_contact_page()
     "contact.h1": "Contact",
@@ -231,12 +269,14 @@ EN: dict[str, str] = {
     "msf.ppc_link_text": "Free for any account, no paid plan required",
     "msf.h2_rule_changes": "3. Rule Changes — a running feed, not a one-time check",
     "msf.rule_changes_body": (
-        "A running feed of confirmed and pending changes to interstate CPA mobility rules — "
-        "practice privileges, notice/fee requirements, and firm registration — sourced the same "
-        "way every date on this site is: a citation to the primary statute or rule where we could "
-        "confirm it, and clearly labelled where we could only confirm it against the board's own "
-        "page, never a guess. Your firm's own calendar surfaces the changes that actually affect "
-        "your roster's states. {feed_link}."
+        (
+        "A running feed of confirmed and pending changes to interstate CPA mobility rules — practice "
+        "privileges, notice/fee requirements, and firm registration — sourced the same way every "
+        "date on this site is: a citation to the primary statute or rule where we could confirm it, "
+        "and clearly labelled where it rests instead on the regulator's own official records or only "
+        "on the board's own page, never a guess. Your firm's own calendar surfaces the changes that "
+        "actually affect your roster's states. {feed_link}."
+    )
     ),
     "msf.feed_link_text": "See the full public feed",
     "msf.try_demo": "Try the live demo →",
@@ -322,11 +362,13 @@ EN: dict[str, str] = {
     # prose is keyed here.
     "calc.h1": "CPA License Renewal Deadline Calculator",
     "calc.intro": (
-        "Select your state below — and your birth month or cohort group, if your state's rule "
-        "needs one — to see your exact renewal deadline right here. Free, no signup, no account "
-        "required. Every date is sourced — to your state board's codified statute or rule where "
-        "we could confirm it against primary law, and clearly labelled where we could only "
-        "confirm it against the board's own page — {methodology_link}."
+        (
+        "Select your state below — and your birth month or cohort group, if your state's rule needs "
+        "one — to see your exact renewal deadline right here. Free, no signup, no account required. "
+        "Every date is sourced — to your state board's codified statute or rule where we could "
+        "confirm it against primary law, and clearly labelled where it rests instead on the "
+        "regulator's own official records or only on the board's own page — {methodology_link}."
+    )
     ),
     "calc.see_exactly_how": "see exactly how",
     "calc.trust_jurisdictions": "jurisdictions covered",
@@ -374,9 +416,11 @@ EN: dict[str, str] = {
     ),
     "calc.faq3_q": "How do you know these dates are right?",
     "calc.faq3_a": (
-        "Every date traces to either the state board's own published page or the actual codified "
-        "statute/rule, with the date we last confirmed it shown on that state's own page — see "
-        "the {verification_writeup_link}."
+        (
+        "Every date traces to the actual codified statute/rule, the regulator's own official "
+        "records, or the state board's own published page, labelled by which, with the date we last "
+        "confirmed it shown on that state's own page — see the {verification_writeup_link}."
+    )
     ),
     "calc.verification_writeup_link_text": "full verification writeup",
     "calc.tracking_bold": "Tracking a whole firm's staff, not just your own license?",
@@ -586,16 +630,18 @@ EN: dict[str, str] = {
     # natural short slug.
     "faq.firm.1_q": "Is the license status actually verified, or just self-reported?",
     "faq.firm.1_a": (
+        (
         "The renewal DATES are verified the same rigorous way every free page on this site is: "
         "sourced to the codified statute or rule where we could confirm it, and clearly labelled "
-        "where we could only confirm it against the board's own page, cited and rechecked on our "
-        "freshness cadence — {methodology_link}. What this is <em>not</em> is a recurring human "
-        "lookup of each staff member's individual license status — there's no manual check-in "
-        "against the state board or CPAverify.org on your behalf. Signup itself is self-serve: "
-        "your admin adds the roster directly, and reminders start right away for each person — "
-        "no confirmation step to wait on. Each staff member still gets one transparent email the "
-        "moment they're added, naming your firm and with an equally prominent one-click opt-out. "
-        "If someone opts out, you'll see it in your activity log."
+        "where it rests instead on the regulator's own official records or only on the board's own "
+        "page, cited and rechecked on our freshness cadence — {methodology_link}. What this is "
+        "<em>not</em> is a recurring human lookup of each staff member's individual license status — "
+        "there's no manual check-in against the state board or CPAverify.org on your behalf. Signup "
+        "itself is self-serve: your admin adds the roster directly, and reminders start right away "
+        "for each person — no confirmation step to wait on. Each staff member still gets one "
+        "transparent email the moment they're added, naming your firm and with an equally prominent "
+        "one-click opt-out. If someone opts out, you'll see it in your activity log."
+    )
     ),
     "faq.firm.2_q": "What if my staff are licensed in a birth-month or “bring your own date” state?",
     "faq.firm.2_a": (
@@ -716,9 +762,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.faq3_a': {
-        "text": 'Cada fecha remite ya sea a la propia página publicada de la junta estatal o al estatuto/norma codificada real, con la fecha en que la confirmamos por última vez mostrada en la propia página de ese estado — vea {verification_writeup_link}.',
-        "en_hash": '63e2990771bd11e3',
-        "reviewed": True,
+        "text": "Cada fecha remite al estatuto/norma codificada real, a los propios registros oficiales del regulador o a la propia página publicada de la junta estatal, con la etiqueta que indica cuál, con la fecha en que la confirmamos por última vez mostrada en la propia página de ese estado — vea {verification_writeup_link}.",
+        "en_hash": '1abe40b86a76c5a2',
+        "reviewed": False,
     },
     'calc.faq3_q': {
         "text": '¿Cómo sabe que estas fechas son correctas?',
@@ -751,9 +797,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'calc.intro': {
-        "text": 'Seleccione su estado abajo — y su mes de nacimiento o grupo de cohorte, si la norma de su estado lo requiere — para ver su fecha límite de renovación exacta aquí mismo. Gratis, sin registro, sin cuenta requerida. Cada fecha tiene fuente — al estatuto o norma codificada de la junta de su estado donde pudimos confirmarla contra la ley primaria, y claramente etiquetada donde solo pudimos confirmarla contra la propia página de la junta — {methodology_link}.',
-        "en_hash": '55921c7a6a3d7ff1',
-        "reviewed": True,
+        "text": "Seleccione su estado abajo — y su mes de nacimiento o grupo de cohorte, si la norma de su estado lo requiere — para ver su fecha límite de renovación exacta aquí mismo. Gratis, sin registro, sin cuenta requerida. Cada fecha tiene fuente — al estatuto o norma codificada de la junta de su estado donde pudimos confirmarla contra la ley primaria, y claramente etiquetada donde se basa en cambio en los propios registros oficiales del regulador o solo en la propia página de la junta — {methodology_link}.",
+        "en_hash": '07fffbc22f0220f8',
+        "reviewed": False,
     },
     'calc.meta_description': {
         # SRC-16 (AuditLab 2026-10-09): replaces the 210-char draft with a
@@ -997,9 +1043,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.fall_short_body': {
-        "text": 'Algunas fuentes son genuinamente más difíciles de verificar por medios automatizados — un puñado de citas remiten a documentos PDF o páginas renderizadas con JavaScript que nuestras herramientas no pueden extraer automáticamente. Cuando ese es el caso, esas citas fueron confirmadas individualmente a mano en el momento en que se publicaron; revelamos la limitación de la herramienta en lugar de fingir que una verificación más sencilla la cubre. Si una norma cambia entre nuestras verificaciones, use el enlace de contacto abajo para señalarlo y la volveremos a verificar y corregir rápidamente. Los artículos aquí se atribuyen a Moose & Raven LLC, la empresa detrás de Deadline-Radar, en lugar de a un autor individual con nombre propio — la construcción honesta para un equipo de este tamaño, y cada dato se sostiene en su propia fuente citada sin importar la firma.',
-        "en_hash": '8a47387ad08b6ab0',
-        "reviewed": True,
+        "text": "Algunos estados no incluyen la fecha de renovación en un texto codificado que pudiéramos confirmar. Esas fechas se basan en los propios registros del regulador, que este puede cambiar sin presentar una norma; las etiquetamos en la página estatal y en la tarjeta de ese estado en la página de inicio, y las volvemos a verificar con la misma frecuencia que todo lo demás. Algunas fuentes también son más difíciles de verificar por medios automatizados — un puñado de citas remiten a documentos PDF o a páginas generadas con JavaScript cuyo texto nuestras herramientas no pueden extraer automáticamente. En esos casos, esas citas se confirmaron igualmente a mano, una por una, en el momento de su publicación; revelamos esa limitación de las herramientas en lugar de fingir que una verificación más sencilla la cubre. Si una norma cambia entre nuestras verificaciones, use el enlace de contacto de abajo para avisarnos y la volveremos a verificar y corregiremos con rapidez. Los artículos de este sitio se atribuyen a Moose & Raven LLC, la empresa detrás de Deadline-Radar, y no a un autor individual con nombre — la forma honesta para un equipo de este tamaño, y cada dato se sostiene en su propia fuente citada, sea cual sea la firma.",
+        "en_hash": '9ae9dd353f233865',
+        "reviewed": False,
     },
     'methodology.freshness_stat': {
         "text": 'registros con fecha en los conjuntos de datos de este sitio (fechas límite de renovación, horas de CPE, reincorporación, tarifas de renovación) fueron verificados individualmente contra su fuente en los últimos {threshold_days} días, a la fecha de la última compilación de esta página ({build_date}). La línea “Última verificación” de cada página estatal muestra la fecha propia de esa cita específica — es el mismo dato, agregado para todo el sitio.',
@@ -1022,9 +1068,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.h2_two_source_rule': {
-        "text": 'La regla de las dos fuentes',
-        "en_hash": 'cfd64ad44ece3baa',
-        "reviewed": True,
+        "text": "Cómo se respalda cada fecha",
+        "en_hash": 'fbf1bd4c33a56127',
+        "reviewed": False,
     },
     'methodology.h2_verified_badge': {
         "text": 'Qué significa la insignia “Verificado”',
@@ -1062,14 +1108,14 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.meta_description': {
-        "text": 'El estándar de verificación de Deadline-Radar: cada fecha de renovación remite a la página de la junta estatal y a la norma codificada — nunca una suposición.',
-        "en_hash": '788cc76b0aa7c29c',
-        "reviewed": True,
+        "text": "El estándar de verificación de Deadline-Radar: cada fecha de renovación remite a la ley codificada o a los propios registros oficiales del regulador, con la etiqueta que indica cuál — nunca una suposición.",
+        "en_hash": 'e2622d72e9083d31',
+        "reviewed": False,
     },
     'methodology.see_for_yourself_body': {
-        "text": 'Elija cualquier página estatal y busque la línea “Source of record” debajo de su fecha — la cita y el enlace “leer la norma” llevan al texto legal primario, no a un resumen. Ese es el mismo estándar detrás de cada fecha en este sitio.',
-        "en_hash": 'a8ceea4d0a4bee54',
-        "reviewed": True,
+        "text": "Elija cualquier página estatal y mire junto a su fecha: la cita enlaza directamente a la fuente, y la etiqueta debajo indica de qué tipo es — “Confirmed at source” para un estatuto o norma codificados, “Confirmed via official records” para los propios registros del regulador. Una fecha sin ninguna de las dos etiquetas lleva su advertencia en el texto junto a ella, y la línea “Last verified” debajo de las fechas nombra la fuente con palabras.",
+        "en_hash": 'dddac9432d639356',
+        "reviewed": False,
     },
     'methodology.title': {
         "text": 'Cómo verificamos cada fecha límite',
@@ -1077,29 +1123,29 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'methodology.two_source_fallback': {
-        "text": 'Si no podemos encontrar o confirmar la segunda fuente, la fecha no se publica como un hecho confirmado. En su lugar, la página lo indica claramente y le remite a la junta estatal oficial para que determine su fecha límite exacta — no adivinamos, interpolamos ni inferimos una fecha que no podamos respaldar con la ley primaria.',
-        "en_hash": 'db14e52be12a036f',
-        "reviewed": True,
+        "text": "Cuando una cita codificada cubre solo parte de una afirmación, o solo la página de la junta respalda una fecha, la página lo indica claramente. Si no podemos respaldar una fecha con ninguno de los dos tipos de fuente anteriores, no se publica como un hecho confirmado: la página le remite a la junta estatal oficial para determinar su propia fecha límite exacta. No adivinamos, interpolamos ni inferimos una fecha.",
+        "en_hash": '3d23839819562480',
+        "reviewed": False,
     },
     'methodology.two_source_intro': {
-        "text": 'Toda fecha en este sitio debe remitirse a dos elementos independientes antes de publicarse:',
-        "en_hash": '7500c6c8e1eed63c',
-        "reviewed": True,
+        "text": "Toda fecha en este sitio remite a una fuente primaria antes de publicarse, y la página le indica de qué tipo es:",
+        "en_hash": '2eece24db11f923d',
+        "reviewed": False,
     },
     'methodology.two_source_item1': {
-        "text": '<strong>La propia página de la junta estatal</strong> — la fuente en lenguaje sencillo que la mayoría de las personas encontraría primero.',
-        "en_hash": 'ae4f97ae377fc2a7',
-        "reviewed": True,
+        "text": "<strong>La ley codificada, más la propia página de la junta</strong> — para la mayoría de las fechas, dos elementos independientes: la propia página de la junta estatal y el estatuto codificado o la norma administrativa real de la que se deriva su requisito (el texto legal primario mismo, no un resumen). Cuando la página muestra la fecha misma, esta lleva la etiqueta “Confirmed at source”.",
+        "en_hash": 'a8ecd8976270505c',
+        "reviewed": False,
     },
     'methodology.two_source_item2': {
-        "text": '<strong>El estatuto codificado o la norma administrativa real</strong> de la que se deriva el requisito de la junta — no un resumen, sino el texto legal primario mismo. Esa cita y un enlace directo a ella se muestran debajo de cada fecha verificada en este sitio, con la etiqueta “Source of record”.',
-        "en_hash": 'fad15d7df2de1f83',
-        "reviewed": True,
+        "text": "<strong>Los propios registros oficiales del regulador</strong> — cuando no pudimos confirmar la fecha en un texto codificado, pero los propios registros operativos del regulador la indican: un registro público de licencias o un conjunto de datos abiertos, un portal de verificación de licencias, su formulario de renovación o su orientación publicada vigente. Es evidencia primaria del propio regulador, pero no es ley codificada, y en algunos estados es la propia página de la junta, de modo que hay una sola fuente, no dos. Cuando la página muestra la fecha misma, esta lleva la etiqueta “Confirmed via official records”, y la línea “Last verified” de la página estatal indica que se verificaron contra los propios registros oficiales del regulador y no contra el texto de un estatuto codificado o una norma administrativa.",
+        "en_hash": 'e7baf015d95262b0',
+        "reviewed": False,
     },
     'methodology.verified_badge_body': {
-        "text": 'Un recuadro destacado muestra una insignia <strong>Verificado</strong> solo cuando esa fecha específica tiene una cita real a la ley codificada que la respalda, verificada de la manera descrita arriba. Un registro sin ella nunca muestra la insignia — no existe un estado intermedio donde una fecha parezca confirmada sin estarlo.',
-        "en_hash": '9133faed51b64a34',
-        "reviewed": True,
+        "text": "Un recuadro destacado muestra una insignia <strong>Verificado</strong> solo cuando esa fecha específica tiene una cita real a la ley codificada que la respalda, verificada de la manera descrita arriba. Una fecha confirmada contra los propios registros del regulador nunca muestra la insignia; en su lugar muestra “Confirmed via official records”. Un registro sin ninguna de las dos nunca muestra la insignia — no existe un estado intermedio en el que una fecha parezca confirmada sin estarlo.",
+        "en_hash": '3fcce452ceb59b0f',
+        "reviewed": False,
     },
     'msf.backlink_all_states': {
         "text": '← Volver a todos los estados',
@@ -1172,9 +1218,9 @@ ES: dict[str, dict] = {
         "reviewed": True,
     },
     'msf.rule_changes_body': {
-        "text": 'Un feed continuo de cambios confirmados y pendientes a las normas de movilidad interestatal de CPA — privilegios de práctica, requisitos de aviso/tarifa, y registro de firmas — obtenido de la misma manera que cada fecha en este sitio: una cita al estatuto o norma primaria donde pudimos confirmarla, y claramente etiquetado donde solo pudimos confirmarla contra la propia página de la junta, nunca una suposición. El calendario de su propia firma muestra los cambios que realmente afectan a los estados de su equipo. {feed_link}.',
-        "en_hash": 'd0fa020ab8c1681b',
-        "reviewed": True,
+        "text": "Un feed continuo de cambios confirmados y pendientes a las normas de movilidad interestatal de CPA — privilegios de práctica, requisitos de aviso/tarifa, y registro de firmas — obtenido de la misma manera que cada fecha en este sitio: una cita al estatuto o norma primaria donde pudimos confirmarla, y claramente etiquetado donde se basa en cambio en los propios registros oficiales del regulador o solo en la propia página de la junta, nunca una suposición. El calendario de su propia firma muestra los cambios que realmente afectan a los estados de su equipo. {feed_link}.",
+        "en_hash": 'd2fe3322b6a4a440',
+        "reviewed": False,
     },
     'msf.see_plans': {
         "text": 'ver planes',
