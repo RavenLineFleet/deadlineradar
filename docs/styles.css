@@ -164,7 +164,7 @@
   }
   tr.dr-bf-highlight { background: var(--card-bg); outline: 2px solid var(--accent); outline-offset: -2px; }
   
-  .verified-stale-note { font-weight: 400; font-style: italic; opacity: 0.85; }
+  .verified-stale-note { font-weight: 400; font-style: italic; }
   .verified-badge.verified-stale { background: var(--accent-bg); color: var(--muted); }
   
   .dr-calc {

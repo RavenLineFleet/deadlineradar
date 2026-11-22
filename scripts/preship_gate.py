@@ -9678,6 +9678,23 @@ def check_operational_class_disclosed(repo_root: Path, docs_dir: Path) -> list[s
     return errors
 
 
+def check_stale_note_full_opacity(docs_dir: Path) -> list[str]:
+    """A11Y-43 (AuditLab MEDIUM, 2026-11-22): opacity on .verified-stale-note
+    dropped the staleness caveat to 3.53:1 / 3.84:1 in the light theme (AA
+    needs 4.5:1; at --muted on --accent-bg it needs opacity >= 0.98). The
+    caveat must render at full opacity."""
+    css = docs_dir / "styles.css"
+    if not css.exists():
+        return [f"[A11Y43] {css} missing -- check_stale_note_full_opacity() is measuring nothing"]
+    rules = re.findall(r"\.verified-stale-note\s*\{([^}]*)\}", css.read_text(encoding="utf-8"))
+    if not rules:
+        return ["[A11Y43] no .verified-stale-note rule in styles.css -- check_stale_note_full_opacity() is measuring nothing"]
+    if any(re.search(r"(^|;)\s*opacity\s*:", r) for r in rules):
+        return ["[A11Y43] .verified-stale-note sets opacity; the staleness caveat must render at full "
+                "opacity (AA 4.5:1 fails below 0.98 on --accent-bg)"]
+    return []
+
+
 def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     """i18n.py's t() already refuses to show an unreviewed or stale Spanish
     string at runtime (falls back to English) -- that's the primary
@@ -11858,6 +11875,7 @@ def main():
     all_errors += check_email_link_helper_usage(repo_root)
     all_errors += check_i18n_reviewed_entries_not_stale(repo_root)
     all_errors += check_operational_class_disclosed(repo_root, docs_dir)
+    all_errors += check_stale_note_full_opacity(docs_dir)
     all_errors += check_send_pass_consent_gate_coverage(repo_root)
     all_errors += check_origin_check_coverage(repo_root)
     all_errors += check_read_route_auth_coverage(repo_root)

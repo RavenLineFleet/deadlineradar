@@ -899,7 +899,7 @@ PAGE_CSS = """
      _STALE_BADGE_RUNTIME_JS when a dated verification marker is past the
      old on a LIVE page (build gates can't touch already-deployed pages).
      Muted, not alarming -- it's an honesty disclosure, not an error. */
-  .verified-stale-note { font-weight: 400; font-style: italic; opacity: 0.85; }
+  .verified-stale-note { font-weight: 400; font-style: italic; }
   .verified-badge.verified-stale { background: var(--accent-bg); color: var(--muted); }
   /* /deadline-calculator/'s own live, all-state widget (Devin, 2026-08-13:
      "We can't add a calculator?"). One <select> for state, a dynamically
