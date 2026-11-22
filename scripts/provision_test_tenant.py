@@ -241,6 +241,11 @@ def cmd_teardown() -> None:
     statements = [
         f"DELETE FROM firm_sessions WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
         f"DELETE FROM subscribers WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
+        # firms.primary_member_id -> firm_members.id is the other half of the
+        # circular FK cmd_create() works around: clear the pointer before the
+        # member DELETE, or it fails SQLITE_CONSTRAINT_FOREIGNKEY after the
+        # first two statements have already committed (measured live 2026-11-22).
+        f"UPDATE firms SET primary_member_id = NULL WHERE id = {sql_str(firm_id)} AND is_test_tenant = 1;",
         f"DELETE FROM firm_members WHERE firm_id = {sql_str(firm_id)} AND firm_id IN {is_test_tenant_firm};",
         f"DELETE FROM firms WHERE id = {sql_str(firm_id)} AND is_test_tenant = 1;",
     ]
