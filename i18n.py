@@ -210,7 +210,7 @@ EN: dict[str, str] = {
     "methodology.meta_description": (
         (
         "Deadline-Radar's sourcing standard: every renewal date traces to codified law or the "
-        "regulator's own official records, labeled by which — never a guess."
+        "regulator's own official records, and each state page names its source — never a guess."
     )
     ),
     # /contact/ -- build_contact_page()

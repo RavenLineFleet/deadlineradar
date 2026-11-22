@@ -9623,6 +9623,11 @@ _SRC289_RETIRED_UNIVERSALS = (
     ("methodology/index.html", "labeled “Source of record.”"),
     ("index.html", "sourced-to-codified-"),
     ("index.html", "clearly labeled when only the board page confirms it"),
+    # SRC-290 (AuditLab LOW, 2026-11-22): the meta/og/twitter/JSON-LD description
+    # slots kept "labeled by which" after the body dropped it; 19 of 55 state
+    # pages carry neither label.
+    ("methodology/index.html", "labeled by which — never a guess"),
+    ("es/methodology/index.html", "labeled by which — never a guess"),
 )
 
 
