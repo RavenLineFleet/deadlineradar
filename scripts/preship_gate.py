@@ -482,6 +482,7 @@ _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "about/index.html",
     "security/index.html",
     "firm-dashboard/index.html",
+    "rule-changes/index.html",
 }
 
 

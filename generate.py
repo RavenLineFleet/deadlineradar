@@ -4752,6 +4752,31 @@ def _upcoming_change_events_by_state() -> dict[str, list[dict]]:
 _UPCOMING_CHANGE_EVENTS_BY_STATE = _upcoming_change_events_by_state()
 
 
+def _pending_undated_events_by_state() -> dict[str, list[dict]]:
+    """SRC-296 (AuditLab, 2026-11-23): an agency-adopted pending rule whose effective date depends on a
+    legislative vote has no certain date, so its record carries effective_date null (Idaho docket
+    24-3001-2601: the 2028-01-01 it used to carry was Rule 108.01's start, not the rule's). The dated map
+    above skips it, which silently dropped /idaho/'s heads-up. The state callout falls back to these,
+    and only these: an adopted-pending rule is further along than a bare PROPOSED one, which stays
+    /rule-changes/-only as before."""
+    raw = json.loads(REG_CHANGE_EVENTS_PATH.read_text(encoding="utf-8"))
+    by_state: dict[str, list[dict]] = {}
+    for e in raw.get("events", []):
+        if (
+            e.get("kind") != "rule_change"
+            or e.get("effective_date")
+            or e.get("status") != "ADOPTED_PENDING_LEGISLATURE"
+        ):
+            continue
+        slug = e.get("jurisdiction_slug")
+        if slug:
+            by_state.setdefault(slug, []).append(e)
+    return by_state
+
+
+_PENDING_UNDATED_EVENTS_BY_STATE = _pending_undated_events_by_state()
+
+
 def _upcoming_change_callout_html(state_slug: str) -> str:
     """Devin, 2026-08-07: "if someone does a reminder, say hey are you aware
     of this change coming up." Shown ABOVE the signup form (not only after
@@ -4767,6 +4792,10 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     a surprise after. Empty string (renders nothing) for the ~46 states
     with no real upcoming event on file -- no "nothing to report" filler."""
     events = _UPCOMING_CHANGE_EVENTS_BY_STATE.get(state_slug)
+    undated = False
+    if not events:
+        events = _PENDING_UNDATED_EVENTS_BY_STATE.get(state_slug)
+        undated = True
     if not events:
         return ""
     e = events[0]
@@ -4806,10 +4835,17 @@ def _upcoming_change_callout_html(state_slug: str) -> str:
     jurisdiction = e.get("jurisdiction") or state_slug
     summary = e.get("summary_public") or ""
     # UX-25 (AuditLab, 2026-10-24): fmt_date, same as every other date surface -- this printed raw ISO.
-    eff_human = fmt_date(date.fromisoformat(e["effective_date"]))
+    eff_human = "" if undated else fmt_date(date.fromisoformat(e["effective_date"]))
     # STATUS-3 (AuditLab, 2026-10-24): only an enacted/adopted record gets "is coming"; anything else
     # (PROPOSED, or a status we couldn't establish) is stated as not adopted, same as /rule-changes/.
-    if _rc_is_enacted(e):
+    if undated:
+        # SRC-296: same not-final sentence as the dated SRC-217 branch below, minus the date it can't have.
+        lead = (
+            f"A {esc(topic_phrase)} for {esc(jurisdiction)} has no fixed effective date yet. "
+            f"The agency has adopted it as a pending rule, but it is not final: "
+            f"it goes into effect only if the legislature approves it."
+        )
+    elif _rc_is_enacted(e):
         lead = f"A {esc(topic_phrase)} is coming to {esc(jurisdiction)}, effective {esc(eff_human)}."
     elif e.get("status") == "ADOPTED_PENDING_LEGISLATURE":
         # SRC-217: not ADOPTED_RULE, which would read "is coming" over a rule the legislature can still reject.
@@ -11297,7 +11333,7 @@ board's own page, never a guess.
 {f'''
 <h2>Not yet final, with a target effective date ({len(upcoming_proposed)})</h2>
 <p class="rc-section-note">Proposed, or adopted by an agency and awaiting legislative approval, with a
-target effective date. Not yet signed into law or adopted as a final rule -- nothing is enforceable until it is.</p>
+target effective date. Not yet signed into law or adopted as a final rule &mdash; nothing is enforceable until it is.</p>
 {upcoming_proposed_html}
 ''' if upcoming_proposed else ""}
 {f'''
@@ -11309,7 +11345,7 @@ set yet -- we move it to Upcoming the moment one is pinned.</p>
 {f'''
 <h2>Not yet final or dated ({len(undated_proposed)})</h2>
 <p class="rc-section-note">Proposed, or adopted by an agency and awaiting legislative approval, but not
-yet signed into law with a scheduled effective date -- we move it up the page the moment a target effective date is set.</p>
+yet signed into law with a scheduled effective date &mdash; we move it up the page the moment a target effective date is set.</p>
 {undated_proposed_html}
 ''' if undated_proposed else ""}
 <h2>Recently changed, pending re-verification ({len(recent_pending)})</h2>

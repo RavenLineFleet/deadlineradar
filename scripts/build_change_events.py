@@ -117,10 +117,18 @@ DIFFLAB_EVENTS_DIR = pathlib.Path(
 #     page's own date stamp moving 10/11/2026 -> 10/12/2026, and its own summary
 #     says the excerpt "does not state what this date represents". Publishing it
 #     as ENACTED_DATE_PENDING would assert a statutory change nobody made.
+#
+# COPY-61 limb 2 (AuditLab, 2026-11-23; Orchestrator decision the same day):
+#   * idaho 3189d3f2b9ba is MERGED into 4712ef063e63. Both recorded docket
+#     24-3001-2601 at the same adopted-pending-rule stage; one carried an
+#     effective_date and one did not, so /rule-changes/ showed the docket in
+#     two buckets whose definitions exclude each other. Its sourced points now
+#     live in 4712's upstream summary_public/status_evidence.
 RETIRED_EVENT_IDS = frozenset({
     "missouri-regwatch-4b9dc4971d5a",  # same SB1233 326.283 change as d4c826d1ac09
     "idaho-regwatch-a006847c8874",     # superseded by the adopted-pending-rule stage of the same docket
     "virginia-regwatch-2598e165accc",  # page date-stamp churn, not a change to 54.1-4411
+    "idaho-regwatch-3189d3f2b9ba",     # COPY-61: merged into 4712ef063e63 (same docket, same stage)
 })
 
 KIND_CHANGE = "rule_change"
