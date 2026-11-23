@@ -165,14 +165,28 @@ FORBIDDEN_ADDRESS_HINTS = []  # populated by caller if a real home/work address 
 # silently inherited this exemption too. Bound to the docs-relative path instead.
 _FOUNDER_PAGE_PATH = ("docs", "about", "index.html")
 
+# SOCIAL-1 (2026-11-23, Orch directive, Devin: "All four, plain links."): the
+# footer's Follow column links Devin's personal LinkedIn profile on every page --
+# a second intentional, owner-decided disclosure. Exempt ONLY the 'devin' match
+# that falls inside this exact href attribute value; a stray "Devin" anywhere
+# else on any page, or a different LinkedIn slug, still hard-fails. If the href
+# changes (company page), update generate.py _FOOTER_SOCIAL_LINKS and drop this.
+_FOOTER_LINKEDIN_HREF = 'href="https://www.linkedin.com/in/devin-hall-64252a423/"'
+
 
 def check_copy_hygiene(html_files: list[Path]) -> list[str]:
     errors = []
     for f in html_files:
         text = f.read_text(encoding="utf-8")
         is_founder_page = f.parts[-3:] == _FOUNDER_PAGE_PATH
+        linkedin_spans = [
+            (i, i + len(_FOOTER_LINKEDIN_HREF))
+            for i in (mm.start() for mm in re.finditer(re.escape(_FOOTER_LINKEDIN_HREF), text))
+        ]
         for m in LEAK_RE.finditer(text):
             if is_founder_page and m.group(0).lower() == "devin":
+                continue
+            if m.group(0).lower() == "devin" and any(a <= m.start() and m.end() <= b for a, b in linkedin_spans):
                 continue
             line_no = text.count("\n", 0, m.start()) + 1
             snippet = text[max(0, m.start() - 40): m.end() + 40].replace("\n", " ")

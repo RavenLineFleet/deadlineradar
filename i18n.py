@@ -75,6 +75,7 @@ EN: dict[str, str] = {
     "footer.link_status": "Status",
     "footer.link_terms": "Terms",
     "footer.link_privacy": "Privacy",
+    "footer.heading_follow": "Follow",
     "footer.trust_chip": "No ad or social trackers. Cookieless analytics only.",
     # Split at the original HTML's exact <strong>...</strong> boundary (only
     # the first sentence is bold) so the markup lives in generate.py, not
@@ -940,6 +941,11 @@ ES: dict[str, dict] = {
         "text": 'No está afiliado, respaldado ni conectado con NASBA, el AICPA, ni ninguna junta estatal de contabilidad. Las fechas de renovación se recopilan de fuentes públicas únicamente con fines informativos — no constituyen asesoría legal, fiscal ni profesional. Confirme siempre su fecha exacta de renovación con la junta de su estado o en su licencia.',
         "en_hash": '1581cbb44a7d7d92',
         "reviewed": True,
+    },
+    'footer.heading_follow': {
+        "text": 'Síganos',
+        "en_hash": '641d1ef657bdfd9f',
+        "reviewed": False,
     },
     'footer.heading_company': {
         "text": 'Empresa',

@@ -883,9 +883,10 @@
   }
   
   .foot-columns {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem 1.6rem;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem 1.6rem;
     padding-bottom: 1.1rem; margin-bottom: 1.1rem; border-bottom: 1px solid var(--border);
   }
+  @media (max-width: 860px) { .foot-columns { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 620px) { .foot-columns { grid-template-columns: 1fr; } }
   .foot-col { display: flex; flex-direction: column; gap: 0.4rem; }
   

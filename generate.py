@@ -1914,9 +1914,10 @@ PAGE_CSS = """
      .foot-links list (kept below, still used by anything that might
      reference it directly, though no current caller does). */
   .foot-columns {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem 1.6rem;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem 1.6rem;
     padding-bottom: 1.1rem; margin-bottom: 1.1rem; border-bottom: 1px solid var(--border);
   }
+  @media (max-width: 860px) { .foot-columns { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 620px) { .foot-columns { grid-template-columns: 1fr; } }
   .foot-col { display: flex; flex-direction: column; gap: 0.4rem; }
   /* AuditLab UX-19 (2026-10-18): these were <h3> with no <h2> above them in
@@ -3828,6 +3829,22 @@ def _alt_lang_href_from_head(extra_head: str, lang: str) -> str:
     return m.group(1) if m else ""
 
 
+# Orch directive 2026-11-23 (Devin: "All four, plain links."): plain <a> tags
+# only -- no follow widgets, embeds, SDKs, icons, or preconnects, so the
+# footer.trust_chip claim ("No ad or social trackers") stays true. Labelled by
+# platform, not handle. LinkedIn is Devin's personal profile (no company page
+# confirmed); swap the href here if one turns up.
+_FOOTER_SOCIAL_LINKS = (
+    ("X", "https://x.com/deadlineradar"),
+    ("Bluesky", "https://bsky.app/profile/mooseandraven.bsky.social"),
+    ("Mastodon", "https://mastodon.social/@mooseandraven"),
+    ("LinkedIn", "https://www.linkedin.com/in/devin-hall-64252a423/"),
+)
+_FOOTER_SOCIAL_LINKS_HTML = chr(10).join(
+    f'      <a href="{esc(url)}">{esc(label)}</a>' for label, url in _FOOTER_SOCIAL_LINKS
+)
+
+
 def site_footer(lang: str = "en", alt_lang_href: str = "") -> str:
     disclaimer_bold = _t("footer.disclaimer_bold", lang, site_name=SITE_NAME, brand_name=BRAND_NAME)
     disclaimer_rest = _t("footer.disclaimer_rest", lang)
@@ -3854,7 +3871,7 @@ def site_footer(lang: str = "en", alt_lang_href: str = "") -> str:
   </div>
   <!-- Roadmap #332 (2026-08-11, ValueLab report section 10): same 17 links
        as before, grouped under 3 real category headings instead of one flat
-       list -- no new links, no new pages, no new categories beyond these 3.
+       list. 2026-11-23: a 4th "Follow" column of plain links (no widgets).
        Deliberately not a large multi-category mega-footer (categories like
        Careers, Press Room, Partner Hub would point at programs that don't
        exist for us). -->
@@ -3884,6 +3901,10 @@ def site_footer(lang: str = "en", alt_lang_href: str = "") -> str:
       <a href="/status/">{esc(_t("footer.link_status", lang))}</a>
       <a href="/terms/">{esc(_t("footer.link_terms", lang))}</a>
       <a href="/privacy/">{esc(_t("footer.link_privacy", lang))}</a>
+    </div>
+    <div class="foot-col">
+      <h2>{esc(_t("footer.heading_follow", lang))}</h2>
+{_FOOTER_SOCIAL_LINKS_HTML}
     </div>
   </div>
   <p class="foot-trust-chip"><a href="/security/">{esc(_t("footer.trust_chip", lang))}</a></p>
