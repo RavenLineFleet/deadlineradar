@@ -19,6 +19,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import NamedTuple
@@ -9717,6 +9718,8 @@ def check_stale_note_full_opacity(docs_dir: Path) -> list[str]:
 
 
 _SRC292_NOTE = "(that check read the state board&rsquo;s own page)"
+# SRC-294 (AuditLab MEDIUM, 2026-11-23): a PDF source_url is not a page.
+_SRC294_PDF_NOTE = "(that check re-read a PDF file posted on the state board&rsquo;s site"
 
 
 def _src292_board_recheck(r: dict, codified: bool) -> bool:
@@ -9761,19 +9764,30 @@ def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
         if not page.exists():
             continue
         shown = min(r["last_verified"] for r in recs)
-        want = any(
-            r["last_verified"] == shown
+        gov = next((
+            r for r in recs
+            if r["last_verified"] == shown
             and _src292_board_recheck(r, generate_module._record_citation_status(r) == "codified")
-            for r in recs
-        )
-        has = _SRC292_NOTE in page.read_text(encoding="utf-8")
+        ), None)
+        html = page.read_text(encoding="utf-8")
+        has_page, has_pdf = _SRC292_NOTE in html, _SRC294_PDF_NOTE in html
         checked += 1
-        if want and not has:
+        if gov is None:
+            if has_page or has_pdf:
+                errors.append(f"[SRC292] /{slug}/ says the last check read a board page/PDF, but the "
+                              "governing record's last_verified entry is not a board-source auto-anchor")
+            continue
+        is_pdf = urllib.parse.urlsplit(gov["source_url"]).path.lower().endswith(".pdf")
+        if is_pdf and not has_pdf:
+            errors.append(f"[SRC294] /{slug}/ Last-verified date came from an auto-anchor re-read of a "
+                          "PDF (not a page) but the trust line does not say it was a PDF")
+        if is_pdf and has_page:
+            errors.append(f"[SRC294] /{slug}/ trust line calls a PDF source 'the state board's own page'")
+        if not is_pdf and not has_page:
             errors.append(f"[SRC292] /{slug}/ Last-verified date came from a board-page auto-anchor "
                           "read but the trust line does not say so")
-        elif has and not want:
-            errors.append(f"[SRC292] /{slug}/ says the last check read the board page, but the "
-                          "governing record's last_verified entry is not a board-page auto-anchor")
+        if not is_pdf and has_pdf:
+            errors.append(f"[SRC294] /{slug}/ trust line says PDF but the governing source_url is a page")
     if checked == 0:
         errors.append("[SRC292] no state pages found -- check_board_recheck_disclosed() is measuring nothing")
     return errors

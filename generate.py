@@ -6256,6 +6256,27 @@ def _latest_check_read_board_page(record: dict) -> bool:
     return bool(src) and src not in cites and all(u == src for u in urls)
 
 
+def _board_recheck_note(record: dict) -> str:
+    """SRC-294 (AuditLab MEDIUM, 2026-11-23): the SRC-292 note said the check
+    "read the state board's own page" for every board-hosted source_url, but three
+    of them are PDF files (sd-all: a July 2026 newsletter; ok-firm: a 2025 form;
+    nm-firm: the Act-and-Rules compilation). A PDF is not a page, and re-reading a
+    byte-identical file is not evidence the board's guidance is current. For a PDF
+    the note names the file type and, when every auto-anchor read of it carried one
+    sha256, the date it has been unchanged since. Webpage wording is unchanged."""
+    src = record.get("source_url") or ""
+    if not src.split("?", 1)[0].split("#", 1)[0].lower().endswith(".pdf"):
+        return " (that check read the state board&rsquo;s own page)"
+    vh = record.get("verification_history") or ""
+    reads = re.findall(
+        r"(\d{4}-\d{2}-\d{2}) \(automated re-verification, auto-anchor\): confirmed via "
+        + re.escape(src) + r", sha256=([0-9a-f]{64})", vh)
+    since = ""
+    if reads and len({h for _, h in reads}) == 1:
+        since = f", unchanged since {fmt_date(date.fromisoformat(min(d for d, _ in reads)))}"
+    return f" (that check re-read a PDF file posted on the state board&rsquo;s site{since})"
+
+
 def trust_line(last_verified: str, source_url: str, has_citation: bool,
                 is_operational_record: bool = False, records: list[dict] | None = None,
                 citation_exists: bool = False, date_scoped: bool = False) -> str:
@@ -6326,13 +6347,10 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     # data-verified stays ISO (the runtime staleness JS parses it); only the visible text changes.
     last_verified_human = fmt_date(date.fromisoformat(last_verified))
     claim_subject = "renewal date " if date_scoped else ""
-    recheck_note = (
-        " (that check read the state board&rsquo;s own page)"
-        if records and any(
-            r.get("last_verified") == last_verified and _latest_check_read_board_page(r)
-            for r in records
-        )
-        else ""
+    recheck_note = next(
+        (_board_recheck_note(r) for r in (records or [])
+         if r.get("last_verified") == last_verified and _latest_check_read_board_page(r)),
+        "",
     )
     if records:
         statuses = {_record_citation_status(r) for r in records}
