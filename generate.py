@@ -10241,7 +10241,7 @@ def build_privacy_page(updated: date) -> str:
 and license-tracking service you or your firm signed up for, plus a little information about how you found
 us (described below), we never sell or rent it, and every email
 gives you a one-click way to stop. Firms have a few more data categories than individuals (a password,
-a staff roster, CPE hours, billing status) -- all covered below.</p>
+a staff roster, CPE hours, billing status) &mdash; all covered below.</p>
 
 <h2>What we collect &mdash; individual reminders</h2>
 <p>Only what's needed to remind you about your deadline:</p>

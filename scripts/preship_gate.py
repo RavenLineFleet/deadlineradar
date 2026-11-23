@@ -470,9 +470,13 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
 # bucket with the data-driven backlog. `docs/blog/*/index.html` is globbed
 # dynamically rather than listed by slug, so next Friday's post is covered
 # without anyone remembering to add it here.
+# COPY-66 (AuditLab, 2026-11-22): coverage extended to six more hand-copy
+# pages (privacy, changelog, about, security, rule-changes, firm-dashboard),
+# each added in the same commit that cleans its copy.
 _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "index.html", "for-firms/index.html", "pricing/index.html",
     "methodology/index.html", "llms.txt", "practice-privilege-check/index.html",
+    "privacy/index.html",
 }
 
 
