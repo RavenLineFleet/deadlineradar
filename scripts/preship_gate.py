@@ -476,6 +476,7 @@ def check_prose_leak_shapes(html_files: list[Path]) -> list[str]:
 _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "index.html", "for-firms/index.html", "pricing/index.html",
     "methodology/index.html", "llms.txt", "practice-privilege-check/index.html",
+    "changelog/index.html",
     "privacy/index.html",
 }
 
