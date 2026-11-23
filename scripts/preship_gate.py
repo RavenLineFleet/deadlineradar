@@ -9716,6 +9716,69 @@ def check_stale_note_full_opacity(docs_dir: Path) -> list[str]:
     return []
 
 
+_SRC292_NOTE = "(that check read the state board&rsquo;s own page)"
+
+
+def _src292_board_recheck(r: dict, codified: bool) -> bool:
+    # Independent of generate._latest_check_read_board_page so the gate is not
+    # the helper checking itself: every verification_history entry dated
+    # last_verified is an auto-anchor line served from source_url.
+    if not codified:
+        return False
+    lv, vh, src = r.get("last_verified") or "", r.get("verification_history") or "", r.get("source_url")
+    cites = {r.get("citation_url")} | {l.get("url") for l in (r.get("citation_links") or []) if isinstance(l, dict)}
+    if not (lv and vh and src) or src in cites:
+        return False
+    day = [e for e in re.split(r"(?=\b\d{4}-\d{2}-\d{2} \()", vh) if e.startswith(lv)]
+    if not day:
+        return False
+    for e in day:
+        m = re.search(r"confirmed via (\S+?),", e)
+        if "auto-anchor" not in e[:80] or not m or m.group(1) != src:
+            return False
+    return True
+
+
+def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
+    """SRC-292 (AuditLab MEDIUM, 2026-11-23): the codified trust-line sentence
+    ("checked against the state's codified statute ... not just a board webpage")
+    sat beside a Last-verified date that was advanced only by an auto-anchor read
+    of the board's own page. Every state page whose displayed (oldest) date comes
+    from such a record must say so, and no other state page may."""
+    sys.path.insert(0, str(repo_root))
+    try:
+        import generate as generate_module
+    except Exception as e:
+        return [f"[SRC292] generate.py could not be imported ({type(e).__name__}: {e}); "
+                "check_board_recheck_disclosed() is measuring nothing"]
+    data = json.loads((repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))
+    by_slug: dict[str, list[dict]] = {}
+    for r in data["records"]:
+        by_slug.setdefault(r["state_slug"], []).append(r)
+    errors, checked = [], 0
+    for slug, recs in sorted(by_slug.items()):
+        page = docs_dir / slug / "index.html"
+        if not page.exists():
+            continue
+        shown = min(r["last_verified"] for r in recs)
+        want = any(
+            r["last_verified"] == shown
+            and _src292_board_recheck(r, generate_module._record_citation_status(r) == "codified")
+            for r in recs
+        )
+        has = _SRC292_NOTE in page.read_text(encoding="utf-8")
+        checked += 1
+        if want and not has:
+            errors.append(f"[SRC292] /{slug}/ Last-verified date came from a board-page auto-anchor "
+                          "read but the trust line does not say so")
+        elif has and not want:
+            errors.append(f"[SRC292] /{slug}/ says the last check read the board page, but the "
+                          "governing record's last_verified entry is not a board-page auto-anchor")
+    if checked == 0:
+        errors.append("[SRC292] no state pages found -- check_board_recheck_disclosed() is measuring nothing")
+    return errors
+
+
 def check_i18n_reviewed_entries_not_stale(repo_root: Path) -> list[str]:
     """i18n.py's t() already refuses to show an unreviewed or stale Spanish
     string at runtime (falls back to English) -- that's the primary
@@ -11897,6 +11960,7 @@ def main():
     all_errors += check_i18n_reviewed_entries_not_stale(repo_root)
     all_errors += check_operational_class_disclosed(repo_root, docs_dir)
     all_errors += check_stale_note_full_opacity(docs_dir)
+    all_errors += check_board_recheck_disclosed(repo_root, docs_dir)
     all_errors += check_send_pass_consent_gate_coverage(repo_root)
     all_errors += check_origin_check_coverage(repo_root)
     all_errors += check_read_route_auth_coverage(repo_root)

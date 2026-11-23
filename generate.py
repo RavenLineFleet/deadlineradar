@@ -6222,6 +6222,40 @@ _TRUST_CLAIM_BY_STATUS = {
 }
 
 
+def _latest_check_read_board_page(record: dict) -> bool:
+    """SRC-292 (AuditLab, 2026-11-23): True when a codified record's last_verified
+    date was advanced only by automated auto-anchor confirmations served from the
+    record's source_url (the board's own page), not its citation_url or any
+    citation_links url. The trust line's codified sentence is still true of the
+    date's source, but the recency stamp beside it was not a read of the rule
+    text, so the page says which page that check read."""
+    if _record_citation_status(record) != "codified":
+        return False
+    lv = record.get("last_verified") or ""
+    vh = record.get("verification_history") or ""
+    if not lv or not vh:
+        return False
+    cites = {record.get("citation_url")} | {
+        l.get("url") for l in (record.get("citation_links") or []) if isinstance(l, dict)
+    }
+    entries = [e for e in re.split(r"(?=\b\d{4}-\d{2}-\d{2} \()", vh) if e.startswith(lv)]
+    if not entries:
+        return False
+    urls = []
+    for e in entries:
+        if "auto-anchor" not in e[:80]:
+            return False
+        m = re.search(r"confirmed via (\S+?),", e)
+        if not m:
+            return False
+        urls.append(m.group(1))
+    # Only the record's own source_url counts as "the board's own page": several
+    # non-citation anchors are rule-text mirrors (Cornell LII, a state revisor),
+    # and reading one of those IS a read of the rule text.
+    src = record.get("source_url")
+    return bool(src) and src not in cites and all(u == src for u in urls)
+
+
 def trust_line(last_verified: str, source_url: str, has_citation: bool,
                 is_operational_record: bool = False, records: list[dict] | None = None,
                 citation_exists: bool = False, date_scoped: bool = False) -> str:
@@ -6292,6 +6326,14 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
     # data-verified stays ISO (the runtime staleness JS parses it); only the visible text changes.
     last_verified_human = fmt_date(date.fromisoformat(last_verified))
     claim_subject = "renewal date " if date_scoped else ""
+    recheck_note = (
+        " (that check read the state board&rsquo;s own page)"
+        if records and any(
+            r.get("last_verified") == last_verified and _latest_check_read_board_page(r)
+            for r in records
+        )
+        else ""
+    )
     if records:
         statuses = {_record_citation_status(r) for r in records}
         if len(statuses) > 1:
@@ -6301,7 +6343,7 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
                 for r in records
             )
             return f"""<div class="trust-line">
-  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong> &middot; {per_record} &mdash;
+  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong>{recheck_note} &middot; {per_record} &mdash;
   <a href="/methodology/">see how we verify every deadline</a>. Always confirm with the
   <a href="{http_href(source_url)}">official state board</a> before relying on this date. License
   requirements and deadlines can change.
@@ -6333,7 +6375,7 @@ def trust_line(last_verified: str, source_url: str, has_citation: bool,
             '(<a href="/methodology/">see how we verify every deadline</a>)'
         )
     return f"""<div class="trust-line">
-  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong> &middot; {sourcing_claim}. Always confirm with the
+  <strong data-verified="{esc(last_verified)}">Last verified: {esc(last_verified_human)}</strong>{recheck_note} &middot; {sourcing_claim}. Always confirm with the
   <a href="{http_href(source_url)}">official state board</a> before relying on this date. License
   requirements and deadlines can change.
 </div>"""
@@ -9595,7 +9637,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # asserting it, so the lead-in sentence is cut rather than reworded.
     method_band_html = f"""<section class="band-section band-section--alt">
   <h2>Two independent sources where available, clearly labeled when a date rests on the regulator's own records instead.</h2>
-  <ol class="method-grid method-steps">
+  <ol class="method-grid method-steps" role="list">
     <li class="mcard">
       <h3><span class="step" aria-hidden="true">1</span> The board's own page</h3>
       <p>We start at the state board of accountancy's official renewal and CPE pages &mdash; the
@@ -24391,7 +24433,7 @@ renewal. Here's exactly when {esc(state_name)}'s firm-level filing is due.</p>
   <p class="rule">{esc(_date_note_prefix(record) + record['cycle_description'])}</p>
   {_source_cite_html(record)}
 </div>
-{trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
+{trust_line(record['last_verified'], record['source_url'], _record_fully_cited(record), _is_operational_record(record), records=[record], citation_exists=bool(record.get("citation")))}
 {_state_data_gap_disclosure_html([record])}
 {_year_end_firm_link_html(state_slug, year_end_firm_slugs)}
 
@@ -25552,7 +25594,7 @@ def build_reinstatement_page(record: dict, renewal_records: list[dict], cpe_reco
 
 <p><strong>What triggers lapsed status:</strong> {esc(record['lapse_trigger'])}</p>{_state_firm_scope_html(renewal_records, state_name)}
 
-{trust_line(record["last_verified"], record["source_url"], _record_fully_cited(record), _is_operational_record(record), citation_exists=bool(record.get("citation")))}
+{trust_line(record["last_verified"], record["source_url"], _record_fully_cited(record), _is_operational_record(record), records=[record], citation_exists=bool(record.get("citation")))}
 
 {_reinstatement_signup_html(record["state_slug"], state_name, renewal_records, as_of)}
 
