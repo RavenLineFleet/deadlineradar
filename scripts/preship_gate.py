@@ -9746,8 +9746,15 @@ def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
     """SRC-292 (AuditLab MEDIUM, 2026-11-23): the codified trust-line sentence
     ("checked against the state's codified statute ... not just a board webpage")
     sat beside a Last-verified date that was advanced only by an auto-anchor read
-    of the board's own page. Every state page whose displayed (oldest) date comes
-    from such a record must say so, and no other state page may."""
+    of the board's own page. Every page whose displayed date comes from such a
+    record must say so, and no other page may.
+
+    GATE-145 (AuditLab MEDIUM, 2026-11-23): this read only docs/<state>/ (9 of the
+    24 note-bearing pages). trust_line() also renders the note on the firm landing
+    pages (the record _firm_relevant_record() picks) and on the reinstatement pages
+    (a data/reinstatement.json record). All three families are checked now, and any
+    other docs page carrying either note is an error, so a fourth renderer cannot
+    ship the sentence unguarded."""
     sys.path.insert(0, str(repo_root))
     try:
         import generate as generate_module
@@ -9755,15 +9762,27 @@ def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
         return [f"[SRC292] generate.py could not be imported ({type(e).__name__}: {e}); "
                 "check_board_recheck_disclosed() is measuring nothing"]
     data = json.loads((repo_root / "data" / "cpa_deadlines.json").read_text(encoding="utf-8"))
+    rein = json.loads((repo_root / "data" / "reinstatement.json").read_text(encoding="utf-8"))
     by_slug: dict[str, list[dict]] = {}
     for r in data["records"]:
         by_slug.setdefault(r["state_slug"], []).append(r)
-    errors, checked = [], 0
+    targets: list[tuple[str, str, list[dict]]] = []
     for slug, recs in sorted(by_slug.items()):
+        targets.append((slug, min(r["last_verified"] for r in recs), recs))
+        firm = generate_module._firm_relevant_record(recs)
+        if firm:
+            targets.append((f"{slug}-cpa-firm-renewal", firm["last_verified"], [firm]))
+    for r in rein["records"]:
+        targets.append((f"{r['state_slug']}-cpa-license-reinstatement", r["last_verified"], [r]))
+    errors, checked, covered = [], {"state": 0, "firm": 0, "reinstatement": 0}, set()
+    for slug, shown, recs in targets:
         page = docs_dir / slug / "index.html"
         if not page.exists():
             continue
-        shown = min(r["last_verified"] for r in recs)
+        covered.add(page.resolve())
+        fam = ("firm" if slug.endswith("-cpa-firm-renewal")
+               else "reinstatement" if slug.endswith("-cpa-license-reinstatement") else "state")
+        checked[fam] += 1
         gov = next((
             r for r in recs
             if r["last_verified"] == shown
@@ -9771,7 +9790,6 @@ def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
         ), None)
         html = page.read_text(encoding="utf-8")
         has_page, has_pdf = _SRC292_NOTE in html, _SRC294_PDF_NOTE in html
-        checked += 1
         if gov is None:
             if has_page or has_pdf:
                 errors.append(f"[SRC292] /{slug}/ says the last check read a board page/PDF, but the "
@@ -9788,8 +9806,17 @@ def check_board_recheck_disclosed(repo_root: Path, docs_dir: Path) -> list[str]:
                           "read but the trust line does not say so")
         if not is_pdf and has_pdf:
             errors.append(f"[SRC294] /{slug}/ trust line says PDF but the governing source_url is a page")
-    if checked == 0:
-        errors.append("[SRC292] no state pages found -- check_board_recheck_disclosed() is measuring nothing")
+    for fam, n in checked.items():
+        if n == 0:
+            errors.append(f"[GATE145] no {fam} pages found -- check_board_recheck_disclosed() is "
+                          "measuring nothing for that family")
+    for page in sorted(docs_dir.rglob("index.html")):
+        if page.resolve() in covered:
+            continue
+        html = page.read_text(encoding="utf-8", errors="replace")
+        if _SRC292_NOTE in html or _SRC294_PDF_NOTE in html:
+            errors.append(f"[GATE145] {page.relative_to(docs_dir).as_posix()} carries the board-recheck "
+                          "note but no check maps it to a governing record")
     return errors
 
 
