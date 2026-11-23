@@ -490,12 +490,25 @@ def _double_hyphen_hard_gate_paths(docs_dir: Path) -> set[Path]:
     return paths
 
 
+# COPY-67 (AuditLab, 2026-11-23): _extract_rendered_prose drops every <meta>
+# tag, so a page could pass this gate while its search-snippet and share-card
+# copy still carried "--". Read the description/title metas here only (not in
+# the shared extractor, which other checks consume).
+_META_COPY_RE = re.compile(
+    r'<meta\s+(?:name|property)\s*=\s*"(?:description|og:description|twitter:description|og:title|twitter:title)"\s+content\s*=\s*"([^"]*)"',
+    re.IGNORECASE,
+)
+
+
 def check_double_hyphen_hand_copy_pages(docs_dir: Path) -> list[str]:
     errors = []
     for f in sorted(_double_hyphen_hard_gate_paths(docs_dir)):
         if not f.exists():
             continue
-        prose = _extract_rendered_prose(f.read_text(encoding="utf-8")) if f.suffix == ".html" else f.read_text(encoding="utf-8")
+        raw = f.read_text(encoding="utf-8")
+        prose = _extract_rendered_prose(raw) if f.suffix == ".html" else raw
+        if f.suffix == ".html":
+            prose += " " + " ".join(html.unescape(c) for c in _META_COPY_RE.findall(raw))
         for m in _PROSE_DOUBLE_HYPHEN_RE.finditer(prose):
             snippet = prose[max(0, m.start() - 60): m.end() + 60].replace("\n", " ").strip()
             errors.append(

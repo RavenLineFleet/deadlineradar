@@ -10534,7 +10534,7 @@ it rests on the regulator's own records or only the board page.</p>
     return page_shell(
         f"About — {SITE_NAME}",
         "Why Deadline-Radar exists: a market-research question about an underserved compliance "
-        "niche, not a personal pain point -- and the sourcing standard that came out of it.",
+        "niche, not a personal pain point — and the sourcing standard that came out of it.",
         body,
         home_href="../",
         canonical_path="/about/",
@@ -10798,7 +10798,7 @@ not every commit, but every change that could affect what a visitor sees. See
     return page_shell(
         f"Changelog — {SITE_NAME}",
         "A running record of material corrections and updates to Deadline-Radar's CPA license "
-        "renewal data -- dated, plain-language, never hidden.",
+        "renewal data — dated, plain-language, never hidden.",
         body,
         home_href="../",
         canonical_path="/changelog/",
