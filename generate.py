@@ -794,7 +794,10 @@ PAGE_CSS = """
   .nav-inner {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
   }
-  .nav-links { display: flex; gap: 1.4rem; flex-wrap: wrap; }
+  /* align-items: center (2026-11-22): without it flex defaults to stretch, the shorter filled .cta box is stretched to
+     the text links' height and its label top-aligns. The 680px block below
+     re-sets stretch for the stacked mobile menu. */
+  .nav-links { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
   .nav-links a {
     color: var(--muted); text-decoration: none; font-size: 0.85rem;
     padding: 0.9rem 0; border-bottom: 2px solid transparent; white-space: nowrap;

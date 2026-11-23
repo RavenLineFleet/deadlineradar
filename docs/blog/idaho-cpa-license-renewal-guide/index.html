@@ -22,7 +22,7 @@
 <script>(function(){var SRC="https://challenges.cloudflare.com/turnstile/v0/api.js";var EVENTS=["focusin","pointerdown","keydown","touchstart","scroll"];var started=false;function load(){if(started)return;started=true;EVENTS.forEach(function(t){window.removeEventListener(t,load,true)});var s=document.createElement("script");s.src=SRC;s.async=true;document.head.appendChild(s)}window.drTurnstileLoad=load;EVENTS.forEach(function(t){window.addEventListener(t,load,{capture:true,passive:true})});document.addEventListener("DOMContentLoaded",function(){if(document.querySelector(".dr-turnstile-slot"))load()});document.addEventListener("submit",function(e){var f=e.target;if(!f||f.tagName!=="FORM"||typeof f.requestSubmit!=="function")return;if(!f.querySelector(".cf-turnstile")||f.drTsPass)return;function token(){var i=f.querySelector("input[name=cf-turnstile-response]");return i?i.value:""}if(token()&&!f.drTsWaiting)return;e.preventDefault();e.stopImmediatePropagation();if(f.drTsWaiting)return;f.drTsWaiting=true;load();var sub=e.submitter||null;var waited=0;var poll=setInterval(function(){waited+=150;if(!token()&&waited<8e3)return;clearInterval(poll);f.drTsWaiting=false;f.drTsPass=true;try{if(sub)f.requestSubmit(sub);else f.requestSubmit()}finally{f.drTsPass=false}},150)},true)})();</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BlogPosting", "headline": "Idaho CPA License Renewal: Why Your Deadline Now Depends on Your Birth Year", "description": "Idaho CPA renewal is shifting from annual to biennial by birth-year parity: odd to 2027, even to 2028. Fees, CPE hours, and the rule that hasn't caught up.", "url": "https://deadline-radar.com/blog/idaho-cpa-license-renewal-guide/", "datePublished": "2026-10-23", "dateModified": "2026-10-23", "author": {"@type": "Organization", "name": "Moose & Raven LLC"}, "publisher": {"@type": "Organization", "name": "Moose & Raven LLC"}}</script>
 
-<link rel="stylesheet" href="/styles.css?v=8fe5d5fded">
+<link rel="stylesheet" href="/styles.css?v=b9b2fefa0d">
 <script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
 </head>
 <body>
@@ -62,7 +62,7 @@
 </header>
 <main id="main" tabindex="-1">
 <h1>Idaho CPA License Renewal: Why Your Deadline Now Depends on Your Birth Year</h1>
-<div class="guide-verified-stamp" data-verified="2026-10-23"><span class="dot"></span>Last verified October 23, 2026</div>
+<div class="guide-verified-stamp verified-stale" data-verified="2026-10-23"><span class="dot"></span>Last verified October 23, 2026<span class="verified-stale-note"> · re-verification overdue — confirm with the state board</span></div>
 
 <p class="intro">Idaho is in the middle of switching CPA license renewal from an annual cycle to a two-year cycle, and which year you land on depends on your <strong>birth year parity</strong>. If you were born in an <strong>even</strong> year, your current license runs through <strong>June 30, 2028</strong>. If you were born in an <strong>odd</strong> year, your current license runs through <strong>June 30, 2027</strong>, and then switches to the two-year cycle after that. The Idaho Board's own rule text, meanwhile, still says the license expires every year; it hasn't been rewritten yet to match.</p>
 
