@@ -478,6 +478,7 @@ _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "methodology/index.html", "llms.txt", "practice-privilege-check/index.html",
     "changelog/index.html",
     "privacy/index.html",
+    "about/index.html",
 }
 
 

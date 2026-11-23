@@ -10517,13 +10517,13 @@ def build_about_page() -> str:
     (see HANDOFF 2026-10-21); Devin separately cleared it for publication."""
     body = """<h1>About Deadline-Radar</h1>
 <img class="founder-photo" src="/img/founder/devin-hall-portrait.jpg" alt="Devin Hall, founder of Deadline-Radar" width="480" height="600">
-<p class="intro">Deadline-Radar didn't come from me personally missing a renewal date -- it came from
+<p class="intro">Deadline-Radar didn't come from me personally missing a renewal date &mdash; it came from
 a market-research question: where's a niche real people clearly need solved that nobody's building
-properly yet? I set four parallel AI research agents loose on real candidate niches -- grant
-deadlines, conference CFPs, business compliance filings, license renewals -- looking for genuine
+properly yet? I set four parallel AI research agents loose on real candidate niches &mdash; grant
+deadlines, conference CFPs, business compliance filings, license renewals &mdash; looking for genuine
 buyer intent with no funded incumbent already locked in. License renewal came back with the clearest
-signal of the four -- we narrowed that to CPA. A follow-up check weeks later independently confirmed
-the lane was still nearly empty -- though that's changed since; a funded competitor acquired the
+signal of the four &mdash; we narrowed that to CPA. A follow-up check weeks later independently confirmed
+the lane was still nearly empty &mdash; though that's changed since; a funded competitor acquired the
 other independent player in the space not long after. That gap is why this site is built the way it
 is: every date checked against two independent sources where both exist, and clearly labeled when
 it rests on the regulator's own records or only the board page.</p>
