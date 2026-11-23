@@ -61,16 +61,16 @@
 </header>
 <main id="main" tabindex="-1">
 <h1>Security &amp; Trust</h1>
-<p class="intro">What actually protects your firm's data on Deadline-Radar, in plain language --
+<p class="intro">What actually protects your firm's data on Deadline-Radar, in plain language &mdash;
 not a compliance-theater checklist. Every claim on this page describes something actually shipped in
 this product's code, not a policy aspiration.</p>
 
 <h2>Data handling</h2>
 <p>We collect only what the reminder and license-tracking service actually needs to work, plus a little
-information about how you found us -- see the full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
+information about how you found us &mdash; see the full breakdown on our <a href="/privacy/">Privacy Policy</a>.</p>
 <ul>
   <li><strong>Scoped by firm.</strong> Roster data (staff names, emails, license states, CPE hours, any
-  documents uploaded) is filtered by the requesting firm's own account id on every storage query -- not
+  documents uploaded) is filtered by the requesting firm's own account id on every storage query &mdash; not
   just checked once at the door.</li>
   <li><strong>Never sold or shared.</strong> No third-party data sales, nothing shared with advertisers or
   used to target ads at you, no cross-site tracking of any kind (see our <a href="/privacy/">cookie disclosure</a>).</li>
@@ -81,8 +81,8 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   <li><strong>HTTPS-only, always.</strong> Every connection sends an HTTP Strict-Transport-Security
   header instructing browsers to never downgrade to plain HTTP.</li>
   <li><strong>Passwords never stored in plain text.</strong> Hashed with PBKDF2-HMAC-SHA256 at
-  200,000 effective iterations (two chained rounds of 100,000 -- the per-call ceiling our hosting
-  platform enforces), each with its own random salt -- well above the U.S. federal government's own
+  200,000 effective iterations (two chained rounds of 100,000 &mdash; the per-call ceiling our hosting
+  platform enforces), each with its own random salt &mdash; well above the U.S. federal government's own
   NIST password guidance.</li>
   <li><strong>Session and login tokens</strong> are stored as one-way SHA-256 hashes, not the raw value
   a stolen database dump could reuse to sign in.</li>
@@ -97,12 +97,12 @@ information about how you found us -- see the full breakdown on our <a href="/pr
   <li><strong>Sign-in cookies</strong> are marked <code>HttpOnly</code> (invisible to any page script,
   including a successful XSS payload), <code>Secure</code> (HTTPS-only transmission), and scoped with
   <code>SameSite</code>.</li>
-  <li><strong>Cross-site forgery protection:</strong> every request that changes data -- adding staff,
-  editing a record, changing a password -- is checked against the Origin header the browser itself
+  <li><strong>Cross-site forgery protection:</strong> every request that changes data &mdash; adding staff,
+  editing a record, changing a password &mdash; is checked against the Origin header the browser itself
   sends, rejected before it reaches the database.</li>
-  <li><strong>Rate limiting on every write endpoint</strong> -- keyed to your account for most signed-in
+  <li><strong>Rate limiting on every write endpoint</strong> &mdash; keyed to your account for most signed-in
   actions, or your IP address for the rest (signing up, signing in or out, setting or changing a password,
-  contact forms, email links, the chat bubble, or loading a page through one of our tagged links) -- so a compromised session or a scripting bug can't be abused to hammer
+  contact forms, email links, the chat bubble, or loading a page through one of our tagged links) &mdash; so a compromised session or a scripting bug can't be abused to hammer
   the system. Those IP records are deleted by a daily cleanup once they're more than 24 hours old.</li>
   <li><strong>Response headers:</strong> X-Content-Type-Options and anti-framing protection
   (X-Frame-Options plus a Content-Security-Policy <code>frame-ancestors</code> directive) on
@@ -111,12 +111,12 @@ information about how you found us -- see the full breakdown on our <a href="/pr
 </ul>
 
 <h2>Incident response</h2>
-<p>We're a small, hands-on team, not a large enterprise with a dedicated security operations center --
+<p>We're a small, hands-on team, not a large enterprise with a dedicated security operations center &mdash;
 we won't claim otherwise. What that means in practice:</p>
 <ul>
   <li>A real person reviews this system regularly, and security-relevant code changes go through the
   same scrutiny as everything else we ship.</li>
-  <li>If something ever goes wrong, we will tell affected firms directly and promptly -- not bury it in
+  <li>If something ever goes wrong, we will tell affected firms directly and promptly &mdash; not bury it in
   a changelog.</li>
   <li>We do not currently hold a formal security certification (SOC 2, ISO 27001) or run a paid
   bug-bounty program. If that changes, this page will say so, not before.</li>
@@ -125,7 +125,7 @@ we won't claim otherwise. What that means in practice:</p>
 <h2>Found something?</h2>
 <p>If you believe you've found a security issue, email us directly at
 <a href="mailto:support@deadline-radar.com">support@deadline-radar.com</a> with what you found and how to reproduce
-it. A real person reads every message here -- see our <a href="/contact/">Contact page</a> for more.
+it. A real person reads every message here &mdash; see our <a href="/contact/">Contact page</a> for more.
 Machine-readable contact details are also published at
 <a href="/.well-known/security.txt">/.well-known/security.txt</a> per <a
 href="https://www.rfc-editor.org/rfc/rfc9116">RFC&nbsp;9116</a>.</p>

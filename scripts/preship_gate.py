@@ -479,6 +479,7 @@ _DOUBLE_HYPHEN_HARD_GATE_PAGES = {
     "changelog/index.html",
     "privacy/index.html",
     "about/index.html",
+    "security/index.html",
 }
 
 
