@@ -24,8 +24,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "name": "Deadline-Radar", "url": "https://deadline-radar.com", "publisher": {"@type": "Organization", "name": "Moose & Raven LLC"}}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is this actually free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Individual reminders are free on any account, no card required, no time limit. CPE-hour tracking and individual Practice Privilege Check (one person, one target state) are free on a firm account: free for up to 3 people, and a solo CPA can open one for themselves. Paid firm plans exist for the multistate Map and firm-level registration check."}}, {"@type": "Question", "name": "How do you actually verify the dates?", "acceptedAnswer": {"@type": "Answer", "text": "Every renewal date is sourced to the codified statute or board rule where we could confirm it, and clearly labelled where it rests instead on the regulator's own official records or only on the board's own page, cited and rechecked on a regular freshness cadence, never guessed or estimated. See exactly how, state by state."}}, {"@type": "Question", "name": "Will you sell my email or spam me?", "acceptedAnswer": {"@type": "Answer", "text": "No. We only email you deadline reminders. We never sell or share your address, and unsubscribing is one click, anytime, with no account or login required."}}, {"@type": "Question", "name": "My state's rule depends on my birth month (or I already know my exact date) — can you still track it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Some states compute your deadline from your birth month automatically; others let you enter your own known renewal or expiration date directly (\"bring your own date\"). Either way it shows up as one tracked deadline with the same escalating reminders."}}, {"@type": "Question", "name": "Are you affiliated with my state board of accountancy?", "acceptedAnswer": {"@type": "Answer", "text": "No. Deadline-Radar is an independent reminder and license-tracking service, not affiliated with, endorsed by, or connected to any state board of accountancy, NASBA, or the AICPA. Always confirm your exact renewal date with your own board if you're ever unsure."}}, {"@type": "Question", "name": "I'm tracking a whole firm's staff, not just my own license — is there something for that?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — see the firm overview. Roster, calendar, CPE tracking, and individual Practice Privilege Check are free there too; paid tiers add a multistate map and the firm-level registration check."}}]}</script>
 
-<link rel="stylesheet" href="/styles.css?v=b9b2fefa0d">
-<script>if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches&&"IntersectionObserver"in window){document.documentElement.classList.add("js-reveal")}</script>
+<link rel="stylesheet" href="/styles.css?v=5444fb8eaf">
 </head>
 <body>
 <a href="#main" class="dr-skip-link">Skip to content</a>
@@ -65,7 +64,7 @@
 <main id="main" tabindex="-1">
 <div class="hero-grid">
 <div class="hero-left">
-  <h1>Know exactly when your license is due &mdash;<br>
+  <h1>Know exactly when your license is due &mdash;
   <span class="hero-accent">and see the rule that says so.</span></h1>
   
   <p class="hero-subtext">Every date traced to your state board's own statute or rule where we could
@@ -305,27 +304,26 @@
   <a class="dr-intent-chip" href="rule-changes/">What's changing in 2026?</a>
 </div>
 <script>(function(){var chip=document.getElementById("dr-intent-own-date");var input=document.getElementById("state-search-input");if(chip&&input){chip.addEventListener("click",function(){input.scrollIntoView({behavior:"smooth",block:"center"});input.focus()})}})();</script>
-<section class="band-section dr-reveal" style="border-top:0;">
-  <p class="eyebrow">See it in action</p>
+<section class="band-section" style="border-top:0;">
   <h2>The firm dashboard, in twenty seconds.</h2>
   <div class="dr-showcase-frame" style="margin-top:1.2rem;">
     <video id="dr-teaser-video" muted loop playsinline controls preload="none" width="1920" height="1080"
-      poster="/media/teaser-poster.jpg" aria-label="Twenty-second silent walkthrough of the Deadline-Radar firm dashboard.">
+      poster="/showcase/roster.jpg" aria-label="Twenty-second silent walkthrough of the Deadline-Radar firm dashboard.">
       <source src="/media/teaser.mp4" type="video/mp4">
     </video>
   </div>
-  <p class="mock-caption">Footage of our own shared live demo account, no sound. <a href="/api/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo yourself &rarr;</a></p>
+  <p class="mock-caption">Footage of our own shared live demo account, no sound. The opening frame's
+  coverage %, status breakdown, and at-risk ranking are part of a paid firm plan. <a href="/api/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo yourself &rarr;</a></p>
 </section>
 <script>(function(){var v=document.getElementById("dr-teaser-video");if(!v||!("IntersectionObserver"in window))return;if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){var p=v.play();if(p&&p.catch)p.catch(function(){})}else{v.pause()}})},{threshold:.4}).observe(v)})();</script>
-<section class="band-section band-section--alt dr-reveal home-stats">
-  <p class="eyebrow">Where this site stands right now</p>
+<section class="band-section band-section--alt home-stats">
   <h2>A live snapshot of coverage, and how recently we keep it checked.</h2>
   <div class="trust-row">
     <div class="item"><span class="n">55</span><span class="lbl">jurisdictions listed</span></div>
     <div class="item"><span class="n">31</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">6</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">18</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">249 of 249</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last 30 days</span></div>
+    <div class="item"><span class="n">249 of 249</span><span class="lbl">deadline, CPE, reinstatement and fee records re-checked in the last 30 days</span></div>
     <div class="item"><span class="n">3</span><span class="lbl">states with a rule change not yet final</span></div><div class="item"><span class="n">4</span><span class="lbl">jurisdictions with a live source conflict</span></div>
   </div>
   <p class="trust-footnote">In the 18 jurisdictions that depend on your specific
@@ -334,7 +332,7 @@
   enter the date on your license and we track it from there.</p>
   <p class="backlink-cross">Several states&#x27; CPA license and firm-permit deadlines land on December 31, 2026. <a href="/year-end-renewals/">See every state on that date &rarr;</a></p>
 </section>
-<section class="band-section dr-reveal" style="border-top:0; padding-top:0; margin-top:0;">
+<section class="band-section" style="border-top:0; padding-top:0; margin-top:0;">
   <p class="eyebrow">What a lookup actually gives you</p>
   <h2>A fact sheet you could hand to a partner.</h2>
   <p style="color:var(--muted); margin:0.7rem 0 1.4rem; font-size:1.02rem;">Pick a state below.
@@ -504,34 +502,30 @@
 <a class="state-card" href="wyoming/" data-state-name="Wyoming"><div class="state-name">Wyoming</div><div class="state-hint">December 31, 2026</div></a>
 </div>
 </div>
-<section class="band-section band-section--alt dr-reveal">
-  <p class="eyebrow">How we verify</p>
+<section class="band-section band-section--alt">
   <h2>Two independent sources where available, clearly labeled when a date rests on the regulator's own records instead.</h2>
-  <div class="method-grid">
-    <div class="mcard">
-      <div class="step">STANDARD 01</div>
-      <h3>The board's own page</h3>
+  <ol class="method-grid method-steps">
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">1</span> The board's own page</h3>
       <p>We start at the state board of accountancy's official renewal and CPE pages &mdash; the
       operational source of truth CPAs already trust.</p>
-    </div>
-    <div class="mcard">
-      <div class="step">STANDARD 02</div>
-      <h3>The codified law</h3>
+    </li>
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">2</span> The codified law</h3>
       <p>Then we confirm it against the actual statute or administrative rule &mdash; codified law,
       not a second webpage or a vendor's summary. Where we can't find the date in codified text, the
       page says so and cites the regulator's own official records instead.</p>
-    </div>
-    <div class="mcard">
-      <div class="step">STANDARD 03</div>
-      <h3>Agree, or it's null</h3>
+    </li>
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">3</span> Agree, or it's null</h3>
       <p>If the two don't agree, we don't guess &mdash; we mark it unverified rather than publish a
       date we can't stand behind.</p>
       <p class="mcard-proof"><strong>Right now:</strong> Guam&#x27;s own primary legal sources don&#x27;t agree on this rule. Rather than guess, we&#x27;re flagging it for you to review. <a href="/rule-changes/">See all 4 &rarr;</a></p>
-    </div>
-  </div>
+    </li>
+  </ol>
   <a href="/methodology/" style="font-weight:600;">Read our full verification standard &rarr;</a>
 </section>
-<section class="band-section dr-reveal">
+<section class="band-section">
   <p class="eyebrow">Built for firms too</p>
   <h2>One roster, not twenty separate inboxes.</h2>
   <p style="color:var(--muted); margin:0.7rem 0 1.4rem; font-size:1.02rem;">Free reminders above are
@@ -554,7 +548,7 @@
 (or, where the rule depends on your birth month, a full lookup table) computed from the
 verified renewal rule, with a link back to the official source and a "last verified" date.</p>
 <p class="how-it-works">Also see our <a href="blog/">guides</a>: <a href="blog/cpe-vs-license-renewal/">CPE requirements vs. license renewal</a>, <a href="blog/common-cpa-renewal-mistakes/">common CPA renewal mistakes</a>, and the <a href="blog/missouri-cpa-license-renewal-guide/">Missouri renewal guide</a>.</p>
-<section class="band-section band-section--alt dr-reveal">
+<section class="band-section band-section--alt">
 <h2>Questions people ask before signing up</h2>
 <div class="faq-list">
 <details class="faq-item">
@@ -1129,7 +1123,6 @@ every year.</p></div>
 </div>
 <script>(function(){try{if(window.localStorage.getItem("dr_cookie_notice_dismissed"))return}catch(e){return}var el=document.getElementById("dr-cookie-notice");if(!el)return;el.hidden=false;function setOffset(){document.documentElement.style.setProperty("--dr-cookie-notice-offset",el.hidden?"0px":el.offsetHeight+"px")}setOffset();window.addEventListener("resize",setOffset);var btn=document.getElementById("dr-cookie-notice-dismiss");if(btn){btn.addEventListener("click",function(){el.hidden=true;setOffset();try{window.localStorage.setItem("dr_cookie_notice_dismissed","1")}catch(e){}})}})();</script>
 
-<script>(function(){if(!document.documentElement.classList.contains("js-reveal"))return;var els=document.querySelectorAll(".dr-reveal");if(!els.length)return;var obs=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add("dr-reveal--visible");obs.unobserve(entry.target)}})},{threshold:.15,rootMargin:"0px 0px -40px 0px"});els.forEach(function(el){obs.observe(el)})})();</script>
 <script>(function(){function atEnd(wrap){return wrap.scrollLeft+wrap.clientWidth>=wrap.scrollWidth-1}function canScroll(wrap){var overflowX=window.getComputedStyle(wrap).overflowX;return overflowX==="auto"||overflowX==="scroll"}function update(){document.querySelectorAll(".table-wrap").forEach(function(wrap){var hasOverflow=canScroll(wrap)&&wrap.scrollWidth>wrap.clientWidth+1;wrap.classList.toggle("dr-scrollable",hasOverflow&&!atEnd(wrap));if(!wrap.dataset.drScrollHintBound){wrap.dataset.drScrollHintBound="1";wrap.addEventListener("scroll",function(){wrap.classList.toggle("dr-scrollable",!atEnd(wrap))})}})}update();window.addEventListener("resize",update);window.drRefreshTableScrollHints=update})();</script>
 <script>(function(){var marks=document.querySelectorAll("[data-verified]:not(.dr-seal)");if(!marks.length)return;var RUNTIME_STALE_DAYS=30;var now=new Date;marks.forEach(function(el){var iso=el.getAttribute("data-verified");if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return;var then=new Date(iso+"T00:00:00Z");if(isNaN(then.getTime()))return;var ageDays=Math.round((now-then)/864e5);if(ageDays<=RUNTIME_STALE_DAYS)return;if(el.classList.contains("verified-stale"))return;var note=document.createElement("span");note.className="verified-stale-note";note.textContent=" · re-verification overdue — confirm with the state board";el.appendChild(note);el.classList.add("verified-stale")})})();</script>
 <script>(function(){var inputs=document.querySelectorAll('input[type="date"][data-dr-bound]');if(!inputs.length)return;var now=new Date;function iso(d){return d.toISOString().slice(0,10)}function addDays(isoDay,n){var d=new Date(isoDay+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return iso(d)}var utc=iso(now);inputs.forEach(function(el){var kind=el.getAttribute("data-dr-bound");if(kind==="future"){el.min=addDays(utc,1);el.max=addDays(utc,1280)}else if(kind==="past"||kind==="past10"){el.max=utc;if(kind==="past10")el.min=addDays(utc,-3660)}})})();</script>

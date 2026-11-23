@@ -1016,17 +1016,6 @@ PAGE_CSS = """
   @media (prefers-reduced-motion: reduce) {
     .dr-skeleton-line { animation: none; }
   }
-  /* Scroll-triggered reveal (2026-08-12, Devin design-quality directive) --
-     gated behind .js-reveal (added by a tiny head script only when JS runs
-     and the visitor hasn't asked for reduced motion) so content already
-     stays fully visible in every other case: JS disabled, IntersectionObserver
-     unsupported, or reduced-motion preferred. See _SCROLL_REVEAL_HEAD_JS /
-     _SCROLL_REVEAL_BODY_JS. */
-  .js-reveal .dr-reveal {
-    opacity: 0; transform: translateY(18px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-  }
-  .js-reveal .dr-reveal--visible { opacity: 1; transform: none; }
   /* Roadmap #57: fixed bottom bar, deliberately unobtrusive (no overlay,
      doesn't block page content) since it's a notice, not a blocking gate. */
   .dr-cookie-notice {
@@ -1437,11 +1426,18 @@ PAGE_CSS = """
      trust-row -- a lighter supporting strip there, not a hero claim --
      keeps its original presentation; same markup shape (.item/.n/.lbl),
      just a heavier container on the homepage only. */
-  .home-stats .trust-row { margin-top: 1.5rem; }
+  /* Homepage tile count is 5 or 7 (two monitor tiles render only while that
+     feed is fresh), so a fixed 3-column grid always left a short last row
+     hard-left. Flex-wrap at a 3-up basis centres whatever the last row holds
+     and stretches cards in a row to equal height. (2026-11-22) */
+  .home-stats .trust-row {
+    margin-top: 1.5rem; display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch;
+  }
   .home-stats .trust-row .item {
     background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
-    padding: 1rem 1.1rem 1.15rem; gap: 0.3rem;
+    padding: 1rem 1.1rem 1.15rem; gap: 0.3rem; flex: 0 1 calc((100% - 2.2rem) / 3);
   }
+  @media (max-width: 620px) { .home-stats .trust-row .item { flex-basis: calc((100% - 1.1rem) / 2); } }
   .home-stats .trust-row .n { font-size: 2rem; }
   .home-stats .trust-footnote { margin-top: 1.3rem; }
 
@@ -1563,7 +1559,12 @@ PAGE_CSS = """
   .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin: 1.6rem 0 1.8rem; }
   @media (max-width: 700px) { .method-grid { grid-template-columns: 1fr; } }
   .mcard { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.3rem 1.2rem; }
-  .mcard .step { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; color: var(--gold); font-weight: 600; }
+  /* The three verification steps are a real <ol> (2026-11-22): the list
+     semantics carry the order for screen readers, so the visible numeral is
+     aria-hidden and native markers are off. */
+  ol.method-steps { list-style: none; padding: 0; }
+  ol.method-steps .mcard h3 { margin-top: 0; }
+  .mcard .step { color: var(--accent); margin-right: 0.15rem; }
   .mcard h3 { font-size: 1.05rem; margin: 0.6rem 0 0.4rem; font-family: var(--font-display); }
   .mcard p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.55; }
   /* Roadmap #326 (2026-08-11, ValueLab design-pattern-mining #1): a live,
@@ -2844,6 +2845,13 @@ PAGE_CSS = """
     text-decoration: none; display: block; flex: 0 0 auto; margin-top: auto;
   }
   .pricing-card--wide { grid-column: 1 / -1; text-align: center; }
+  /* The paid-feature list renders once above the cards (2026-11-22): the four
+     per-card copies were byte-identical. Cards no longer stretch to the tallest
+     (the Individual card) so the shorter paid cards carry no blank gap. */
+  .pricing-grid { align-items: start; }
+  .pricing-includes-once { margin: 1.2rem 0 0; }
+  .pricing-includes-once h3 { font-size: 1rem; margin: 0 0 0.6rem; }
+  .pricing-includes-once .field-hint { margin-top: 0.7rem; }
   /* 2026-08-11 (see _PAID_TIER_INCLUDES_HTML's own comment): a short, honest
      "what this tier includes" list -- real content filling the space that
      used to be a stretched-blank .detail paragraph, not padding for its own
@@ -5186,35 +5194,6 @@ def _json_ld_html(schemas: list[dict] | None) -> str:
 # wrapper with a Show/Hide button that flips the input's type attribute.
 # Never touches the input's id/name/value/other attributes or any existing
 # JS that references it by id, so nothing else on any page needs to change.
-# Orchestrator directive (2026-08-12, Devin design-quality thread): scroll-triggered
-# reveal on marketing-page sections (.dr-reveal), additive only, respects
-# prefers-reduced-motion. Progressive enhancement: the hiding CSS only activates
-# under the "js-reveal" class the tiny head script below adds -- content stays
-# fully visible if JS is disabled/fails or the visitor prefers reduced motion, so
-# this can never leave a section permanently invisible.
-_SCROLL_REVEAL_HEAD_JS = """<script>
-if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
-  document.documentElement.classList.add('js-reveal');
-}
-</script>"""
-
-_SCROLL_REVEAL_BODY_JS = """<script>
-(function () {
-  if (!document.documentElement.classList.contains('js-reveal')) return;
-  var els = document.querySelectorAll('.dr-reveal');
-  if (!els.length) return;
-  var obs = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('dr-reveal--visible');
-        obs.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
-  els.forEach(function (el) { obs.observe(el); });
-})();
-</script>"""
-
 _TABLE_SCROLL_HINT_JS = """<script>
 (function () {
   function atEnd(wrap) { return wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1; }
@@ -6158,7 +6137,6 @@ def page_shell(
 {_json_ld_html(json_ld)}
 {extra_head}
 <link rel="stylesheet" href="/styles.css?v={PAGE_CSS_VERSION}">
-{_SCROLL_REVEAL_HEAD_JS}
 </head>
 <body>
 <a href="#main" class="dr-skip-link">{esc(_t("a11y.skip_to_content", lang))}</a>
@@ -6171,7 +6149,6 @@ def page_shell(
 {_SHOW_PASSWORD_TOGGLE_HTML}
 {_COOKIE_NOTICE_HTML}
 {_CHAT_WIDGET_HTML if CHAT_WIDGET_ENABLED else ''}
-{_SCROLL_REVEAL_BODY_JS}
 {_TABLE_SCROLL_HINT_JS}
 {_STALE_BADGE_RUNTIME_JS}
 {_DATE_BOUND_RUNTIME_JS}
@@ -9508,7 +9485,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
 
     hero_html = f"""<div class="hero-grid">
 <div class="hero-left">
-  <h1>Know exactly when your license is due &mdash;<br>
+  <h1>Know exactly when your license is due &mdash;
   <span class="hero-accent">and see the rule that says so.</span></h1>
   <!-- Roadmap #328 (2026-08-11, ValueLab design-pattern-mining #6, "hero
        restraint"): cut down to headline + ONE line of subhead + search box.
@@ -9592,15 +9569,14 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # asks for a date where isStateComputable() is false -- the 6 byod states.
     # The promise now carries _cov["byod"]; check_manual_date_promise_count in
     # preship_gate.py ties that number to the rendered date-input census.
-    stats_band_html = f"""<section class="band-section band-section--alt dr-reveal home-stats">
-  <p class="eyebrow">Where this site stands right now</p>
+    stats_band_html = f"""<section class="band-section band-section--alt home-stats">
   <h2>A live snapshot of coverage, and how recently we keep it checked.</h2>
   <div class="trust-row">
     <div class="item"><span class="n">{_cov["total"]}</span><span class="lbl">jurisdictions listed</span></div>
     <div class="item"><span class="n">{_hint_counts["fixed"]}</span><span class="lbl">fixed dates</span></div>
     <div class="item"><span class="n">{_hint_counts["birth_month"]}</span><span class="lbl">by birth month</span></div>
     <div class="item"><span class="n">{_hint_counts["varies"]}</span><span class="lbl">depend on your license type</span></div>
-    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">dated records across this site's datasets (renewal deadlines, CPE hours, reinstatement, renewal fees) re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
+    <div class="item"><span class="n">{_verified_recent} of {_total_citations}</span><span class="lbl">deadline, CPE, reinstatement and fee records re-checked in the last {STALENESS_THRESHOLD_DAYS} days</span></div>
     {_extra_stat_items_html}
   </div>
   <p class="trust-footnote">In the {_hint_counts["varies"]} jurisdictions that depend on your specific
@@ -9617,31 +9593,27 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # re-read the surrounding TRUE claims more skeptically too. The
     # three-standard breakdown right below already proves the point without
     # asserting it, so the lead-in sentence is cut rather than reworded.
-    method_band_html = f"""<section class="band-section band-section--alt dr-reveal">
-  <p class="eyebrow">How we verify</p>
+    method_band_html = f"""<section class="band-section band-section--alt">
   <h2>Two independent sources where available, clearly labeled when a date rests on the regulator's own records instead.</h2>
-  <div class="method-grid">
-    <div class="mcard">
-      <div class="step">STANDARD 01</div>
-      <h3>The board's own page</h3>
+  <ol class="method-grid method-steps">
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">1</span> The board's own page</h3>
       <p>We start at the state board of accountancy's official renewal and CPE pages &mdash; the
       operational source of truth CPAs already trust.</p>
-    </div>
-    <div class="mcard">
-      <div class="step">STANDARD 02</div>
-      <h3>The codified law</h3>
+    </li>
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">2</span> The codified law</h3>
       <p>Then we confirm it against the actual statute or administrative rule &mdash; codified law,
       not a second webpage or a vendor's summary. Where we can't find the date in codified text, the
       page says so and cites the regulator's own official records instead.</p>
-    </div>
-    <div class="mcard">
-      <div class="step">STANDARD 03</div>
-      <h3>Agree, or it's null</h3>
+    </li>
+    <li class="mcard">
+      <h3><span class="step" aria-hidden="true">3</span> Agree, or it's null</h3>
       <p>If the two don't agree, we don't guess &mdash; we mark it unverified rather than publish a
       date we can't stand behind.</p>
       {live_conflict_proof_html}
-    </div>
-  </div>
+    </li>
+  </ol>
   <a href="/methodology/" style="font-weight:600;">Read our full verification standard &rarr;</a>
 </section>"""
 
@@ -9653,7 +9625,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     demo_records = [r for r in by_slug.get("illinois", []) if r.get("id") == "il-individual"]
     demo_html = ""
     if demo_records:
-        demo_html = f"""<section class="band-section dr-reveal" style="border-top:0; padding-top:0; margin-top:0;">
+        demo_html = f"""<section class="band-section" style="border-top:0; padding-top:0; margin-top:0;">
   <p class="eyebrow">What a lookup actually gives you</p>
   <h2>A fact sheet you could hand to a partner.</h2>
   <p style="color:var(--muted); margin:0.7rem 0 1.4rem; font-size:1.02rem;">Pick a state below.
@@ -9664,7 +9636,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
   <a href="illinois/" style="font-weight:600;">Open the full Illinois fact sheet &rarr;</a></p>
 </section>"""
 
-    firm_preview_html = f"""<section class="band-section dr-reveal">
+    firm_preview_html = f"""<section class="band-section">
   <p class="eyebrow">Built for firms too</p>
   <h2>One roster, not twenty separate inboxes.</h2>
   <p style="color:var(--muted); margin:0.7rem 0 1.4rem; font-size:1.02rem;">Free reminders above are
@@ -9692,16 +9664,16 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
     # "shared live demo account" wording. preload="none" + play-when-visible
     # keeps the 5.8MB file off the critical path; reduced-motion visitors get
     # the poster and native controls only, never autoplay.
-    teaser_html = f"""<section class="band-section dr-reveal" style="border-top:0;">
-  <p class="eyebrow">See it in action</p>
+    teaser_html = f"""<section class="band-section" style="border-top:0;">
   <h2>The firm dashboard, in twenty seconds.</h2>
   <div class="dr-showcase-frame" style="margin-top:1.2rem;">
     <video id="dr-teaser-video" muted loop playsinline controls preload="none" width="1920" height="1080"
-      poster="/media/teaser-poster.jpg" aria-label="Twenty-second silent walkthrough of the Deadline-Radar firm dashboard.">
+      poster="/showcase/roster.jpg" aria-label="Twenty-second silent walkthrough of the Deadline-Radar firm dashboard.">
       <source src="/media/teaser.mp4" type="video/mp4">
     </video>
   </div>
-  <p class="mock-caption">Footage of our own shared live demo account, no sound. <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo yourself &rarr;</a></p>
+  <p class="mock-caption">Footage of our own shared live demo account, no sound. The opening frame's
+  coverage %, status breakdown, and at-risk ranking are part of a paid firm plan. <a href="{esc(REMINDER_BACKEND_BASE_URL)}/firm/demo-login?to=roster" style="font-weight:600;">Try the live demo yourself &rarr;</a></p>
 </section>
 <script>
 (function () {{
@@ -9733,7 +9705,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
 (or, where the rule depends on your birth month, a full lookup table) computed from the
 verified renewal rule, with a link back to the official source and a "last verified" date.</p>
 <p class="how-it-works">Also see our <a href="blog/">guides</a>: <a href="blog/cpe-vs-license-renewal/">CPE requirements vs. license renewal</a>, <a href="blog/common-cpa-renewal-mistakes/">common CPA renewal mistakes</a>, and the <a href="blog/missouri-cpa-license-renewal-guide/">Missouri renewal guide</a>.</p>
-<section class="band-section band-section--alt dr-reveal">
+<section class="band-section band-section--alt">
 {_individual_faq_html()}
 </section>
 {signup_form_homepage(by_slug, as_of)}
@@ -10042,7 +10014,6 @@ def _pricing_tier_card_html(t: dict, lang: str = "en") -> str:
     <p class="price-alt price-annual">or ${t['monthly_usd']}/month</p>
     <p class="price-alt price-monthly" hidden>or ${t['annual_usd']}/year</p>
     <p class="detail">{_t("pricing.staff_up_to", lang, n=t['seat_cap'])}</p>
-    {_paid_tier_includes_html(lang)}
     <button type="button" class="dr-paywall-tier-btn dr-pricing-tier-btn" data-tier="{t['tier']}">Get {t['label']}</button>
   </div>"""
 
@@ -10122,6 +10093,11 @@ def build_pricing_page(by_slug: dict[str, list[dict]], as_of: date, real_today: 
 
 <h2>{_t("pricing.h2_plans", lang)}</h2>
 <p class="field-hint">{_t("pricing.plans_intro", lang)}</p>
+<div class="pricing-includes-once">
+  <h3>{_t("pricing.includes_lead", lang)}</h3>
+  {_paid_tier_includes_html(lang)}
+  <p class="field-hint">{_t("pricing.includes_seats_only", lang)}</p>
+</div>
 <p id="dr-pricing-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
 
 {_pricing_interval_toggle_html()}
@@ -11470,7 +11446,7 @@ def _product_showcase_html() -> str:
     data_map = ", ".join(
         f'{key}: {{src: "/{esc(src)}", caption: "{esc(caption)}"}}' for key, _label, src, caption in _PRODUCT_SHOWCASE_TABS
     )
-    return f"""<div class="dr-showcase dr-reveal">
+    return f"""<div class="dr-showcase">
   <div class="dr-showcase-tabs">
   {tabs_html}
   </div>
@@ -11684,7 +11660,7 @@ CPE hours, reinstatement, renewal fees) were individually re-checked against the
 
 <h2 class="dr-pain-headline">Every hour completed. The filing still missed.</h2>
 <p class="subhead">Where a spreadsheet (and an individual CPA's own inbox) falls short:</p>
-<div class="dr-pain-grid dr-reveal">
+<div class="dr-pain-grid">
   <div class="dr-pain-col">
     <span class="dr-pain-icon-badge"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="dr-pain-icon">
       <path d="M8 1.5c-2.2 0-4 1.8-4 4 0 3 4 9 4 9s4-6 4-9c0-2.2-1.8-4-4-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>

@@ -587,12 +587,14 @@ EN: dict[str, str] = {
     "pricing.card_individual_detail": (
         "Roster, Calendar, CPE-hour tracking and Practice Privilege Check — free for any firm, "
         "up to 3 staff, no card and no time limit. A one-person account also gets the Multistate "
-        "Map and firm-level registration check free (see the comparison table below). Just want "
+        "Map and firm-level registration check free (see the comparison table above). Just want "
         "free renewal reminders? {signup_link} — no account needed."
     ),
     "pricing.signup_free_link_text": "Sign up free",
     "pricing.card_individual_cta": "Create a free account",
     "pricing.staff_up_to": "Up to {n} staff.",
+    "pricing.includes_lead": "Included in every paid plan",
+    "pricing.includes_seats_only": "Same everything on every paid plan. The tiers differ only in how many staff they cover.",
     "pricing.card_more_title": "More than 35 staff?",
     # BILL-52 (AuditLab, MEDIUM, 2026-10-25): the PR6 per-seat wording
     # ("plus the per-seat rate for each seat above 35") was unreachable -- every
