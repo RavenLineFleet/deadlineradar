@@ -13817,7 +13817,7 @@ def _firm_dashboard_map_svg_html(by_slug: dict[str, list[dict]]) -> str:
     path_links = "\n".join(
         f'<a class="dr-map-link" data-state-slug="{esc(s["slug"])}" '
         f'data-state-name="{esc(_map_state_name(s["slug"]))}" tabindex="0" '
-        f'aria-label="{esc(_map_state_name(s["slug"]))} -- no staff licensed here">'
+        f'aria-label="{esc(_map_state_name(s["slug"]))} &mdash; no staff licensed here">'
         f'<path class="dr-map-state" d="{esc(s["d"])}"></path></a>'
         for s in map_states
     )
@@ -13844,7 +13844,7 @@ def _firm_dashboard_map_svg_html(by_slug: dict[str, list[dict]]) -> str:
       <span><span class="swatch" style="background:var(--border)"></span>Not verified / not covered</span>
     </div>
     <p class="dr-map-note">Territories (Guam, Puerto Rico, U.S. Virgin Islands, Northern Mariana
-    Islands) aren't shown on the map -- see the roster table for your full list.</p>
+    Islands) aren't shown on the map &mdash; see the roster table for your full list.</p>
   </div>
 </div>"""
 
@@ -13909,7 +13909,7 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
     )
     return f"""<div class="signup-form" id="dr-add-staff">
   <h2>Add staff</h2>
-  <p class="signup-microcopy">Their reminders start right away -- no confirmation step to wait on.
+  <p class="signup-microcopy">Their reminders start right away &mdash; no confirmation step to wait on.
   They'll get one email the moment you add them, naming your firm and with a one-click opt-out if
   they'd rather not be tracked this way.</p>
   <form id="dr-add-staff-form">
@@ -13930,7 +13930,7 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
     <label for="dr-add-issue-date">License issue date (optional)</label>
     <input type="date" id="dr-add-issue-date" name="license_issue_date">
     <p class="field-hint">When they were originally licensed. Used only to show a heads-up on
-    Practice Privilege Check if a target state has a grandfather cutoff -- never required.</p>
+    Practice Privilege Check if a target state has a grandfather cutoff &mdash; never required.</p>
     <button type="submit">Add staff</button>
   </form>
   <p id="dr-add-error" role="alert" class="field-hint" style="color:#c33737;" hidden></p>
@@ -13938,16 +13938,16 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
 
 <div class="signup-form dr-csv-import-panel" id="dr-csv-import">
   <h2>Import staff (CSV)</h2>
-  <p class="signup-microcopy">One row per staff member. First row must be column headers -- at
+  <p class="signup-microcopy">One row per staff member. First row must be column headers &mdash; at
   minimum <code>email</code> and <code>state</code> (or <code>state_slug</code>). Optional columns:
   <code>staff_label</code>, <code>license_type_id</code>, <code>birth_month</code>,
   <code>birth_year</code>, <code>cohort_group</code>, <code>license_expiration_date</code>,
-  <code>renewal_fee</code>, <code>office_tag</code>, <code>license_issue_date</code> -- same fields
+  <code>renewal_fee</code>, <code>office_tag</code>, <code>license_issue_date</code> &mdash; same fields
   the form above accepts, so a state needing more than email/state (about a third of them do) needs
   the matching column filled in or that row will be skipped with the same reason the single Add
   Staff form would show.</p>
   <p class="signup-microcopy">Starting from an existing spreadsheet? <button type="button" class="dr-link-btn" id="dr-csv-template-btn">Download a blank template</button>
-  with the exact column headers below, then copy your staff into it -- safer than retyping headers by hand.</p>
+  with the exact column headers below, then copy your staff into it &mdash; safer than retyping headers by hand.</p>
   <label for="dr-csv-import-file">CSV file</label>
   <input type="file" id="dr-csv-import-file" accept=".csv,text/csv">
   <button type="button" id="dr-csv-preview-btn">Preview</button>
@@ -13958,7 +13958,7 @@ def _firm_dashboard_add_staff_form_html(by_slug: dict[str, list[dict]], as_of: d
 
 <div class="signup-form dr-csv-import-panel" id="dr-csv-export">
   <h2>Export staff (CSV)</h2>
-  <p class="signup-microcopy">Download your full roster as a CSV -- every field this page tracks,
+  <p class="signup-microcopy">Download your full roster as a CSV &mdash; every field this page tracks,
   plus current CPE progress. A read-only report for backups or spreadsheets, not formatted for
   re-import (it uses display labels like state name and license type name, not the raw
   <code>state_slug</code>/<code>license_type_id</code> codes Import above expects).</p>
@@ -16790,7 +16790,7 @@ function drMapStateName(link) {
 }
 function drSetMapLabel(link, text) {
   var name = drMapStateName(link);
-  link.setAttribute('aria-label', name ? name + ' -- ' + text : text);
+  link.setAttribute('aria-label', name ? name + ' — ' + text : text);
 }
 
 function drRenderMap(gen) {
@@ -23554,24 +23554,24 @@ def build_firm_dashboard_page(
           <div id="dr-edit-modal-deadline-field" hidden>
             <label for="dr-edit-modal-deadline">License expiration date</label>
             <input type="date" id="dr-edit-modal-deadline">
-            <p class="dr-modal-hint">This state has no automatic renewal rule we can compute, so we track whatever date is printed on the license -- update it here whenever it renews.</p>
+            <p class="dr-modal-hint">This state has no automatic renewal rule we can compute, so we track whatever date is printed on the license &mdash; update it here whenever it renews.</p>
           </div>
           <label for="dr-edit-modal-fee">Renewal fee (optional)</label>
           <input type="text" inputmode="decimal" id="dr-edit-modal-fee" placeholder="e.g. 199.00">
-          <p class="dr-modal-hint">Self-reported -- whatever you know this renewal actually costs. Leave blank if unknown.</p>
+          <p class="dr-modal-hint">Self-reported &mdash; whatever you know this renewal actually costs. Leave blank if unknown.</p>
           <label for="dr-edit-modal-carryover">CPE carryover hours (optional)</label>
           <input type="text" inputmode="decimal" id="dr-edit-modal-carryover" placeholder="e.g. 10">
-          <p class="dr-modal-hint">Hours carried over from a prior CPE cycle, if this state allows it. Self-reported -- applied to this cycle's total-hours progress only, not ethics. Leave blank if none.</p>
+          <p class="dr-modal-hint">Hours carried over from a prior CPE cycle, if this state allows it. Self-reported &mdash; applied to this cycle's total-hours progress only, not ethics. Leave blank if none.</p>
           <p class="dr-modal-hint" id="dr-edit-modal-carryover-note" hidden></p>
           <label for="dr-edit-modal-office">Office / department (optional)</label>
           <input type="text" id="dr-edit-modal-office" maxlength="60" placeholder="e.g. Downtown office">
-          <p class="dr-modal-hint">Your own label for grouping staff -- shown on the roster, used by the bulk-tag tool below it. Leave blank if you don't need groups.</p>
+          <p class="dr-modal-hint">Your own label for grouping staff &mdash; shown on the roster, used by the bulk-tag tool below it. Leave blank if you don't need groups.</p>
           <label for="dr-edit-modal-issue-date">License issue date (optional)</label>
           <input type="date" id="dr-edit-modal-issue-date">
-          <p class="dr-modal-hint">When they were originally licensed. Used only to show a heads-up on Practice Privilege Check if a target state has a grandfather cutoff -- never required.</p>
+          <p class="dr-modal-hint">When they were originally licensed. Used only to show a heads-up on Practice Privilege Check if a target state has a grandfather cutoff &mdash; never required.</p>
           <label for="dr-edit-modal-notes">Internal notes (optional)</label>
           <textarea id="dr-edit-modal-notes" maxlength="500" rows="2" placeholder="e.g. Out on leave through March"></textarea>
-          <p class="dr-modal-hint">For your own reference only -- never shown to this person or in any email they receive.</p>
+          <p class="dr-modal-hint">For your own reference only &mdash; never shown to this person or in any email they receive.</p>
           <div class="dr-modal-actions">
             <button type="submit" class="dr-btn-save">Save</button>
             <button type="button" class="dr-btn-cancel" id="dr-edit-modal-cancel">Cancel</button>
@@ -23626,7 +23626,7 @@ def build_firm_dashboard_page(
             <button type="button" id="dr-cal-prev" aria-label="Previous month">&larr;</button>
             <button type="button" id="dr-cal-today">Today</button>
             <button type="button" id="dr-cal-next" aria-label="Next month">&rarr;</button>
-            <a class="dr-cal-export" href="{REMINDER_BACKEND_BASE_URL}/firm/calendar.ics" title="Downloads a one-time snapshot -- it will not stay in sync with future roster changes">Download .ics</a>
+            <a class="dr-cal-export" href="{REMINDER_BACKEND_BASE_URL}/firm/calendar.ics" title="Downloads a one-time snapshot &mdash; it will not stay in sync with future roster changes">Download .ics</a>
           </div>
         </div>
         <div class="dr-cal-grid" id="dr-cal-grid"></div>
@@ -23674,7 +23674,7 @@ def build_firm_dashboard_page(
       <h1>CPE Hours</h1>
       <p class="subhead">Track completed continuing-education hours against each state's own
       requirement. Licensed in more than one state? Add a line for each state and log the hours
-      against each one. Internal visibility only -- not an official state filing, and not a substitute for
+      against each one. Internal visibility only &mdash; not an official state filing, and not a substitute for
       your state board's own CPE reporting system.</p>
 
       <div class="dr-cpe-summary" id="dr-cpe-summary"></div>
@@ -23750,7 +23750,7 @@ def build_firm_dashboard_page(
       <div id="dr-report-body"><p class="dr-panel-empty">Loading&hellip;</p></div>
 
       <h2>Audit trail</h2>
-      <p class="subhead">A dated record of every roster change and reminder actually sent -- evidence
+      <p class="subhead">A dated record of every roster change and reminder actually sent &mdash; evidence
       of a reasonable process, for a board inquiry or your own file.</p>
       <div class="dr-audit-filter">
         <input type="text" id="dr-audit-search" placeholder="Search by staff name&hellip;" aria-label="Search audit trail by staff name">
@@ -23851,7 +23851,7 @@ def build_firm_dashboard_page(
       <div class="dr-account-panel">
         <h2>Reminder timing</h2>
         <p class="signup-microcopy">Choose which of the standard reminder points your staff
-        receive. At least one must stay checked -- leave them all checked (the default) for the
+        receive. At least one must stay checked &mdash; leave them all checked (the default) for the
         full escalating schedule.</p>
         <form id="dr-reminder-cadence-form">
           <fieldset class="dr-cadence-fieldset">
@@ -23872,7 +23872,7 @@ def build_firm_dashboard_page(
       <div class="dr-account-panel">
         <h2>Proactive rule-change alerts</h2>
         <p class="signup-microcopy">We'll email you when a new rule change affects a state
-        your roster is licensed in -- on by default. You still choose whether to notify staff; this
+        your roster is licensed in &mdash; on by default. You still choose whether to notify staff; this
         just means you don't have to remember to check the Calendar yourself.</p>
         <form id="dr-rule-change-alerts-form">
           <label><input type="checkbox" id="dr-rule-change-alerts-checkbox" checked> Email me about
@@ -23886,7 +23886,7 @@ def build_firm_dashboard_page(
       <div class="dr-account-panel">
         <h2>Firm-wide digest</h2>
         <p class="signup-microcopy">A periodic email bundling every newly-due renewal across your
-        WHOLE roster, sent to you as the firm admin -- on by default for an eligible plan. Nobody's
+        WHOLE roster, sent to you as the firm admin &mdash; on by default for an eligible plan. Nobody's
         own individual reminder is affected either way; this is in addition to those, not instead of
         them.</p>
         <form id="dr-admin-digest-form">
@@ -23901,7 +23901,7 @@ def build_firm_dashboard_page(
       <div class="dr-account-panel">
         <h2>Slack alerts</h2>
         <p class="signup-microcopy">Connect a Slack channel to get one daily digest of renewals that
-        became newly due for your roster -- bundled into a single message, never one ping per
+        became newly due for your roster &mdash; bundled into a single message, never one ping per
         deadline. Uses the same reminder timing you've already set above.</p>
         <div id="dr-slack-disconnected">
           <a href="{REMINDER_BACKEND_BASE_URL}/firm/integrations/slack/connect" class="dr-btn-secondary">Connect Slack</a>
@@ -23972,7 +23972,7 @@ def build_firm_dashboard_page(
       <div class="dr-account-panel">
         <h2>Sessions</h2>
         <p class="signup-microcopy">Where you're currently signed in. This can only show WHEN each
-        session signed in and was last active -- not device or location, which Deadline-Radar has
+        session signed in and was last active &mdash; not device or location, which Deadline-Radar has
         never recorded.</p>
         <div id="dr-sessions-list"><p class="dr-panel-empty">Loading&hellip;</p></div>
         <p id="dr-session-revoke-error" role="alert" class="dr-account-err" hidden></p>
@@ -24021,7 +24021,7 @@ def build_firm_dashboard_page(
 
       <div class="dr-account-panel dr-danger-zone">
         <h2>Delete account</h2>
-        <p class="signup-microcopy">Deactivates your account immediately -- your roster stops sending
+        <p class="signup-microcopy">Deactivates your account immediately &mdash; your roster stops sending
         reminders and nobody can sign in, including you. The data is permanently erased 30 days later.
         This can't be undone.</p>
         <button type="button" class="dr-btn-danger" id="dr-delete-account-open-btn">Delete account&hellip;</button>
@@ -24065,7 +24065,7 @@ def build_firm_dashboard_page(
 <div id="dr-questionnaire-modal" class="dr-modal-overlay" hidden>
   <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-questionnaire-modal-title">
     <h2 id="dr-questionnaire-modal-title">What would make this more useful for your firm?</h2>
-    <p class="dr-modal-hint">Totally optional, one-time, and skippable -- just tell us what'd help, or skip it.</p>
+    <p class="dr-modal-hint">Totally optional, one-time, and skippable &mdash; just tell us what'd help, or skip it.</p>
     <form id="dr-questionnaire-form">
       <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="SMS reminders"> SMS reminders</label>
       <label class="dr-questionnaire-check"><input type="checkbox" name="feature" value="Practice-management integration"> Practice-management integration (QuickBooks, Karbon, Canopy)</label>
@@ -24118,7 +24118,7 @@ def build_firm_dashboard_page(
   <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-testimonial-modal-title">
     <h2 id="dr-testimonial-modal-title">Glad to hear it!</h2>
     <p class="dr-modal-hint">Mind leaving a quick quote we could feature (with your permission)?
-    Totally optional -- nothing you write here is published without you opting in below.</p>
+    Totally optional &mdash; nothing you write here is published without you opting in below.</p>
     <form id="dr-testimonial-form">
       <label for="dr-testimonial-text" class="dr-visually-hidden">Your quote</label>
       <textarea id="dr-testimonial-text" maxlength="500" rows="3"
@@ -24138,7 +24138,7 @@ def build_firm_dashboard_page(
 <div id="dr-delete-account-modal" class="dr-modal-overlay" hidden>
   <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-delete-account-modal-title">
     <h2 id="dr-delete-account-modal-title">Delete your account?</h2>
-    <p class="dr-modal-hint">Your account deactivates immediately -- nobody, including you, can sign in
+    <p class="dr-modal-hint">Your account deactivates immediately &mdash; nobody, including you, can sign in
     afterward, and your roster stops sending reminders right away. The underlying data is permanently
     erased 30 days from now. If you're on a paid plan, your subscription cancels immediately and we
     refund the prorated, unused portion of your current billing period. This can't be undone.</p>
