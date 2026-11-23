@@ -28026,6 +28026,7 @@ so both clocks work for you instead of quietly running past you.</p>
     {
         "slug": "idaho-cpa-license-renewal-guide",
         "published": "2026-10-23",
+        "content_modified": "2026-11-23",  # COPY-68: Nov 4 Bulletin adopted the pending rule; dated correction note
         "title": "Idaho CPA License Renewal: Why Your Deadline Now Depends on Your Birth Year",
         "seo_title": "Idaho CPA Renewal: Birth-Year Transition",
         "meta_description": (
@@ -28055,7 +28056,8 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><a href="../../idaho-cpa-license-reinstatement/">Idaho reinstatement details here</a>.</p>
 
 <h2>What's not settled yet</h2>
-<p>A further proposal floated in 2026 would move individual renewal again, this time to a birthday-based expiration date starting January 1, 2028 (with a 120-day renewal window), instead of the fixed June 30 date described above. As of the most recent Idaho Administrative Bulletin (October 2026), that proposal is still at the <strong>proposed-rule</strong> stage, not law, and not yet even at the pending-rule stage. Under Idaho Code 67-5291, a pending rule takes effect only if the legislature approves it by concurrent resolution, on July 1 of the session year in which that approval happens, unless the resolution sets another date. This proposal hasn't reached that stage. Until and unless it advances and takes effect, the odd/even June 30 dates above are what's actually in effect.</p>
+<p><em><strong>Correction (November 23, 2026):</strong> this section originally said, citing the October 2026 Idaho Administrative Bulletin, that the birthday-renewal proposal was still a proposed rule and "not yet even at the pending-rule stage." That was out of date: the November 4, 2026 Bulletin (Vol. 26-11) published the Division's adoption of it as a pending rule. The paragraph below now describes that stage.</em></p>
+<p>A further rulemaking in 2026 (Docket No. 24-3001-2601) would move individual renewal again: beginning January 1, 2028, licenses would expire at midnight on the licensee's legal birthday during the second year of a two-year term (with a 120-day renewal window), instead of the fixed June 30 date described above. The Division of Occupational and Professional Licenses adopted it as a <strong>pending rule</strong> in the November 4, 2026 Idaho Administrative Bulletin. A pending rule is not law yet: it must be approved by concurrent resolution of the 2027 Idaho Legislature. If it is approved, the Bulletin says it becomes final and effective on July 1 following that 2027 session (July 1, 2027), unless the resolution states a different date; the birthday-based expiration itself would start January 1, 2028. Until and unless that happens, the odd/even June 30 dates above are what's actually in effect.</p>
 
 <p><strong>Bottom line</strong>: Idaho CPA renewal is mid-transition from annual to biennial. Even birth years run through June 30, 2028; odd birth years run through June 30, 2027. The $120/$240 fee reflects the same annual rate either way. The codified rule still literally says "annual" and hasn't been updated to match. CPE is 80 hours every two years, reported by January 31, a separate deadline from your renewal fee, with its own escalating penalty if missed. Firm registration keeps its own September 30 deadline. Miss your renewal past August 1 and you're into reinstatement: the sum of your missed cycles' fees, capped at $500.</p>
 ''',

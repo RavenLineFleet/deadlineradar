@@ -3,15 +3,15 @@
   "approvals": [
     {
       "party": "auditlab",
-      "payload_sha256": "bb5b4eac8d1eb15e99fbebf332f15fbbaf7a7a918a82594fe49d8f090fc6caaa",
-      "verdict_file": "_AAA_auditlab_20261023_blog_APPROVED_idaho_round4_punctuation_only.md",
-      "sent": "2026-10-23 11:30 MDT"
+      "payload_sha256": "c187d0b88736ff541a01937eac00c6deae17773d7f93aa451d2a9f1797a69166",
+      "verdict_file": "auditlab_20261123T101432Z_blog_APPROVED_idaho_cpa_license_renewal_guide_COPY68_r1_11of11_claims_PASS_plus_120day_window_CONFIRMED_INSERTED_in_adopted_rule_10801.md",
+      "sent": "2026-11-23 03:14 MST"
     },
     {
       "party": "orchestrator",
-      "payload_sha256": "bb5b4eac8d1eb15e99fbebf332f15fbbaf7a7a918a82594fe49d8f090fc6caaa",
-      "verdict_file": "_AAA_orchestrator_20261023_110939_idaho_devin_approved_fix_dashes.md",
-      "sent": "2026-10-23 11:09 MDT"
+      "payload_sha256": "c187d0b88736ff541a01937eac00c6deae17773d7f93aa451d2a9f1797a69166",
+      "verdict_file": "_AAA_orchestrator_20261123_032958_blog_APPROVED_idaho-cpa-license-renewal-guide_r1.md",
+      "sent": "2026-11-23 03:29 MST"
     }
   ]
 }
