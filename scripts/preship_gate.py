@@ -3451,8 +3451,9 @@ def check_rule_change_monitoring_currency(repo_root: Path) -> list[str]:
     # status == "stale"
     return [
         f"[MON3] rule_change_coverage_stats.json is {result['age_hours']:.1f}h old, past the "
-        f"{rcmsc.STALENESS_THRESHOLD_HOURS}h bar -- /rule-changes/ and the homepage hero strip are "
-        f"asserting \"{result['cadence']}\" against a stale capture. Run "
+        f"{rcmsc.STALENESS_THRESHOLD_HOURS}h bar -- a build now hides the homepage hero-strip monitoring "
+        f"stats and adds the dated stale-copy caveat to /rule-changes/ and the homepage conflict line "
+        f"(MON-35: usually sync lag, not a monitor pause). Run "
         f"scripts/sync_rule_change_coverage_stats.py to pull DiffLab's current output before shipping."
     ]
 

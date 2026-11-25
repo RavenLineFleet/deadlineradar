@@ -9287,6 +9287,26 @@ def _rule_change_monitoring_fresh() -> bool:
         return False
 
 
+# MON-35 (AuditLab, 2026-11-25): the stale branch used to claim day-to-day
+# monitoring was paused. The 48h bar is measured on the
+# SYNCED repo copy, which lags DiffLab by about a day by design, so that
+# sentence fired on sync lag while the monitor captured every day (115/115).
+# From data/ alone we cannot tell a sync lag from a real pause, so the caveat
+# states only what we know: the date of the snapshot this page was built from.
+def _rule_change_monitoring_stale_caveat() -> str:
+    try:
+        cov_stats = json.loads(RULE_CHANGE_COVERAGE_STATS_PATH.read_text(encoding="utf-8"))
+        last_checked = datetime.fromisoformat(cov_stats["last_checked_at"])
+        return (
+            f"Our copy of the monitoring results was last updated {fmt_date(last_checked.date())}, "
+            "so a change flagged since then may not appear here yet."
+        )
+    except (FileNotFoundError, KeyError, ValueError, TypeError):
+        return (
+            "Our copy of the monitoring results may be out of date, so a recently flagged "
+            "change may not appear here yet."
+        )
+
 # SRC-260 (AuditLab, 2026-11-15): _rule_change_monitoring_fresh() reads the
 # PRODUCER's crawl heartbeat, so it can only see a crawler-side stall. The step
 # that actually stalled was ingest: PA and VA events sat in DiffLab's store for
@@ -9430,10 +9450,7 @@ def build_index_page(states: list[dict], as_of: date, by_slug: dict[str, list[di
             # build_rule_changes_page()'s caveat -- a present-tense "Right
             # now:" claim with no freshness signal. Same caveat sentence
             # build_rule_changes_page() already uses when stale.
-            _c_summary += (
-                " (Day-to-day monitoring has been paused for a while; this comes from our "
-                "batch legal research in the meantime.)"
-            )
+            _c_summary += f" ({_rule_change_monitoring_stale_caveat()})"
         live_conflict_proof_html = (
             f'<p class="mcard-proof"><strong>Right now:</strong> {esc(_c_summary)} '
             f'<a href="/rule-changes/">See all {len(_live_conflicts)} &rarr;</a></p>'
@@ -11265,10 +11282,7 @@ def build_rule_changes_page() -> str:
         # ..."), but a reader deserves to know it's not current. Appends the
         # same caveat the elif branch below uses, only when actually stale.
         if not _rule_change_monitoring_fresh():
-            monitoring_note += (
-                " Day-to-day monitoring has been paused for a while; every item below comes from "
-                "our batch legal research in the meantime."
-            )
+            monitoring_note += " " + _rule_change_monitoring_stale_caveat()
     elif not _rule_change_monitoring_fresh():
         # Self-review, 2026-08-20: this branch used to render "watching 500
         # primary sources ... daily ... Last checked <date>" unconditionally
