@@ -13,6 +13,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_citation_links as ccl  # noqa: E402
+import net_guard  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _allow_test_loopback(monkeypatch):
+    # SSRF-3: production refuses loopback; these tests serve from 127.0.0.1 on purpose.
+    real = net_guard._address_allowed
+    monkeypatch.setattr(net_guard, "_address_allowed", lambda ip, port: ip == "127.0.0.1" or real(ip, port))
 
 PDF = b"%PDF-1.4\n" + b"x" * 5000
 SHELL = (b'<!doctype html><html><head><title>Utah Office of Administrative Rules</title></head>'
