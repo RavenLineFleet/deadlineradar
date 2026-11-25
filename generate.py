@@ -9337,7 +9337,8 @@ def _rule_change_monitoring_stale_caveat() -> str:
         cov_stats = json.loads(RULE_CHANGE_COVERAGE_STATS_PATH.read_text(encoding="utf-8"))
         last_checked = datetime.fromisoformat(cov_stats["last_checked_at"])
         return (
-            f"Our copy of the monitoring results was last updated {fmt_date(last_checked.date())}, "
+            # COPY-70: last_checked_at is the monitor's check date, not when our copy synced.
+            f"The monitoring results shown here are from the check run {fmt_date(last_checked.date())}, "
             "so a change flagged since then may not appear here yet."
         )
     except (FileNotFoundError, KeyError, ValueError, TypeError):

@@ -25,7 +25,8 @@ def _with_stats(tmp_path, monkeypatch, payload):
 def test_caveat_names_snapshot_date(tmp_path, monkeypatch):
     _with_stats(tmp_path, monkeypatch, {"last_checked_at": "2026-11-23T12:28:58.737165+00:00"})
     c = generate._rule_change_monitoring_stale_caveat()
-    assert "November 23, 2026" in c
+    assert "check run November 23, 2026" in c
+    assert "last updated" not in c  # COPY-70: the date is the check, not our copy's sync
     assert "paused" not in c.lower()
 
 
