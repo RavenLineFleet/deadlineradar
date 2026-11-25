@@ -80,7 +80,7 @@
 </form>
 <p id="dr-pl-result" class="dr-bf-result" hidden></p>
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="2">
     <thead><tr><th>If your certificate number is&hellip;</th><th>Your next renewal deadline</th></tr></thead>
     <tbody>
     <tr data-parity="odd"><td>Odd</td><td>July 1, 2027</td></tr>
@@ -89,6 +89,7 @@
   </table>
 </div>
 <script>(function(){var input=document.getElementById("dr-pl-number");var goBtn=document.getElementById("dr-pl-go");var result=document.getElementById("dr-pl-result");var inverted=false;var lastRow=null;function show(){var digits=(input.value||"").replace(/[^0-9]/g,"");if(!digits){result.hidden=false;result.textContent="Enter a number to see your date.";return}var lastDigit=parseInt(digits.charAt(digits.length-1),10);var isOdd=lastDigit%2===1;if(inverted)isOdd=!isOdd;var row=document.querySelector('tr[data-parity="'+(isOdd?"odd":"even")+'"]');if(!row)return;if(lastRow)lastRow.classList.remove("dr-bf-highlight");row.classList.add("dr-bf-highlight");lastRow=row;row.scrollIntoView({behavior:"smooth",block:"center"});var dateText=row.querySelectorAll("td")[1]?row.querySelectorAll("td")[1].textContent:null;result.hidden=false;result.textContent=dateText?"Your next renewal: "+dateText:"Enter a number to see your date."}goBtn.addEventListener("click",show);input.addEventListener("input",show)})();</script>
+<script>(function(){var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];var now=new Date;var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());function lastDay(y,mi){return new Date(y,mi+1,0).getDate()}var tables=document.querySelectorAll("table[data-dr-roll]");for(var t=0;t<tables.length;t++){var period=parseInt(tables[t].getAttribute("data-dr-roll"),10);if(!(period>0))continue;var cells=tables[t].querySelectorAll("tr[data-month] td, tr[data-parity] td");for(var c=0;c<cells.length;c++){var m=/^([A-Z][a-z]+) (\d{1,2}), (\d{4})$/.exec(cells[c].textContent.trim());if(!m)continue;var mi=MONTHS.indexOf(m[1]);if(mi<0)continue;var day=parseInt(m[2],10),y=parseInt(m[3],10);var monthEnd=day===lastDay(y,mi);var d=new Date(y,mi,day);if(d>=today)continue;while(d<today){y+=period;d=new Date(y,mi,monthEnd?lastDay(y,mi):day)}cells[c].textContent=MONTHS[mi]+" "+d.getDate()+", "+y}}})();</script>
 <div class="sheet">
   <div class="sheethead">
     <span>Firm registration</span>

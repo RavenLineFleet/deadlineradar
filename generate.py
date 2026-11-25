@@ -3997,6 +3997,40 @@ def _birth_month_finder_html(needs_year: bool) -> str:
 <p id="dr-bf-result" class="dr-bf-result" hidden></p>"""
 
 
+# TABLE-5 (AuditLab, 2026-11-24): birth-month / parity table cells are computed at build time, so the earliest
+# row elapses at each month end and stays elapsed until the next rebuild. The runtime stale caveat keys on
+# verification age, not on a rendered date passing, so nothing marked it. This rolls any passed cell forward by
+# its table's cycle length (data-dr-roll years) at view time -- the same value a rebuild that day would render.
+# Month-end cells stay month-end (Feb 28 -> Feb 29 in a leap year). The finder widgets read the cell text, so
+# they pick up the rolled value too.
+_TABLE_ROLL_JS = r"""<script>
+(function() {
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  function lastDay(y, mi) { return new Date(y, mi + 1, 0).getDate(); }
+  var tables = document.querySelectorAll('table[data-dr-roll]');
+  for (var t = 0; t < tables.length; t++) {
+    var period = parseInt(tables[t].getAttribute('data-dr-roll'), 10);
+    if (!(period > 0)) continue;
+    var cells = tables[t].querySelectorAll('tr[data-month] td, tr[data-parity] td');
+    for (var c = 0; c < cells.length; c++) {
+      var m = /^([A-Z][a-z]+) (\d{1,2}), (\d{4})$/.exec(cells[c].textContent.trim());
+      if (!m) continue;
+      var mi = MONTHS.indexOf(m[1]);
+      if (mi < 0) continue;
+      var day = parseInt(m[2], 10), y = parseInt(m[3], 10);
+      var monthEnd = day === lastDay(y, mi);
+      var d = new Date(y, mi, day);
+      if (d >= today) continue;
+      while (d < today) { y += period; d = new Date(y, mi, monthEnd ? lastDay(y, mi) : day); }
+      cells[c].textContent = MONTHS[mi] + ' ' + d.getDate() + ', ' + y;
+    }
+  }
+})();
+</script>"""
+
+
 def _birth_month_finder_js(needs_year: bool) -> str:
     needs_year_js = "true" if needs_year else "false"
     return f"""<script>
@@ -7420,7 +7454,7 @@ def render_parity_lookup_state(state_slug: str, record: dict, as_of: date) -> st
 </div>
 {_parity_lookup_html(state_slug)}
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="2">
     <thead><tr><th>If {esc(cfg['parity_of'])} is&hellip;</th><th>Your next renewal deadline</th></tr></thead>
     <tbody>
     <tr data-parity="odd"><td>Odd</td><td>{esc(fmt_date(odd_d))}</td></tr>
@@ -7428,7 +7462,8 @@ def render_parity_lookup_state(state_slug: str, record: dict, as_of: date) -> st
     </tbody>
   </table>
 </div>
-{_parity_lookup_js(state_slug)}"""
+{_parity_lookup_js(state_slug)}
+{_TABLE_ROLL_JS}"""
 
 
 # 2026-08-18 (AuditLab DNC sweep): Oklahoma and New Mexico individual both
@@ -7468,14 +7503,15 @@ def render_birth_month_annual_state(record: dict, as_of: date) -> str:
 </div>
 {_birth_month_finder_html(needs_year=False)}
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="1">
     <thead><tr><th>Birth month</th><th>Next renewal deadline</th></tr></thead>
     <tbody>
     {rows}
     </tbody>
   </table>
 </div>
-{_birth_month_finder_js(needs_year=False)}"""
+{_birth_month_finder_js(needs_year=False)}
+{_TABLE_ROLL_JS}"""
 
 
 # 2026-08-18 (AuditLab DNC sweep): Arizona individual renews on BOTH a
@@ -7518,7 +7554,7 @@ def render_birth_month_year_parity_state(record: dict, as_of: date) -> str:
 </div>
 {_birth_month_finder_html(needs_year=True)}
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="2">
     <thead><tr><th>Birth month</th><th>Next deadline (odd birth year)</th><th>Next deadline (even birth year)</th></tr></thead>
     <tbody>
     {rows}
@@ -7527,7 +7563,8 @@ def render_birth_month_year_parity_state(record: dict, as_of: date) -> str:
 </div>
 <p>Example: born in March of an odd year (e.g. 1985)? Your next deadline is the
 odd-birth-year date on the March row.</p>
-{_birth_month_finder_js(needs_year=True)}"""
+{_birth_month_finder_js(needs_year=True)}
+{_TABLE_ROLL_JS}"""
 
 
 # 2026-08-18 (AuditLab DNC sweep): New Hampshire (RSA 310:8, II) and
@@ -8050,7 +8087,7 @@ def render_california(record: dict, as_of: date) -> str:
 </div>
 {_birth_month_finder_html(needs_year=True)}
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="2">
     <thead><tr><th>Birth month</th><th>Next deadline (odd birth year)</th><th>Next deadline (even birth year)</th></tr></thead>
     <tbody>
     {rows}
@@ -8059,7 +8096,8 @@ def render_california(record: dict, as_of: date) -> str:
 </div>
 <p>Example: born in March of an odd year (e.g. 1985)? Your next deadline is the
 odd-birth-year date on the March row.</p>
-{_birth_month_finder_js(needs_year=True)}"""
+{_birth_month_finder_js(needs_year=True)}
+{_TABLE_ROLL_JS}"""
 
 
 def render_texas(record: dict, as_of: date) -> str:
@@ -8077,14 +8115,15 @@ def render_texas(record: dict, as_of: date) -> str:
 </div>
 {_birth_month_finder_html(needs_year=False)}
 <div class="table-wrap">
-  <table>
+  <table data-dr-roll="1">
     <thead><tr><th>Birth month</th><th>Next renewal deadline</th></tr></thead>
     <tbody>
     {rows}
     </tbody>
   </table>
 </div>
-{_birth_month_finder_js(needs_year=False)}"""
+{_birth_month_finder_js(needs_year=False)}
+{_TABLE_ROLL_JS}"""
 
 
 def render_new_york(record: dict) -> str:
@@ -22625,6 +22664,9 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
     fmt = _calc_fmt_date(lang)
     ca_table = build_california_table(table_clock(as_of), fmt)
     tx_table = build_texas_table(table_clock(as_of), fmt)
+    # TABLE-5: ISO twins so the client can roll a cell forward once it has passed (rollCell in _DEADLINE_CALC_JS).
+    ca_iso = build_california_table(table_clock(as_of), fmt_date_iso)
+    tx_iso = build_texas_table(table_clock(as_of), fmt_date_iso)
     out = {}
     for slug, records in by_slug.items():
         state_name = records[0]["state"]
@@ -22656,8 +22698,9 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "ca",
                 "months": [
-                    {"odd": r["odd_birth_year_next_deadline"], "even": r["even_birth_year_next_deadline"]}
-                    for r in ca_table
+                    {"odd": r["odd_birth_year_next_deadline"], "even": r["even_birth_year_next_deadline"],
+                     "odd_iso": ri["odd_birth_year_next_deadline"], "even_iso": ri["even_birth_year_next_deadline"]}
+                    for r, ri in zip(ca_table, ca_iso)
                 ],
                 "firm_clock": firm_clock,
             }
@@ -22667,6 +22710,7 @@ def _deadline_calculator_widget_data(by_slug: dict[str, list[dict]], as_of: date
                 "label": state_name,
                 "kind": "tx",
                 "months": [r["next_deadline"] for r in tx_table],
+                "months_iso": [r["next_deadline"] for r in tx_iso],
                 "firm_clock": firm_clock,
             }
             continue
@@ -22802,6 +22846,23 @@ _DEADLINE_CALC_JS = """
   }
   function fmtDate(d) { return fillTpl(DATE_PARTS[0], {month: MONTHS[d.getUTCMonth()], day: d.getUTCDate(), year: d.getUTCFullYear()}); }
   function nextDue(label, dateStr) { return fillTpl(I18N.next_due, {label: label, date: dateStr}); }
+  // TABLE-5: the ca/tx month tables are computed at build time; a cell whose date has passed rolls forward by
+  // its cycle length (tx 1 year, ca 2), month-end staying month-end -- what a rebuild that day would show.
+  function rollCell(iso, display, period) {
+    if (!iso) return display;
+    var p = iso.split('-');
+    var y = parseInt(p[0], 10), mi = parseInt(p[1], 10) - 1, day = parseInt(p[2], 10);
+    var now = new Date();
+    var today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    var d = Date.UTC(y, mi, day);
+    if (d >= today) return display;
+    var monthEnd = day === new Date(Date.UTC(y, mi + 1, 0)).getUTCDate();
+    while (d < today) {
+      y += period;
+      d = Date.UTC(y, mi, monthEnd ? new Date(Date.UTC(y, mi + 1, 0)).getUTCDate() : day);
+    }
+    return fmtDate(new Date(d));
+  }
   var stateSel = document.getElementById('dr-calc-state');
   var followup = document.getElementById('dr-calc-followup');
   var result = document.getElementById('dr-calc-result');
@@ -22871,7 +22932,7 @@ _DEADLINE_CALC_JS = """
       document.getElementById('dr-calc-month').addEventListener('change', function() {
         var m = parseInt(this.value, 10);
         if (!m) { result.hidden = true; return; }
-        showResult(nextDue(entry.label, entry.months[m - 1]), slug, entry.label);
+        showResult(nextDue(entry.label, rollCell((entry.months_iso || [])[m - 1], entry.months[m - 1], 1)), slug, entry.label);
       });
     } else if (entry.kind === 'ca') {
       followup.innerHTML = '<div class="signup-form-row"><div><label for="dr-calc-month">' + I18N.birth_month + '</label>' +
@@ -22883,7 +22944,8 @@ _DEADLINE_CALC_JS = """
         var y = parseInt(document.getElementById('dr-calc-year').value, 10);
         if (!m || !y) { result.hidden = true; return; }
         var isOdd = (y % 2) === 1;
-        var d = isOdd ? entry.months[m - 1].odd : entry.months[m - 1].even;
+        var cell = entry.months[m - 1];
+        var d = isOdd ? rollCell(cell.odd_iso, cell.odd, 2) : rollCell(cell.even_iso, cell.even, 2);
         showResult(nextDue(entry.label, d), slug, entry.label);
       }
       document.getElementById('dr-calc-month').addEventListener('change', update);
