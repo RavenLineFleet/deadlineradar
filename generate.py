@@ -23092,6 +23092,14 @@ def build_deadline_calculator_page(
     # actually get.
     example_ids = ["il-individual", "tx-individual", "oh-individual", "fl-individual"]
     by_id = {r["id"]: r for recs in by_slug.values() for r in recs}
+    # COPY-72: check every renewal_pattern in the data has a label, not only the
+    # 4 example rows (license_number_cohort has no example row). raise, not
+    # assert, so python -O cannot strip it.
+    _missing_pattern_labels = sorted(
+        {r["renewal_pattern"] for r in by_id.values() if f"calc.pattern_{r['renewal_pattern']}" not in _I18N_EN}
+    )
+    if _missing_pattern_labels:
+        raise KeyError(f"COPY-72: no i18n label for renewal_pattern {_missing_pattern_labels!r}")
     example_rows = []
     for rid in example_ids:
         if rid not in by_id:
@@ -23115,9 +23123,8 @@ def build_deadline_calculator_page(
             answer = esc(_t("calc.answer_personal_fact", lang))
         else:
             answer = esc(_t("calc.answer_no_public_rule", lang))
-        # COPY-71: cycle type via i18n (was the raw English enum on /es/ too); KeyError-style failure on a new enum value.
+        # COPY-71: cycle type via i18n (was the raw English enum on /es/ too).
         pattern_key = f"calc.pattern_{r['renewal_pattern']}"
-        assert pattern_key in _I18N_EN, f"COPY-71: no i18n label for renewal_pattern {r['renewal_pattern']!r}"
         example_rows.append(
             f"<tr><td>{esc(r['state'])}</td><td>{esc(_t(pattern_key, lang))}</td>"
             f"<td>{answer}</td></tr>"

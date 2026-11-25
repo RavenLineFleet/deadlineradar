@@ -739,27 +739,27 @@ ES: dict[str, dict] = {
     'calc.pattern_birth_month': {
         "text": 'mes de nacimiento',
         "en_hash": 'a4fbd6b371f4f2be',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.pattern_fixed_calendar': {
         "text": 'calendario fijo',
         "en_hash": 'a26ecdd2e05b4b45',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.pattern_fixed_calendar_cohort': {
         "text": 'cohorte de calendario fijo',
         "en_hash": 'da0c1a6fe7c83848',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.pattern_license_number_cohort': {
         "text": 'cohorte por número de licencia',
         "en_hash": 'eb2efa639212711b',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.pattern_other': {
         "text": 'otro',
         "en_hash": 'd9298a10d1b07358',
-        "reviewed": False,
+        "reviewed": True,
     },
     'calc.answer_no_public_rule': {
         "text": 'Ninguna norma pública vincula esto a un dato conocible — la calculadora lo indica, con honestidad',
