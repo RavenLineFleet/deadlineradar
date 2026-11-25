@@ -242,6 +242,8 @@ class Fetcher:
 
     # ---- fetch ----
     def get(self, url: str, method: str = "http") -> Fetched:
+        if urlparse(url).scheme not in ("http", "https"):   # SSRF-3 A5c: the seed, not only redirect targets
+            return Fetched(url, False, None, "bad_scheme", None, None, url)
         if urlparse(url).netloc in SCRIPT_UNREADABLE_HOSTS:
             return Fetched(url, False, None, "host_unreadable_by_script", None, None, url)
         if method == "browser":

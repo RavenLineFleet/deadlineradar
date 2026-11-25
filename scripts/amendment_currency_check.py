@@ -52,6 +52,13 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+
+try:  # SSRF-3: public-address-only, http(s)-only opener shared by the standalone fetchers
+    import net_guard
+except ImportError:
+    import sys as _sys
+    _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    import net_guard
 import urllib.error
 from pathlib import Path
 
@@ -123,7 +130,7 @@ def _fetch_text(url: str) -> str | None:
     own manual research. Returns None on any failure (network, 403, etc.)."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": _UA})
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with net_guard.urlopen(req, timeout=20) as resp:
             raw = resp.read()
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
         return None

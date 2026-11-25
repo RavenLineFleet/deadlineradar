@@ -361,7 +361,15 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Callable
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+try:  # SSRF-3: public-address-only, http(s)-only opener shared by the standalone fetchers
+    import net_guard
+except ImportError:
+    import sys as _sys
+    _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    import net_guard
+urlopen = net_guard.urlopen
 from urllib.error import HTTPError, URLError
 
 DEFAULT_TIMEOUT_S = 20

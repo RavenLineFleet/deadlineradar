@@ -103,6 +103,13 @@ import re
 import sys
 import urllib.error
 import urllib.request
+
+try:  # SSRF-3: public-address-only, http(s)-only opener shared by the standalone fetchers
+    import net_guard
+except ImportError:
+    import sys as _sys
+    _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    import net_guard
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -178,7 +185,7 @@ def _fetch(url: str) -> tuple[int | None, bytes | None, str]:
     """
     req = urllib.request.Request(url, method="GET", headers=REQUEST_HEADERS)
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
+        with net_guard.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
             body = resp.read(CONTENT_SAMPLE_BYTES)
             return resp.status, body, str(resp.status)
     except urllib.error.HTTPError as e:

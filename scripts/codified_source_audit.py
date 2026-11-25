@@ -47,6 +47,13 @@ import json
 import re
 import sys
 import urllib.request
+
+try:  # SSRF-3: public-address-only, http(s)-only opener shared by the standalone fetchers
+    import net_guard
+except ImportError:
+    import sys as _sys
+    _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    import net_guard
 import urllib.error
 from pathlib import Path
 from urllib.parse import urlparse
@@ -206,7 +213,7 @@ def check_citation_link_consistency(records: list[dict]) -> list[dict]:
             continue
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _UA})
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with net_guard.urlopen(req, timeout=15) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
             problems.append({
@@ -273,7 +280,7 @@ def run_freshness_sweep(records: list[dict], snapshot_path: Path) -> dict:
             continue
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _UA})
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with net_guard.urlopen(req, timeout=15) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
             fetch_failed.append({"id": r["id"], "state": r["state"], "citation_url": url, "error": str(e)})

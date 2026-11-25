@@ -39,6 +39,13 @@ import sys
 import time
 import html as html_mod
 import urllib.request
+
+try:  # SSRF-3: public-address-only, http(s)-only opener shared by the standalone fetchers
+    import net_guard
+except ImportError:
+    import sys as _sys
+    _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+    import net_guard
 import urllib.error
 
 BROWSER_UA = (
@@ -208,7 +215,7 @@ def _fetch(url: str) -> tuple[str, bytes | None, str, int | None]:
     last_exc_status = None
     for attempt in range(2):
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
+            with net_guard.urlopen(req, timeout=TIMEOUT_S) as resp:
                 body = resp.read()
                 ctype = (resp.headers.get("Content-Type") or "").lower()
                 status = resp.status
@@ -224,7 +231,7 @@ def _fetch(url: str) -> tuple[str, bytes | None, str, int | None]:
                 time.sleep(2)
                 continue
             return ("BLOCKED", None, "", last_exc_status)
-    if not (200 <= status < 300) or not body:
+    if not (200 <= (status or 0) < 300) or not body:  # SSRF-3: never assume a status
         return ("BLOCKED", body, ctype, status)
     return ("FETCHED", body, ctype, status)
 
