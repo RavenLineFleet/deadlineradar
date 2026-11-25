@@ -39,3 +39,23 @@ def test_utah_recipe_is_https():
         s = (REPO / f).read_text(encoding="utf-8")
         assert "https://commerce.utah.gov/wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf" in s
         assert "commerce.utah.gov//" not in s
+
+
+def test_prose_embedded_cleartext_url_fails(tmp_path):
+    # GATE-148: a URL inside prose (not a whole JSON value) is still a cleartext citation.
+    body = '{"note": "statute at http://www.leg.state.fl.us/statutes/x.html. See also"}'
+    errs = preship_gate.check_cleartext_citation_hosts(_repo(tmp_path, body))
+    assert len(errs) == 1 and "http://www.leg.state.fl.us/statutes/x.html " in errs[0]
+
+
+def test_verification_history_is_exempt(tmp_path):
+    # GATE-148: verification_history records what a past check fetched; it is not rewritten.
+    body = '{"records": [{"verification_history": ["2026-11-01: confirmed via http://commerce.utah.gov//x.pdf"]}]}'
+    assert preship_gate.check_cleartext_citation_hosts(_repo(tmp_path, body)) == []
+
+
+def test_real_repo_history_holds_the_exempted_urls():
+    # Positive control for the exemption: the real tree DOES carry cleartext URLs in history,
+    # so test_real_repo_clean passing is the exemption working, not the URLs being absent.
+    s = (REPO / "data" / "reinstatement.json").read_text(encoding="utf-8")
+    assert "http://commerce.utah.gov//" in s

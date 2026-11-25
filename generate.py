@@ -51,7 +51,7 @@ import tempfile
 import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 
-from i18n import t as _t
+from i18n import EN as _I18N_EN, t as _t
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
@@ -23099,7 +23099,7 @@ def build_deadline_calculator_page(
         r = by_id[rid]
         nd = r.get("next_deadline_computed")
         if nd:
-            answer = esc(fmt_date(date.fromisoformat(nd)))
+            answer = esc(_calc_fmt_date(lang)(date.fromisoformat(nd)))  # COPY-71: locale date, not fmt_date's English
         # Orchestrator finding (2026-08-27): fl-individual's renewal_pattern
         # is "other" (not one of the three literal pattern names below), so
         # it fell into the "no public rule" branch even though it's the SAME
@@ -23115,8 +23115,11 @@ def build_deadline_calculator_page(
             answer = esc(_t("calc.answer_personal_fact", lang))
         else:
             answer = esc(_t("calc.answer_no_public_rule", lang))
+        # COPY-71: cycle type via i18n (was the raw English enum on /es/ too); KeyError-style failure on a new enum value.
+        pattern_key = f"calc.pattern_{r['renewal_pattern']}"
+        assert pattern_key in _I18N_EN, f"COPY-71: no i18n label for renewal_pattern {r['renewal_pattern']!r}"
         example_rows.append(
-            f"<tr><td>{esc(r['state'])}</td><td>{esc(r['renewal_pattern'].replace('_', ' '))}</td>"
+            f"<tr><td>{esc(r['state'])}</td><td>{esc(_t(pattern_key, lang))}</td>"
             f"<td>{answer}</td></tr>"
         )
 

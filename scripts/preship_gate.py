@@ -2488,23 +2488,41 @@ CLEARTEXT_CITATION_HOSTS = {
 
 
 def check_cleartext_citation_hosts(repo_root: Path) -> list[str]:
-    """CITE-79: every http:// URL value in the datasets, their worker mirrors and the reverify
-    spec must be on an allowlisted TLS-less host."""
+    """CITE-79 / GATE-148: every http:// URL in any string of the datasets, their worker mirrors and
+    the reverify spec -- whole values AND URLs embedded in prose -- must be on an allowlisted
+    TLS-less host. Strings under a `verification_history` key are exempt: that is an append-only
+    log of what a past check actually fetched (rewriting its scheme would falsify the record), and
+    it is not a citation a reader follows."""
+    import json as _json
     import re as _re
     from urllib.parse import urlparse as _urlparse
     errors: list[str] = []
     files = sorted((repo_root / "data").glob("*.json")) + sorted((repo_root / "worker" / "src").glob("*.json"))
     files.append(repo_root / "scripts" / "reverify" / "hand_spec.json")
+    url_re = _re.compile(r'http://[^\s"<>()\[\]]+')
+
+    def _walk(node, rel: str, in_history: bool) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                _walk(k, rel, in_history)
+                _walk(v, rel, in_history or k == "verification_history")
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v, rel, in_history)
+        elif isinstance(node, str) and not in_history:
+            for m in url_re.finditer(node):
+                url = m.group(0).rstrip(".,;:")
+                host = (_urlparse(url).hostname or "").lower()
+                if host not in CLEARTEXT_CITATION_HOSTS:
+                    errors.append(
+                        f"[C][CITE-79][{rel}] cleartext URL {url} -- use https if {host} serves it, "
+                        f"else add {host} to CLEARTEXT_CITATION_HOSTS with evidence"
+                    )
+
     for f in files:
         if not f.exists():
             continue
-        for m in _re.finditer(r'"(http://[^"\s]+)"', f.read_text(encoding="utf-8")):
-            host = (_urlparse(m.group(1)).hostname or "").lower()
-            if host not in CLEARTEXT_CITATION_HOSTS:
-                errors.append(
-                    f"[C][CITE-79][{f.relative_to(repo_root).as_posix()}] cleartext URL {m.group(1)} -- "
-                    f"use https if {host} serves it, else add {host} to CLEARTEXT_CITATION_HOSTS with evidence"
-                )
+        _walk(_json.loads(f.read_text(encoding="utf-8")), f.relative_to(repo_root).as_posix(), False)
     return errors
 
 

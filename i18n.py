@@ -385,6 +385,13 @@ EN: dict[str, str] = {
     "calc.table_th_cycle_type": "Cycle type",
     "calc.table_th_returns": "What the tool returns",
     "calc.answer_personal_fact": "Depends on a personal fact — the calculator above asks for it, then answers",
+    # COPY-71: Cycle-type cell in the calculator's example table (renewal_pattern enum -> label). The generator fails the
+    # build on an enum value with no key here.
+    "calc.pattern_birth_month": 'birth month',
+    "calc.pattern_fixed_calendar": 'fixed calendar',
+    "calc.pattern_fixed_calendar_cohort": 'fixed calendar cohort',
+    "calc.pattern_license_number_cohort": 'license number cohort',
+    "calc.pattern_other": 'other',
     "calc.answer_no_public_rule": "No public rule ties this to a knowable input — the calculator says so, honestly",
     "calc.h2_how_it_works": "How this actually works",
     "calc.how_it_works_body": (
@@ -729,6 +736,31 @@ EN: dict[str, str] = {
 # directly with reviewed=True. See module docstring.
 # ---------------------------------------------------------------------------
 ES: dict[str, dict] = {
+    'calc.pattern_birth_month': {
+        "text": 'mes de nacimiento',
+        "en_hash": 'a4fbd6b371f4f2be',
+        "reviewed": False,
+    },
+    'calc.pattern_fixed_calendar': {
+        "text": 'calendario fijo',
+        "en_hash": 'a26ecdd2e05b4b45',
+        "reviewed": False,
+    },
+    'calc.pattern_fixed_calendar_cohort': {
+        "text": 'cohorte de calendario fijo',
+        "en_hash": 'da0c1a6fe7c83848',
+        "reviewed": False,
+    },
+    'calc.pattern_license_number_cohort': {
+        "text": 'cohorte por número de licencia',
+        "en_hash": 'eb2efa639212711b',
+        "reviewed": False,
+    },
+    'calc.pattern_other': {
+        "text": 'otro',
+        "en_hash": 'd9298a10d1b07358',
+        "reviewed": False,
+    },
     'calc.answer_no_public_rule': {
         "text": 'Ninguna norma pública vincula esto a un dato conocible — la calculadora lo indica, con honestidad',
         "en_hash": '49eb743f39981a7a',
