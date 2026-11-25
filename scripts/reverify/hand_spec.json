@@ -1278,7 +1278,7 @@
   "keep_auto": false,
   "checks": [
    {
-    "url": "http://commerce.utah.gov//wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf",
+    "url": "https://commerce.utah.gov/wp-content/uploads/2022/10/certified-public-accountant-reinstatement.pdf",
     "kind": "fee",
     "field": "reinstatement_fee_usd",
     "anchor": "Less than two years since your license expired. - Submit"

@@ -2467,6 +2467,47 @@ def check_cpe_hours_manifest_consistency(repo_root: Path) -> list[str]:
     return errors
 
 
+def _generate_module(data_path: Path):
+    """generate.py from the repo that owns data_path (DATE-21 uses its real roll-forward)."""
+    root = str(Path(data_path).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    import generate
+    return generate
+
+
+# CITE-79 (AuditLab, 2026-11-24): hosts whose citations stay http:// because the host has no TLS at
+# all, each with the evidence that made it an exception. A new cleartext host fails the build: swap
+# it to https if the host serves it, or add it here with its own evidence.
+CLEARTEXT_CITATION_HOSTS = {
+    "reports.oah.state.nc.us": (
+        "NC OAH codified rule text: port 443 refuses (connect fails, ~21s) while http serves the "
+        "section 200 and a bogus section 404; re-tested 2026-09-23 (CITE-74) and 2026-11-24 (CITE-79)"
+    ),
+}
+
+
+def check_cleartext_citation_hosts(repo_root: Path) -> list[str]:
+    """CITE-79: every http:// URL value in the datasets, their worker mirrors and the reverify
+    spec must be on an allowlisted TLS-less host."""
+    import re as _re
+    from urllib.parse import urlparse as _urlparse
+    errors: list[str] = []
+    files = sorted((repo_root / "data").glob("*.json")) + sorted((repo_root / "worker" / "src").glob("*.json"))
+    files.append(repo_root / "scripts" / "reverify" / "hand_spec.json")
+    for f in files:
+        if not f.exists():
+            continue
+        for m in _re.finditer(r'"(http://[^"\s]+)"', f.read_text(encoding="utf-8")):
+            host = (_urlparse(m.group(1)).hostname or "").lower()
+            if host not in CLEARTEXT_CITATION_HOSTS:
+                errors.append(
+                    f"[C][CITE-79][{f.relative_to(repo_root).as_posix()}] cleartext URL {m.group(1)} -- "
+                    f"use https if {host} serves it, else add {host} to CLEARTEXT_CITATION_HOSTS with evidence"
+                )
+    return errors
+
+
 def check_deadline_currency(data_path: Path) -> list[str]:
     """AuditLab DATE-1 (MEDIUM, 2026-08-04): deadlines come from two paths --
     computed at build time (next_birth_month_parity_date()/next_annual_month_end(),
@@ -2493,7 +2534,14 @@ def check_deadline_currency(data_path: Path) -> list[str]:
         # file, so the raw value here can legitimately look "elapsed" while
         # the generated site is correct. Skip those; every other record is
         # still genuinely hand-maintained and this check still protects it.
-        self_rolling = (r.get("computation") or {}).get("type") == "fixed_calendar_recurring_no_anchor"
+        # DATE-21 (AuditLab, 2026-11-24): the skip used to key on the TAG alone, but the roll
+        # early-returns unchanged without a usable period_years, so tag + no period_years was
+        # skipped here AND never rolled. Skip only when the real roll actually lands on/after today.
+        self_rolling = False
+        if ndc and ndc < today and (r.get("computation") or {}).get("type") == "fixed_calendar_recurring_no_anchor":
+            rolled = _generate_module(data_path)._roll_forward_recurring_deadline(
+                ndc, r.get("computation"), date.fromisoformat(today))
+            self_rolling = rolled >= today
         if ndc and ndc < today and not self_rolling:
             errors.append(
                 f"[C][{r['state_slug']}/{r['id']}] next_deadline_computed={ndc} has already elapsed "
@@ -11946,6 +11994,7 @@ def main():
     all_errors += check_data_manifest_consistency(data_path, docs_dir)
     all_errors += check_cpe_hours_manifest_consistency(repo_root)
     all_errors += check_deadline_currency(data_path)
+    all_errors += check_cleartext_citation_hosts(repo_root)
     all_errors += check_gap_reason_date_consistency(repo_root)
     all_errors += check_self_rolling_dates_rendered_correctly(repo_root, data_path)
     all_errors += check_birth_month_table_currency(html_files)
