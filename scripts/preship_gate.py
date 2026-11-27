@@ -11583,6 +11583,24 @@ def _health_body_shape_ok(body: bytes) -> bool:
     )
 
 
+def _assistant_health_body_shape_ok(body: bytes) -> bool:
+    """HDR-3: the assistant host's /health body carries a per-release `build`
+    id, so this checks shape (status == "ok", build a non-empty string), never
+    the literal bytes -- same reasoning as `_health_body_shape_ok` above. The
+    key is `build`, not `version`: a Worker /api/health body answering on this
+    host is the wrong origin and must fail identity."""
+    try:
+        parsed = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return (
+        isinstance(parsed, dict)
+        and parsed.get("status") == "ok"
+        and isinstance(parsed.get("build"), str)
+        and len(parsed["build"]) > 0
+    )
+
+
 # AuditLab GATE-53 (LOW, 2026-10-16): the live security headers for the whole static surface are set
 # by an OFF-REPO Cloudflare zone Transform Rule named "SEC-HDR-1" on the deadline-radar.com zone --
 # a dashboard setting with no diff, no review, no history the fleet can read. `docs/_headers` used to
@@ -11646,8 +11664,30 @@ _SECURITY_HEADER_LAYERS = (
             "referrer-policy": "strict-origin-when-cross-origin",
         },
     },
+    {
+        # HDR-3 (AuditLab LOW, 2026-11-27): the assistant host is a third origin
+        # with its own header set, configured outside this repo, and this gate
+        # covered two of three. Values measured 2026-11-27 with this gate's own
+        # fetcher. /health is the only route pinned: the host serves no HTML page
+        # of its own to check. The CSP here carries frame-ancestors only, fewer
+        # directives than the other two layers; this pins what is served, it does
+        # not endorse it. Adding directives is a separate deliberate change on that
+        # host first, then here.
+        "name": "assistant",
+        "url": "https://assistant.deadline-radar.com/health",
+        "identity_ok": lambda status, body: status == 200 and _assistant_health_body_shape_ok(body),
+        "identity_desc": '200 with body {"status": "ok", "build": "<non-empty string>"}',
+        "expected": {
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "SAMEORIGIN",
+            "content-security-policy": "frame-ancestors 'self'",
+            "strict-transport-security": "max-age=31536000; includeSubDomains",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "x-robots-tag": "noindex, nofollow",
+        },
+    },
 )
-# Known LOW, not drift (SecurityLab, confirmed by AuditLab): neither
+# Known LOW, not drift (SecurityLab, confirmed by AuditLab): no
 # layer's Strict-Transport-Security carries `preload`. The asserted value
 # (SEC-112) is the measured one without `preload`, so that known gap never
 # shows up as a false drift; adding `preload` later means updating it here.
