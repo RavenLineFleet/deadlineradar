@@ -1,0 +1,17 @@
+{
+  "slug": "louisiana-cpa-license-renewal-guide",
+  "approvals": [
+    {
+      "party": "auditlab",
+      "payload_sha256": "7e84b117390c6b6c175710890fc39d1d326afa34b6e7494eb56d8714a6df6275",
+      "verdict_file": "auditlab_20261122_blog_APPROVED_louisiana-cpa-license-renewal-guide_47of47_rows_PASS_15of15_section_cites_2_binding_fixes.md",
+      "sent": "2026-11-22 (r1 APPROVED with binding Fix 1 text; r2 = r1 + that exact text)"
+    },
+    {
+      "party": "orchestrator",
+      "payload_sha256": "7e84b117390c6b6c175710890fc39d1d326afa34b6e7494eb56d8714a6df6275",
+      "verdict_file": "_AAA_orchestrator_20261122_063412_blog_APPROVED_louisiana-cpa-license-renewal-guide.md",
+      "sent": "2026-11-22 06:34 MST (reviewed draft_r2 directly)"
+    }
+  ]
+}

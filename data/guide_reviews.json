@@ -229,6 +229,12 @@
       "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
       "body_sha256": "8cd9613eb4c18b1469c10e5f6a1188d4c8840f716c628417796dbbb54274d06e",
       "body_modified": "2026-11-20"
+    },
+    "louisiana-cpa-license-renewal-guide": {
+      "last_reviewed": "2026-11-22",
+      "reviewed_by": "authored-from-verified-datasets-plus-auditlab-orchestrator-review",
+      "body_sha256": "eaca414697c7db433fd83a2f61334849b1c21de875779dc96cf78dc45844ce77",
+      "body_modified": "2026-11-27"
     }
   }
 }

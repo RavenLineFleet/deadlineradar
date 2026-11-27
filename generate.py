@@ -28409,6 +28409,97 @@ so both clocks work for you instead of quietly running past you.</p>
 <p><em>Sources: K.S.A. 1-301, 1-308 and 1-310 (the Board's current published text of 1-310); Kansas Board of Accountancy regulations K.A.R. 74-4-7, 74-4-8 and 74-12-1; the Board's FAQ page. Checked November 2026. This is a summary, not legal advice. Confirm anything you're relying on with the Kansas Board of Accountancy.</em></p>
 ''',
     },
+    {
+        "slug": "louisiana-cpa-license-renewal-guide",
+        "published": "2026-11-27",
+        "title": "Louisiana CPA License Renewal: December 31 Every Year, 80 CPE Hours on a Rolling Two Years, and the Ethics Course Is Due in 2026",
+        "seo_title": "Louisiana CPA Renewal: Dec 31, $120, 80 CPE, Ethics",
+        "meta_description": (
+            "Louisiana CPA licenses expire December 31 every year. The $120 fee, the late-fee table, the rolling 80-hour CPE rule with a 20-hour annual floor, the even-year ethics course, and firm permits."
+        ),
+        "body_html": '''
+<p class="intro">A Louisiana CPA license expires <strong>every year on December 31</strong>. Renewal opens online November 1 and costs <strong>$120</strong>. If you don't renew by the end of January, the late fees start at $200 in February and climb every month after. CPE works on a <strong>rolling two-year window</strong>: 80 hours across any two consecutive calendar years, with at least <strong>20 hours every year</strong>. And 2026 is an even year, so the <strong>Board-approved ethics course</strong> is due by December 31.</p>
+
+<h2>One date, every year: December 31</h2>
+<p>Louisiana doesn't use birth months or license numbers. Board Rule 1105(B)(1) says each CPA "shall renew his certificate annually" on or before the last day of December, and (B)(3) says certificates "expire on the last day of each calendar year."</p>
+<p>The Board's renewal page adds two practical points:</p>
+<ul>
+<li><strong>Renewal opens November 1</strong> in the Licensee Portal.</li>
+<li><strong>Reminders come by email only.</strong> The Board no longer mails them. If your email on file is out of date, you won't get one.</li>
+</ul>
+<p>Your next deadline is <strong>December 31, 2026</strong>. <a href="../../louisiana/">See your Louisiana dates here</a>.</p>
+
+<h2>What it costs, and what late costs</h2>
+<p>The Board's fee table lists these annual renewal fees, all due December 31:</p>
+<ul>
+<li><strong>Active CPA license:</strong> $120</li>
+<li><strong>Inactive or Retired status:</strong> $50</li>
+</ul>
+<p>An active license renewed late costs more each month:</p>
+<ul>
+<li><strong>February:</strong> a $200 delinquent fee.</li>
+<li><strong>March through December:</strong> another $50 for each month until the Board receives it. That's $250 in March, $300 in April, and $700 by December.</li>
+</ul>
+<p>An inactive renewal follows the same pattern at lower amounts: $60 in February, rising $15 a month to $210 in December.</p>
+<p>January has no fee on the table, but it isn't an extension. The license still expires December 31, and the rule treats not renewing on time as a violation of the Accountancy Act. The rule itself leaves the late-fee amounts to the Board, so check the current table when you renew.</p>
+
+<h2>You can renew before your CPE is finished</h2>
+<p>Renewing and reporting CPE are separate steps. The Board's renewal page says the renewal "can still be submitted prior to the completion of the hours." You can add CPE in the portal afterward.</p>
+<p>The CPE deadline is still firm. Courses must be completed by December 31 and reported by <strong>January 31</strong>. If you renewed as active but haven't met the CPE reporting requirement, Board Rule 1105(B)(12) moves your license to "CPA inactive" status effective February 1.</p>
+
+<h2>CPE: 80 hours over a rolling two years, never fewer than 20 in a year</h2>
+<p>Board Rule 1301.A requires "a minimum of 20 hours ... annually, and at least 80 hours ... within a rolling two-calendar-year period." Each two-year window ends December 31, so every year is the second year of some window.</p>
+<p>The trap is a light year. If you take only 20 hours one year, you need 60 the next, because those two years together have to reach 80. The Board's own advice is to aim for about 40 hours a year. It works the other way too: per the Board's FAQ, a CPA who reported 61 hours in 2024 needed only the 20-hour minimum in 2025.</p>
+<p>A few more rules:</p>
+<ul>
+<li><strong>Accounting and auditing:</strong> if you take part in any attest engagement during the year (audit, review, compilation or agreed-upon procedures), you need at least 8 hours of A&amp;A that same year (1301.A.1).</li>
+<li><strong>No carryover:</strong> extra hours don't roll into the next year.</li>
+<li><strong>Annual caps:</strong> personal development, teaching and speaking, and credential exams are each capped at 20 hours a year. Published material is capped at 10. Hours over a cap are lost.</li>
+<li><strong>Self-study:</strong> no limit on hours, but it must be "interactive." The Board doesn't accept nano-learning.</li>
+<li><strong>Credit math:</strong> one credit per 50 minutes, rounded down to the nearest half credit.</li>
+<li><strong>Records:</strong> keep certificates of completion for five full calendar years. Self-made transcripts or course lists don't count as proof.</li>
+</ul>
+<p>Newly licensed CPAs don't owe CPE until the first full calendar year after licensure (1301.E.1). The same applies after a reinstatement. Inactive and retired CPAs don't report CPE.</p>
+<p><a href="../../louisiana-cpa-cpe-requirements/">The full Louisiana CPE breakdown is here</a>.</p>
+
+<h2>The ethics course: even-numbered years, and it has to be Board-approved</h2>
+<p>The Board's CPE page says: "All CPAs are required to complete a Board-approved Ethics Course in even-numbered years." <strong>2026 is an even year.</strong> If you're an active Louisiana CPA, the course is due by December 31, 2026, along with the rest of this year's hours.</p>
+<p>The course has to be on the Board's list. Under Rule 1301.A.2, its contents "must have been pre-approved by the board." The Board publishes a list of approved 2026 ethics course vendors on its CPE page. Its FAQ says other ethics courses are "behavioral ethics". They count toward your total hours, but they don't satisfy this requirement.</p>
+<p>If you practice mainly outside Louisiana, the FAQ says you don't need the Louisiana course if all three of these are true:</p>
+<ul>
+<li>you hold an active CPA license in another state;</li>
+<li>you practice primarily outside Louisiana;</li>
+<li>that state requires an ethics course.</li>
+</ul>
+<p>If your home state has no ethics requirement, you take Louisiana's (1301.B.2.c).</p>
+
+<h2>If your principal place of business is in another state</h2>
+<p>Under Rule 1301.B.2, a non-resident licensee meets Louisiana's CPE requirement by meeting the CPE requirement of the state where their principal place of business is. You confirm that by signing a statement on the Louisiana renewal. If that state has no CPE requirement, Louisiana's rules apply in full. Either way, you still renew the Louisiana license by December 31.</p>
+
+<h2>Lapsed more than a year: reinstatement</h2>
+<p>Once a license has been expired for more than a year, the Board's page routes it to a reinstatement application. The requirements:</p>
+<ul>
+<li><strong>120 hours of CPE</strong>, including <strong>3 hours of a Board-approved ethics course</strong>. All of it must be finished before you apply, earned in the three years before the application, and not previously reported to the Board.</li>
+<li><strong>One year of experience</strong> within the past four years, verified by a licensed CPA from any state. It can be in public accounting, industry, academia or government.</li>
+</ul>
+<p>Rule 1105(D) sets the same 120-hour and four-year experience requirements. The Board doesn't publish a reinstatement application fee; its fee table says to contact the office.</p>
+<p><a href="../../louisiana-cpa-license-reinstatement/">Full Louisiana reinstatement details here</a>.</p>
+
+<h2>Firms: same December 31 date, separate permit</h2>
+<p>A Louisiana CPA firm permit is renewed separately from your personal license, on the same annual schedule. Rule 1501(D)(1) says firm renewals "are due by December 31, delinquent if not renewed prior to February 1." According to the Board's firm page:</p>
+<ul>
+<li><strong>Renewal:</strong> $50, plus $25 for each owner over 10, capped at $2,500.</li>
+<li><strong>Late:</strong> after January 31, a $300 delinquent fee applies. It stays in effect through December or until the firm renews.</li>
+<li><strong>Expired a year or more:</strong> the firm files a new initial application and pays the delinquent fees (1501(E)(1)). The Board lists the firm reinstatement fee as $150.</li>
+</ul>
+<p>Out-of-state CPAs who qualify for practice privileges don't file a notice or pay a fee (1105(E)(2)). Out-of-state firms have separate conditions.</p>
+<p><a href="../../louisiana-cpa-firm-renewal/">Louisiana firm renewal details here</a>.</p>
+
+<p><strong>Bottom line</strong>: Renew your Louisiana license by December 31 every year for $120. Waiting past January costs $200 in February and more each month after. You can renew before your CPE is done, but hours not reported by January 31 move you to inactive on February 1. Plan for about 40 hours a year, never fewer than 20, and 80 across any two years. In 2026, take the Board-approved ethics course from the Board's list — the next one is due in 2028. Firms renew separately, by the same December 31 date.</p>
+
+<p><em>Sources: Louisiana State Board of CPAs rules, LAC 46:XIX §§1105, 1301 and 1501, as published in the Board's current compilation; the Board's CPE page and CPE FAQ; the Board's CPA Resources page (renewal, reinstatement and fee table); the Board's CPA Firm Permits page. Checked November 2026. This is a summary, not legal advice. Confirm anything you're relying on with the State Board of CPAs of Louisiana.</em></p>
+''',
+    },
 ]
 
 
